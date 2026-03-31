@@ -1,0 +1,24 @@
+# IDEs
+.vscode/
+.idea/
+
+# Laravel
+backend/.env
+backend/vendor/
+backend/node_modules/
+backend/storage/*.key
+backend/storage/framework/cache/data/*
+backend/storage/framework/sessions/*
+backend/storage/framework/testing/*
+backend/storage/framework/views/*
+backend/storage/logs/*
+
+# React
+frontend/.env
+frontend/node_modules/
+frontend/dist/
+frontend/.eslintcache
+
+# OS Files
+.DS_Store
+Thumbs.db
