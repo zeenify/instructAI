@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://instructai.test/api',
+    baseURL: import.meta.env.VITE_API_URL || 'http://instructai.test/api',
     headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
