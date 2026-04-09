@@ -41,4 +41,17 @@ class User extends Authenticatable
     {
         return $this->hasOne(TeacherProfile::class);
     }
+
+    public function managedClasses() {
+        return $this->hasMany(Classroom::class, 'teacher_id');
+    }
+
+    public function enrollments() {
+        return $this->hasMany(Enrollment::class, 'student_id');
+    }
+
+    public function classes() {
+        return $this->belongsToMany(Classroom::class, 'enrollments', 'student_id', 'class_id');
+    }
+
 }
