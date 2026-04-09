@@ -9,7 +9,6 @@ export const AuthProvider = ({ children }) => {
     const [token, setToken] = useState(localStorage.getItem('token'));
     const [role, setRole] = useState(localStorage.getItem('role'));
 
-    // --- The missing login function ---
     const login = (userData, userToken, userRole) => {
         setUser(userData);
         setToken(userToken);
@@ -30,21 +29,26 @@ export const AuthProvider = ({ children }) => {
         const loadUser = async () => {
             if (token) {
                 try {
-                    // Logic to verify token/get user data could go here
-                    // For now, we assume token is valid and just stop loading
-                    setLoading(false);
+                    // Fetch full user data including profiles
+                    const res = await api.get('/user');
+                    setUser(res.data);
+                    setRole(res.data.role);
                 } catch (err) {
+                    console.error("Session expired");
                     logout();
-                    setLoading(false);
                 }
-            } else {
-                setLoading(false);
             }
+            setLoading(false);
         };
         loadUser();
     }, [token]);
 
-    if (loading) return <div className="bg-black h-screen" />; 
+    // Show a loading screen while we fetch the user info
+    if (loading) return (
+        <div className="h-screen bg-[#030014] flex items-center justify-center">
+            <div className="w-12 h-12 border-2 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
+        </div>
+    );
 
     return (
         <AuthContext.Provider value={{ user, token, role, login, logout, isAuthenticated: !!token }}>

@@ -1,7 +1,10 @@
 <?php
-
+use Illuminate\Http\Request;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Teacher\ClassroomController;
+use App\Http\Controllers\Teacher\CourseController; 
+
 
 // Public Routes
 Route::post('/register/student', [AuthController::class, 'registerStudent']);
@@ -11,5 +14,31 @@ Route::post('/login/google', [AuthController::class, 'loginWithGoogle']);
 
 // Protected Routes
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user', function (Request $request) {
+        $user = $request->user();
+        $profile = $user->role === 'teacher' ? 'teacherProfile' : 'studentProfile';
+        return $user->load($profile);
+    });
+    
+
     Route::post('/logout', [AuthController::class, 'logout']);
+});
+
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/teacher/classes', [ClassroomController::class, 'index']);
+    Route::post('/teacher/classes', [ClassroomController::class, 'store']);
+    Route::get('/teacher/classes/{id}', [ClassroomController::class, 'show']);
+    Route::delete('/teacher/class/{id}', [ClassroomController::class, 'destroy']);
+
+    // Inside the auth:sanctum group...
+    Route::post('/teacher/classes/{classId}/courses', [CourseController::class, 'store']);
+    
+    // Stats for Overview
+    Route::get('/teacher/stats', function (Request $request) {
+        return [
+            'classes_count' => $request->user()->managedClasses()->count(),
+            'students_count' => 0, // Update this later when enrollments work
+            'tokens_status' => 'Healthy'
+        ];
+    });
 });
