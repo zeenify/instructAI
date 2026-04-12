@@ -38,4 +38,27 @@ class CourseController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+    public function show($id)
+    {
+        try {
+            // This line is the one failing if Models aren't setup:
+            $course = Course::with(['modules.lessons', 'modules.quizzes'])->findOrFail($id);
+            
+            // Security check
+            if ($course->teacher_id !== auth()->id()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            return response()->json($course);
+        } catch (\Exception $e) {
+            // This will print the ACTUAL error to your browser's Network tab
+            return response()->json([
+                'error' => 'Backend Logic Error',
+                'message' => $e->getMessage(),
+                'line' => $e->getLine()
+            ], 500);
+        }
+    }
+
+
 }

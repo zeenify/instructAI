@@ -11,6 +11,10 @@ import StudentRegisterPage from './pages/auth/StudentRegisterPage';
 import TeacherOverview from './pages/teacher/TeacherOverview';
 import CreateClass from './pages/teacher/CreateClass';
 import ClassDetails from './pages/teacher/ClassDetails';
+import CourseBuilder from './pages/teacher/CourseBuilder';
+import LessonEditor from './pages/teacher/LessonEditor';
+
+
 
 
 // Layouts
@@ -40,6 +44,8 @@ function App() {
                     <Route path="analytics" element={<TeacherLayout><div>Analytics Page</div></TeacherLayout>} />
                     <Route path="classes/new" element={<CreateClass />} />
                     <Route path="class/:id" element={<ClassDetails />} />
+                    <Route path="course/:id" element={<CourseBuilder />} />
+                    <Route path="lesson/:id" element={<LessonEditor />} />
                   </Routes>
                 </ClassProvider>
               </ProtectedRoute>

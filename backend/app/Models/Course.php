@@ -18,4 +18,8 @@ class Course extends Model
     public function classroom() {
         return $this->belongsTo(Classroom::class, 'class_id');
     }
+    public function modules() {
+        return $this->hasMany(Module::class)->orderBy('order_index', 'asc');
+    }
+
 }

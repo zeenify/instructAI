@@ -4,6 +4,9 @@ use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Teacher\ClassroomController;
 use App\Http\Controllers\Teacher\CourseController; 
+use App\Http\Controllers\Teacher\ModuleController;
+use App\Http\Controllers\Teacher\LessonController; 
+use App\Http\Controllers\Teacher\QuizController;   
 
 
 // Public Routes
@@ -32,7 +35,18 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Inside the auth:sanctum group...
     Route::post('/teacher/classes/{classId}/courses', [CourseController::class, 'store']);
-    
+    Route::get('/teacher/courses/{id}', [CourseController::class, 'show']);
+    Route::post('/teacher/courses/{courseId}/modules', [ModuleController::class, 'store']);
+
+    Route::post('/teacher/modules/{moduleId}/lessons', [LessonController::class, 'store']);
+    Route::post('/teacher/modules/{moduleId}/quizzes', [QuizController::class, 'store']);
+
+    Route::get('/teacher/lessons/{id}', [LessonController::class, 'show']);
+    Route::put('/teacher/lessons/{id}', [LessonController::class, 'update']);
+    Route::post('/teacher/lessons/upload-image', [LessonController::class, 'uploadImage']);
+
+
+
     // Stats for Overview
     Route::get('/teacher/stats', function (Request $request) {
         return [

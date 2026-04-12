@@ -114,7 +114,10 @@ export default function ClassDetails() {
                                         <h4 className="text-lg font-bold group-hover:text-purple-400 transition-colors">{course.title}</h4>
                                         <p className="text-slate-500 text-sm">{course.is_published ? "Published" : "Draft"}</p>
                                     </div>
-                                    <button className="p-3 bg-white/5 rounded-xl text-slate-400 hover:text-white transition-all border-none cursor-pointer">
+                                    <button 
+                                        onClick={() => navigate(`/dashboard/teacher/course/${course.id}`)}
+                                        className="p-3 bg-white/5 rounded-xl text-slate-400 hover:text-white transition-all border-none cursor-pointer"
+                                    >
                                         <ExternalLink size={18} />
                                     </button>
                                 </div>
