@@ -6,12 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class Quiz extends Model
 {
-    // Important: Allow these to be saved
     protected $fillable = [
         'module_id', 
         'title', 
         'is_randomized', 
-        'time_limit_minutes'
+        'allow_ai_assistance', 
+        'time_limit_minutes',
+        'order_index' // <--- MAKE SURE THIS IS HERE
     ];
 
     public function module() {

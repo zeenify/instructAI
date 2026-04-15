@@ -7,7 +7,7 @@ use App\Http\Controllers\Teacher\CourseController;
 use App\Http\Controllers\Teacher\ModuleController;
 use App\Http\Controllers\Teacher\LessonController; 
 use App\Http\Controllers\Teacher\QuizController;   
-
+use App\Http\Controllers\Teacher\QuestionController;
 
 // Public Routes
 Route::post('/register/student', [AuthController::class, 'registerStudent']);
@@ -41,9 +41,20 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/teacher/modules/{moduleId}/lessons', [LessonController::class, 'store']);
     Route::post('/teacher/modules/{moduleId}/quizzes', [QuizController::class, 'store']);
 
+    Route::post('/teacher/modules/{moduleId}/reorder', [ModuleController::class, 'reorderItems']);
+    
+
     Route::get('/teacher/lessons/{id}', [LessonController::class, 'show']);
     Route::put('/teacher/lessons/{id}', [LessonController::class, 'update']);
     Route::post('/teacher/lessons/upload-image', [LessonController::class, 'uploadImage']);
+
+    // Quiz Management
+    Route::get('/teacher/quizzes/{id}', [QuizController::class, 'show']);
+    Route::put('/teacher/quizzes/{id}', [QuizController::class, 'update']);
+    // Question Management
+    Route::post('/teacher/quizzes/{quizId}/questions', [QuestionController::class, 'store']);
+    Route::put('/teacher/questions/{id}', [QuestionController::class, 'update']);
+    Route::delete('/teacher/questions/{id}', [QuestionController::class, 'destroy']);
 
 
 

@@ -26,24 +26,22 @@ class LessonController extends Controller
      */
     public function store(Request $request, $moduleId)
     {
-        $module = Module::with('course')->findOrFail($moduleId);
-        
-        if ($module->course->teacher_id !== $request->user()->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        $module = Module::findOrFail($moduleId);
 
-        $request->validate(['title' => 'required|string|max:255']);
+        // Calculate next order index by counting BOTH types
+        $nextOrder = $module->lessons()->count() + $module->quizzes()->count() + 1;
 
         $lesson = Lesson::create([
             'module_id' => $moduleId,
             'title' => $request->title,
             'content' => [], 
-            'order_index' => $module->lessons()->count() + 1,
+            'order_index' => $nextOrder, // <--- UPDATED LOGIC
             'is_published' => false
         ]);
 
         return response()->json($lesson, 201);
     }
+
 
     /**
      * Update lesson blocks

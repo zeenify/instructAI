@@ -42,8 +42,12 @@ class CourseController extends Controller
     {
         try {
             // This line is the one failing if Models aren't setup:
-            $course = Course::with(['modules.lessons', 'modules.quizzes'])->findOrFail($id);
-            
+            $course = Course::with([
+                'modules' => function($q) { $q->orderBy('order_index', 'asc'); },
+                'modules.lessons' => function($q) { $q->orderBy('order_index', 'asc'); },
+                'modules.quizzes' => function($q) { $q->orderBy('id', 'asc'); } // Or order_index if you add it
+            ])->findOrFail($id);
+                
             // Security check
             if ($course->teacher_id !== auth()->id()) {
                 return response()->json(['message' => 'Unauthorized'], 403);

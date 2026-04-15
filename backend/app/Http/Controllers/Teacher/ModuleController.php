@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Teacher;
 use App\Http\Controllers\Controller;
 use App\Models\Module; // <--- MUST HAVE THIS
 use App\Models\Course; // <--- MUST HAVE THIS
+use App\Models\Lesson;
+use App\Models\Quiz;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ModuleController extends Controller
 {
@@ -38,4 +41,27 @@ class ModuleController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
+    public function reorderItems(Request $request, $moduleId)
+    {
+        $items = $request->items;
+
+        // A Transaction ensures the DB doesn't save partial/messy data
+        DB::transaction(function () use ($items) {
+            foreach ($items as $index => $item) {
+                $newPosition = $index + 1;
+
+                if ($item['itemType'] === 'lesson') {
+                    DB::table('lessons')->where('id', $item['id'])->update(['order_index' => $newPosition]);
+                } elseif ($item['itemType'] === 'quiz') {
+                    DB::table('quizzes')->where('id', $item['id'])->update(['order_index' => $newPosition]);
+                }
+            }
+        });
+
+        return response()->json(['message' => 'Timeline synchronized']);
+    }
+
+
+
 }

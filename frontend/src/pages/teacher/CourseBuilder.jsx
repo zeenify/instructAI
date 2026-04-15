@@ -1,30 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import TeacherLayout from '../../components/layouts/TeacherLayout';
-import api from '../../services/api';
-import { motion, AnimatePresence } from 'framer-motion'; 
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { 
     ChevronLeft, Plus, FileText, HelpCircle, 
-    MoreHorizontal, Loader2, Sparkles, ExternalLink, X, Check 
+    MoreHorizontal, Loader2, Sparkles, ExternalLink, X, Check, GripVertical 
 } from 'lucide-react';
 import { toast } from 'sonner';
+import api from '../../services/api';
+import TeacherLayout from '../../components/layouts/TeacherLayout';
 import Button from '../../components/ui/Button';
+import './CourseBuilder.css';
 
 export default function CourseBuilder() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [course, setCourse] = useState(null);
     const [loading, setLoading] = useState(true);
-    
-    // Creation States
     const [isAddingModule, setIsAddingModule] = useState(false);
     const [newModuleTitle, setNewModuleTitle] = useState('');
-    
-    // Inline Creation State (Tracks which module is being edited)
     const [activeInput, setActiveInput] = useState({ moduleId: null, type: null, value: '' });
     const [isSubmittingItem, setIsSubmittingItem] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
 
     useEffect(() => { fetchCourse(); }, [id]);
+
+    const debounceTimer = useRef(null);
+
 
     const fetchCourse = async () => {
         try {
@@ -34,15 +35,76 @@ export default function CourseBuilder() {
         finally { setLoading(false); }
     };
 
+    // --- REORDER LOGIC ---
+    const handleReorderModules = (newOrder) => {
+        setCourse(prev => ({ ...prev, modules: newOrder }));
+    };
+
+    const handleReorderItems = (moduleId, newOrder) => {
+        // A. Update UI instantly (Always smooth)
+        setCourse(prev => ({
+            ...prev,
+            modules: prev.modules.map(m => {
+                if (m.id === moduleId) {
+                    return {
+                        ...m,
+                        lessons: newOrder.filter(i => i.itemType === 'lesson'),
+                        quizzes: newOrder.filter(i => i.itemType === 'quiz'),
+                        _lastOrder: newOrder 
+                    };
+                }
+                return m;
+            })
+        }));
+
+        // B. DEBOUNCED SYNC: Only save to DB after 1 second of "silence"
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+
+        debounceTimer.current = setTimeout(async () => {
+            try {
+                const payload = newOrder.map(item => ({
+                    id: item.id,
+                    itemType: item.itemType
+                }));
+                
+                // This only fires once the teacher is DONE dragging
+                await api.post(`/teacher/modules/${moduleId}/reorder`, { items: payload });
+                console.log("Database order synced");
+            } catch (err) {
+                toast.error("Sync failed");
+            }
+        }, 1000); // 1 second delay
+    };
+
+
+    // 2. Updated Helper: Only sort by index IF we haven't manually dragged yet
+    const getSortedItems = useCallback((module) => {
+        // If we just dragged, use that exact order
+        if (module._lastOrder) return module._lastOrder;
+
+        const lessons = (module.lessons || []).map(l => ({ ...l, itemType: 'lesson' }));
+        const quizzes = (module.quizzes || []).map(q => ({ ...q, itemType: 'quiz' }));
+        
+        // Sort by order_index, but fallback to ID to keep it stable
+        return [...lessons, ...quizzes].sort((a, b) => {
+            const orderA = a.order_index ?? 0;
+            const orderB = b.order_index ?? 0;
+            if (orderA !== orderB) return orderA - orderB;
+            return a.id - b.id;
+        });
+    }, []);
+
+
+
     const addModule = async (e) => {
         e.preventDefault();
         if (!newModuleTitle.trim()) return;
         setIsAddingModule(true);
         try {
             const res = await api.post(`/teacher/courses/${id}/modules`, { title: newModuleTitle });
-            setCourse({ ...course, modules: [...course.modules, { ...res.data, lessons: [], quizzes: [] }] });
+            setCourse(prev => ({ ...prev, modules: [...prev.modules, { ...res.data, lessons: [], quizzes: [] }] }));
             setNewModuleTitle('');
-            toast.success("Module initialized");
+            toast.success("Module added");
         } catch (err) { toast.error("Failed to add module"); }
         finally { setIsAddingModule(false); }
     };
@@ -52,7 +114,6 @@ export default function CourseBuilder() {
         setIsSubmittingItem(true);
         const { moduleId, type, value } = activeInput;
         const endpoint = `/teacher/modules/${moduleId}/${type === 'lesson' ? 'lessons' : 'quizzes'}`;
-        
         try {
             const res = await api.post(endpoint, { title: value });
             setCourse(prev => ({
@@ -64,8 +125,8 @@ export default function CourseBuilder() {
                 )
             }));
             setActiveInput({ moduleId: null, type: null, value: '' });
-            toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} created`);
-        } catch (err) { toast.error("Creation failed"); }
+            toast.success(`${type} created`);
+        } catch (err) { toast.error("Failed"); }
         finally { setIsSubmittingItem(false); }
     };
 
@@ -77,102 +138,101 @@ export default function CourseBuilder() {
 
     return (
         <TeacherLayout>
-            <div className="mb-10">
-                <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors mb-4 border-none bg-transparent cursor-pointer">
-                    <ChevronLeft size={16} /> Back to Class
-                </button>
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-                    <div>
-                        <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">{course.title}</h1>
-                        <p className="text-slate-400">Curriculum Structure & Content Engineering</p>
-                    </div>
-                    <button className="btn-student py-2.5 px-5 text-xs font-bold uppercase tracking-widest flex items-center gap-2 border-none cursor-pointer">
-                        <Sparkles size={14} /> AI Generate
+            <div className={`builder-container ${isDragging ? 'is-dragging-active' : ''}`}>
+                <div className="mb-10">
+                    <button onClick={() => navigate(-1)} className="back-btn border-none bg-transparent cursor-pointer">
+                        <ChevronLeft size={16} /> Back to Class
                     </button>
-                </div>
-            </div>
-
-            <div className="space-y-8 mb-12">
-                {course.modules.map((module, index) => (
-                    <div key={module.id} className="stat-card p-0 border-white/5 overflow-hidden">
-                        <div className="bg-white/[0.02] border-b border-white/5 p-6 flex justify-between items-center">
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-sm font-bold text-purple-400 border border-purple-500/20">
-                                    {String(index + 1).padStart(2, '0')}
-                                </div>
-                                <h3 className="text-xl font-bold text-white">{module.title}</h3>
-                            </div>
+                    <div className="builder-header">
+                        <div>
+                            <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">{course.title}</h1>
+                            <p className="text-slate-400 text-sm">Curriculum Structure & Content Engineering</p>
                         </div>
-
-                        <div className="p-6 space-y-3">
-                            {module.lessons?.map(lesson => (
-                                <div key={lesson.id} className="flex items-center justify-between p-4 bg-white/[0.03] border border-white/5 rounded-2xl group hover:border-purple-500/30 transition-all">
-                                    <div className="flex items-center gap-4">
-                                        <FileText size={18} className="text-purple-400" />
-                                        <span className="text-sm font-semibold text-slate-200">{lesson.title}</span>
-                                    </div>
-                                    <button onClick={() => navigate(`/dashboard/teacher/lesson/${lesson.id}`)} className="opacity-0 group-hover:opacity-100 flex items-center gap-2 text-[11px] font-bold text-purple-400 uppercase tracking-widest hover:text-white transition-all border-none bg-transparent cursor-pointer">
-                                        Edit Content <ExternalLink size={12} />
-                                    </button>
-                                </div>
-                            ))}
-
-                            {module.quizzes?.map(quiz => (
-                                <div key={quiz.id} className="flex items-center justify-between p-4 bg-white/[0.03] border border-white/5 rounded-2xl group hover:border-cyan-500/30 transition-all">
-                                    <div className="flex items-center gap-4">
-                                        <HelpCircle size={18} className="text-cyan-400" />
-                                        <span className="text-sm font-semibold text-slate-200">{quiz.title}</span>
-                                    </div>
-                                    <button className="opacity-0 group-hover:opacity-100 flex items-center gap-2 text-[11px] font-bold text-cyan-400 uppercase tracking-widest hover:text-white transition-all border-none bg-transparent cursor-pointer">
-                                        Build Quiz <ExternalLink size={12} />
-                                    </button>
-                                </div>
-                            ))}
-
-                            {/* INLINE CREATION FIELD */}
-                            {activeInput.moduleId === module.id && (
-                                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="p-2 bg-white/5 rounded-2xl border border-white/10 flex items-center gap-2">
-                                    <div className={`p-2 rounded-lg ${activeInput.type === 'lesson' ? 'text-purple-400' : 'text-cyan-400'}`}>
-                                        {activeInput.type === 'lesson' ? <FileText size={18} /> : <HelpCircle size={18} />}
-                                    </div>
-                                    <input 
-                                        autoFocus
-                                        className="flex-grow bg-transparent border-none outline-none text-white text-sm"
-                                        placeholder={`Enter ${activeInput.type} title...`}
-                                        value={activeInput.value}
-                                        onChange={(e) => setActiveInput({ ...activeInput, value: e.target.value })}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleCreateItem()}
-                                    />
-                                    <button onClick={() => setActiveInput({ moduleId: null, type: null, value: '' })} className="p-2 text-slate-500 hover:text-white transition-colors bg-transparent border-none cursor-pointer"><X size={16} /></button>
-                                    <button disabled={isSubmittingItem} onClick={handleCreateItem} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all border-none cursor-pointer">
-                                        {isSubmittingItem ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                                    </button>
-                                </motion.div>
-                            )}
-
-                            {/* TRIGGER BUTTONS */}
-                            {!activeInput.moduleId && (
-                                <div className="grid grid-cols-2 gap-4 mt-6">
-                                    <button onClick={() => setActiveInput({ moduleId: module.id, type: 'lesson', value: '' })} className="p-4 bg-white/[0.01] border border-dashed border-white/10 rounded-2xl flex items-center justify-center gap-3 hover:bg-purple-500/5 hover:border-purple-500/40 transition-all text-slate-500 hover:text-purple-400 font-bold text-xs uppercase tracking-widest cursor-pointer">
-                                        <Plus size={16} /> Add Lesson
-                                    </button>
-                                    <button onClick={() => setActiveInput({ moduleId: module.id, type: 'quiz', value: '' })} className="p-4 bg-white/[0.01] border border-dashed border-white/10 rounded-2xl flex items-center justify-center gap-3 hover:bg-cyan-500/5 hover:border-cyan-500/40 transition-all text-slate-500 hover:text-cyan-400 font-bold text-xs uppercase tracking-widest cursor-pointer">
-                                        <Plus size={16} /> Add Quiz
-                                    </button>
-                                </div>
-                            )}
-                        </div>
+                        <button className="btn-student ai-btn border-none cursor-pointer">
+                            <Sparkles size={14} /> AI Generate
+                        </button>
                     </div>
-                ))}
+                </div>
 
-                <form onSubmit={addModule} className="flex flex-col sm:flex-row gap-4">
-                    <input 
-                        type="text" placeholder="Next Module Title..." 
-                        className="student-link flex-grow bg-white/[0.03] text-lg py-4 px-6 border-white/10"
-                        value={newModuleTitle} onChange={(e) => setNewModuleTitle(e.target.value)}
-                        disabled={isAddingModule}
-                    />
-                    <Button loading={isAddingModule} type="submit" className="px-10 h-[60px]">Add Module</Button>
+                <Reorder.Group axis="y" values={course.modules} onReorder={handleReorderModules} className="module-group list-none">
+                    {course.modules.map((module, index) => (
+                        <Reorder.Item key={module.id} value={module} className="module-card">
+                            <div className="module-header">
+                                <div className="flex items-center gap-4">
+                                    <div className="drag-handle"><GripVertical size={20} /></div>
+                                    <div className="module-number">{String(index + 1).padStart(2, '0')}</div>
+                                    <h3 className="module-title">{module.title}</h3>
+                                </div>
+                                <button className="icon-btn bg-transparent border-none cursor-pointer"><MoreHorizontal size={20} /></button>
+                            </div>
+
+                            <div className="module-content">
+                                <span className="content-label">Module Timeline</span>
+                                
+                                <Reorder.Group 
+                                    axis="y" 
+                                    values={getSortedItems(module)} 
+                                    onReorder={(newOrder) => handleReorderItems(module.id, newOrder)}
+                                    className="timeline-group list-none p-0"
+                                >
+                                    {getSortedItems(module).map((item) => (
+                                        <Reorder.Item 
+                                            key={`${item.itemType}-${item.id}`} 
+                                            value={item}
+                                            onDragStart={() => setIsDragging(true)}
+                                            onDragEnd={() => setIsDragging(false)}
+                                            className={`timeline-item ${item.itemType}-item`}
+                                        >
+                                            <div className="flex items-center gap-4 pointer-events-none">
+                                                <div className="item-drag-handle"><GripVertical size={16} /></div>
+                                                <div className={`item-icon ${item.itemType}`}>
+                                                    {item.itemType === 'lesson' ? <FileText size={18} /> : <HelpCircle size={18} />}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="item-title">{item.title}</span>
+                                                    <span className="item-badge">{item.itemType}</span>
+                                                </div>
+                                            </div>
+                                            {!isDragging && (
+                                                <button onClick={() => navigate(`/dashboard/teacher/${item.itemType}/${item.id}`)} className="edit-btn">
+                                                    Edit {item.itemType} <ExternalLink size={12} />
+                                                </button>
+                                            )}
+                                        </Reorder.Item>
+                                    ))}
+                                </Reorder.Group>
+
+                                <AnimatePresence>
+                                    {activeInput.moduleId === module.id && (
+                                        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="inline-input-box">
+                                            <div className={`type-icon ${activeInput.type}`}>
+                                                {activeInput.type === 'lesson' ? <FileText size={18} /> : <HelpCircle size={18} />}
+                                            </div>
+                                            <input autoFocus placeholder={`Enter ${activeInput.type} title...`} value={activeInput.value} onChange={(e) => setActiveInput({ ...activeInput, value: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && handleCreateItem()} />
+                                            <div className="flex gap-1">
+                                                <button onClick={() => setActiveInput({ moduleId: null, type: null, value: '' })} className="action-btn cancel bg-transparent border-none cursor-pointer"><X size={16} /></button>
+                                                <button disabled={isSubmittingItem} onClick={handleCreateItem} className="action-btn confirm bg-transparent border-none cursor-pointer">
+                                                    {isSubmittingItem ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+                                {!activeInput.moduleId && (
+                                    <div className="add-item-grid">
+                                        <button onClick={() => setActiveInput({ moduleId: module.id, type: 'lesson', value: '' })} className="add-btn lesson"><Plus size={16} /> Lesson</button>
+                                        <button onClick={() => setActiveInput({ moduleId: module.id, type: 'quiz', value: '' })} className="add-btn quiz"><Plus size={16} /> Quiz</button>
+                                    </div>
+                                )}
+                            </div>
+                        </Reorder.Item>
+                    ))}
+                </Reorder.Group>
+
+                <form onSubmit={addModule} className="add-module-form">
+                    <input className="student-link" type="text" placeholder="Next Module Title..." value={newModuleTitle} onChange={(e) => setNewModuleTitle(e.target.value)} disabled={isAddingModule} />
+                    <Button loading={isAddingModule} type="submit" className="h-[60px] px-8">Add Module</Button>
                 </form>
             </div>
         </TeacherLayout>

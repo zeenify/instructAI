@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Question extends Model
 {
+    // 1. Allow these fields to be saved
     protected $fillable = [
         'quiz_id', 
         'type', 
@@ -15,11 +16,13 @@ class Question extends Model
         'points'
     ];
 
+    // 2. CRITICAL: Tell Laravel that 'options' is an array/JSON
     protected $casts = [
-        'options' => 'json', // Ensures JSON is handled as an array
+        'options' => 'array', 
     ];
 
-    public function quiz() {
+    public function quiz()
+    {
         return $this->belongsTo(Quiz::class);
     }
 }

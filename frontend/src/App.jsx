@@ -3,6 +3,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ClassProvider } from './context/ClassContext'; // Import the new provider
 import ProtectedRoute from './components/ProtectedRoute';
 
+
+
 // Pages
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
@@ -13,6 +15,7 @@ import CreateClass from './pages/teacher/CreateClass';
 import ClassDetails from './pages/teacher/ClassDetails';
 import CourseBuilder from './pages/teacher/CourseBuilder';
 import LessonEditor from './pages/teacher/LessonEditor';
+import QuizBuilder from './pages/teacher/QuizBuilder';
 
 
 
@@ -46,6 +49,7 @@ function App() {
                     <Route path="class/:id" element={<ClassDetails />} />
                     <Route path="course/:id" element={<CourseBuilder />} />
                     <Route path="lesson/:id" element={<LessonEditor />} />
+                    <Route path="quiz/:id" element={<QuizBuilder />} />
                   </Routes>
                 </ClassProvider>
               </ProtectedRoute>
