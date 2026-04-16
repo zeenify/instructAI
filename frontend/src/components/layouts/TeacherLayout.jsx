@@ -1,12 +1,12 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom'; // Added Outlet
 import { useAuth } from '../../context/AuthContext';
-import { useClasses } from '../../context/ClassContext'; // Use the new context
+import { useClasses } from '../../context/ClassContext'; 
 import { LayoutDashboard, Users, BarChart3, Settings, LogOut, Plus, Loader2 } from 'lucide-react';
 import '../../pages/teacher/Dashboard.css';
 
-export default function TeacherLayout({ children }) {
+export default function TeacherLayout() { // Removed { children }
     const { user, logout } = useAuth();
-    const { classes, loading } = useClasses(); // Get classes from context
+    const { classes, loading } = useClasses(); 
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -66,7 +66,7 @@ export default function TeacherLayout({ children }) {
                     <NavLink to="/dashboard/teacher/settings" icon={Settings} label="Settings" />
                 </nav>
 
-                {/* --- RESTORED PROFILE & SIGN OUT SECTION --- */}
+                {/* Profile & Sign Out */}
                 <div className="pt-6 border-t border-white/5">
                     <div className="flex items-center gap-3 mb-4 px-2">
                         <img 
@@ -93,7 +93,10 @@ export default function TeacherLayout({ children }) {
             </aside>
 
             <main className="main-content">
-                {children}
+                {/* --- IMPORTANT CHANGE HERE --- */}
+                {/* Instead of {children}, we use <Outlet />. 
+                    This allows the sidebar to stay mounted while pages swap. */}
+                <Outlet />
             </main>
         </div>
     );

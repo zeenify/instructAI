@@ -3,7 +3,7 @@ import { BookOpen, Users, Zap, Clock } from 'lucide-react';
 
 export default function TeacherOverview() {
     return (
-        <TeacherLayout>
+        <>
             <div className="mb-10">
                 <h1 className="text-4xl font-bold mb-2 tracking-tight">Workspace Overview</h1>
                 <p className="text-slate-400">Monitor your classes and AI-generated curriculum.</p>
@@ -58,6 +58,6 @@ export default function TeacherOverview() {
                     </div>
                 </div>
             </div>
-        </TeacherLayout>
+        </>
     );
 }

@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import TeacherLayout from '../../components/layouts/TeacherLayout';
 import api from '../../services/api';
 import CreateCourseModal from './CreateCourseModal';
-
 import { 
     Copy, Users, BookOpen, Plus, 
     Trash2, ExternalLink, Loader2 
@@ -18,22 +16,31 @@ export default function ClassDetails() {
     const [activeTab, setActiveTab] = useState('courses');
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-
     useEffect(() => {
+        let isMounted = true;
+        
         const fetchDetails = async () => {
+            // Speed Trick: Reset state instantly so the user sees the Skeleton 
+            // of the NEW class immediately instead of the data of the OLD class.
+            setLoading(true);
+            setClassroom(null); 
+            
             try {
-                // Ensure this matches your Laravel route: /api/teacher/classes/{id}
                 const res = await api.get(`/teacher/classes/${id}`);
-                setClassroom(res.data);
+                if (isMounted) {
+                    setClassroom(res.data);
+                    setLoading(false);
+                }
             } catch (err) {
-                console.error(err);
-                toast.error("Could not load class details");
-                navigate('/dashboard/teacher');
-            } finally {
-                setLoading(false);
+                if (isMounted) {
+                    toast.error("Could not load class details");
+                    navigate('/dashboard/teacher');
+                }
             }
         };
+
         fetchDetails();
+        return () => { isMounted = false; };
     }, [id, navigate]);
 
     const copyCode = () => {
@@ -42,19 +49,31 @@ export default function ClassDetails() {
         toast.success("Class code copied!");
     };
 
+    // --- MILLION DOLLAR SKELETON UI ---
     if (loading) return (
-        <TeacherLayout>
-            <div className="flex items-center justify-center h-64">
-                <Loader2 className="animate-spin text-purple-500" size={32} />
+        <div className="animate-pulse space-y-8">
+            {/* Header Skeleton */}
+            <div className="h-48 bg-white/5 rounded-[32px] border border-white/5 flex flex-col justify-center px-10 gap-4">
+                <div className="h-10 bg-white/10 rounded-xl w-1/3" />
+                <div className="h-4 bg-white/5 rounded-lg w-1/2" />
             </div>
-        </TeacherLayout>
+            {/* Tabs Skeleton */}
+            <div className="flex gap-8 border-b border-white/5 px-4">
+                <div className="h-8 bg-white/5 rounded w-24 mb-4" />
+                <div className="h-8 bg-white/5 rounded w-24 mb-4" />
+            </div>
+            {/* Grid Skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="h-32 bg-white/5 rounded-3xl border border-white/5" />
+                <div className="h-32 bg-white/5 rounded-3xl border border-white/5" />
+            </div>
+        </div>
     );
 
-    // If API returned nothing or error
     if (!classroom) return null;
 
     return (
-        <TeacherLayout>
+        <>
             {/* Header / Hero Area */}
             <div className="mb-8 p-8 rounded-[32px] bg-gradient-to-br from-purple-900/20 to-transparent border border-white/5 relative overflow-hidden">
                 <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -115,7 +134,8 @@ export default function ClassDetails() {
                                         <p className="text-slate-500 text-sm">{course.is_published ? "Published" : "Draft"}</p>
                                     </div>
                                     <button 
-                                        onClick={() => navigate(`/dashboard/teacher/course/${course.id}`)}
+                                        // SPEED FIX: Include classroom ID in the path so sidebar stays highlighted
+                                        onClick={() => navigate(`/dashboard/teacher/class/${classroom.id}/course/${course.id}`)}
                                         className="p-3 bg-white/5 rounded-xl text-slate-400 hover:text-white transition-all border-none cursor-pointer"
                                     >
                                         <ExternalLink size={18} />
@@ -143,12 +163,10 @@ export default function ClassDetails() {
                             {classroom.students?.map(student => (
                                 <tr key={student.id} className="hover:bg-white/[0.02] transition-colors">
                                     <td className="px-6 py-4 font-bold">
-                                        {/* Added Optional Chaining here to prevent crash */}
                                         {student.student_profile?.first_name} {student.student_profile?.last_name}
                                     </td>
                                     <td className="px-6 py-4 text-slate-400 text-sm">{student.email}</td>
                                     <td className="px-6 py-4 text-slate-500 text-sm">
-                                        {/* Added safety check for pivot data */}
                                         {student.pivot?.enrolled_at ? new Date(student.pivot.enrolled_at).toLocaleDateString() : 'Recent'}
                                     </td>
                                     <td className="px-6 py-4 text-right">
@@ -165,12 +183,12 @@ export default function ClassDetails() {
                     )}
                 </div>
             )}
+
             <CreateCourseModal 
                 isOpen={isModalOpen} 
                 onClose={() => setIsModalOpen(false)} 
                 classId={id} 
                 onCourseCreated={(newCourse) => {
-                    // This adds the new course to the UI immediately
                     setClassroom(prev => ({
                         ...prev,
                         courses: [...prev.courses, newCourse],
@@ -178,6 +196,6 @@ export default function ClassDetails() {
                     }));
                 }}
             />
-        </TeacherLayout>
+        </>
     );
 }

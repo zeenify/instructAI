@@ -1,3 +1,4 @@
+/* --- 1. Container & Typography --- */
 .builder-container {
     max-width: 1000px;
     margin: 0 auto;
@@ -11,31 +12,54 @@
 }
 .back-btn:hover { color: white; }
 
-.builder-header { display: flex; justify-content: space-between; align-items: flex-end; }
+.builder-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-end; 
+    margin-bottom: 40px;
+}
 
-/* Module Cards */
-.module-group { list-style: none; padding: 0; margin-top: 40px; }
+.ai-btn {
+    padding: 10px 20px;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: none;
+}
+
+/* --- 2. Module Cards --- */
+.module-group { list-style: none; padding: 0; }
 
 .module-card {
-    background: #05011d; border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 24px; overflow: hidden; margin-bottom: 32px;
+    background: #05011d;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 24px;
+    overflow: hidden;
+    margin-bottom: 32px;
     box-shadow: 0 20px 40px rgba(0,0,0,0.4);
 }
 
 .module-header {
-    background: rgba(255, 255, 255, 0.02); padding: 24px;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 24px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    display: flex; justify-content: space-between; align-items: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.drag-handle { cursor: grab; color: #334155; }
+.drag-handle { cursor: grab; color: #334155; transition: 0.2s; }
 .drag-handle:active { cursor: grabbing; }
+.drag-handle:hover { color: #a78bfa; }
 
 .module-number {
-    width: 40px; height: 40px; background: rgba(167, 139, 250, 0.1);
-    border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 10px;
+    width: 40px; height: 40px;
+    background: rgba(167, 139, 250, 0.1);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
-    color: #a78bfa; font-weight: 800;
+    color: #a78bfa; font-weight: 800; font-size: 14px;
 }
 
 .module-content { padding: 24px; }
@@ -45,35 +69,49 @@
     letter-spacing: 0.2em; color: #475569; margin-bottom: 16px; display: block;
 }
 
-/* Timeline Items & Drag Stability */
+/* --- 3. Timeline Reordering & Stability --- */
+.timeline-group {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
 .timeline-item {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    padding: 16px; border-radius: 16px;
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 12px; transition: background 0.2s, border-color 0.2s;
-    position: relative; z-index: 1;
+    padding: 16px;
+    border-radius: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+    user-select: none;
+    position: relative;
 }
 
-/* IMPORTANT: Fixes the "messy hover" during drag */
+/* Fixes the "messy hover" during drag */
 .is-dragging-active .timeline-item {
     pointer-events: none !important;
 }
 
 .timeline-item:active {
     z-index: 100 !important;
+    cursor: grabbing;
     background: rgba(167, 139, 250, 0.05) !important;
-    border-color: rgba(167, 139, 250, 0.2) !important;
+    border-color: rgba(167, 139, 250, 0.3) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
 }
 
-.item-drag-handle { cursor: grab; color: #1e293b; pointer-events: auto !important; }
+.item-drag-handle { cursor: grab; color: #1e293b; padding: 4px; pointer-events: auto !important; }
+.item-drag-handle:hover { color: white; }
 
 .item-icon { padding: 8px; border-radius: 10px; }
 .item-icon.lesson { background: rgba(167, 139, 250, 0.1); color: #a78bfa; }
 .item-icon.quiz { background: rgba(34, 211, 238, 0.1); color: #22d3ee; }
 
-.item-title { font-size: 15px; font-weight: 700; color: #f1f5f9; }
-.item-badge { font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; }
+.item-title { font-size: 15px; font-weight: 700; color: #f1f5f9; display: block; }
+.item-badge { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; }
 
 .edit-btn {
     opacity: 0; color: #94a3b8; font-size: 10px; font-weight: 800;
@@ -82,41 +120,91 @@
     pointer-events: auto !important;
 }
 .timeline-item:hover .edit-btn { opacity: 1; }
+.edit-btn:hover { color: white; }
 
-/* Add Item Grid */
-.add-item-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px; }
-.add-btn {
-    padding: 16px; border: 1px dashed rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.01); border-radius: 16px;
-    color: #64748b; font-size: 12px; font-weight: 800;
-    text-transform: uppercase; cursor: pointer; transition: 0.2s;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
+/* --- 4. Professional Inline Creation UI --- */
+.inline-input-container {
+    margin-top: 20px;
+    padding: 2px;
+    border-radius: 18px;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.05), transparent);
 }
-.add-btn.lesson:hover { border-color: #a78bfa; color: #a78bfa; }
-.add-btn.quiz:hover { border-color: #22d3ee; color: #22d3ee; }
+
+.input-inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #030014;
+    padding: 12px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+    transition: all 0.3s ease;
+}
+
+/* Color Coding for Creation Mode */
+.lesson-mode .input-inner { border-color: rgba(167, 139, 250, 0.4); }
+.quiz-mode .input-inner { border-color: rgba(34, 211, 238, 0.4); }
+
+.type-indicator {
+    padding: 8px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+}
+.lesson-mode .type-indicator { color: #a78bfa; }
+.quiz-mode .type-indicator { color: #22d3ee; }
+
+.input-inner input {
+    flex-grow: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: white;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.input-actions { display: flex; gap: 8px; }
+
+.cancel-btn, .confirm-btn {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.2s; border: none;
+}
+
+.cancel-btn { background: rgba(255,255,255,0.02); color: #64748b; }
+.cancel-btn:hover { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+.confirm-btn { background: white; color: black; }
+.lesson-mode .confirm-btn { background: #a78bfa; color: white; }
+.quiz-mode .confirm-btn { background: #22d3ee; color: #030014; }
+
+.confirm-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* --- 5. Action Grid & Add Module --- */
+.add-item-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px; }
+
+.add-btn {
+    padding: 20px !important;
+    font-size: 11px !important;
+    letter-spacing: 0.1em;
+    background: rgba(255,255,255,0.01) !important;
+    border: 1px dashed rgba(255,255,255,0.1) !important;
+    border-radius: 20px !important;
+    color: #64748b; font-weight: 800; text-transform: uppercase;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+
+.add-btn:hover { transform: translateY(-2px); background: rgba(255,255,255,0.03) !important; }
+.add-btn.lesson:hover { border-color: #a78bfa !important; color: #a78bfa !important; }
+.add-btn.quiz:hover { border-color: #22d3ee !important; color: #22d3ee !important; }
 
 .add-module-form { display: flex; gap: 16px; margin-top: 40px; }
+
 .add-module-form input {
     flex-grow: 1; background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px; padding: 0 24px; color: white; font-size: 18px;
-}
-/* Ensure the list item being moved doesn't have weird transitions */
-.timeline-group {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-}
-
-.timeline-item {
-    /* Remove transitions on transform while dragging */
-    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
-    user-select: none;
-}
-
-/* This targets the item currently being held by the user */
-.timeline-item:active {
-    cursor: grabbing;
-    z-index: 50;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
 }

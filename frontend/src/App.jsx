@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
+
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ClassProvider } from './context/ClassContext'; // Import the new provider
 import ProtectedRoute from './components/ProtectedRoute';
@@ -20,6 +21,8 @@ import QuizBuilder from './pages/teacher/QuizBuilder';
 
 
 
+
+
 // Layouts
 import TeacherLayout from './components/layouts/TeacherLayout';
 
@@ -34,37 +37,35 @@ function App() {
           <Route path="/register/teacher" element={<TeacherRegisterPage />} />
           <Route path="/register/student" element={<StudentRegisterPage />} />
           
-          {/* --- Protected Teacher Dashboard Routes --- */}
-          {/* We wrap all teacher routes in ONE ClassProvider to stop refetching */}
+          {/* Protected Teacher Dashboard */}
           <Route 
-            path="/dashboard/teacher/*" 
+            path="/dashboard/teacher" 
             element={
               <ProtectedRoute allowedRole="teacher">
                 <ClassProvider>
-                  <Routes>
-                    <Route path="/" element={<TeacherOverview />} />
-                    <Route path="students" element={<TeacherLayout><div>Students Page</div></TeacherLayout>} />
-                    <Route path="analytics" element={<TeacherLayout><div>Analytics Page</div></TeacherLayout>} />
-                    <Route path="classes/new" element={<CreateClass />} />
-                    <Route path="class/:id" element={<ClassDetails />} />
-                    <Route path="course/:id" element={<CourseBuilder />} />
-                    <Route path="lesson/:id" element={<LessonEditor />} />
-                    <Route path="quiz/:id" element={<QuizBuilder />} />
-                  </Routes>
+                   {/* Layout is now the PARENT. It stays mounted. */}
+                   <TeacherLayout /> 
                 </ClassProvider>
               </ProtectedRoute>
             } 
-          />
+          >
+          {/* These children will render inside the Layout's <Outlet /> */}
+            <Route index element={<TeacherOverview />} />
+            <Route path="students" element={<div>Students Page</div>} />
+            <Route path="analytics" element={<div>Analytics Page</div>} />
+            <Route path="classes/new" element={<CreateClass />} />
+            <Route path="class/:id" element={<ClassDetails />} />
+            <Route path="class/:classId/course/:id" element={<CourseBuilder />} />
+            <Route path="class/:classId/lesson/:id" element={<LessonEditor />} />
+            <Route path="class/:classId/quiz/:id" element={<QuizBuilder />} />
+          </Route>
 
-          {/* --- Protected Student Dashboard --- */}
-          <Route 
-            path="/dashboard/student" 
-            element={
-              <ProtectedRoute allowedRole="student">
-                <StudentDashboardPlaceholder />
-              </ProtectedRoute>
-            } 
-          />
+          {/* Student Dashboard */}
+          <Route path="/dashboard/student" element={
+            <ProtectedRoute allowedRole="student">
+              <StudentDashboardPlaceholder />
+            </ProtectedRoute>
+          } />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

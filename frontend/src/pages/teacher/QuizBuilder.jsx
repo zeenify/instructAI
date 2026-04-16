@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
-import TeacherLayout from '../../components/layouts/TeacherLayout';
 import Button from '../../components/ui/Button';
 
 export default function QuizBuilder() {
@@ -93,7 +92,7 @@ export default function QuizBuilder() {
     if (loading || !quiz) return <div className="h-screen bg-[#030014] flex items-center justify-center"><Loader2 className="animate-spin text-purple-500" /></div>;
 
     return (
-        <TeacherLayout>
+        <>
             <div className="flex flex-col lg:flex-row justify-between items-start gap-6 mb-12">
                 <div className="flex-grow">
                     <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-500 hover:text-white mb-4 border-none bg-transparent cursor-pointer">
@@ -241,7 +240,7 @@ export default function QuizBuilder() {
                     </AnimatePresence>
                 </div>
             </div>
-        </TeacherLayout>
+        </>
     );
 }
 

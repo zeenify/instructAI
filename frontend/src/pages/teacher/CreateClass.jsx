@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import TeacherLayout from '../../components/layouts/TeacherLayout';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import api from '../../services/api';
@@ -29,7 +28,7 @@ export default function CreateClass() {
     };
 
     return (
-        <TeacherLayout>
+
             <div className="max-w-2xl mx-auto">
                 <button 
                     onClick={() => navigate(-1)} 
@@ -71,6 +70,6 @@ export default function CreateClass() {
                     </Button>
                 </form>
             </div>
-        </TeacherLayout>
+
     );
 }

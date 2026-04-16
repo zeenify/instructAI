@@ -60,10 +60,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Stats for Overview
     Route::get('/teacher/stats', function (Request $request) {
+        $user = $request->user();
+        // Count real data from Neon
+        $classesCount = $user->managedClasses()->count();
+        $studentsCount = \App\Models\Enrollment::whereIn('class_id', $user->managedClasses()->pluck('id'))->count();
+        
         return [
-            'classes_count' => $request->user()->managedClasses()->count(),
-            'students_count' => 0, // Update this later when enrollments work
+            'classes_count' => $classesCount,
+            'students_count' => $studentsCount,
             'tokens_status' => 'Healthy'
         ];
     });
+
 });
