@@ -70,24 +70,33 @@ class LessonController extends Controller
      */
     public function uploadImage(Request $request)
     {
-        if (!$request->hasFile('image')) {
-            return response()->json(['error' => 'No image found'], 400);
+        try {
+            if (!$request->hasFile('image')) {
+                return response()->json(['error' => 'No image found'], 400);
+            }
+
+            // Pull credentials from the environment, NOT hardcoded
+            $config = [
+                'cloud' => [
+                    'cloud_name' => env('CLOUDINARY_CLOUD_NAME'),
+                    'api_key'    => env('CLOUDINARY_API_KEY'),
+                    'api_secret' => env('CLOUDINARY_API_SECRET'),
+                ]
+            ];
+
+            $uploadApi = new \Cloudinary\Api\Upload\UploadApi($config);
+            $file = $request->file('image');
+            
+            $result = $uploadApi->upload($file->getRealPath(), [
+                'folder' => 'instructai/lessons',
+                'quality' => 'auto',
+            ]);
+
+            return response()->json(['url' => $result['secure_url']]);
+
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Upload failed'], 500);
         }
-
-        $config = [
-            'cloud' => [
-                'cloud_name' => 'dbcewwqil',
-                'api_key'    => '943439599195593',
-                'api_secret' => 'Onj0z0LQGyUAMQvmWhNPy237x0E',
-            ]
-        ];
-
-        $uploadApi = new UploadApi($config);
-        $result = $uploadApi->upload($request->file('image')->getRealPath(), [
-            'folder' => 'instructai/lessons',
-            'quality' => 'auto',
-        ]);
-
-        return response()->json(['url' => $result['secure_url']]);
     }
+
 }
