@@ -36,6 +36,10 @@ export default function ClassDetails() {
                     toast.error("Could not load class details");
                     navigate('/dashboard/teacher');
                 }
+                if (err.response?.status === 403) {
+                    toast.error("Security Alert: Unauthorized access attempt.");
+                    navigate('/dashboard/teacher'); // Kick them back to safety
+                }
             }
         };
 
