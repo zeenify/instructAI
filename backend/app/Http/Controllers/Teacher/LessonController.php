@@ -17,8 +17,16 @@ class LessonController extends Controller
      */
     public function show($id)
     {
-        // No try-catch here so Laravel can handle 404s automatically with CORS headers
-        return Lesson::findOrFail($id);
+        // Find the lesson where its course belongs to the logged-in teacher
+        $lesson = Lesson::whereHas('module.course', function($query) {
+            $query->where('teacher_id', auth()->id());
+        })->find($id);
+
+        if (!$lesson) {
+            return response()->json(['message' => 'Access Denied'], 403);
+        }
+
+        return response()->json($lesson);
     }
 
     /**
@@ -75,18 +83,27 @@ class LessonController extends Controller
                 return response()->json(['error' => 'No image found'], 400);
             }
 
-            // Pull credentials from the environment, NOT hardcoded
+            // 1. Get credentials and verify they aren't empty
+            $cloudName = env('CLOUDINARY_CLOUD_NAME');
+            $apiKey    = env('CLOUDINARY_API_KEY');
+            $apiSecret = env('CLOUDINARY_API_SECRET');
+
+            if (!$cloudName || !$apiKey || !$apiSecret) {
+                throw new \Exception("Cloudinary credentials are missing in .env");
+            }
+
             $config = [
                 'cloud' => [
-                    'cloud_name' => env('CLOUDINARY_CLOUD_NAME'),
-                    'api_key'    => env('CLOUDINARY_API_KEY'),
-                    'api_secret' => env('CLOUDINARY_API_SECRET'),
+                    'cloud_name' => $cloudName,
+                    'api_key'    => $apiKey,
+                    'api_secret' => $apiSecret,
                 ]
             ];
 
+            // 2. Initialize using the full path to avoid import errors
             $uploadApi = new \Cloudinary\Api\Upload\UploadApi($config);
-            $file = $request->file('image');
             
+            $file = $request->file('image');
             $result = $uploadApi->upload($file->getRealPath(), [
                 'folder' => 'instructai/lessons',
                 'quality' => 'auto',
@@ -95,7 +112,13 @@ class LessonController extends Controller
             return response()->json(['url' => $result['secure_url']]);
 
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Upload failed'], 500);
+            // Log the error so you can see it in laravel.log
+            \Log::error("Upload Error: " . $e->getMessage());
+            
+            return response()->json([
+                'error' => $e->getMessage(),
+                'hint' => 'Check your .env keys and laravel.log'
+            ], 500);
         }
     }
 

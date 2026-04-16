@@ -12,19 +12,15 @@ class QuizController extends Controller
     // 1. ADD THIS SHOW METHOD
     public function show($id)
     {
-        try {
-            // Load quiz with its questions
-            $quiz = Quiz::with('questions')->findOrFail($id);
+        $quiz = Quiz::whereHas('module.course', function($query) {
+            $query->where('teacher_id', auth()->id());
+        })->with('questions')->find($id);
 
-            // Check if teacher owns the course this quiz belongs to
-            if ($quiz->module->course->teacher_id !== auth()->id()) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
-
-            return response()->json($quiz);
-        } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+        if (!$quiz) {
+            return response()->json(['message' => 'Access Denied'], 403);
         }
+
+        return response()->json($quiz);
     }
 
     public function store(Request $request, $moduleId)

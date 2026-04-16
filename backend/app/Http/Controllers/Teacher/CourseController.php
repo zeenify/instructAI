@@ -40,29 +40,21 @@ class CourseController extends Controller
     }
     public function show($id)
     {
-        try {
-            // This line is the one failing if Models aren't setup:
-            $course = Course::with([
-                'modules' => function($q) { $q->orderBy('order_index', 'asc'); },
-                'modules.lessons' => function($q) { $q->orderBy('order_index', 'asc'); },
-                'modules.quizzes' => function($q) { $q->orderBy('id', 'asc'); } // Or order_index if you add it
-            ])->findOrFail($id);
-                
-            // Security check
-            if ($course->teacher_id !== auth()->id()) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
+        // Only find the course if it belongs to the authenticated teacher
+        $course = Course::where('teacher_id', auth()->id())
+            ->with([
+                'modules' => fn($q) => $q->orderBy('order_index', 'asc'),
+                'modules.lessons' => fn($q) => $q->orderBy('order_index', 'asc'),
+                'modules.quizzes' => fn($q) => $q->orderBy('order_index', 'asc')
+            ])->first();
 
-            return response()->json($course);
-        } catch (\Exception $e) {
-            // This will print the ACTUAL error to your browser's Network tab
-            return response()->json([
-                'error' => 'Backend Logic Error',
-                'message' => $e->getMessage(),
-                'line' => $e->getLine()
-            ], 500);
+        if (!$course) {
+            return response()->json(['message' => 'Unauthorized'], 403);
         }
+
+        return response()->json($course);
     }
+        
 
 
 }

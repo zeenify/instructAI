@@ -37,19 +37,17 @@ class ClassroomController extends Controller
     
     public function show($id)
     {
-        // Fetch class with its courses and enrolled students
-        $classroom = Classroom::with([
-            'courses' => function($query) {
-                $query->orderBy('order_index', 'asc');
-            }, 
-            'students.studentProfile'
-        ])
-        ->withCount(['students', 'courses'])
-        ->findOrFail($id);
+        // This query says: "Find a class with this ID, BUT only if the teacher_id matches the logged-in user"
+        $classroom = Classroom::where('teacher_id', auth()->id())
+            ->with([
+                'courses' => fn($q) => $q->orderBy('order_index', 'asc'), 
+                'students.studentProfile'
+            ])
+            ->withCount(['students', 'courses'])
+            ->first(); // Use first() instead of findOrFail to handle the logic manually or use firstOrFail
 
-        // Security check: ensure this teacher owns the class
-        if ($classroom->teacher_id !== auth()->id()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if (!$classroom) {
+            return response()->json(['message' => 'Class not found or unauthorized'], 403);
         }
 
         return response()->json($classroom);
