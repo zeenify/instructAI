@@ -40,19 +40,23 @@ class CourseController extends Controller
     }
     public function show($id)
     {
-        // Only find the course if it belongs to the authenticated teacher
-        $course = Course::where('teacher_id', auth()->id())
+        // Added ->where('id', $id) to ensure we get the CORRECT course
+        $course = Course::where('id', $id)
+            ->where('teacher_id', auth()->id())
             ->with([
                 'modules' => fn($q) => $q->orderBy('order_index', 'asc'),
                 'modules.lessons' => fn($q) => $q->orderBy('order_index', 'asc'),
                 'modules.quizzes' => fn($q) => $q->orderBy('order_index', 'asc')
-            ])->first();
-
-        if (!$course) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+            ])->firstOrFail(); // Use firstOrFail to catch errors
 
         return response()->json($course);
+    }
+
+    public function togglePublish(Request $request, $id)
+    {
+        $course = Course::findOrFail($id);
+        $course->update(['is_published' => $request->is_published]);
+        return response()->json(['success' => true]);
     }
         
 

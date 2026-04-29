@@ -9,6 +9,13 @@ use App\Http\Controllers\Teacher\LessonController;
 use App\Http\Controllers\Teacher\QuizController;   
 use App\Http\Controllers\Teacher\QuestionController;
 
+// --- ADD STUDENT CONTROLLERS ---
+use App\Http\Controllers\Student\EnrollmentController;
+use App\Http\Controllers\Student\CourseController as StudentCourseController;
+use App\Http\Controllers\Student\LessonController as StudentLessonController;
+use App\Http\Controllers\Student\QuizController as StudentQuizController;
+use App\Http\Controllers\Student\CodeExecutionController;
+
 // Public Routes
 Route::post('/register/student', [AuthController::class, 'registerStudent']);
 Route::post('/register/teacher', [AuthController::class, 'registerTeacher']);
@@ -37,6 +44,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/teacher/classes/{classId}/courses', [CourseController::class, 'store']);
     Route::get('/teacher/courses/{id}', [CourseController::class, 'show']);
     Route::post('/teacher/courses/{courseId}/modules', [ModuleController::class, 'store']);
+    Route::post('/teacher/courses/{id}/publish', [CourseController::class, 'togglePublish']);
 
     Route::post('/teacher/modules/{moduleId}/lessons', [LessonController::class, 'store']);
     Route::post('/teacher/modules/{moduleId}/quizzes', [QuizController::class, 'store']);
@@ -47,6 +55,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/teacher/lessons/{id}', [LessonController::class, 'show']);
     Route::put('/teacher/lessons/{id}', [LessonController::class, 'update']);
     Route::post('/teacher/lessons/upload-image', [LessonController::class, 'uploadImage']);
+    
 
     // Quiz Management
     Route::get('/teacher/quizzes/{id}', [QuizController::class, 'show']);
@@ -71,5 +80,28 @@ Route::middleware(['auth:sanctum'])->group(function () {
             'tokens_status' => 'Healthy'
         ];
     });
+
+
+
+
+    // ==========================================
+    // STUDENT ROUTES (NEW!)
+    // ==========================================
+    Route::get('/student/classes', [EnrollmentController::class, 'index']);
+    Route::post('/student/enroll', [EnrollmentController::class, 'enroll']);
+
+    Route::get('/student/classes/{id}', [StudentCourseController::class, 'showClass']);
+    Route::get('/student/courses/{id}', [StudentCourseController::class, 'showCourse']);
+
+    Route::get('/student/lessons/{id}', [StudentLessonController::class, 'show']);
+    Route::post('/student/lessons/{id}/complete', [StudentLessonController::class, 'complete']);
+
+    Route::get('/student/quizzes/{id}', [StudentQuizController::class, 'show']);
+    Route::post('/student/attempts/{attemptId}/submit', [StudentQuizController::class, 'submitAttempt']);
+    Route::post('/student/lessons/{id}/submit-code', [StudentLessonController::class, 'submitCode']);
+    Route::post('/student/quizzes/{id}/submit', [StudentQuizController::class, 'submit']);  
+
+    // Remote Code Execution Proxy
+    Route::post('/student/execute', [CodeExecutionController::class, 'execute']);
 
 });

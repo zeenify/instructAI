@@ -1,16 +1,15 @@
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
-
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { ClassProvider } from './context/ClassContext'; // Import the new provider
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import { ClassProvider } from './context/ClassContext'; 
 import ProtectedRoute from './components/ProtectedRoute';
 
-
-
-// Pages
+// --- Page Imports ---
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
 import TeacherRegisterPage from './pages/auth/TeacherRegisterPage';
 import StudentRegisterPage from './pages/auth/StudentRegisterPage';
+
+// Teacher Pages
 import TeacherOverview from './pages/teacher/TeacherOverview';
 import CreateClass from './pages/teacher/CreateClass';
 import ClassDetails from './pages/teacher/ClassDetails';
@@ -18,13 +17,14 @@ import CourseBuilder from './pages/teacher/CourseBuilder';
 import LessonEditor from './pages/teacher/LessonEditor';
 import QuizBuilder from './pages/teacher/QuizBuilder';
 
-
-
-
-
+// Student Pages
+import StudentOverview from './pages/student/StudentOverview';
+import ClassView from './pages/student/ClassView';
+import CourseViewer from './pages/student/CourseViewer';
 
 // Layouts
 import TeacherLayout from './components/layouts/TeacherLayout';
+import StudentLayout from './components/layouts/StudentLayout';
 
 function App() {
   return (
@@ -37,54 +37,64 @@ function App() {
           <Route path="/register/teacher" element={<TeacherRegisterPage />} />
           <Route path="/register/student" element={<StudentRegisterPage />} />
           
-          {/* Protected Teacher Dashboard */}
+          {/* --- Teacher Dashboard (Immortal Sidebar) --- */}
           <Route 
             path="/dashboard/teacher" 
             element={
               <ProtectedRoute allowedRole="teacher">
                 <ClassProvider>
-                   {/* Layout is now the PARENT. It stays mounted. */}
                    <TeacherLayout /> 
                 </ClassProvider>
               </ProtectedRoute>
             } 
           >
-          {/* These children will render inside the Layout's <Outlet /> */}
             <Route index element={<TeacherOverview />} />
             <Route path="students" element={<div>Students Page</div>} />
             <Route path="analytics" element={<div>Analytics Page</div>} />
             <Route path="classes/new" element={<CreateClass />} />
             <Route path="class/:id" element={<ClassDetails />} />
+            {/* Added classId to these routes to keep Sidebar highlighted */}
             <Route path="class/:classId/course/:id" element={<CourseBuilder />} />
             <Route path="class/:classId/lesson/:id" element={<LessonEditor />} />
             <Route path="class/:classId/quiz/:id" element={<QuizBuilder />} />
           </Route>
 
-          {/* Student Dashboard */}
-          <Route path="/dashboard/student" element={
-            <ProtectedRoute allowedRole="student">
-              <StudentDashboardPlaceholder />
-            </ProtectedRoute>
-          } />
+          
+
+          {/* --- Student Dashboard (Immortal Sidebar) --- */}
+          <Route 
+            path="/dashboard/student" 
+            element={
+              <ProtectedRoute allowedRole="student">
+                <StudentLayout />
+              </ProtectedRoute>
+            }
+          >
+              <Route index element={<StudentOverview />} />
+              <Route path="class/:id" element={<ClassView />} />
+          </Route>
+
+          {/* --- Student Course Viewer (Focus Mode - No Main Sidebar) --- */}
+          <Route 
+              path="/dashboard/student/course/:id" 
+              element={
+                  <ProtectedRoute allowedRole="student">
+                      <CourseViewer />
+                  </ProtectedRoute>
+              } 
+          >
+            {/* These sub-routes allow the URL to change to /lesson/5 or /quiz/1 */}
+            <Route path=":itemType/:itemId" element={<CourseViewer />} />
+          </Route>
+
+
+          
+          {/* Catch-all redirect */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
   ); 
-}
-
-/**
- * Student Placeholder
- * (You can move this to its own file later)
- */
-function StudentDashboardPlaceholder() {
-  const { logout, user } = useAuth();
-  return (
-    <div className="landing-wrapper h-screen p-20 text-white student-theme">
-      <h1 className="text-4xl mb-4 text-cyan-400 font-bold">Student Dashboard</h1>
-      <p className="mb-8 text-slate-400">Welcome back, {user?.student_profile?.first_name || 'Learner'}</p>
-      <button onClick={logout} className="btn-student">Logout</button>
-    </div>
-  );
 }
 
 export default App;

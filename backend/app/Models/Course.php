@@ -15,6 +15,12 @@ class Course extends Model
         'order_index'
     ];
 
+    protected $casts = [
+        'is_published' => 'boolean',
+        'order_index' => 'integer'
+    ];
+
+
     public function classroom() {
         return $this->belongsTo(Classroom::class, 'class_id');
     }

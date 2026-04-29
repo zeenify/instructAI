@@ -33,9 +33,10 @@ class QuizController extends Controller
         $quiz = Quiz::create([
             'module_id' => $moduleId,
             'title' => $request->title,
+            'is_published' => false, // <--- ADD THIS
             'is_randomized' => false,
             'time_limit_minutes' => 30,
-            'order_index' => $nextOrder // <--- ADD THIS
+            'order_index' => $nextOrder
         ]);
 
         return response()->json($quiz, 201);
@@ -47,19 +48,20 @@ class QuizController extends Controller
         try {
             $quiz = Quiz::findOrFail($id);
 
-            // Security check
             if ($quiz->module->course->teacher_id !== auth()->id()) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
-            $request->validate([
-                'title' => 'required|string|max:255',
-                'is_randomized' => 'boolean',
-                'allow_ai_assistance' => 'boolean',
-                'time_limit_minutes' => 'nullable|integer'
+            // Changed 'required' to 'sometimes'
+            $validated = $request->validate([
+                'title' => 'sometimes|string|max:255',
+                'is_published' => 'sometimes|boolean',
+                'is_randomized' => 'sometimes|boolean',
+                'allow_ai_assistance' => 'sometimes|boolean',
+                'time_limit_minutes' => 'sometimes|nullable|integer'
             ]);
 
-            $quiz->update($request->all());
+            $quiz->update($validated);
 
             return response()->json($quiz);
         } catch (\Exception $e) {

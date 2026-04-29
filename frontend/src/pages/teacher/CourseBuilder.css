@@ -208,3 +208,91 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px; padding: 0 24px; color: white; font-size: 18px;
 }
+.item-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #f1f5f9;
+}
+
+/* Make the Draft badge pop more */
+span[class*="bg-red-500"] {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+
+.status-pill {
+    display: flex; 
+    align-items: center; 
+    gap: 6px;
+    padding: 4px 10px; 
+    border-radius: 6px;
+    font-size: 9px; 
+    font-weight: 900; 
+    text-transform: uppercase; 
+    letter-spacing: 0.1em;
+    border: 1px solid;
+}
+
+.status-pill.draft { 
+    background: rgba(239, 68, 68, 0.1); 
+    color: #ef4444; 
+    border-color: rgba(239, 68, 68, 0.2); 
+}
+
+.status-pill.live { 
+    background: rgba(16, 185, 129, 0.1); 
+    color: #10b981; 
+    border-color: rgba(16, 185, 129, 0.2); 
+}
+
+/* Timeline Item Enhancements */
+.timeline-item.is-draft {
+    opacity: 0.7;
+}
+
+/* Fixed alignment for actions */
+.item-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 160px; /* Force consistent spacing */
+    justify-content: flex-end;
+}
+
+.action-icon-btn {
+    background: transparent; border: none; cursor: pointer;
+    color: #475569; padding: 8px; border-radius: 8px;
+    transition: all 0.2s;
+}
+.action-icon-btn:hover { color: white; background: rgba(255,255,255,0.05); }
+.action-icon-btn.active { color: #10b981; }
+
+.edit-pill-btn {
+    padding: 6px 12px; border-radius: 8px;
+    font-size: 10px; font-weight: 800; text-transform: uppercase;
+    display: flex; align-items: center; gap: 6px;
+    border: 1px solid rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.02);
+    color: #94a3b8; transition: all 0.2s;
+    cursor: pointer;
+}
+
+.edit-pill-btn.lesson:hover { border-color: #a78bfa; color: #a78bfa; background: rgba(167, 139, 250, 0.05); }
+.edit-pill-btn.quiz:hover { border-color: #22d3ee; color: #22d3ee; background: rgba(34, 211, 238, 0.05); }
+
+/* Status Badges on items */
+.status-badge {
+    font-size: 8px; font-weight: 900; text-transform: uppercase;
+    padding: 2px 6px; border-radius: 4px; border: 1px solid;
+}
+.status-badge.draft { background: rgba(239, 68, 68, 0.05); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); }
+.status-badge.published { background: rgba(16, 185, 129, 0.05); color: #10b981; border-color: rgba(16, 185, 129, 0.2); }
+
+/* Inline Input Polishing */
+.inline-input-container {
+    margin-top: 16px;
+}
+.input-inner {
+    border-width: 1.5px;
+}

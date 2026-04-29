@@ -1,0 +1,66 @@
+/* --- STUDENT THEME OVERRIDES --- */
+
+.student-theme {
+    background: #02010a;
+}
+
+/* Sidebar Branding */
+.student-theme .logo-sq {
+    background: #22d3ee;
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
+}
+
+/* Nav Links & Class Items */
+.student-theme .nav-link.active, 
+.student-theme .class-item.active {
+    background: rgba(34, 211, 238, 0.08);
+    color: #22d3ee;
+    border-color: rgba(34, 211, 238, 0.2);
+}
+
+.student-theme .status-dot {
+    background: #164e63;
+}
+
+.student-theme .class-item.active .status-dot {
+    background: #22d3ee;
+    box-shadow: 0 0 10px #22d3ee;
+}
+
+/* Buttons */
+.student-theme .btn-student {
+    background: #22d3ee;
+    color: #02010a;
+    border: none;
+}
+
+.student-theme .btn-student:hover {
+    background: #ffffff;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+/* The Join Class Button in Sidebar */
+.student-theme .add-class-btn {
+    border-color: rgba(34, 211, 238, 0.1);
+    color: #0891b2;
+}
+
+.student-theme .add-class-btn:hover {
+    border-color: #22d3ee;
+    color: #22d3ee;
+    background: rgba(34, 211, 238, 0.03);
+}
+
+/* Sidebar Footer Adjustments */
+.student-theme .logout-action:hover {
+    color: #22d3ee;
+}
+
+.student-theme .user-pill {
+    border-color: rgba(34, 211, 238, 0.1);
+}
+
+/* Custom Scrollbar for Cyan */
+.student-theme .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(34, 211, 238, 0.1);
+}

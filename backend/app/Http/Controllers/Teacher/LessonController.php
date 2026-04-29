@@ -56,21 +56,22 @@ class LessonController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $lesson = Lesson::findOrFail($id);
-        
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'content' => 'required|array',
-            'is_published' => 'required|boolean'
-        ]);
+        try {
+            $lesson = Lesson::findOrFail($id);
+            
+            // Use 'sometimes' so we can update JUST the visibility without sending the whole content
+            $validated = $request->validate([
+                'title' => 'sometimes|string|max:255',
+                'content' => 'sometimes|array',
+                'is_published' => 'sometimes|boolean'
+            ]);
 
-        $lesson->update([
-            'title' => $request->title,
-            'content' => $request->content,
-            'is_published' => $request->is_published
-        ]);
+            $lesson->update($validated);
 
-        return response()->json($lesson);
+            return response()->json($lesson);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 
     /**
