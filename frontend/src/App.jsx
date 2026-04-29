@@ -19,7 +19,7 @@ import QuizBuilder from './pages/teacher/QuizBuilder';
 
 // Student Pages
 import StudentOverview from './pages/student/StudentOverview';
-import ClassView from './pages/student/ClassView';
+import ClassView from './pages/student/Classview';
 import CourseViewer from './pages/student/CourseViewer';
 
 // Layouts
