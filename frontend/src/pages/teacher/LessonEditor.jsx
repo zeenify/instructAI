@@ -116,7 +116,7 @@ export default function LessonEditor() {
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-16 sticky top-0 z-40 bg-[#030014]/90 backdrop-blur-xl py-6 border-b border-white/5">
                 <div className="flex items-center gap-4 w-full md:w-auto">
                     <button 
-                        onClick={() => navigate(`/dashboard/teacher/class/${classId}`)} 
+                        onClick={() => navigate(`/dashboard/teacher/class/${classId}/course/${lesson.module.course_id}`)} 
                         className="p-2 hover:bg-white/5 rounded-full text-slate-500 hover:text-white transition-all border-none bg-transparent cursor-pointer"
                     >
                         <ChevronLeft size={24} />

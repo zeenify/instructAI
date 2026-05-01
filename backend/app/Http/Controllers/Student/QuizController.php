@@ -17,7 +17,7 @@ class QuizController extends Controller
     {
         $user = $request->user();
         $quiz = Quiz::with(['questions' => function ($q) {
-            $q->select('id', 'quiz_id', 'question_text', 'type', 'options', 'points'); 
+            $q->select('id', 'quiz_id', 'question_text', 'type', 'options', 'points', 'boilerplate'); 
         }])->findOrFail($id);
 
         // 1. Check for the LATEST completed attempt

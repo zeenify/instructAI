@@ -29,27 +29,19 @@ export default function QuizDisplay({ quizId, onPass, isAlreadyPassed }) {
     const isAnswered = (qId) => {
         const ans = answers[qId];
         if (ans === undefined || ans === null) return false;
-        if (Array.isArray(ans)) {
-            return ans.some(val => val && String(val).trim() !== "");
-        }
+        if (Array.isArray(ans)) return ans.some(val => val && String(val).trim() !== "");
         return String(ans).trim() !== "";
     };
 
     const handleRestart = () => {
-        // 1. Reset all local states to their original values
         setResult(null);
         setAnswers({});
         setAttemptId(null);
         setCurrentIdx(-1);
         setGradingProgress(0);
         setCodeOutput("");
-        
-        // 2. If you have a timer, reset it as well
-        if (quizData && quizData.time_limit_minutes > 0) {
-            setTimeLeft(quizData.time_limit_minutes * 60);
-        }
+        if (quizData && quizData.time_limit_minutes > 0) setTimeLeft(quizData.time_limit_minutes * 60);
     };
-
 
     useEffect(() => {
         if (!quizId || quizId === 'undefined') return;
@@ -62,11 +54,7 @@ export default function QuizDisplay({ quizId, onPass, isAlreadyPassed }) {
         try {
             const res = await api.get(`/student/quizzes/${quizId}`);
             setQuizData(res.data.quiz);
-
-            if (res.data.existing_result) {
-                setResult(res.data.existing_result);
-            }
-
+            if (res.data.existing_result) setResult(res.data.existing_result);
             if (res.data.attempt_id) {
                 setAttemptId(res.data.attempt_id);
                 const parsed = {};
@@ -114,11 +102,11 @@ export default function QuizDisplay({ quizId, onPass, isAlreadyPassed }) {
     const submitQuiz = async () => {
         setSubmitting(true);
         setShowReview(false);
-        setGradingProgress(10);
+        setGradingProgress(5);
         
         let interval = setInterval(() => {
-            setGradingProgress(prev => (prev < 90 ? prev + 5 : prev));
-        }, 200);
+            setGradingProgress(prev => (prev < 90 ? prev + Math.random() * 10 : prev));
+        }, 300);
 
         try {
             const res = await api.post(`/student/quizzes/${quizId}/submit`, { answers });
@@ -126,19 +114,19 @@ export default function QuizDisplay({ quizId, onPass, isAlreadyPassed }) {
             setTimeout(() => {
                 setResult(res.data);
                 if (res.data.score >= quizData.passing_score) onPass();
-                setSubmitting(false); // CRITICAL: This fixes the "Stuck" bug
+                setSubmitting(false); // FIXED: Clears the loading screen
                 clearInterval(interval);
             }, 800);
         } catch (err) { 
             toast.error("Submission error."); 
-            setSubmitting(false);
+            setSubmitting(false); 
             clearInterval(interval);
         }
     };
 
     if (loading) return <QuizSkeleton />;
 
-    // --- 1. EVALUATING UI ---
+    // 1. SUBMITTING STATE (THE "CHECKING" UI)
     if (submitting) return (
         <div className="flex flex-col items-center justify-center py-32 space-y-8 animate-in fade-in duration-500">
             <div className="relative w-24 h-24">
@@ -146,33 +134,26 @@ export default function QuizDisplay({ quizId, onPass, isAlreadyPassed }) {
                 <div className="absolute inset-0 border-4 border-cyan-500/10 border-t-cyan-500 rounded-full animate-spin" />
             </div>
             <div className="text-center">
-                <h2 className="text-2xl font-black uppercase tracking-widest text-white mb-2">Checking Answers</h2>
+                <h2 className="text-2xl font-black uppercase tracking-widest text-white mb-2">CHECKING ANSWERS</h2>
                 <div className="w-64 h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/10 mx-auto">
-                    <motion.div className="h-full bg-cyan-500" initial={{ width: 0 }} animate={{ width: `${gradingProgress}%` }} />
+                    <motion.div className="h-full bg-cyan-500 shadow-[0_0_15px_#22d3ee]" initial={{ width: 0 }} animate={{ width: `${gradingProgress}%` }} />
                 </div>
             </div>
         </div>
     );
 
-    // --- 2. RESULT UI (WITH DETAILED REVIEW) ---
+    // 2. RESULTS VIEW (WITH WRONG ANSWER HIGHLIGHTS)
     if (result) return (
         <div className="max-w-4xl mx-auto space-y-10 animate-in zoom-in-95 duration-500 pb-20">
             <div className="text-center py-12 bg-white/[0.02] border border-white/5 rounded-[40px]">
                 <div className="mb-6">
-                {result.score < quizData.passing_score ? (
-                    <button onClick={handleRestart} className="btn-cyan mt-8 flex items-center gap-2 mx-auto">
-                        {/* <RotateCcw size={18} /> Try Again */}
-                    </button>
-                ) : (
-                    <div className="mt-10 p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-3xl">
-                        <p className="text-emerald-400 font-bold uppercase tracking-widest text-xs">
-                            You have successfully completed this requirement.
-                        </p>
-                    </div>
-                )}
+                    {result.score >= quizData.passing_score ? 
+                        <CheckCircle2 className="text-emerald-500 mx-auto" size={80} /> : 
+                        <XCircle className="text-red-500 mx-auto" size={80} />
+                    }
                 </div>
                 <h2 className="text-4xl font-black text-white mb-2">{result.score >= quizData.passing_score ? "Success" : "Incomplete"}</h2>
-                <p className="text-slate-400 font-mono text-xl">SCORE: {result.score} / {result.max_score}</p>
+                <p className="text-slate-400 font-mono text-xl">GRADE: {result.score} / {result.max_score}</p>
                 {result.score < quizData.passing_score && (
                     <button onClick={handleRestart} className="btn-cyan mt-8 flex items-center gap-2 mx-auto">
                         <RotateCcw size={18} /> Re-take Assessment
@@ -183,7 +164,7 @@ export default function QuizDisplay({ quizId, onPass, isAlreadyPassed }) {
             <div className="space-y-4">
                 <h3 className="text-xs font-black uppercase tracking-[0.3em] text-slate-500 px-4">Performance Review</h3>
                 {result.details?.map((detail, i) => (
-                    <div key={i} className={`p-6 rounded-3xl border ${detail.is_correct ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-red-500/5 border-red-500/10'}`}>
+                    <div key={i} className={`p-6 rounded-3xl border transition-all ${detail.is_correct ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-red-500/5 border-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.05)]'}`}>
                         <div className="flex justify-between items-start gap-4">
                             <div className="flex gap-4">
                                 <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black border ${detail.is_correct ? 'border-emerald-500/30 text-emerald-500' : 'border-red-500/30 text-red-500'}`}>{i + 1}</span>
@@ -192,13 +173,10 @@ export default function QuizDisplay({ quizId, onPass, isAlreadyPassed }) {
                             {detail.is_correct ? <CheckCircle2 className="text-emerald-500 flex-shrink-0" size={20} /> : <XCircle className="text-red-500 flex-shrink-0" size={20} />}
                         </div>
                         {!detail.is_correct && (
-                            <div className="mt-4 pl-12">
-                                <p className="text-[10px] font-black uppercase text-red-400 mb-1">Correct Reference:</p>
-                                <div className="p-3 bg-white/5 rounded-xl text-xs text-slate-400 font-medium border border-white/5">
-                                    {/* If it's a list, join it with commas for the teacher/student to read */}
-                                    {Array.isArray(detail.correct_answer) 
-                                        ? detail.correct_answer.join(', ') 
-                                        : detail.correct_answer}
+                            <div className="mt-4 pl-12 animate-in slide-in-from-top-2">
+                                <p className="text-[10px] font-black uppercase text-red-400 mb-1">Correct Answer Reference:</p>
+                                <div className="p-3 bg-white/5 rounded-xl text-xs text-slate-400 font-medium italic border border-white/5">
+                                    {Array.isArray(detail.correct_answer) ? detail.correct_answer.join(', ') : detail.correct_answer}
                                 </div>
                             </div>
                         )}
@@ -208,72 +186,32 @@ export default function QuizDisplay({ quizId, onPass, isAlreadyPassed }) {
         </div>
     );
 
-    // --- 3. INTRO UI ---
+    // 3. INTRO SCREEN
     if (currentIdx === -1) return (
         <div className="text-center py-16 bg-white/[0.02] border border-white/5 rounded-[40px] max-w-2xl mx-auto animate-in fade-in zoom-in-95 duration-700">
-            {/* Animated Icon Header */}
             <div className="w-20 h-20 bg-cyan-500/10 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-cyan-500/20 shadow-[0_0_30px_rgba(34,211,238,0.1)]">
                 <ShieldCheck className="text-cyan-500 animate-pulse" size={40} />
             </div>
-
             <h2 className="text-5xl font-black text-white mb-3 tracking-tighter">{quizData.title}</h2>
-            <p className="text-slate-400 text-sm mb-12 max-w-sm mx-auto leading-relaxed">
-                Test your knowledge! You need to reach the passing score to unlock the next chapter.
-            </p>
-
-            {/* Info Grid - The "Million Dollar" Details Bar */}
+            <p className="text-slate-400 text-sm mb-12 max-w-sm mx-auto leading-relaxed">Cross the passing threshold to unlock the next chapter in your curriculum.</p>
             <div className="grid grid-cols-3 gap-4 mb-12 px-10">
                 <div className="bg-white/5 p-5 rounded-2xl border border-white/5 flex flex-col items-center">
-                    <ListOrdered className="text-slate-500 mb-2" size={20} />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Questions</p>
-                    <p className="text-xl font-bold text-white">{quizData.questions.length}</p>
+                    <ListOrdered className="text-slate-500 mb-2" size={20} /><p className="text-xl font-bold text-white">{quizData.questions.length}</p>
                 </div>
-                
                 <div className="bg-white/5 p-5 rounded-2xl border border-white/5 flex flex-col items-center">
-                    <CheckCircle2 className="text-emerald-500/70 mb-2" size={20} />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">To Pass</p>
-                    <p className="text-xl font-bold text-white">{quizData.passing_score} <span className="text-[10px] opacity-40">pts</span></p>
+                    <CheckCircle2 className="text-emerald-500/70 mb-2" size={20} /><p className="text-xl font-bold text-white">{quizData.passing_score} <span className="text-[10px] opacity-40">pts</span></p>
                 </div>
-
                 <div className="bg-white/5 p-5 rounded-2xl border border-white/5 flex flex-col items-center">
-                    <Clock className="text-amber-500/70 mb-2" size={20} />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Timer</p>
-                    <p className="text-xl font-bold text-white">
-                        {quizData.time_limit_minutes > 0 ? `${quizData.time_limit_minutes}m` : 'None'}
-                    </p>
+                    <Clock className="text-amber-500/70 mb-2" size={20} /><p className="text-xl font-bold text-white">{quizData.time_limit_minutes > 0 ? `${quizData.time_limit_minutes}m` : '∞'}</p>
                 </div>
             </div>
-
-            <div className="space-y-6">
-                <button 
-                    onClick={startQuiz} 
-                    className="group relative px-12 py-5 bg-transparent rounded-2xl border border-cyan-500/30 overflow-hidden transition-all duration-500 hover:border-cyan-400 shadow-[0_0_30px_rgba(34,211,238,0.1)] hover:shadow-[0_0_50px_rgba(34,211,238,0.3)] border-none cursor-pointer mx-auto block"
-                >
-                    {/* Animated Background Slide */}
-                    <div className="absolute inset-0 bg-cyan-500 translate-y-[101%] group-hover:translate-y-0 transition-transform duration-500 ease-out" />
-
-                    {/* Button Content */}
-                    <div className="relative flex items-center gap-4">
-                        <span className="text-cyan-500 group-hover:text-black font-black uppercase tracking-[0.3em] text-[11px] transition-colors duration-500">
-                            Initialize Assessment
-                        </span>
-                        
-                        <div className="w-8 h-8 rounded-xl bg-cyan-500/10 group-hover:bg-black/10 flex items-center justify-center transition-colors">
-                            <ChevronRight 
-                                className="text-cyan-500 group-hover:text-black transition-transform group-hover:translate-x-1 duration-500" 
-                                size={20} 
-                            />
-                        </div>
-                    </div>
-
-                    {/* Subtle Shine/Glint effect */}
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full" />
-                </button>
-                
-                <p className="text-slate-600 text-[9px] font-black uppercase tracking-[0.3em] animate-pulse">
-                    Don't worry, you can retake this quiz if you need more practice.
-                </p>
-            </div>
+            <button onClick={startQuiz} className="group relative px-12 py-5 bg-transparent rounded-2xl border border-cyan-500/30 overflow-hidden transition-all duration-500 hover:border-cyan-400 shadow-[0_0_30px_rgba(34,211,238,0.1)] border-none cursor-pointer mx-auto block">
+                <div className="absolute inset-0 bg-cyan-500 translate-y-[101%] group-hover:translate-y-0 transition-transform duration-500 ease-out" />
+                <div className="relative flex items-center gap-4">
+                    <span className="text-cyan-500 group-hover:text-black font-black uppercase tracking-[0.3em] text-[11px] transition-colors">Begin Assessment</span>
+                    <ChevronRight className="text-cyan-500 group-hover:text-black transition-transform group-hover:translate-x-1" size={20} />
+                </div>
+            </button>
         </div>
     );
 
@@ -281,19 +219,16 @@ export default function QuizDisplay({ quizId, onPass, isAlreadyPassed }) {
 
     return (
         <div className="max-w-3xl mx-auto space-y-8 pb-20">
-            {/* REDESIGNED HEADER: DISTINCT PROGRESS AND TIMER */}
-            <div className="flex items-center justify-between gap-10">
-                {/* Step Indicators instead of a bar for better UX */}
+            {/* Header: Progress Pills & Timer */}
+            <div className="flex items-center justify-between gap-10 bg-white/[0.02] p-4 rounded-2xl border border-white/5">
                 <div className="flex gap-1.5">
                     {quizData.questions.map((_, i) => (
                         <div key={i} className={`h-1.5 rounded-full transition-all duration-500 ${i === currentIdx ? 'w-8 bg-cyan-500' : i < currentIdx ? 'w-4 bg-cyan-800' : 'w-4 bg-white/5'}`} />
                     ))}
                 </div>
-
                 {timeLeft !== null && (
-                    <div className={`flex items-center gap-3 px-4 py-2 rounded-2xl border font-mono font-bold transition-all ${timeLeft < 60 ? 'bg-red-500 text-white border-red-500 animate-pulse' : 'bg-white/5 border-white/10 text-cyan-400'}`}>
-                        <Clock size={16} />
-                        <span>{formatTime(timeLeft)}</span>
+                    <div className={`flex items-center gap-3 px-4 py-2 rounded-xl border font-mono font-bold transition-all ${timeLeft < 60 ? 'bg-red-500 text-white border-red-500 animate-pulse' : 'bg-white/5 border-white/10 text-cyan-400'}`}>
+                        <Clock size={16} /><span>{formatTime(timeLeft)}</span>
                     </div>
                 )}
             </div>
@@ -312,7 +247,7 @@ export default function QuizDisplay({ quizId, onPass, isAlreadyPassed }) {
                                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${answers[q.id] === String(i) ? 'border-cyan-500 bg-cyan-500' : 'border-slate-800'}`}>
                                         {answers[q.id] === String(i) && <Check size={12} className="text-black font-bold" />}
                                     </div>
-                                    <span className="text-base font-medium">{opt}</span>
+                                    <span className="font-medium">{opt}</span>
                                 </button>
                             ))}
                         </div>
@@ -327,15 +262,15 @@ export default function QuizDisplay({ quizId, onPass, isAlreadyPassed }) {
                     )}
 
                     {q.type === 'identification' && (
-                        <input value={answers[q.id] || ""} onChange={(e) => saveCurrentAnswer(q.id, e.target.value)} className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-6 text-2xl font-bold text-cyan-400 outline-none focus:border-cyan-500" placeholder="Your Answer..." />
+                        <input value={answers[q.id] || ""} onChange={(e) => saveCurrentAnswer(q.id, e.target.value)} className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-8 text-2xl font-bold text-cyan-400 outline-none focus:border-cyan-500" placeholder="Type your answer..." />
                     )}
 
                     {q.type === 'enumeration' && (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                             {(answers[q.id] || ['']).map((val, i) => (
-                                <div key={i} className="flex gap-2">
-                                    <input value={val} onChange={(e) => { const newList = [...(answers[q.id] || [''])]; newList[i] = e.target.value; saveCurrentAnswer(q.id, newList); }} className="flex-grow bg-white/5 border border-white/10 rounded-xl p-4 text-white font-bold outline-none" placeholder={`Item ${i+1}...`} />
-                                    <button onClick={() => { const newList = (answers[q.id] || ['']).filter((_, idx) => idx !== i); saveCurrentAnswer(q.id, newList); }} className="p-4 text-slate-700 hover:text-red-500 border-none bg-transparent cursor-pointer transition-colors"><Trash2 size={20}/></button>
+                                <div key={i} className="flex gap-2 animate-in slide-in-from-left-4">
+                                    <input value={val} onChange={(e) => { const n = [...(answers[q.id] || [''])]; n[i] = e.target.value; saveCurrentAnswer(q.id, n); }} className="flex-grow bg-white/5 border border-white/10 rounded-xl p-4 text-white font-bold outline-none" placeholder={`Item ${i+1}...`} />
+                                    <button onClick={() => { const n = (answers[q.id] || ['']).filter((_, idx) => idx !== i); saveCurrentAnswer(q.id, n); }} className="p-4 text-slate-700 hover:text-red-500 border-none bg-transparent cursor-pointer"><Trash2 size={20}/></button>
                                 </div>
                             ))}
                             <button onClick={() => saveCurrentAnswer(q.id, [...(answers[q.id] || []), ''])} className="flex items-center gap-2 text-cyan-500 font-bold text-xs uppercase tracking-widest mt-4 p-2 cursor-pointer bg-transparent border-none hover:text-white"><Plus size={16} /> Add Line</button>
@@ -346,12 +281,19 @@ export default function QuizDisplay({ quizId, onPass, isAlreadyPassed }) {
                         <div className="space-y-4">
                             <div className="rounded-3xl border border-white/10 bg-black overflow-hidden shadow-2xl">
                                 <div className="p-4 bg-white/5 flex justify-between items-center border-b border-white/5">
-                                    <span className="text-[9px] font-black uppercase text-slate-500 tracking-[0.2em]">Live Script Editor</span>
-                                    <CodeIcon size={14} className="text-cyan-500" />
+                                    <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Logic Workspace</span>
+                                    <CodeIcon size={16} className="text-cyan-500" />
                                 </div>
-                                <CodeMirror value={answers[q.id] || ""} height="300px" theme="dark" extensions={[java()]} onChange={(val) => saveCurrentAnswer(q.id, val)} />
+                                <CodeMirror 
+                                    // This is the correct order of priority
+                                    value={answers[q.id] || q.boilerplate || ""} 
+                                    height="300px" 
+                                    theme="dark" 
+                                    extensions={[java()]} 
+                                    onChange={(val) => saveCurrentAnswer(q.id, val)} 
+                                />
                             </div>
-                            <button onClick={() => runCodeTest(answers[q.id])} className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-white/10 transition-all text-white border-none cursor-pointer">
+                            <button onClick={() => runCodeTest(answers[q.id] || q.boilerplate)} className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-white/10 transition-all text-white border-none cursor-pointer">
                                 {isRunning ? <Loader2 className="animate-spin" size={16}/> : <Play size={16} fill="currentColor"/>} Test Logic
                             </button>
                             {codeOutput && <div className="p-5 bg-black rounded-2xl border border-white/5 font-mono text-xs text-cyan-400 whitespace-pre-wrap max-h-40 overflow-y-auto shadow-inner">{codeOutput}</div>}
@@ -360,16 +302,13 @@ export default function QuizDisplay({ quizId, onPass, isAlreadyPassed }) {
                 </div>
             </div>
 
-            {/* FOOTER */}
-            <div className="flex justify-between items-center pt-10 border-t border-white/5">
-                <button disabled={currentIdx === 0} onClick={() => setCurrentIdx(currentIdx - 1)} className="flex items-center gap-2 text-slate-500 hover:text-white font-bold text-[10px] uppercase tracking-widest disabled:opacity-0 border-none bg-transparent cursor-pointer transition-all">
-                    <ChevronLeft size={16} /> Previous
-                </button>
-
+            {/* Footer Navigation */}
+            <div className="mt-20 pt-10 border-t border-white/5 flex justify-between">
+                <button disabled={currentIdx === 0} onClick={() => setCurrentIdx(currentIdx - 1)} className="flex items-center gap-2 text-slate-500 hover:text-white font-black text-xs uppercase tracking-widest disabled:opacity-0 transition-all border-none bg-transparent cursor-pointer"><ChevronLeft size={18} /> Prev</button>
                 {currentIdx === quizData.questions.length - 1 ? (
-                    <button onClick={() => setShowReview(true)} className="px-12 py-4 bg-white text-black font-black rounded-2xl text-[10px] uppercase tracking-[0.2em] hover:bg-cyan-500 transition-all border-none cursor-pointer shadow-xl">Finish & Submit</button>
+                    <button onClick={() => setShowReview(true)} className="px-12 py-4 bg-white text-black font-black rounded-2xl text-[10px] uppercase tracking-[0.2em] shadow-xl hover:bg-cyan-500 transition-all border-none cursor-pointer">Review & Finish</button>
                 ) : (
-                    <button onClick={() => setCurrentIdx(currentIdx + 1)} className="px-12 py-4 bg-cyan-500 text-black font-black rounded-2xl text-[10px] uppercase tracking-[0.2em] hover:scale-105 border-none cursor-pointer shadow-lg shadow-cyan-500/20">Next Item <ChevronRight size={16} /></button>
+                    <button onClick={() => setCurrentIdx(currentIdx + 1)} className="px-12 py-4 bg-cyan-500 text-black font-black rounded-2xl text-[10px] uppercase tracking-[0.2em] hover:scale-105 border-none cursor-pointer shadow-lg shadow-cyan-500/20">Next Item <ChevronRight size={18} /></button>
                 )}
             </div>
 
@@ -386,12 +325,12 @@ export default function QuizDisplay({ quizId, onPass, isAlreadyPassed }) {
                             </div>
                             <div className="grid grid-cols-5 gap-2 mb-10">
                                 {quizData.questions.map((question, i) => (
-                                    <div key={question.id} className={`h-10 rounded-lg flex items-center justify-center text-xs font-black border ${isAnswered(question.id) ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400' : 'bg-red-500/10 border-red-500/30 text-red-500'}`}>{i + 1}</div>
+                                    <button key={question.id} onClick={() => { setCurrentIdx(i); setShowReview(false); }} className={`h-10 rounded-lg flex items-center justify-center text-xs font-black border transition-all cursor-pointer ${isAnswered(question.id) ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400' : 'bg-red-500/10 border-red-500/30 text-red-500 hover:border-red-500'}`}>{i + 1}</button>
                                 ))}
                             </div>
                             <div className="flex gap-4">
-                                <button onClick={() => setShowReview(false)} className="flex-1 py-4 rounded-xl bg-white/5 text-slate-500 font-bold uppercase text-[10px] border-none cursor-pointer">Edit</button>
-                                <button onClick={submitQuiz} className="flex-1 py-4 rounded-xl bg-cyan-500 text-black font-black uppercase text-[10px] border-none cursor-pointer">Submit</button>
+                                <button onClick={() => setShowReview(false)} className="flex-1 py-4 rounded-xl bg-white/5 text-slate-500 font-bold uppercase text-[10px] border-none cursor-pointer hover:bg-white/10 transition-all">Edit</button>
+                                <button onClick={submitQuiz} className="flex-1 py-4 rounded-xl bg-cyan-500 text-black font-black uppercase text-[10px] border-none cursor-pointer hover:scale-105 transition-all">Submit</button>
                             </div>
                         </motion.div>
                     </div>
@@ -402,9 +341,11 @@ export default function QuizDisplay({ quizId, onPass, isAlreadyPassed }) {
 }
 
 function QuizSkeleton() {
-    return <div className="animate-pulse space-y-8 py-10">
-        <div className="h-1.5 w-full bg-white/5 rounded-full" />
-        <div className="h-12 w-full bg-white/5 rounded-2xl" />
-        <div className="h-48 w-full bg-white/5 rounded-[40px]" />
+    return <div className="animate-pulse space-y-12 py-10">
+        <div className="h-4 w-40 bg-white/5 rounded-full" />
+        <div className="h-20 w-full bg-white/5 rounded-[32px]" />
+        <div className="space-y-4">
+            {[1,2,3].map(i => <div key={i} className="h-20 w-full bg-white/5 rounded-2xl" />)}
+        </div>
     </div>;
 }

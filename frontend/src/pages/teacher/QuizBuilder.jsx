@@ -11,6 +11,9 @@ import { toast } from 'sonner';
 import api from '../../services/api';
 import Button from '../../components/ui/Button';
 
+import CodeMirror from '@uiw/react-codemirror';
+import { java } from '@codemirror/lang-java';
+
 export default function QuizBuilder() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -204,9 +207,39 @@ export default function QuizBuilder() {
                         )}
 
                         {q.type === 'coding' && (
-                            <div className="p-6 bg-black rounded-[24px] border border-white/10">
-                                <div className="flex items-center gap-2 mb-4 text-cyan-500 font-black text-[10px] uppercase tracking-widest"><Code size={16} /> Expected Output</div>
-                                <input value={q.expected_output ?? ""} onChange={(e) => updateQuestion(q.id, { expected_output: e.target.value })} className="w-full bg-transparent border-none outline-none text-cyan-400 font-mono text-sm" placeholder="Text the console should print..." />
+                            <div className="space-y-4">
+                                {/* Starter Code / Boilerplate Editor */}
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-end px-1">
+                                        <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Student Starter Code</label>
+                                        <button 
+                                            onClick={() => updateQuestion(q.id, { boilerplate: `public class Main {\n    public static void main(String[] args) {\n        // Type logic here\n\n    }\n}` })}
+                                            className="text-[9px] font-bold text-purple-400 hover:text-white transition-colors bg-transparent border-none cursor-pointer"
+                                        >
+                                            + Use Default Java Template
+                                        </button>
+                                    </div>
+                                    <div className="rounded-2xl border border-white/5 bg-black overflow-hidden">
+                                        <CodeMirror 
+                                            value={q.boilerplate || ""} 
+                                            height="200px" theme="dark" extensions={[java()]} 
+                                            onChange={(val) => updateQuestion(q.id, { boilerplate: val })} 
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Expected Output Field */}
+                                <div className="p-4 bg-black rounded-2xl border border-white/10">
+                                    <div className="flex items-center gap-2 mb-3 text-cyan-500 font-black text-[10px] uppercase">
+                                        <Code size={14} /> Expected Output
+                                    </div>
+                                    <input 
+                                        value={q.expected_output ?? ""} 
+                                        onChange={(e) => updateQuestion(q.id, { expected_output: e.target.value })} 
+                                        className="w-full bg-transparent border-none outline-none text-cyan-400 font-mono text-sm" 
+                                        placeholder="Console output to match..." 
+                                    />
+                                </div>
                             </div>
                         )}
 

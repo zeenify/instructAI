@@ -68,4 +68,15 @@ class QuizController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
+    public function destroy($id)
+    {
+        // Deep security check: Quiz -> Module -> Course -> Teacher
+        $quiz = Quiz::whereHas('module.course', function($q) {
+            $q->where('teacher_id', auth()->id());
+        })->findOrFail($id);
+
+        $quiz->delete();
+        return response()->json(['message' => 'Quiz removed.']);
+    }
 }

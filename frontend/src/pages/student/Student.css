@@ -64,3 +64,34 @@
 .student-theme .custom-scrollbar::-webkit-scrollbar-thumb {
     background: rgba(34, 211, 238, 0.1);
 }
+/* --- PRO SCROLLBAR FOR STUDENT PORTAL --- */
+
+/* The 'custom-scrollbar' class we used in the JSX */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 4px; /* Very thin and elegant */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent; /* No background tray */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(34, 211, 238, 0.1); /* Faint cyan by default */
+    border-radius: 20px;
+    transition: background 0.3s;
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+    background: rgba(34, 211, 238, 0.3); /* Brightens when user is interacting */
+}
+
+/* Fix for Firefox */
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(34, 211, 238, 0.2) transparent;
+}
+
+/* Ensure the main timeline items don't jump when the scrollbar appears */
+aside {
+    scrollbar-gutter: stable;
+}

@@ -296,3 +296,39 @@ span[class*="bg-red-500"] {
 .input-inner {
     border-width: 1.5px;
 }
+
+
+/* AI Generation Overlay */
+.ai-btn {
+    background: linear-gradient(to right, #22d3ee, #0891b2) !important;
+    color: #02010a !important;
+    font-weight: 900 !important;
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.2);
+}
+
+.ai-btn:hover {
+    box-shadow: 0 0 30px rgba(34, 211, 238, 0.4);
+}
+
+/* Status Pill in Header */
+.status-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 6px;
+    font-size: 9px; font-weight: 900; 
+    text-transform: uppercase; letter-spacing: 0.1em; border: 1px solid;
+}
+.status-pill.draft { background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); }
+.status-pill.live { background: rgba(16, 185, 129, 0.1); color: #10b981; border-color: rgba(16, 185, 129, 0.2); }
+
+/* Item Status Badges */
+.status-badge {
+    font-size: 8px; font-weight: 900; text-transform: uppercase;
+    padding: 2px 6px; border-radius: 4px; border: 1px solid;
+}
+.status-badge.draft { background: rgba(239, 68, 68, 0.05); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); }
+.status-badge.published { background: rgba(16, 185, 129, 0.05); color: #10b981; border-color: rgba(16, 185, 129, 0.2); }
+
+.item-actions {
+    display: flex; align-items: center; gap: 12px;
+    min-width: 160px; justify-content: flex-end;
+}

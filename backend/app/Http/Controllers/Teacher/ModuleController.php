@@ -62,6 +62,17 @@ class ModuleController extends Controller
         return response()->json(['message' => 'Timeline synchronized']);
     }
 
+    public function destroy($id)
+    {
+        // Find module only if it belongs to the logged-in teacher's course
+        $module = Module::whereHas('course', function($q) {
+            $q->where('teacher_id', auth()->id());
+        })->findOrFail($id);
+
+        $module->delete();
+        return response()->json(['message' => 'Module and all its contents removed.']);
+    }
+
 
 
 }

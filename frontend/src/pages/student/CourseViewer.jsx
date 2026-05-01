@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import LessonRenderer from './LessonRenderer';
 import QuizDisplay from './QuizDisplay';
+import AITutor from '../../components/student/AITutor';
+
 
 export default function CourseViewer() {
     const { id: courseId, itemId, itemType } = useParams(); 
@@ -76,6 +78,14 @@ export default function CourseViewer() {
         });
     }, [course, progress]);
 
+    const activeItem = useMemo(() => {
+        if (!flattenedTimeline.length || !itemId) return null;
+        return flattenedTimeline.find(
+            i => String(i.id) === String(itemId) && i.itemType === itemType
+        );
+    }, [flattenedTimeline, itemId, itemType]);
+
+
     const handleNext = async () => {
         if (!canProceed || isNavigating) return;
         
@@ -122,7 +132,7 @@ export default function CourseViewer() {
     return (
         <div className="flex h-screen bg-[#02010a] text-white overflow-hidden student-theme">
             {/* LEFT: PERSISTENT TIMELINE */}
-            <aside className={`fixed lg:relative z-50 w-80 h-full border-r border-white/5 bg-[#05011d]/95 backdrop-blur-2xl transition-transform duration-300 ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+            <aside className={`fixed lg:relative z-50 w-80 h-full flex flex-col border-r border-white/5 bg-[#05011d]/95 backdrop-blur-2xl transition-transform duration-300 ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
                 <div className="p-6 border-b border-white/5 bg-[#05011d]/50">
                     <Link 
                         to={`/dashboard/student/class/${course.class_id}`} // FIX: Returns to specific class
@@ -146,7 +156,7 @@ export default function CourseViewer() {
                     </div>
                 </div>
 
-                <div className="flex-grow overflow-y-auto p-4 space-y-8 custom-scrollbar">
+                <div className="flex-grow overflow-y-auto p-4 pb-12 space-y-8 custom-scrollbar">
                     {course.modules.map(module => (
                         <div key={module.id}>
                             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 mb-4 px-3">{module.title}</h3>
@@ -177,6 +187,8 @@ export default function CourseViewer() {
                     ))}
                 </div>
             </aside>
+
+            <AITutor contextItem={activeItem} />
 
             {/* RIGHT: CONTENT AREA */}
             <main className="flex-grow flex flex-col relative bg-[#02010a]">

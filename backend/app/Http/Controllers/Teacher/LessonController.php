@@ -26,7 +26,7 @@ class LessonController extends Controller
             return response()->json(['message' => 'Access Denied'], 403);
         }
 
-        return response()->json($lesson);
+        return Lesson::with('module.course')->findOrFail($id);
     }
 
     /**
@@ -121,6 +121,17 @@ class LessonController extends Controller
                 'hint' => 'Check your .env keys and laravel.log'
             ], 500);
         }
+    }
+
+    public function destroy($id)
+    {
+        // Deep security check: Lesson -> Module -> Course -> Teacher
+        $lesson = Lesson::whereHas('module.course', function($q) {
+            $q->where('teacher_id', auth()->id());
+        })->findOrFail($id);
+
+        $lesson->delete();
+        return response()->json(['message' => 'Lesson removed.']);
     }
 
 }

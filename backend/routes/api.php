@@ -40,23 +40,20 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/teacher/classes/{id}', [ClassroomController::class, 'show']);
     Route::delete('/teacher/class/{id}', [ClassroomController::class, 'destroy']);
 
-    // Inside the auth:sanctum group...
     Route::post('/teacher/classes/{classId}/courses', [CourseController::class, 'store']);
     Route::get('/teacher/courses/{id}', [CourseController::class, 'show']);
     Route::post('/teacher/courses/{courseId}/modules', [ModuleController::class, 'store']);
     Route::post('/teacher/courses/{id}/publish', [CourseController::class, 'togglePublish']);
+    Route::post('/teacher/courses/{id}/ai-generate', [CourseController::class, 'generateWithAI']);
 
     Route::post('/teacher/modules/{moduleId}/lessons', [LessonController::class, 'store']);
     Route::post('/teacher/modules/{moduleId}/quizzes', [QuizController::class, 'store']);
-
     Route::post('/teacher/modules/{moduleId}/reorder', [ModuleController::class, 'reorderItems']);
     
-
     Route::get('/teacher/lessons/{id}', [LessonController::class, 'show']);
     Route::put('/teacher/lessons/{id}', [LessonController::class, 'update']);
     Route::post('/teacher/lessons/upload-image', [LessonController::class, 'uploadImage']);
     
-
     // Quiz Management
     Route::get('/teacher/quizzes/{id}', [QuizController::class, 'show']);
     Route::put('/teacher/quizzes/{id}', [QuizController::class, 'update']);
@@ -65,6 +62,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('/teacher/questions/{id}', [QuestionController::class, 'update']);
     Route::delete('/teacher/questions/{id}', [QuestionController::class, 'destroy']);
 
+    //delete
+    Route::post('/teacher/courses/{id}/publish-all', [CourseController::class, 'publishAll']);
+    Route::delete('/teacher/modules/{id}', [ModuleController::class, 'destroy']);
+    Route::delete('/teacher/lessons/{id}', [LessonController::class, 'destroy']);
+    Route::delete('/teacher/quizzes/{id}', [QuizController::class, 'destroy']);
+    //ai
+    Route::post('/teacher/courses/{id}/ai-commit', [CourseController::class, 'aiCommit']);
 
 
     // Stats for Overview
