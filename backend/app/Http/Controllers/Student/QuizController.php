@@ -13,12 +13,26 @@ use Illuminate\Support\Facades\DB;
 class QuizController extends Controller
 {
     // Fetch Quiz but HIDE expected_output so students can't cheat via Network Tab
-    public function show(Request $request, $id)
+public function show(Request $request, $id)
     {
         $user = $request->user();
-        $quiz = Quiz::with(['questions' => function ($q) {
-            $q->select('id', 'quiz_id', 'question_text', 'type', 'options', 'points', 'boilerplate'); 
-        }])->findOrFail($id);
+        $quiz = Quiz::findOrFail($id);
+
+        $query = $quiz->questions()->select('id', 'quiz_id', 'question_text', 'type', 'options', 'points', 'boilerplate');
+
+        // Apply Pool Randomization logic
+        if ($quiz->is_randomized) {
+            $query->inRandomOrder();
+            if ($quiz->question_limit) {
+                $query->limit($quiz->question_limit);
+            }
+        } else {
+            $query->orderBy('order_index', 'asc');
+        }
+
+        $questions = $query->get();
+        // Manually attach questions to the quiz object for the response
+        $quiz->setRelation('questions', $questions);
 
         // 1. Check for the LATEST completed attempt
         $completedAttempt = QuizAttempt::where('student_id', $user->id)
@@ -29,10 +43,10 @@ class QuizController extends Controller
 
         $existingResult = null;
 
-        if ($completedAttempt) {
+if ($completedAttempt) {
             $existingResult = [
                 'score' => $completedAttempt->total_score,
-                'max_score' => $quiz->questions->sum('points'),
+                'max_score' => $completedAttempt->max_score, // Use the stored max score
                 // Map details so the student can review their previous answers
                 'details' => $quiz->questions->map(function($q) use ($completedAttempt) {
                     $ans = $completedAttempt->answers()->where('question_id', $q->id)->first();
@@ -43,7 +57,7 @@ class QuizController extends Controller
                             ? ($q->options[$q->expected_output] ?? 'N/A') 
                             : $q->expected_output
                     ];
-                })
+                })->values() // <-- Ensures previous results are also flat arrays
             ];
         }
 
@@ -99,17 +113,24 @@ class QuizController extends Controller
             $quiz = Quiz::with('questions')->findOrFail($quizId);
             $submittedAnswers = $request->answers; 
 
+// Filter questions to ONLY the ones the frontend actually showed the student
+            $subsetIds = $request->input('question_ids', []);
+            $activeQuestions = $quiz->questions->whereIn('id', $subsetIds);
+            
+            $attemptMaxScore = $activeQuestions->sum('points');
+
             $attempt = QuizAttempt::create([
                 'student_id' => $user->id,
                 'quiz_id' => $quizId,
                 'status' => 'completed',
                 'total_score' => 0,
+                'max_score' => $attemptMaxScore,
                 'finished_at' => now()
             ]);
 
             $totalScore = 0;
 
-            foreach ($quiz->questions as $question) {
+            foreach ($activeQuestions as $question) {
                 $rawAnswer = $submittedAnswers[$question->id] ?? null;
                 $isCorrect = false;
 
@@ -159,12 +180,12 @@ class QuizController extends Controller
                 if ($isCorrect) $totalScore += $question->points;
             }
 
-            $attempt->update(['total_score' => $totalScore]);
+$attempt->update(['total_score' => $totalScore]);
 
-            return response()->json([
+return response()->json([
                 'score' => $totalScore,
-                'max_score' => $quiz->questions->sum('points'),
-                'details' => $quiz->questions->map(function($q) use ($submittedAnswers, $attempt) {
+                'max_score' => $attemptMaxScore,
+                'details' => $activeQuestions->map(function($q) use ($submittedAnswers, $attempt) {
                     // Find the specific answer record we just created in this transaction
                     $ansRecord = \App\Models\StudentAnswer::where('attempt_id', $attempt->id)
                         ->where('question_id', $q->id)
@@ -177,7 +198,7 @@ class QuizController extends Controller
                             ? ($q->options[$q->expected_output] ?? 'N/A') 
                             : $q->expected_output
                     ];
-                })
+                })->values() // <-- THIS FIXES IT: Forces it to be a flat array for React
             ]);
         });
     }

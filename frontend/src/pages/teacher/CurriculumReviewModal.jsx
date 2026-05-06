@@ -1,15 +1,111 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, Trash2, Edit3, BookOpen, HelpCircle, AlertCircle } from 'lucide-react';
+import { X, Check, Trash2, Edit3, BookOpen, HelpCircle, AlertCircle, RotateCcw } from 'lucide-react';
 
-export default function CurriculumReviewModal({ isOpen, data, onCancel, onConfirm }) {
+export default function CurriculumReviewModal({ isOpen, data, expectedParams, onCancel, onConfirm, onRegenerate }) {
     const [pendingData, setPendingData] = useState(null);
-    
+    const [validationWarning, setValidationWarning] = useState(null);
+    const [parameterMismatch, setParameterMismatch] = useState(null);
+
     useEffect(() => {
         if (data) {
             setPendingData(data);
+            validateCurriculum(data);
+            validateParameters(data, expectedParams);
         }
-    }, [data]);
+    }, [data, expectedParams]);
+
+    // Validate that generated curriculum matches requested parameters
+    const validateParameters = (curriculumData, expected) => {
+        if (!curriculumData || !expected || !curriculumData.new_modules) {
+            setParameterMismatch(null);
+            return;
+        }
+
+        const mismatches = [];
+        const actualModules = curriculumData.new_modules.length;
+        const expectedModuleRange = expected.moduleCount;
+
+        // Parse expected module count (e.g., "3-5" or "5")
+        const [minModules, maxModules] = expectedModuleRange.includes('-')
+            ? expectedModuleRange.split('-').map(Number)
+            : [parseInt(expectedModuleRange), parseInt(expectedModuleRange)];
+
+        // Check if module count is outside expected range
+        if (actualModules < minModules || actualModules > maxModules) {
+            mismatches.push(`Expected ${minModules}-${maxModules} modules, got ${actualModules}`);
+        }
+
+        // Check if include_quiz was requested but missing
+        if (expected.includeQuiz) {
+            curriculumData.new_modules.forEach((mod, idx) => {
+                const hasQuiz = (mod.items || []).some(item => item.type === 'quiz');
+                if (!hasQuiz) {
+                    mismatches.push(`Module ${idx + 1} missing quiz (expected per module)`);
+                }
+            });
+        }
+
+        // Check if coding exercises requested
+        if (expected.includeCodingExercises) {
+            const totalItems = curriculumData.new_modules.reduce((sum, mod) => sum + (mod.items || []).length, 0);
+            if (totalItems === 0) {
+                mismatches.push(`No coding content generated (expected coding exercises)`);
+            }
+        }
+
+        if (mismatches.length > 0) {
+            setParameterMismatch({
+                message: 'Parameter Mismatch Detected',
+                details: mismatches,
+                regenerateOption: true
+            });
+        } else {
+            setParameterMismatch(null);
+        }
+    };
+
+    // Validate curriculum against limits
+    const validateCurriculum = (curriculumData) => {
+        if (!curriculumData || !curriculumData.new_modules) return;
+
+        const modules = curriculumData.new_modules;
+        const moduleCount = modules.length;
+        const totalLessons = modules.reduce((sum, mod) => {
+            const lessonCount = (mod.items || []).filter(item => item.type === 'lesson').length;
+            return sum + lessonCount;
+        }, 0);
+
+        // Check limits (max 8 modules, max 8 lessons per module, max 64 total lessons)
+        const warnings = [];
+        if (moduleCount > 8) {
+            warnings.push(`Too many modules (${moduleCount}/8 max)`);
+        }
+
+        modules.forEach((mod, idx) => {
+            const lessonCount = (mod.items || []).filter(item => item.type === 'lesson').length;
+            if (lessonCount > 8) {
+                warnings.push(`Module ${idx + 1} has too many lessons (${lessonCount}/8 max)`);
+            }
+        });
+
+        if (totalLessons > 64) {
+            warnings.push(`Total lesson count too high (${totalLessons}/64 max)`);
+        }
+
+        if (warnings.length > 0) {
+            setValidationWarning(warnings.join(' • '));
+        } else {
+            setValidationWarning(null);
+        }
+    };
+
+    // Re-validate when pendingData changes
+    useEffect(() => {
+        if (pendingData) {
+            validateCurriculum(pendingData);
+        }
+    }, [pendingData]);
 
     // Safety Guard: Don't render if closed or data is missing
     if (!isOpen || !pendingData || !pendingData.new_modules) return null;
@@ -40,12 +136,53 @@ export default function CurriculumReviewModal({ isOpen, data, onCancel, onConfir
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative z-10 w-full max-w-4xl bg-[#030014] border border-white/10 rounded-[40px] shadow-2xl flex flex-col max-h-[90vh]">
                 
-                <div className="p-8 border-b border-white/5 flex justify-between items-center">
-                    <div>
-                        <h2 className="text-2xl font-black text-white uppercase tracking-tight">Review AI Blueprint</h2>
-                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Fine-tune the generated structure before saving</p>
+                <div className="p-8 border-b border-white/5">
+                    <div className="flex justify-between items-center mb-4">
+                        <div>
+                            <h2 className="text-2xl font-black text-white uppercase tracking-tight">Review AI Blueprint</h2>
+                            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Fine-tune the generated structure before saving</p>
+                        </div>
+                        <button onClick={onCancel} className="p-2 hover:bg-white/5 rounded-full border-none bg-transparent cursor-pointer text-slate-500"><X /></button>
                     </div>
-                    <button onClick={onCancel} className="p-2 hover:bg-white/5 rounded-full border-none bg-transparent cursor-pointer text-slate-500"><X /></button>
+
+                    {parameterMismatch && (
+                        <div className="flex items-start gap-3 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl mb-4">
+                            <AlertCircle size={20} className="text-yellow-500 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                                <p className="text-yellow-500 text-sm font-bold mb-2">{parameterMismatch.message}</p>
+                                <ul className="text-yellow-400 text-xs space-y-1 mb-3">
+                                    {parameterMismatch.details.map((detail, idx) => (
+                                        <li key={idx}>• {detail}</li>
+                                    ))}
+                                </ul>
+                                {parameterMismatch.regenerateOption && (
+                                    <>
+                                        <p className="text-yellow-400/70 text-xs mb-3">The generated content doesn't match your parameters. You can regenerate to get better results.</p>
+                                        {onRegenerate && (
+                                            <button
+                                                onClick={onRegenerate}
+                                                className="flex items-center gap-2 px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 rounded-lg text-xs font-bold transition-all border-none cursor-pointer"
+                                            >
+                                                <RotateCcw size={14} />
+                                                Regenerate Structure
+                                            </button>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {validationWarning && (
+                        <div className="flex items-start gap-3 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                            <AlertCircle size={20} className="text-yellow-500 flex-shrink-0 mt-0.5" />
+                            <div>
+                                <p className="text-yellow-500 text-sm font-bold mb-1">Exceeds Recommended Limits</p>
+                                <p className="text-yellow-400 text-xs">{validationWarning}</p>
+                                <p className="text-yellow-400/70 text-xs mt-2">Remove some modules/lessons below to avoid rate limiting during content generation.</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex-grow overflow-y-auto p-8 space-y-6 custom-scrollbar">

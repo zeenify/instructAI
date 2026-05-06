@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 class QuizAttempt extends Model
 {
     // These are the columns Laravel is allowed to "Mass Assign"
-    protected $fillable = [
-        'student_id', 
-        'quiz_id', 
-        'total_score', 
-        'status', 
+protected $fillable = [
+        'student_id',
+        'quiz_id',
+        'status',
+        'total_score',
+        'max_score',
         'finished_at'
     ];
 

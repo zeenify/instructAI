@@ -42,9 +42,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::post('/teacher/classes/{classId}/courses', [CourseController::class, 'store']);
     Route::get('/teacher/courses/{id}', [CourseController::class, 'show']);
-    Route::post('/teacher/courses/{courseId}/modules', [ModuleController::class, 'store']);
+    Route::post('/teacher/courses/{id}/upload-curriculum', [CourseController::class, 'uploadCurriculum']);
+Route::post('/teacher/courses/{courseId}/modules', [ModuleController::class, 'store']);
+    Route::put('/teacher/modules/{id}', [ModuleController::class, 'update']);
     Route::post('/teacher/courses/{id}/publish', [CourseController::class, 'togglePublish']);
     Route::post('/teacher/courses/{id}/ai-generate', [CourseController::class, 'generateWithAI']);
+    Route::post('/teacher/courses/{id}/ai-generate-content', [CourseController::class, 'generateContent']);
 
     Route::post('/teacher/modules/{moduleId}/lessons', [LessonController::class, 'store']);
     Route::post('/teacher/modules/{moduleId}/quizzes', [QuizController::class, 'store']);
@@ -60,6 +63,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Question Management
     Route::post('/teacher/quizzes/{quizId}/questions', [QuestionController::class, 'store']);
     Route::put('/teacher/questions/{id}', [QuestionController::class, 'update']);
+    Route::post('/teacher/quizzes/{id}/reorder-questions', [QuestionController::class, 'reorder']);
     Route::delete('/teacher/questions/{id}', [QuestionController::class, 'destroy']);
 
     //delete

@@ -7,11 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 class Course extends Model
 {
     protected $fillable = [
-        'teacher_id', 
-        'class_id', 
-        'title', 
-        'description', 
-        'is_published', 
+        'teacher_id',
+        'class_id',
+        'title',
+        'description',
+        'curriculum_file_url',
+        'curriculum_text',
+        'is_published',
         'order_index'
     ];
 

@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, X, Send, Sparkles, Zap, MessageSquare, BrainCircuit } from 'lucide-react';
+import { Bot, X, Send, Sparkles, BrainCircuit, Lock } from 'lucide-react';
 import './AITutor.css';
 
-export default function AITutor({ contextItem }) {
+export default function AITutor({ contextItem, isLocked }) {
     const [isOpen, setIsOpen] = useState(false);
     const [input, setInput] = useState("");
     const [messages, setMessages] = useState([
@@ -18,9 +18,14 @@ export default function AITutor({ contextItem }) {
         }
     }, [messages, isOpen]);
 
+    // Robustness: If teacher locks AI while student has chat open, force it closed
+    useEffect(() => {
+        if (isLocked) setIsOpen(false);
+    }, [isLocked]);
+
     const handleSend = (e) => {
         e.preventDefault();
-        if (!input.trim()) return;
+        if (!input.trim() || isLocked) return;
 
         const newMsg = { role: 'user', content: input };
         setMessages([...messages, newMsg]);
@@ -39,21 +44,30 @@ export default function AITutor({ contextItem }) {
         <>
             {/* --- 1. THE FLOATING BUTTON (FAB) --- */}
             <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => setIsOpen(true)}
-                className="ai-fab"
+                whileHover={isLocked ? {} : { scale: 1.1 }}
+                whileTap={isLocked ? {} : { scale: 0.9 }}
+                onClick={() => !isLocked && setIsOpen(true)}
+                className={`ai-fab ${isLocked ? 'locked' : ''}`}
+                title={isLocked ? "AI Assistance Restricted" : "Open AI Tutor"}
             >
-                <div className="fab-glow" />
-                <Bot size={28} className="relative z-10" />
-                <div className="fab-badge">
-                    <Sparkles size={10} />
-                </div>
+                {!isLocked && <div className="fab-glow" />}
+                
+                {isLocked ? (
+                    <Lock size={24} className="relative z-10 text-slate-500" />
+                ) : (
+                    <Bot size={28} className="relative z-10" />
+                )}
+
+                {!isLocked && (
+                    <div className="fab-badge">
+                        <Sparkles size={10} />
+                    </div>
+                )}
             </motion.button>
 
             {/* --- 2. THE CHAT WINDOW --- */}
             <AnimatePresence>
-                {isOpen && (
+                {isOpen && !isLocked && (
                     <div className="ai-overlay">
                         {/* Backdrop for mobile */}
                         <motion.div 
@@ -103,9 +117,9 @@ export default function AITutor({ contextItem }) {
                             <div className="ai-footer">
                                 {/* Quick Action Suggestions */}
                                 <div className="ai-suggestions">
-                                    <button className="chip">Explain Concept</button>
-                                    <button className="chip">Give me a Hint</button>
-                                    <button className="chip">Fix Syntax</button>
+                                    <button className="chip" onClick={() => setInput("Explain this concept")}>Explain Concept</button>
+                                    <button className="chip" onClick={() => setInput("Give me a hint")}>Give me a Hint</button>
+                                    <button className="chip" onClick={() => setInput("Fix my syntax")}>Fix Syntax</button>
                                 </div>
 
                                 <form onSubmit={handleSend} className="ai-input-wrapper">

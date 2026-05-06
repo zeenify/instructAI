@@ -14,19 +14,22 @@ class LessonController extends Controller
 {
     /**
      * Fetch a single lesson
+     * OPTIMIZED: Single query with eager loading
      */
     public function show($id)
     {
-        // Find the lesson where its course belongs to the logged-in teacher
-        $lesson = Lesson::whereHas('module.course', function($query) {
-            $query->where('teacher_id', auth()->id());
-        })->find($id);
+        // Single optimized query with authorization check and eager loading
+        $lesson = Lesson::with('module.course')
+            ->whereHas('module.course', function($query) {
+                $query->where('teacher_id', auth()->id());
+            })
+            ->find($id);
 
         if (!$lesson) {
             return response()->json(['message' => 'Access Denied'], 403);
         }
 
-        return Lesson::with('module.course')->findOrFail($id);
+        return response()->json($lesson);
     }
 
     /**

@@ -19,6 +19,10 @@ frontend/node_modules/
 frontend/dist/
 frontend/.eslintcache
 
+# Code Execution Engine (separate repo)
+instruct-execute/
+instruct-execute/**
+
 # OS Files
 .DS_Store
 Thumbs.db

@@ -1,20 +1,28 @@
 /* Floating Action Button */
 .ai-fab {
-    position: fixed;
-    bottom: 100px; /* Sits above the footer */
-    right: 32px;
-    width: 64px;
-    height: 64px;
-    border-radius: 20px;
-    background: #22d3ee;
-    color: #02010a;
-    border: none;
-    cursor: pointer;
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 10px 30px rgba(34, 211, 238, 0.4);
+position: fixed;
+bottom: 100px; /* Sits above the footer */
+right: 32px;
+width: 64px;
+height: 64px;
+border-radius: 20px;
+background: #22d3ee;
+color: #02010a;
+border: none;
+cursor: pointer;
+z-index: 100;
+display: flex;
+align-items: center;
+justify-content: center;
+box-shadow: 0 10px 30px rgba(34, 211, 238, 0.4);
+transition: all 0.3s ease;
+}
+.ai-fab.locked {
+background: rgba(255, 255, 255, 0.05);
+border: 1px solid rgba(255, 255, 255, 0.1);
+color: #475569;
+cursor: not-allowed;
+box-shadow: none;
 }
 
 .fab-glow {

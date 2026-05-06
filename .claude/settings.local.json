@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan *)",
+      "Bash(taskkill *)",
+      "Bash(python main.py)",
+      "Bash(composer require *)",
+      "Bash(/c/Users/EDRICK/.config/herd/bin/composer require *)",
+      "Bash(netstat -ano)",
+      "Bash(curl http://127.0.0.1:8001/)",
+      "Bash(curl -X POST http://127.0.0.1:8001/ai/generate-content-stream -F \"curriculum_structure=[]\" -F \"difficulty=beginner\")",
+      "Bash(awk '{print $5}')",
+      "Bash(curl -s http://127.0.0.1:8001/)",
+      "Bash(awk 'NR==1 {print $5}')",
+      "Bash(python test_service.py)",
+      "Bash(pip install *)",
+      "Bash(curl -s http://localhost:8001/)",
+      "Bash(cat)",
+      "Bash(chmod +x /tmp/test_ai.sh)",
+      "Bash(bash /tmp/test_ai.sh)",
+      "Bash(chmod +x test_changes.sh)",
+      "Bash(bash test_changes.sh)",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:8000/api/health)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(python -m json.tool)",
+      "Bash(curl -s http://localhost:5173/)",
+      "Bash(netstat -tln)",
+      "Bash(curl -s http://localhost:8000)",
+      "Bash(python *)"
+    ]
+  }
+}

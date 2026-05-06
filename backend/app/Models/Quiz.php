@@ -13,8 +13,10 @@ class Quiz extends Model
         'allow_ai_assistance', 
         'time_limit_minutes',
         'order_index',
-        'passing_score',
-        'is_published'
+'passing_score',
+        'is_published',
+        'timer_mode',
+        'question_limit'
     ];
 
     protected $casts = [

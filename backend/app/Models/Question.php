@@ -12,9 +12,10 @@ class Question extends Model
         'type', 
         'question_text', 
         'options', 
-        'expected_output', 
+'expected_output', 
         'points',
-        'boilerplate'
+        'boilerplate',
+        'order_index'
     ];
 
     // 2. CRITICAL: Tell Laravel that 'options' is an array/JSON

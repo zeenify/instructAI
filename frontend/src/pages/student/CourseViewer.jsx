@@ -20,18 +20,17 @@ export default function CourseViewer() {
     const [course, setCourse] = useState(null);
     const [progress, setProgress] = useState({ lessons: [], quizzes: [] });
     const [loading, setLoading] = useState(true);
-    const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+const [showMobileSidebar, setShowMobileSidebar] = useState(false);
     const [canProceed, setCanProceed] = useState(false);
     const [isNavigating, setIsNavigating] = useState(false);
+    const [isAiLocked, setIsAiLocked] = useState(false); // New state to control the bubble
 
     useEffect(() => { fetchCourseData(); }, [courseId]);
     // Fix for Step 1: Force lock the button instantly when the URL changes
-    useEffect(() => {
+useEffect(() => {
         setCanProceed(false); // Immediately lock the button
         setShowMobileSidebar(false); // Close sidebar on mobile
-        
-        // If the lesson was already completed in the past, LessonRenderer 
-        // will send an update to setCanProceed(true) almost immediately.
+        setIsAiLocked(false); // Default to unlocked for lessons
     }, [itemId, itemType]);
 
     const fetchCourseData = async () => {
@@ -188,7 +187,7 @@ export default function CourseViewer() {
                 </div>
             </aside>
 
-            <AITutor contextItem={activeItem} />
+<AITutor contextItem={activeItem} isLocked={isAiLocked} />
 
             {/* RIGHT: CONTENT AREA */}
             <main className="flex-grow flex flex-col relative bg-[#02010a]">
@@ -214,10 +213,11 @@ export default function CourseViewer() {
                                             onProgressUpdate={setCanProceed}
                                             isCompleted={progress.lessons.includes(Number(itemId))} 
                                         />
-                                    ) : (
+) : (
                                         <QuizDisplay 
                                             quizId={itemId} 
                                             onPass={() => { setCanProceed(true); fetchCourseData(); }}
+                                            onAiToggle={(allowed) => setIsAiLocked(!allowed)}
                                             isAlreadyPassed={progress.quizzes.includes(Number(itemId))}
                                         />
                                     )

@@ -2,16 +2,47 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { 
-    ChevronLeft, Save, Rocket, Plus, Trash2, 
-    Type, Heading1, Code, Image as ImageIcon, 
-    Loader2, GripVertical, Upload, Check, AlertCircle
+    ChevronLeft, Trash2, Type, Heading1, Code, Image as ImageIcon, 
+    Loader2, GripVertical, Upload, Check, AlertCircle,
+    Bold, Italic, Underline, List, Link as LinkIcon, 
+    Video, ExternalLink, X, Play, Eraser, Save
 } from 'lucide-react';
+
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import UnderlineExtension from '@tiptap/extension-underline';
+import LinkExtension from '@tiptap/extension-link';
+import Placeholder from '@tiptap/extension-placeholder';
+import { BubbleMenu as BubbleMenuPlugin } from '@tiptap/extension-bubble-menu';
+
 import { toast } from 'sonner';
-import api from '../../services/api';
+import api, { invalidateCache } from '../../services/api';
 import Button from '../../components/ui/Button';
 
+import CodeMirror from '@uiw/react-codemirror';
+import { java } from '@codemirror/lang-java';
+
+/**
+ * TIPTAP CONFIGURATION
+ * Defined outside to prevent the "Duplicate extension" warning.
+ */
+const TIPTAP_EXTENSIONS = [
+    StarterKit.configure({
+        bulletList: { keepMarks: true, keepAttributes: false },
+        orderedList: { keepMarks: true, keepAttributes: false },
+    }),
+    UnderlineExtension,
+    LinkExtension.configure({
+        openOnClick: false,
+        HTMLAttributes: { class: 'text-purple-400 underline cursor-pointer' },
+    }),
+    Placeholder.configure({
+        placeholder: 'Begin your instruction here...',
+    }),
+    BubbleMenuPlugin,
+];
+
 export default function LessonEditor() {
-    // Capture both IDs from the new nested URL structure
     const { classId, id } = useParams(); 
     const navigate = useNavigate();
     
@@ -29,14 +60,10 @@ export default function LessonEditor() {
 
     useEffect(() => {
         let isMounted = true;
-
         const fetchLesson = async () => {
             setLoading(true);
-            setLesson(null); // Clear ghost data
-            
             try {
                 const res = await api.get(`/teacher/lessons/${id}`);
-                
                 if (isMounted) {
                     setLesson(res.data);
                     setTitle(res.data.title);
@@ -45,19 +72,13 @@ export default function LessonEditor() {
                 }
             } catch (err) {
                 if (isMounted) {
-                    if (err.response?.status === 403) {
-                        toast.error("Security: Unauthorized access attempt.");
-                        navigate('/dashboard/teacher');
-                    } else {
-                        toast.error("Failed to load lesson content.");
-                        navigate(-1);
-                    }
+                    toast.error("Failed to load lesson content.");
+                    navigate(-1);
                 }
             } finally {
                 if (isMounted) setLoading(false);
             }
         };
-
         fetchLesson();
         return () => { isMounted = false; };
     }, [id, navigate]);
@@ -66,11 +87,12 @@ export default function LessonEditor() {
         const newBlock = {
             id: crypto.randomUUID(),
             type,
-            data: type === 'code' ? { mode: 'playground', code: '', expected: '' } : 
-                  type === 'image' ? { url: '', caption: '' } : { text: '' }
+            data: type === 'code' ? { mode: 'playground', code: '', expected: '', boilerplate: '' } : 
+                  type === 'image' ? { url: '', caption: '' } : 
+                  type === 'video' ? { url: '', title: '' } :
+                  type === 'link' ? { url: '', title: '' } : { text: '' }
         };
         setBlocks([...blocks, newBlock]);
-        // Scroll to bottom after state update
         setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
     };
 
@@ -93,11 +115,16 @@ export default function LessonEditor() {
                 is_published: publishStatus
             });
             setIsPublished(publishStatus);
+
+            // Invalidate cache for this lesson and related courses
+            invalidateCache(`/teacher/lessons/${id}`);
+            invalidateCache(`/teacher/courses/`);
+
             toast.success(publishStatus ? "Published to Classroom" : "Draft Saved Successfully");
-        } catch (err) { 
-            toast.error("System sync failed. Please try again."); 
-        } finally { 
-            setSaving(false); 
+        } catch (err) {
+            toast.error("System sync failed.");
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -107,16 +134,29 @@ export default function LessonEditor() {
         </div>
     );
 
-    // Security Gate: Prevent rendering if data failed to load
     if (!lesson) return null;
 
     return (
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-5xl mx-auto px-4">
+            <style>{`
+                .ProseMirror ul { list-style-type: disc !important; padding-left: 1.5rem !important; margin: 1rem 0 !important; }
+                .ProseMirror ol { list-style-type: decimal !important; padding-left: 1.5rem !important; margin: 1rem 0 !important; }
+                .ProseMirror p.is-editor-empty:first-child::before {
+                    content: attr(data-placeholder);
+                    float: left;
+                    color: #475569;
+                    pointer-events: none;
+                    height: 0;
+                    font-style: italic;
+                }
+                .ProseMirror:focus { outline: none; }
+            `}</style>
+
             {/* STICKY CONTROL BAR */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-16 sticky top-0 z-40 bg-[#030014]/90 backdrop-blur-xl py-6 border-b border-white/5">
                 <div className="flex items-center gap-4 w-full md:w-auto">
                     <button 
-                        onClick={() => navigate(`/dashboard/teacher/class/${classId}/course/${lesson.module.course_id}`)} 
+                        onClick={() => navigate(-1)} 
                         className="p-2 hover:bg-white/5 rounded-full text-slate-500 hover:text-white transition-all border-none bg-transparent cursor-pointer"
                     >
                         <ChevronLeft size={24} />
@@ -124,14 +164,14 @@ export default function LessonEditor() {
                     <div className="flex flex-col flex-grow">
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-500 mb-1">Architecture Mode</span>
                         <input 
-                            value={title} 
+                            value={title || ""} 
                             onChange={(e) => setTitle(e.target.value)} 
                             className="bg-transparent border-none outline-none text-2xl font-bold text-white w-full placeholder:text-slate-800" 
                             placeholder="Unit Title..." 
                         />
                     </div>
                 </div>
-                <div className="flex gap-3 w-full md:w-auto">
+                <div className="flex gap-3">
                     <Button loading={saving} onClick={() => handleSave()} className="px-8 py-3 text-xs uppercase tracking-widest font-black" variant="primary">
                         Sync Changes
                     </Button>
@@ -148,19 +188,12 @@ export default function LessonEditor() {
             <div className="max-w-3xl mx-auto pb-60">
                 <Reorder.Group axis="y" values={blocks} onReorder={setBlocks} className="space-y-12 list-none p-0">
                     {blocks.map((block) => (
-                        <Reorder.Item 
-                            key={block.id} 
-                            value={block}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="group relative"
-                        >
-                            {/* BLOCK SIDEBAR CONTROLS */}
+                        <Reorder.Item key={block.id} value={block} className="group relative">
+                            {/* BLOCK SIDEBAR CONTROLS (Restored Delete Confirm) */}
                             <div className="absolute -left-16 top-0 h-full hidden lg:flex flex-col items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
                                 <div className="cursor-grab active:cursor-grabbing p-2 text-slate-700 hover:text-purple-400 transition-colors">
                                     <GripVertical size={20} />
                                 </div>
-                                
                                 <AnimatePresence mode="wait">
                                     {confirmDeleteId === block.id ? (
                                         <motion.button 
@@ -192,12 +225,6 @@ export default function LessonEditor() {
                     ))}
                 </Reorder.Group>
 
-                {blocks.length === 0 && (
-                    <div className="py-24 text-center border-2 border-dashed border-white/5 rounded-[40px]">
-                        <p className="text-slate-600 font-medium uppercase tracking-widest text-xs">Blueprint is empty</p>
-                    </div>
-                )}
-
                 {/* INSERTER HUB */}
                 <div className="mt-24">
                     <div className="flex items-center gap-4 mb-10">
@@ -205,11 +232,13 @@ export default function LessonEditor() {
                         <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-700">Add Element</span>
                         <div className="h-[1px] flex-grow bg-white/5" />
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <AddBlockBtn icon={Heading1} label="Headline" onClick={() => addBlock('h1')} />
-                        <AddBlockBtn icon={Type} label="Paragraph" onClick={() => addBlock('text')} />
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                        <AddBlockBtn icon={Heading1} label="H1" onClick={() => addBlock('h1')} />
+                        <AddBlockBtn icon={Type} label="Text" onClick={() => addBlock('text')} />
                         <AddBlockBtn icon={Code} label="Sandbox" onClick={() => addBlock('code')} />
                         <AddBlockBtn icon={ImageIcon} label="Media" onClick={() => addBlock('image')} />
+                        <AddBlockBtn icon={Video} label="YouTube" onClick={() => addBlock('video')} />
+                        <AddBlockBtn icon={LinkIcon} label="Link" onClick={() => addBlock('link')} />
                     </div>
                 </div>
             </div>
@@ -218,50 +247,67 @@ export default function LessonEditor() {
 }
 
 function BlockElement({ block, update, isUploading, setUploading, clearUploading }) {
-    const handleFile = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        setUploading();
-        const formData = new FormData();
-        formData.append('image', file);
-
-        try {
-            const res = await api.post('/teacher/lessons/upload-image', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-            update(block.id, { url: res.data.url });
-            toast.success("Cloud asset synchronized");
-        } catch (err) {
-            toast.error("Upload failed. Verify image type.");
-        } finally {
-            clearUploading();
-        }
+    const getYoutubeId = (url) => {
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+        const match = url?.match(regExp);
+        return (match && match[2].length === 11) ? match[2] : null;
     };
 
     switch (block.type) {
         case 'h1': return (
-            <input 
-                className="w-full bg-transparent border-none outline-none text-4xl font-black text-white placeholder:text-slate-900 tracking-tight" 
-                placeholder="New Section Heading..." 
-                value={block.data.text} 
-                onChange={(e) => update(block.id, { text: e.target.value })} 
+            <textarea
+                className="w-full bg-transparent border-none outline-none text-4xl font-black text-white placeholder:text-slate-900 tracking-tight resize-none overflow-hidden"
+                placeholder="New Section Heading..."
+                value={block.data.text || ""}
+                onChange={(e) => {
+                    update(block.id, { text: e.target.value });
+                    e.target.style.height = 'auto';
+                    e.target.style.height = e.target.scrollHeight + 'px';
+                }}
+                onInput={(e) => {
+                    e.target.style.height = 'auto';
+                    e.target.style.height = e.target.scrollHeight + 'px';
+                }}
             />
         );
         case 'text': return (
-            <textarea 
-                className="w-full bg-transparent border-none outline-none text-xl text-slate-400 leading-relaxed resize-none overflow-hidden placeholder:text-slate-900" 
-                placeholder="Begin your instruction..." 
-                value={block.data.text} 
-                onChange={(e) => { 
-                    update(block.id, { text: e.target.value }); 
-                    e.target.style.height = 'auto'; 
-                    e.target.style.height = e.target.scrollHeight + 'px'; 
-                }} 
+            <RichTextEditor 
+                content={block.data.text || ""} 
+                onChange={(html) => update(block.id, { text: html })} 
             />
         );
+        case 'video': 
+            const ytId = getYoutubeId(block.data.url);
+            return (
+                <div className="p-8 rounded-[40px] bg-white/[0.02] border border-white/5 space-y-6">
+                    <div className="flex items-center gap-3 text-red-500">
+                        <Video size={20} />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Video Instruction</span>
+                    </div>
+                    {ytId ? (
+                        <div className="aspect-video w-full rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-black">
+                            <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${ytId}`} frameBorder="0" allowFullScreen />
+                        </div>
+                    ) : (
+                        <div className="h-48 bg-white/5 rounded-3xl flex flex-col items-center justify-center border border-dashed border-white/10 group">
+                            <Play className="text-white/10 group-hover:text-red-500 transition-colors mb-3" size={48} />
+                            <p className="text-[10px] text-slate-600 font-black uppercase tracking-widest">Paste YouTube Link Below</p>
+                        </div>
+                    )}
+                    <input className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-sm text-white outline-none focus:border-red-500/50 transition-all" placeholder="YouTube URL..." value={block.data.url || ""} onChange={(e) => update(block.id, { url: e.target.value })} />
+                </div>
+            );
+        case 'link': return (
+            <div className="p-6 rounded-[32px] bg-white/[0.02] border border-white/5 flex items-center gap-6 group/link transition-all hover:bg-white/[0.04]">
+                <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover/link:scale-110 transition-transform"><ExternalLink size={28} /></div>
+                <div className="flex-grow space-y-1">
+                    <input className="w-full bg-transparent border-none outline-none text-lg text-white font-black placeholder:text-slate-800" placeholder="Resource Title..." value={block.data.title || ""} onChange={(e) => update(block.id, { title: e.target.value })} />
+                    <input className="w-full bg-transparent border-none outline-none text-[10px] text-slate-500 font-mono tracking-widest uppercase" placeholder="https://..." value={block.data.url || ""} onChange={(e) => update(block.id, { url: e.target.value })} />
+                </div>
+            </div>
+        );
         case 'image': return (
-            <div className="relative rounded-[32px] overflow-hidden border border-white/5 bg-white/[0.01] p-4 min-h-[300px] flex flex-col items-center justify-center transition-all group/img">
+            <div className="relative rounded-[32px] overflow-hidden border border-white/5 bg-white/[0.01] p-4 min-h-[300px] flex flex-col items-center justify-center transition-all">
                 <AnimatePresence>
                     {isUploading && (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 z-10 bg-[#030014]/90 backdrop-blur-xl flex flex-col items-center justify-center gap-4">
@@ -270,32 +316,28 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
                         </motion.div>
                     )}
                 </AnimatePresence>
-
                 {block.data.url ? (
                     <div className="w-full space-y-4">
-                        <img src={block.data.url} className="w-full rounded-2xl object-cover shadow-2xl border border-white/5" alt="" />
-                        <div className="flex items-center gap-4 px-2">
-                             <input 
-                                className="flex-grow bg-transparent border-none outline-none text-center text-sm text-slate-600 font-bold uppercase tracking-widest" 
-                                placeholder="Add Caption..." 
-                                value={block.data.caption} 
-                                onChange={(e) => update(block.id, { caption: e.target.value })} 
-                            />
-                            <button onClick={() => update(block.id, { url: '' })} className="p-2 text-slate-700 hover:text-red-500 transition-colors border-none bg-transparent cursor-pointer">
-                                <Trash2 size={16} />
-                            </button>
-                        </div>
+                        <img src={block.data.url} className="w-full rounded-2xl shadow-2xl border border-white/5" alt="" />
+                        <input className="w-full bg-transparent border-none outline-none text-center text-sm text-slate-600 font-bold uppercase tracking-widest" placeholder="Add Caption..." value={block.data.caption || ""} onChange={(e) => update(block.id, { caption: e.target.value })} />
+                        <button onClick={() => update(block.id, { url: '' })} className="absolute top-8 right-8 p-2 bg-red-500 rounded-full text-white border-none cursor-pointer"><Trash2 size={16} /></button>
                     </div>
                 ) : (
                     <label className="flex flex-col items-center gap-6 cursor-pointer group/upload">
-                        <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center group-hover/upload:scale-110 group-hover/upload:bg-purple-500/10 group-hover/upload:shadow-[0_0_30px_rgba(167,139,250,0.2)] transition-all">
-                            <Upload size={28} className="text-slate-600 group-hover/upload:text-purple-400" />
-                        </div>
-                        <div className="text-center">
-                            <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Upload Resource</p>
-                            <p className="text-[10px] text-slate-700 font-bold uppercase tracking-widest mt-2">Maximum file size: 10MB</p>
-                        </div>
-                        <input type="file" className="hidden" accept="image/*" onChange={handleFile} />
+                        <Upload size={28} className="text-slate-600 group-hover:text-purple-400" />
+                        <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Select Image</p>
+                        <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                            const file = e.target.files[0];
+                            if(!file) return;
+                            setUploading();
+                            const fd = new FormData(); fd.append('image', file);
+                            try {
+                                const res = await api.post('/teacher/lessons/upload-image', fd);
+                                update(block.id, { url: res.data.url });
+                                toast.success("Asset uploaded");
+                            } catch (err) { toast.error("Upload failed"); }
+                            finally { clearUploading(); }
+                        }} />
                     </label>
                 )}
             </div>
@@ -305,36 +347,24 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
                 <div className="flex justify-between items-center mb-10">
                     <div className="flex bg-white/5 p-1 rounded-xl">
                         {['playground', 'challenge'].map(m => (
-                            <button 
-                                key={m} 
-                                onClick={() => update(block.id, { mode: m })} 
-                                className={`px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] transition-all border-none cursor-pointer ${block.data.mode === m ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' : 'text-slate-600 hover:text-slate-400'}`}
-                            >
-                                {m}
-                            </button>
+                            <button key={m} onClick={() => update(block.id, { mode: m })} className={`px-5 py-2 rounded-lg text-[10px] font-black uppercase transition-all border-none cursor-pointer ${block.data.mode === m ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' : 'text-slate-600 hover:text-slate-400'}`}>{m}</button>
                         ))}
                     </div>
-                    <span className="text-[10px] font-black text-slate-800 uppercase tracking-[0.3em]">Runtime Engine</span>
+                    <button 
+                        onClick={() => update(block.id, { code: 'public class Main {\n    public static void main(String[] args) {\n        // Code here\n    }\n}' })}
+                        className="text-[9px] font-bold text-purple-400 bg-transparent border-none cursor-pointer"
+                    >
+                        + Java Template
+                    </button>
                 </div>
-                <textarea 
-                    className="w-full bg-transparent border-none outline-none font-mono text-sm text-purple-300 min-h-[300px] leading-loose" 
-                    placeholder="// Define logic parameters..." 
-                    value={block.data.code} 
-                    onChange={(e) => update(block.id, { code: e.target.value })} 
-                />
+                <div className="rounded-2xl border border-white/5 overflow-hidden mb-6">
+                    <CodeMirror value={block.data.code || ""} height="300px" theme="dark" extensions={[java()]} onChange={(val) => update(block.id, { code: val })} />
+                </div>
                 {block.data.mode === 'challenge' && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-8 pt-8 border-t border-white/5">
-                        <div className="flex items-center gap-3 mb-4">
-                            <AlertCircle size={16} className="text-cyan-500" />
-                            <label className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">Required Output Verification</label>
-                        </div>
-                        <input 
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-sm font-mono text-cyan-400 outline-none focus:border-cyan-500/50 transition-all shadow-inner" 
-                            placeholder="Exact string required to pass..." 
-                            value={block.data.expected} 
-                            onChange={(e) => update(block.id, { expected: e.target.value })} 
-                        />
-                    </motion.div>
+                    <div className="mt-8 pt-8 border-t border-white/5 text-cyan-500 flex flex-col gap-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest">Required Output</label>
+                        <input className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-sm font-mono text-cyan-400" value={block.data.expected || ""} onChange={(e) => update(block.id, { expected: e.target.value })} />
+                    </div>
                 )}
             </div>
         );
@@ -342,13 +372,72 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
     }
 }
 
+function RichTextEditor({ content, onChange }) {
+    const [linkUrl, setLinkUrl] = useState('');
+    const [showLinkInput, setShowLinkInput] = useState(false);
+    const [isTextSelected, setIsTextSelected] = useState(false);
+
+    const editor = useEditor({
+        extensions: TIPTAP_EXTENSIONS,
+        content: content,
+        onUpdate: ({ editor }) => onChange(editor.getHTML()),
+        onSelectionUpdate: ({ editor }) => {
+            setIsTextSelected(!editor.state.selection.empty);
+        },
+    });
+
+    if (!editor) return null;
+
+    const setLink = () => {
+        if (linkUrl) {
+            editor.chain().focus().setLink({ href: linkUrl }).run();
+            setLinkUrl('');
+            setShowLinkInput(false);
+        } else {
+            editor.chain().focus().unsetLink().run();
+            setShowLinkInput(false);
+        }
+    };
+
+    return (
+        <div className="relative group/editor">
+            {/* MANUAL BUBBLE MENU UI (FIX FOR VITE ERROR) */}
+            {isTextSelected && (
+                <div className="absolute -top-14 left-0 flex items-center gap-1 bg-slate-900 border border-white/10 p-1 rounded-2xl shadow-2xl z-50">
+                    <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-2.5 rounded-xl border-none cursor-pointer ${editor.isActive('bold') ? 'text-purple-400 bg-white/5 shadow-lg' : 'text-slate-500 bg-transparent'}`}><Bold size={16}/></button>
+                    <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-2.5 rounded-xl border-none cursor-pointer ${editor.isActive('italic') ? 'text-purple-400 bg-white/5 shadow-lg' : 'text-slate-500 bg-transparent'}`}><Italic size={16}/></button>
+                    <button type="button" onClick={() => editor.chain().focus().toggleUnderline().run()} className={`p-2.5 rounded-xl border-none cursor-pointer ${editor.isActive('underline') ? 'text-purple-400 bg-white/5 shadow-lg' : 'text-slate-500 bg-transparent'}`}><Underline size={16}/></button>
+                    
+                    <div className="w-[1px] h-4 bg-white/10 mx-1" />
+                    
+                    {!showLinkInput ? (
+                        <button type="button" onClick={() => { setLinkUrl(editor.getAttributes('link').href || ''); setShowLinkInput(true); }} className={`p-2.5 rounded-xl border-none cursor-pointer ${editor.isActive('link') ? 'text-purple-400' : 'text-slate-500 bg-transparent'}`}><LinkIcon size={16}/></button>
+                    ) : (
+                        <div className="flex items-center gap-2 bg-black rounded-xl px-2 py-1 ml-1 border border-purple-500/30">
+                            <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} className="bg-transparent border-none outline-none text-[10px] text-white w-32 font-mono" placeholder="URL..." onKeyDown={(e) => e.key === 'Enter' && setLink()} />
+                            <button onClick={setLink} className="text-purple-400 p-1 border-none bg-transparent cursor-pointer"><Check size={14}/></button>
+                            <button onClick={() => setShowLinkInput(false)} className="text-slate-600 p-1 border-none bg-transparent cursor-pointer"><X size={14}/></button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* SIDEBAR BLOCK ACTIONS (VISIBLE ON HOVER) */}
+            <div className="flex gap-2 mb-4 opacity-0 group-hover/editor:opacity-100 transition-opacity">
+                <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-2 px-3 rounded-lg border-none cursor-pointer flex items-center gap-2 transition-all ${editor.isActive('bulletList') ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-white/5 text-slate-500 hover:text-slate-300'}`}><List size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">Bullets</span></button>
+                <button onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()} className="p-2 px-3 rounded-lg border-none bg-white/5 text-slate-500 hover:text-red-400 cursor-pointer flex items-center gap-2 transition-all"><Eraser size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">Clear Formatting</span></button>
+            </div>
+            
+            <EditorContent editor={editor} className="prose prose-invert max-w-none text-xl text-slate-300 leading-relaxed min-h-[40px]" />
+        </div>
+    );
+}
+
 function AddBlockBtn({ icon: Icon, label, onClick }) {
     return (
-        <button onClick={onClick} className="flex flex-col items-center gap-4 p-10 rounded-[32px] bg-white/[0.01] border border-white/5 hover:border-purple-500/30 hover:bg-purple-500/5 transition-all border-none cursor-pointer group shadow-sm">
-            <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-slate-600 group-hover:text-purple-400 group-hover:scale-110 transition-all shadow-lg">
-                <Icon size={28} />
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600 group-hover:text-slate-300 transition-colors">{label}</span>
+        <button onClick={onClick} className="flex flex-col items-center gap-4 p-8 rounded-[32px] bg-white/[0.01] border border-white/5 hover:border-purple-500/30 hover:bg-purple-500/5 transition-all border-none cursor-pointer group shadow-sm">
+            <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-slate-600 group-hover:text-purple-400 group-hover:scale-110 transition-all shadow-lg"><Icon size={24} /></div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-700 group-hover:text-slate-300 transition-colors">{label}</span>
         </button>
     );
 }

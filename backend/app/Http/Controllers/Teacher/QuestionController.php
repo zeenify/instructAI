@@ -39,6 +39,17 @@ class QuestionController extends Controller
         }
     }
 
+public function reorder(Request $request, $quizId)
+    {
+        $request->validate(['question_ids' => 'required|array']);
+        
+        foreach ($request->question_ids as $index => $id) {
+            Question::where('id', $id)->where('quiz_id', $quizId)->update(['order_index' => $index + 1]);
+        }
+
+        return response()->json(['message' => 'Reordered']);
+    }
+
     public function destroy($id)
     {
         Question::findOrFail($id)->delete();

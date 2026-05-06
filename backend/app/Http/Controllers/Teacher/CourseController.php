@@ -5,11 +5,16 @@ namespace App\Http\Controllers\Teacher;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Classroom;
-use App\Models\Module; 
+use App\Models\Module;
+use App\Models\Lesson;
+use App\Models\Quiz;
+use App\Models\Question;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
+use Cloudinary\Api\Upload\UploadApi;
+use Illuminate\Support\Str;
 
 class CourseController extends Controller
 {
@@ -25,13 +30,63 @@ class CourseController extends Controller
             $request->validate([
                 'title' => 'required|string|max:255',
                 'description' => 'nullable|string',
+                'curriculum_file' => 'nullable|file|mimes:pdf,doc,docx,txt|max:10240', // 10MB max
             ]);
+
+            $curriculumFileUrl = null;
+            $curriculumText = null;
+
+            // Handle curriculum file upload
+            if ($request->hasFile('curriculum_file')) {
+                $file = $request->file('curriculum_file');
+
+                // Get Cloudinary credentials
+                $cloudName = env('CLOUDINARY_CLOUD_NAME');
+                $apiKey    = env('CLOUDINARY_API_KEY');
+                $apiSecret = env('CLOUDINARY_API_SECRET');
+
+                if ($cloudName && $apiKey && $apiSecret) {
+                    // Initialize Cloudinary
+                    $config = [
+                        'cloud' => [
+                            'cloud_name' => $cloudName,
+                            'api_key' => $apiKey,
+                            'api_secret' => $apiSecret,
+                        ]
+                    ];
+
+                    $uploadApi = new UploadApi($config);
+
+                    // Get original filename
+                    $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                    $extension = $file->getClientOriginalExtension();
+
+                    // Upload to Cloudinary with original filename
+                    $result = $uploadApi->upload($file->getRealPath(), [
+                        'folder' => 'instructai/curriculum',
+                        'resource_type' => 'raw',
+                        'public_id' => $originalName,
+                        'format' => $extension
+                    ]);
+
+                    $curriculumFileUrl = $result['secure_url'];
+                } else {
+                    throw new \Exception("Cloudinary credentials missing");
+                }
+
+                // Text extraction temporarily disabled until packages installed
+                // TODO: Re-enable after: composer require smalot/pdfparser phpoffice/phpword
+                // $curriculumText = $this->extractTextFromFile($file);
+                $curriculumText = '';
+            }
 
             $course = Course::create([
                 'teacher_id' => $request->user()->id,
                 'class_id' => $classId,
                 'title' => $request->title,
                 'description' => $request->description,
+                'curriculum_file_url' => $curriculumFileUrl,
+                'curriculum_text' => $curriculumText,
                 'is_published' => false,
                 'order_index' => $classroom->courses()->count() + 1
             ]);
@@ -39,6 +94,82 @@ class CourseController extends Controller
             return response()->json($course, 201);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Extract text from uploaded file (PDF, DOCX, TXT)
+     */
+    private function extractTextFromFile($file)
+    {
+        if (!$file || !$file->isValid()) {
+            return '';
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension());
+        $content = '';
+
+        try {
+            if ($extension === 'pdf') {
+                // Use Smalot\PdfParser for PDF extraction
+                $parser = new \Smalot\PdfParser\Parser();
+                $pdf = $parser->parseFile($file->getRealPath());
+                $content = $pdf ? $pdf->getText() : '';
+            } elseif (in_array($extension, ['doc', 'docx'])) {
+                // Use PhpOffice\PhpWord for DOCX extraction
+                $phpWord = \PhpOffice\PhpWord\IOFactory::load($file->getRealPath());
+                if ($phpWord) {
+                    $sections = $phpWord->getSections();
+                    if ($sections && is_array($sections)) {
+                        foreach ($sections as $section) {
+                            if (!$section) continue;
+                            $elements = $section->getElements();
+                            if ($elements && is_array($elements)) {
+                                foreach ($elements as $element) {
+                                    if ($element && method_exists($element, 'getText')) {
+                                        $text = $element->getText();
+                                        if ($text) {
+                                            $content .= $text . "\n";
+                                        }
+                                    } elseif ($element && method_exists($element, 'getElements')) {
+                                        // Handle nested elements (paragraphs with text runs)
+                                        $subElements = $element->getElements();
+                                        if ($subElements && is_array($subElements)) {
+                                            foreach ($subElements as $subElement) {
+                                                if ($subElement && method_exists($subElement, 'getText')) {
+                                                    $text = $subElement->getText();
+                                                    if ($text) {
+                                                        $content .= $text;
+                                                    }
+                                                }
+                                            }
+                                            $content .= "\n";
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } elseif ($extension === 'txt') {
+                // Plain text file
+                $filePath = $file->getRealPath();
+                if ($filePath && file_exists($filePath)) {
+                    $content = file_get_contents($filePath);
+                }
+            }
+
+            // Clean up and limit to 50,000 characters
+            $content = trim($content);
+            if (mb_strlen($content) > 50000) {
+                $content = mb_substr($content, 0, 50000);
+            }
+
+            return $content ?: '';
+        } catch (\Exception $e) {
+            // If extraction fails, return empty string
+            \Log::warning("Failed to extract text from file ({$extension}): " . $e->getMessage());
+            return '';
         }
     }
 
@@ -62,6 +193,88 @@ class CourseController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function uploadCurriculum(Request $request, $id)
+    {
+        $course = Course::where('id', $id)
+            ->where('teacher_id', auth()->id())
+            ->firstOrFail();
+
+        $request->validate([
+            'curriculum_file' => 'required|file|mimes:pdf,doc,docx,txt|max:10240', // 10MB max
+        ]);
+
+        try {
+            $file = $request->file('curriculum_file');
+
+            if (!$file || !$file->isValid()) {
+                throw new \Exception('Invalid file upload');
+            }
+
+            // Get Cloudinary credentials
+            $cloudName = env('CLOUDINARY_CLOUD_NAME');
+            $apiKey    = env('CLOUDINARY_API_KEY');
+            $apiSecret = env('CLOUDINARY_API_SECRET');
+
+            if (!$cloudName || !$apiKey || !$apiSecret) {
+                throw new \Exception("Cloudinary credentials are missing in .env");
+            }
+
+            // Initialize Cloudinary
+            $config = [
+                'cloud' => [
+                    'cloud_name' => $cloudName,
+                    'api_key' => $apiKey,
+                    'api_secret' => $apiSecret,
+                ]
+            ];
+
+            $uploadApi = new UploadApi($config);
+
+            // Get original filename without extension for public_id
+            $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            $extension = $file->getClientOriginalExtension();
+
+            // Upload to Cloudinary with original filename
+            $result = $uploadApi->upload($file->getRealPath(), [
+                'folder' => 'instructai/curriculum',
+                'resource_type' => 'raw',
+                'public_id' => $originalName,
+                'format' => $extension
+            ]);
+
+            if (!$result || !isset($result['secure_url'])) {
+                throw new \Exception('Cloudinary upload failed');
+            }
+
+            $curriculumFileUrl = $result['secure_url'];
+
+            // Extract text from uploaded file
+            $curriculumText = '';
+            try {
+                $curriculumText = $this->extractTextFromFile($file);
+            } catch (\Exception $extractError) {
+                \Log::warning("Text extraction failed but continuing: " . $extractError->getMessage());
+            }
+
+            // Update course
+            $course->update([
+                'curriculum_file_url' => $curriculumFileUrl,
+                'curriculum_text' => $curriculumText,
+            ]);
+
+            $message = 'Curriculum document uploaded successfully (text extraction pending package install)';
+
+            return response()->json([
+                'success' => true,
+                'curriculum_file_url' => $curriculumFileUrl,
+                'message' => $message
+            ]);
+        } catch (\Exception $e) {
+            \Log::error("Upload curriculum failed: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to upload curriculum: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function publishAll(Request $request, $id) 
     {
         $course = Course::findOrFail($id);
@@ -75,18 +288,80 @@ class CourseController extends Controller
         
     public function generateWithAI(Request $request, $courseId)
     {
-        $request->validate(['prompt' => 'required|string', 'file' => 'nullable|file']);
+        $request->validate([
+            'prompt' => 'required|string',
+            'file' => 'nullable|file',
+            'difficulty' => 'nullable|string',
+            'module_count' => 'nullable|string',
+            'lessons_per_module' => 'nullable|string',
+            'include_quiz' => 'nullable|string',
+            'include_coding' => 'nullable|string',
+            'pacing' => 'nullable|string',
+        ]);
 
-        $aiUrl = env('AI_SERVICE_URL') . '/ai/generate-curriculum';
-        $apiCall = Http::asMultipart();
-        
-        if ($request->hasFile('file')) {
-            $file = $request->file('file');
-            $apiCall->attach('file', file_get_contents($file), $file->getClientOriginalName());
-        }
-        $response = $apiCall->post($aiUrl, ['prompt' => $request->prompt]);
+        // Get course to access curriculum_text
+        $course = Course::findOrFail($courseId);
 
-        return response()->json($response->json());
+        return new StreamedResponse(function () use ($request, $course) {
+            $aiUrl = env('AI_SERVICE_URL') . '/ai/generate-curriculum-stream';
+
+            // Build multipart request
+            $multipart = [
+                ['name' => 'prompt', 'contents' => $request->prompt],
+                ['name' => 'difficulty', 'contents' => $request->input('difficulty', 'beginner')],
+                ['name' => 'module_count', 'contents' => $request->input('module_count', '3-5')],
+                ['name' => 'lessons_per_module', 'contents' => $request->input('lessons_per_module', '3-5')],
+                ['name' => 'include_quiz', 'contents' => $request->input('include_quiz', 'true')],
+                ['name' => 'include_coding', 'contents' => $request->input('include_coding', 'true')],
+                ['name' => 'pacing', 'contents' => $request->input('pacing', 'standard')],
+            ];
+
+            // Add curriculum text if exists
+            if ($course->curriculum_text) {
+                $multipart[] = ['name' => 'curriculum_text', 'contents' => $course->curriculum_text];
+            }
+
+            // Add file if provided
+            if ($request->hasFile('file')) {
+                $file = $request->file('file');
+                $multipart[] = [
+                    'name' => 'file',
+                    'contents' => fopen($file->getRealPath(), 'r'),
+                    'filename' => $file->getClientOriginalName()
+                ];
+            }
+
+            // Stream from AI service
+            $client = new \GuzzleHttp\Client();
+            try {
+                $response = $client->post($aiUrl, [
+                    'multipart' => $multipart,
+                    'stream' => true,
+                    'timeout' => 120,
+                ]);
+
+                $body = $response->getBody();
+                while (!$body->eof()) {
+                    $chunk = $body->read(1024);
+                    echo $chunk;
+                    if (ob_get_level() > 0) {
+                        ob_flush();
+                    }
+                    flush();
+                }
+            } catch (\Exception $e) {
+                echo "data: " . json_encode(['type' => 'error', 'message' => $e->getMessage()]) . "\n\n";
+                if (ob_get_level() > 0) {
+                    ob_flush();
+                }
+                flush();
+            }
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'Connection' => 'keep-alive',
+            'X-Accel-Buffering' => 'no', // Disable nginx buffering
+        ]);
     }
 
     public function aiCommit(Request $request, $id)
@@ -178,6 +453,160 @@ class CourseController extends Controller
             'Content-Type' => 'text/event-stream',
             'Cache-Control' => 'no-cache',
             'Connection' => 'keep-alive',
+        ]);
+    }
+
+    public function generateContent(Request $request, $id)
+    {
+        // Increase timeout for 3-stage AI pipeline (outline + content + formatting)
+        set_time_limit(900); // 15 minutes
+
+        $course = Course::where('id', $id)
+            ->where('teacher_id', auth()->id())
+            ->firstOrFail();
+
+        $request->validate([
+            'curriculum_structure' => 'required|string', // JSON of approved modules with IDs
+            'content_params' => 'required|array',
+        ]);
+
+        return new StreamedResponse(function () use ($request, $course) {
+            $aiUrl = env('AI_SERVICE_URL') . '/ai/generate-content-stream';
+            $params = $request->input('content_params');
+
+            // Build multipart request
+            $multipart = [
+                ['name' => 'curriculum_structure', 'contents' => $request->curriculum_structure],
+                ['name' => 'difficulty', 'contents' => $params['difficulty'] ?? 'beginner'],
+                ['name' => 'content_depth', 'contents' => $params['contentDepth'] ?? 'standard'],
+                ['name' => 'code_examples_per_lesson', 'contents' => $params['codeExamplesPerLesson'] ?? '3-4'],
+                ['name' => 'writing_style', 'contents' => $params['writingStyle'] ?? 'conversational'],
+                ['name' => 'questions_per_quiz', 'contents' => strval($params['questionsPerQuiz'] ?? 10)],
+                ['name' => 'question_type_mix', 'contents' => $params['questionTypeMix'] ?? 'mixed'],
+                ['name' => 'points_per_question', 'contents' => strval($params['pointsPerQuestion'] ?? 5)],
+                ['name' => 'include_images', 'contents' => $params['includeImages'] ? 'true' : 'false'],
+                ['name' => 'include_videos', 'contents' => $params['includeVideos'] ? 'true' : 'false'],
+            ];
+
+            // Add curriculum text if exists
+            if ($course->curriculum_text) {
+                $multipart[] = ['name' => 'curriculum_text', 'contents' => $course->curriculum_text];
+                \Log::info("Course {$course->id}: Sending " . strlen($course->curriculum_text) . " chars of curriculum text to AI");
+            } else {
+                \Log::warning("Course {$course->id}: NO curriculum_text - AI will generate GENERIC content based only on titles!");
+                $multipart[] = ['name' => 'curriculum_text', 'contents' => ''];
+            }
+
+            // Stream from AI service and save to database
+            $client = new \GuzzleHttp\Client();
+            try {
+                // Send initial status immediately to prevent timeout
+                echo "data: " . json_encode(['type' => 'status', 'message' => 'Connecting to AI service...']) . "\n\n";
+                if (ob_get_level() > 0) {
+                    ob_flush();
+                }
+                flush();
+
+                $response = $client->post($aiUrl, [
+                    'multipart' => $multipart,
+                    'stream' => true,
+                    'timeout' => 600, // 10 minutes for 3-stage pipeline
+                    'read_timeout' => 600,
+                    'connect_timeout' => 30,
+                ]);
+
+                $body = $response->getBody();
+                $buffer = '';
+
+                while (!$body->eof()) {
+                    $chunk = $body->read(1024);
+                    $buffer .= $chunk;
+
+                    // Process complete SSE messages
+                    $lines = explode("\n", $buffer);
+                    $buffer = array_pop($lines); // Keep incomplete line in buffer
+
+                    foreach ($lines as $line) {
+                        if (strpos($line, 'data: ') === 0) {
+                            $data = json_decode(substr($line, 6), true);
+
+                            if ($data && isset($data['type'])) {
+                                // Save lesson content to database
+                                if ($data['type'] === 'lesson_complete') {
+                                    $lessonData = $data['data'];
+                                    $lesson = Lesson::find($lessonData['lesson_id']);
+
+                                    if ($lesson) {
+                                        // Generate UUIDs for blocks
+                                        $blocks = $lessonData['blocks'];
+                                        foreach ($blocks as &$block) {
+                                            $block['id'] = (string) Str::uuid();
+                                        }
+
+                                        $lesson->update(['content' => $blocks]);
+                                    }
+                                }
+
+                                // Save quiz questions to database
+                                if ($data['type'] === 'quiz_complete') {
+                                    $quizData = $data['data'];
+                                    $quiz = Quiz::find($quizData['quiz_id']);
+
+                                    if ($quiz) {
+                                        $questions = $quizData['questions'];
+                                        $totalPoints = 0;
+                                        $orderIndex = 1;
+
+                                        foreach ($questions as $questionData) {
+                                            Question::create([
+                                                'quiz_id' => $quiz->id,
+                                                'question_text' => $questionData['question_text'] ?? '',
+                                                'type' => $questionData['type'] ?? 'multiple_choice',
+                                                'options' => $questionData['options'] ?? null,
+                                                'expected_output' => $questionData['expected_output'] ?? null,
+                                                'boilerplate' => $questionData['boilerplate'] ?? null,
+                                                'points' => $questionData['points'] ?? 5,
+                                                'order_index' => $orderIndex++,
+                                            ]);
+
+                                            $totalPoints += $questionData['points'] ?? 5;
+                                        }
+
+                                        // Calculate passing score from percentage
+                                        $passingPercentage = $request->input('content_params.passingPercentage', 70);
+                                        $passingScore = floor($totalPoints * $passingPercentage / 100);
+
+                                        // Update quiz settings
+                                        $quiz->update([
+                                            'passing_score' => $passingScore,
+                                            'allow_ai_assistance' => $request->input('content_params.allowAIAssistance', false),
+                                        ]);
+                                    }
+                                }
+                            }
+
+                            // Forward to frontend
+                            echo $line . "\n";
+                            if (ob_get_level() > 0) {
+                                ob_flush();
+                            }
+                            flush();
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error("Content generation error: " . $e->getMessage());
+                echo "data: " . json_encode(['type' => 'error', 'message' => $e->getMessage()]) . "\n\n";
+                if (ob_get_level() > 0) {
+                    ob_flush();
+                }
+                flush();
+            }
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'Connection' => 'keep-alive',
+            'X-Accel-Buffering' => 'no',
         ]);
     }
 }

@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Full Lesson Pipeline</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; margin-bottom: 20px; }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover { background: #45a049; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+
+        .results {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #eee;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 8px;
+            border-left: 4px solid #4CAF50;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+        }
+        .section-type {
+            background: #4CAF50;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .block {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+        .block-type {
+            display: inline-block;
+            background: #2196F3;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        .block h1 {
+            font-size: 24px;
+            color: #333;
+            margin-top: 10px;
+        }
+        .block-text {
+            line-height: 1.6;
+            color: #444;
+        }
+        .block-text ul, .block-text ol {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        .block-text li {
+            margin-bottom: 8px;
+        }
+        .block-text strong {
+            color: #333;
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            white-space: pre;
+            margin-top: 10px;
+        }
+        .code-mode {
+            display: inline-block;
+            background: #FF9800;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+
+        .image-block {
+            margin-top: 10px;
+        }
+        .image-block img {
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .image-caption {
+            margin-top: 8px;
+            font-size: 14px;
+            color: #666;
+            font-style: italic;
+        }
+        .image-url {
+            font-size: 11px;
+            color: #999;
+            word-break: break-all;
+            margin-top: 4px;
+        }
+
+        .video-block {
+            margin-top: 10px;
+        }
+        .video-embed {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+        .video-embed iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .video-title {
+            margin-top: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        .video-url {
+            font-size: 11px;
+            color: #999;
+            word-break: break-all;
+            margin-top: 4px;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #c62828;
+            margin-top: 20px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Full Lesson Pipeline</h1>
+
+        <div class="form-group">
+            <label>Lesson Title</label>
+            <input type="text" id="lessonTitle" value="Variables and Data Types" />
+        </div>
+
+        <div class="form-group">
+            <label>Module Title</label>
+            <input type="text" id="moduleTitle" value="Java Basics" />
+        </div>
+
+        <div class="form-group">
+            <label>Difficulty</label>
+            <select id="difficulty">
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="includeImages" checked /> Include Images (Pexels)
+            </label>
+        </div>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="includeVideos" checked /> Include Videos (YouTube)
+            </label>
+        </div>
+
+        <button onclick="testPipeline()">Generate Lesson</button>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function getYouTubeEmbedUrl(url) {
+            if (!url) return null;
+            const videoId = url.match(/[?&]v=([^&]+)/);
+            return videoId ? `https://www.youtube.com/embed/${videoId[1]}` : null;
+        }
+
+        function renderBlock(block) {
+            let html = `<div class="block">`;
+            html += `<span class="block-type">${block.type}</span>`;
+
+            if (block.type === 'h1') {
+                html += `<h1>${block.data.text}</h1>`;
+            }
+            else if (block.type === 'text') {
+                html += `<div class="block-text">${block.data.text}</div>`;
+            }
+            else if (block.type === 'code') {
+                html += `<span class="code-mode">Mode: ${block.data.mode}</span>`;
+                html += `<div class="code-block">${escapeHtml(block.data.code)}</div>`;
+                if (block.data.expected) {
+                    html += `<p style="margin-top:10px; color:#666;"><strong>Expected Output:</strong></p>`;
+                    html += `<div class="code-block">${escapeHtml(block.data.expected)}</div>`;
+                }
+            }
+            else if (block.type === 'image') {
+                html += `<div class="image-block">`;
+                html += `<img src="${block.data.url}" alt="${block.data.caption}" onerror="this.style.border='2px solid red'; this.alt='Image failed to load';" />`;
+                html += `<div class="image-caption">${block.data.caption}</div>`;
+                html += `<div class="image-url">URL: ${block.data.url}</div>`;
+                html += `</div>`;
+            }
+            else if (block.type === 'video') {
+                const embedUrl = getYouTubeEmbedUrl(block.data.url);
+                html += `<div class="video-block">`;
+                if (embedUrl) {
+                    html += `<div class="video-embed">`;
+                    html += `<iframe src="${embedUrl}" allowfullscreen></iframe>`;
+                    html += `</div>`;
+                } else {
+                    html += `<p style="color:#999; font-style:italic;">${block.data.title}</p>`;
+                }
+                html += `<div class="video-title">${block.data.title}</div>`;
+                html += `<div class="video-url">URL: ${block.data.url || 'Not available'}</div>`;
+                html += `</div>`;
+            }
+
+            html += `</div>`;
+            return html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function testPipeline() {
+            const lessonTitle = document.getElementById('lessonTitle').value;
+            const moduleTitle = document.getElementById('moduleTitle').value;
+            const difficulty = document.getElementById('difficulty').value;
+            const includeImages = document.getElementById('includeImages').checked;
+            const includeVideos = document.getElementById('includeVideos').checked;
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Generating lesson with AI (3-stage pipeline)...</p>
+                    <p style="font-size:14px; color:#999; margin-top:10px;">This may take 10-15 seconds</p>
+                </div>
+            `;
+
+            try {
+                const formData = new FormData();
+                formData.append('lesson_title', lessonTitle);
+                formData.append('module_title', moduleTitle);
+                formData.append('difficulty', difficulty);
+                formData.append('include_images', includeImages);
+                formData.append('include_videos', includeVideos);
+
+                const response = await fetch('http://localhost:8001/ai/test-full-lesson', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+
+                const data = await response.json();
+
+                let html = '<div class="results">';
+                html += `<h2 style="margin-bottom:20px;">📚 ${data.formatted_lesson.lesson_title}</h2>`;
+                html += `<p style="color:#666; margin-bottom:20px;">`;
+                html += `${data.formatted_lesson.block_count} blocks | `;
+                html += `${data.formatted_lesson.has_code ? '✅' : '❌'} Code | `;
+                html += `${data.formatted_lesson.has_images ? '✅' : '❌'} Images | `;
+                html += `${data.formatted_lesson.has_videos ? '✅' : '❌'} Videos`;
+                html += `</p>`;
+
+                // Group blocks by section (each section starts with h1)
+                let currentSection = null;
+                let sectionBlocks = [];
+
+                data.formatted_lesson.blocks.forEach((block, index) => {
+                    if (block.type === 'h1') {
+                        // Render previous section
+                        if (currentSection) {
+                            html += `<div class="section">`;
+                            html += `<div class="section-header">`;
+                            html += `<span class="section-title">${currentSection}</span>`;
+                            html += `</div>`;
+                            sectionBlocks.forEach(b => html += renderBlock(b));
+                            html += `</div>`;
+                        }
+                        // Start new section
+                        currentSection = block.data.text;
+                        sectionBlocks = [];
+                    } else {
+                        sectionBlocks.push(block);
+                    }
+
+                    // Last section
+                    if (index === data.formatted_lesson.blocks.length - 1 && currentSection) {
+                        html += `<div class="section">`;
+                        html += `<div class="section-header">`;
+                        html += `<span class="section-title">${currentSection}</span>`;
+                        html += `</div>`;
+                        sectionBlocks.forEach(b => html += renderBlock(b));
+                        html += `</div>`;
+                    }
+                });
+
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        <strong>Error:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

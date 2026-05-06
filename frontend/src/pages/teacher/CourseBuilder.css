@@ -1,96 +1,59 @@
 /* --- 1. Container & Typography --- */
 .builder-container {
-    max-width: 1000px;
+    max-width: 1100px;
     margin: 0 auto;
 }
 
 .back-btn {
     display: flex; align-items: center; gap: 8px;
-    color: #64748b; font-size: 14px; font-weight: 600;
+    color: #64748b; font-size: 14px; font-weight: 800;
     text-transform: uppercase; letter-spacing: 0.1em;
-    margin-bottom: 16px; transition: 0.2s;
+    transition: 0.2s;
 }
 .back-btn:hover { color: white; }
 
 .builder-header { 
     display: flex; 
     justify-content: space-between; 
-    align-items: flex-end; 
-    margin-bottom: 40px;
+    align-items: flex-start; 
 }
 
-.ai-btn {
-    padding: 10px 20px;
-    font-size: 12px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border: none;
+/* WIGGLE ANIMATION (iOS Style Reordering) */
+@keyframes wiggle {
+    0% { transform: rotate(-1deg); }
+    50% { transform: rotate(1.5deg); }
+    100% { transform: rotate(-1deg); }
 }
 
-/* --- 2. Module Cards --- */
-.module-group { list-style: none; padding: 0; }
-
-.module-card {
-    background: #05011d;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 24px;
-    overflow: hidden;
-    margin-bottom: 32px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+.is-wiggling {
+    animation: wiggle 0.3s ease-in-out infinite alternate;
 }
 
-.module-header {
-    background: rgba(255, 255, 255, 0.02);
-    padding: 24px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.is-wiggling .group {
+    border-color: rgba(167, 139, 250, 0.4) !important;
 }
 
-.drag-handle { cursor: grab; color: #334155; transition: 0.2s; }
-.drag-handle:active { cursor: grabbing; }
-.drag-handle:hover { color: #a78bfa; }
-
-.module-number {
-    width: 40px; height: 40px;
-    background: rgba(167, 139, 250, 0.1);
-    border: 1px solid rgba(167, 139, 250, 0.2);
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    color: #a78bfa; font-weight: 800; font-size: 14px;
-}
-
-.module-content { padding: 24px; }
-
-.content-label {
-    font-size: 10px; font-weight: 900; text-transform: uppercase;
-    letter-spacing: 0.2em; color: #475569; margin-bottom: 16px; display: block;
-}
-
-/* --- 3. Timeline Reordering & Stability --- */
+/* --- Timeline Inside Module Detail --- */
 .timeline-group {
     position: relative;
     display: flex;
     flex-direction: column;
+    gap: 16px;
 }
 
 .timeline-item {
-    background: rgba(255, 255, 255, 0.03);
+    background: #020202;
     border: 1px solid rgba(255, 255, 255, 0.05);
-    padding: 16px;
-    border-radius: 16px;
+    padding: 20px;
+    border-radius: 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
     transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
     user-select: none;
     position: relative;
 }
 
-/* Fixes the "messy hover" during drag */
 .is-dragging-active .timeline-item {
     pointer-events: none !important;
 }
@@ -106,229 +69,56 @@
 .item-drag-handle { cursor: grab; color: #1e293b; padding: 4px; pointer-events: auto !important; }
 .item-drag-handle:hover { color: white; }
 
-.item-icon { padding: 8px; border-radius: 10px; }
-.item-icon.lesson { background: rgba(167, 139, 250, 0.1); color: #a78bfa; }
-.item-icon.quiz { background: rgba(34, 211, 238, 0.1); color: #22d3ee; }
+.timeline-item.is-draft { opacity: 0.6; }
 
-.item-title { font-size: 15px; font-weight: 700; color: #f1f5f9; display: block; }
-.item-badge { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; }
-
-.edit-btn {
-    opacity: 0; color: #94a3b8; font-size: 10px; font-weight: 800;
-    text-transform: uppercase; display: flex; align-items: center; gap: 6px;
-    background: transparent; border: none; cursor: pointer; transition: 0.2s;
-    pointer-events: auto !important;
-}
-.timeline-item:hover .edit-btn { opacity: 1; }
-.edit-btn:hover { color: white; }
-
-/* --- 4. Professional Inline Creation UI --- */
-.inline-input-container {
-    margin-top: 20px;
-    padding: 2px;
-    border-radius: 18px;
-    background: linear-gradient(to right, transparent, rgba(255,255,255,0.05), transparent);
-}
-
-.input-inner {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: #030014;
-    padding: 12px 16px;
-    border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
-    transition: all 0.3s ease;
-}
-
-/* Color Coding for Creation Mode */
-.lesson-mode .input-inner { border-color: rgba(167, 139, 250, 0.4); }
-.quiz-mode .input-inner { border-color: rgba(34, 211, 238, 0.4); }
-
-.type-indicator {
-    padding: 8px;
-    border-radius: 10px;
-    background: rgba(255,255,255,0.03);
-}
-.lesson-mode .type-indicator { color: #a78bfa; }
-.quiz-mode .type-indicator { color: #22d3ee; }
-
-.input-inner input {
-    flex-grow: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: white;
-    font-size: 15px;
-    font-weight: 500;
-}
-
-.input-actions { display: flex; gap: 8px; }
-
-.cancel-btn, .confirm-btn {
-    width: 36px; height: 36px;
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; transition: all 0.2s; border: none;
-}
-
-.cancel-btn { background: rgba(255,255,255,0.02); color: #64748b; }
-.cancel-btn:hover { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-
-.confirm-btn { background: white; color: black; }
-.lesson-mode .confirm-btn { background: #a78bfa; color: white; }
-.quiz-mode .confirm-btn { background: #22d3ee; color: #030014; }
-
-.confirm-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-/* --- 5. Action Grid & Add Module --- */
-.add-item-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px; }
-
-.add-btn {
-    padding: 20px !important;
-    font-size: 11px !important;
-    letter-spacing: 0.1em;
-    background: rgba(255,255,255,0.01) !important;
-    border: 1px dashed rgba(255,255,255,0.1) !important;
-    border-radius: 20px !important;
-    color: #64748b; font-weight: 800; text-transform: uppercase;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
-}
-
-.add-btn:hover { transform: translateY(-2px); background: rgba(255,255,255,0.03) !important; }
-.add-btn.lesson:hover { border-color: #a78bfa !important; color: #a78bfa !important; }
-.add-btn.quiz:hover { border-color: #22d3ee !important; color: #22d3ee !important; }
-
-.add-module-form { display: flex; gap: 16px; margin-top: 40px; }
-
-.add-module-form input {
-    flex-grow: 1; background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px; padding: 0 24px; color: white; font-size: 18px;
-}
-.item-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #f1f5f9;
-}
-
-/* Make the Draft badge pop more */
-span[class*="bg-red-500"] {
-    display: inline-block;
-    vertical-align: middle;
-}
-
-
-.status-pill {
-    display: flex; 
-    align-items: center; 
-    gap: 6px;
-    padding: 4px 10px; 
-    border-radius: 6px;
-    font-size: 9px; 
-    font-weight: 900; 
-    text-transform: uppercase; 
-    letter-spacing: 0.1em;
-    border: 1px solid;
-}
-
-.status-pill.draft { 
-    background: rgba(239, 68, 68, 0.1); 
-    color: #ef4444; 
-    border-color: rgba(239, 68, 68, 0.2); 
-}
-
-.status-pill.live { 
-    background: rgba(16, 185, 129, 0.1); 
-    color: #10b981; 
-    border-color: rgba(16, 185, 129, 0.2); 
-}
-
-/* Timeline Item Enhancements */
-.timeline-item.is-draft {
-    opacity: 0.7;
-}
-
-/* Fixed alignment for actions */
 .item-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
-    min-width: 160px; /* Force consistent spacing */
+    gap: 8px;
+    min-width: 160px;
     justify-content: flex-end;
 }
 
 .action-icon-btn {
     background: transparent; border: none; cursor: pointer;
-    color: #475569; padding: 8px; border-radius: 8px;
-    transition: all 0.2s;
+    color: #475569; padding: 10px; border-radius: 12px;
+    transition: all 0.2s; display: flex; align-items: center; justify-content: center;
 }
 .action-icon-btn:hover { color: white; background: rgba(255,255,255,0.05); }
 .action-icon-btn.active { color: #10b981; }
 
 .edit-pill-btn {
-    padding: 6px 12px; border-radius: 8px;
-    font-size: 10px; font-weight: 800; text-transform: uppercase;
-    display: flex; align-items: center; gap: 6px;
-    border: 1px solid rgba(255,255,255,0.05);
-    background: rgba(255,255,255,0.02);
-    color: #94a3b8; transition: all 0.2s;
+    padding: 10px 16px; border-radius: 12px;
+    font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em;
+    display: flex; align-items: center; gap: 8px;
+    border: none;
+    background: rgba(255,255,255,0.05);
+    color: white; transition: all 0.2s;
     cursor: pointer;
 }
 
-.edit-pill-btn.lesson:hover { border-color: #a78bfa; color: #a78bfa; background: rgba(167, 139, 250, 0.05); }
-.edit-pill-btn.quiz:hover { border-color: #22d3ee; color: #22d3ee; background: rgba(34, 211, 238, 0.05); }
+.edit-pill-btn.lesson:hover { background: rgba(167, 139, 250, 0.2); color: #c084fc; }
+.edit-pill-btn.quiz:hover { background: rgba(34, 211, 238, 0.2); color: #22d3ee; }
 
-/* Status Badges on items */
-.status-badge {
-    font-size: 8px; font-weight: 900; text-transform: uppercase;
-    padding: 2px 6px; border-radius: 4px; border: 1px solid;
-}
-.status-badge.draft { background: rgba(239, 68, 68, 0.05); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); }
-.status-badge.published { background: rgba(16, 185, 129, 0.05); color: #10b981; border-color: rgba(16, 185, 129, 0.2); }
-
-/* Inline Input Polishing */
-.inline-input-container {
-    margin-top: 16px;
-}
-.input-inner {
-    border-width: 1.5px;
-}
-
-
-/* AI Generation Overlay */
-.ai-btn {
-    background: linear-gradient(to right, #22d3ee, #0891b2) !important;
-    color: #02010a !important;
-    font-weight: 900 !important;
-    box-shadow: 0 0 20px rgba(34, 211, 238, 0.2);
-}
-
-.ai-btn:hover {
-    box-shadow: 0 0 30px rgba(34, 211, 238, 0.4);
-}
-
-/* Status Pill in Header */
+/* Status Badges */
 .status-pill {
     display: flex; align-items: center; gap: 6px;
-    padding: 4px 10px; border-radius: 6px;
+    padding: 6px 12px; border-radius: 8px;
     font-size: 9px; font-weight: 900; 
     text-transform: uppercase; letter-spacing: 0.1em; border: 1px solid;
 }
 .status-pill.draft { background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); }
 .status-pill.live { background: rgba(16, 185, 129, 0.1); color: #10b981; border-color: rgba(16, 185, 129, 0.2); }
 
-/* Item Status Badges */
 .status-badge {
     font-size: 8px; font-weight: 900; text-transform: uppercase;
-    padding: 2px 6px; border-radius: 4px; border: 1px solid;
+    padding: 4px 8px; border-radius: 6px; border: 1px solid;
 }
 .status-badge.draft { background: rgba(239, 68, 68, 0.05); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); }
 .status-badge.published { background: rgba(16, 185, 129, 0.05); color: #10b981; border-color: rgba(16, 185, 129, 0.2); }
 
-.item-actions {
-    display: flex; align-items: center; gap: 12px;
-    min-width: 160px; justify-content: flex-end;
-}
+/* Custom Scrollbar for Logs */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }

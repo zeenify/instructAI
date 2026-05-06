@@ -9,12 +9,22 @@ use Illuminate\Http\Request;
 
 class QuizController extends Controller
 {
-    // 1. ADD THIS SHOW METHOD
+    /**
+     * Fetch a single quiz
+     * OPTIMIZED: Single query with eager loading and sorted questions
+     */
     public function show($id)
     {
-        $quiz = Quiz::whereHas('module.course', function($query) {
+        $quiz = Quiz::with([
+            'module.course',
+            'questions' => function($q) {
+                $q->orderBy('order_index', 'asc');
+            }
+        ])
+        ->whereHas('module.course', function($query) {
             $query->where('teacher_id', auth()->id());
-        })->with('questions')->find($id);
+        })
+        ->find($id);
 
         if (!$quiz) {
             return response()->json(['message' => 'Access Denied'], 403);
@@ -58,7 +68,10 @@ class QuizController extends Controller
                 'is_published' => 'sometimes|boolean',
                 'is_randomized' => 'sometimes|boolean',
                 'allow_ai_assistance' => 'sometimes|boolean',
-                'time_limit_minutes' => 'sometimes|nullable|integer'
+'time_limit_minutes' => 'sometimes|nullable|numeric|min:0|max:300',
+'passing_score' => 'sometimes|integer|min:0',
+                'timer_mode' => 'sometimes|string|in:entire_quiz,per_question',
+                'question_limit' => 'sometimes|nullable|integer|min:1'
             ]);
 
             $quiz->update($validated);

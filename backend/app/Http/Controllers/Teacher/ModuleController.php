@@ -62,7 +62,7 @@ class ModuleController extends Controller
         return response()->json(['message' => 'Timeline synchronized']);
     }
 
-    public function destroy($id)
+public function destroy($id)
     {
         // Find module only if it belongs to the logged-in teacher's course
         $module = Module::whereHas('course', function($q) {
@@ -72,6 +72,20 @@ class ModuleController extends Controller
         $module->delete();
         return response()->json(['message' => 'Module and all its contents removed.']);
     }
+
+    public function update(Request $request, $id)
+    {
+        $request->validate(['title' => 'required|string|max:255']);
+        
+        $module = Module::whereHas('course', function($q) use ($request) {
+            $q->where('teacher_id', $request->user()->id);
+        })->findOrFail($id);
+
+        $module->update(['title' => $request->title]);
+        
+        return response()->json($module);
+    }
+
 
 
 
