@@ -60,9 +60,51 @@ def fetch_pexels_image(keywords: str, orientation: str = "landscape") -> str:
         return "https://images.pexels.com/photos/577585/pexels-photo-577585.jpeg?w=800"
 
 
+def _is_video_relevant(video_title: str, keywords: str) -> bool:
+    """
+    Check if video title is actually relevant to the search keywords.
+    Rejects videos that are completely off-topic.
+
+    Args:
+        video_title: YouTube video title
+        keywords: Original search keywords
+
+    Returns:
+        True if relevant, False if irrelevant
+    """
+    title_lower = video_title.lower()
+    keywords_lower = keywords.lower()
+
+    # Extract main topics from keywords (ignore "tutorial")
+    keyword_parts = [w for w in keywords_lower.split() if w not in ["tutorial", "guide", "how", "to", "the", "a", "and", "or"]]
+
+    # Video must contain at least one main keyword
+    has_main_keyword = any(kw in title_lower for kw in keyword_parts if len(kw) > 3)
+
+    if not has_main_keyword:
+        return False
+
+    # Reject videos about completely different topics (blacklist)
+    off_topic_keywords = [
+        "sql", "database", "mysql", "postgresql",  # Not Java
+        "javascript", "node.js", "react", "vue",  # Not if searching for Python/Java
+        "c++", "rust", "go", "kotlin",  # Different languages
+        "forex", "trading", "crypto", "stocks",  # Finance
+        "music", "gaming", "sports", "cooking"  # Completely different domains
+    ]
+
+    # If searching for Java, reject JavaScript, Python, etc. results
+    if any(topic in title_lower for topic in off_topic_keywords):
+        # But allow if they're explicitly mentioned in search
+        if not any(topic in keywords_lower for topic in off_topic_keywords):
+            return False
+
+    return True
+
+
 def fetch_youtube_video(keywords: str) -> dict:
     """
-    Fetch YouTube video from YouTube Data API
+    Fetch YouTube video from YouTube Data API with relevance checking.
 
     Args:
         keywords: Search keywords (e.g., "java installation tutorial")
@@ -83,29 +125,40 @@ def fetch_youtube_video(keywords: str) -> dict:
     try:
         youtube = build("youtube", "v3", developerKey=api_key)
 
-        # Search for videos
+        # Search for videos - get top 5 to find a relevant one
         search_response = youtube.search().list(
             q=keywords,
             part="id,snippet",
-            maxResults=1,
+            maxResults=5,  # Get 5 results to filter for relevance
             type="video",
             videoDuration="medium",  # 4-20 minutes
             relevanceLanguage="en",
-            safeSearch="strict"
+            safeSearch="strict",
+            order="relevance"  # Most relevant first
         ).execute()
 
-        if search_response.get("items") and len(search_response["items"]) > 0:
-            video = search_response["items"][0]
-            video_id = video["id"]["videoId"]
-            video_title = video["snippet"]["title"]
-            video_url = f"https://www.youtube.com/watch?v={video_id}"
+        if search_response.get("items"):
+            # Find first relevant video
+            for video in search_response["items"]:
+                video_title = video["snippet"]["title"]
 
-            print(f"[YouTube] Found video for '{keywords}': {video_title}")
+                # Check if this video is actually relevant
+                if _is_video_relevant(video_title, keywords):
+                    video_id = video["id"]["videoId"]
+                    video_url = f"https://www.youtube.com/watch?v={video_id}"
+                    print(f"[YouTube] Found relevant video for '{keywords}': {video_title}")
+                    return {
+                        "url": video_url,
+                        "title": video_title,
+                        "description": f"Tutorial video about {keywords}"
+                    }
 
+            # No relevant video found in top 5
+            print(f"[YouTube] No relevant video in top results for '{keywords}', using suggestion")
             return {
-                "url": video_url,
-                "title": video_title,
-                "description": f"Tutorial video about {keywords}"
+                "url": "",
+                "title": f"Suggested: Search '{keywords}' on YouTube",
+                "description": "Teacher should find and add YouTube URL"
             }
         else:
             print(f"[YouTube] No results for '{keywords}', using suggestion")

@@ -1,12 +1,13 @@
 <?php
 use Illuminate\Http\Request;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ChatController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Teacher\ClassroomController;
-use App\Http\Controllers\Teacher\CourseController; 
+use App\Http\Controllers\Teacher\CourseController;
 use App\Http\Controllers\Teacher\ModuleController;
-use App\Http\Controllers\Teacher\LessonController; 
-use App\Http\Controllers\Teacher\QuizController;   
+use App\Http\Controllers\Teacher\LessonController;
+use App\Http\Controllers\Teacher\QuizController;
 use App\Http\Controllers\Teacher\QuestionController;
 
 // --- ADD STUDENT CONTROLLERS ---
@@ -21,6 +22,7 @@ Route::post('/register/student', [AuthController::class, 'registerStudent']);
 Route::post('/register/teacher', [AuthController::class, 'registerTeacher']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/login/google', [AuthController::class, 'loginWithGoogle']);
+Route::post('/chat/message', [ChatController::class, 'chat']);
 
 // Protected Routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -44,6 +46,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/teacher/courses/{id}', [CourseController::class, 'show']);
     Route::post('/teacher/courses/{id}/upload-curriculum', [CourseController::class, 'uploadCurriculum']);
 Route::post('/teacher/courses/{courseId}/modules', [ModuleController::class, 'store']);
+    Route::post('/teacher/courses/{courseId}/modules/reorder', [ModuleController::class, 'reorderModules']);
     Route::put('/teacher/modules/{id}', [ModuleController::class, 'update']);
     Route::post('/teacher/courses/{id}/publish', [CourseController::class, 'togglePublish']);
     Route::post('/teacher/courses/{id}/ai-generate', [CourseController::class, 'generateWithAI']);

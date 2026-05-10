@@ -36,11 +36,35 @@ CRITICAL RULES:
 Output ONLY valid JSON following exact schema."""
 
 
+def _extract_curriculum_digest(curriculum_context: str) -> str:
+    """Extract key info from curriculum instead of sending full text"""
+    if not curriculum_context:
+        return ""
+
+    # Take first line or first sentence (usually has course title/description)
+    first_line = curriculum_context.split('\n')[0].strip()
+
+    # Extract topic keywords from full context (topics usually capitalized)
+    keywords = []
+    words = curriculum_context.split()
+    for word in words[:100]:  # Check first 100 words for efficiency
+        if word and word[0].isupper() and len(word) > 3:
+            keywords.append(word)
+
+    # Limit to 5 main topics
+    unique_keywords = list(set(keywords))[:5]
+    topics = ", ".join(unique_keywords) if unique_keywords else "various topics"
+
+    return f"{first_line}\nKey Topics: {topics}"
+
+
 def build_outline_prompt(
     curriculum_context: str,
     module_title: str,
     lesson_title: str,
-    difficulty: str
+    difficulty: str,
+    previous_lessons: list = None,
+    is_coding: bool = True
 ) -> str:
     """
     Build prompt for outline generation
@@ -50,34 +74,79 @@ def build_outline_prompt(
         module_title: Parent module title
         lesson_title: Target lesson title
         difficulty: Difficulty level
+        previous_lessons: List of lesson summaries from earlier in module (for context awareness)
+        is_coding: Whether the course supports coding
 
     Returns:
         Outline generation prompt
     """
+    # Use curriculum digest instead of full text
+    curriculum_digest = _extract_curriculum_digest(curriculum_context)
+
+    avoidance_section = ""
+    if previous_lessons and len(previous_lessons) > 0:
+        covered_topics = []
+        covered_videos = []
+
+        for prev in previous_lessons:
+            covered_topics.extend(prev.get('topics_covered', []))
+            covered_videos.extend(prev.get('videos_used', []))
+
+        # Remove duplicates and limit
+        covered_topics = list(set(covered_topics))[:5]
+        covered_videos = list(set(covered_videos))[:5]
+
+        # Compact version without excessive repetition
+        video_list = ", ".join(covered_videos) if covered_videos else "None"
+        avoidance_section = f"""
+⚠️  AVOID REPETITION FROM EARLIER LESSONS:
+Topics covered: {', '.join(covered_topics) if covered_topics else 'None'}
+Videos used: {video_list}
+
+RULES: Don't repeat topics/videos/approaches from earlier lessons. Build on them with fresh angles instead.
+"""
+
+    if not is_coding:
+        coding_constraint = """
+NO CODING/CHALLENGE CONSTRAINT: This course does NOT support coding, challenges, or practice exercises.
+- Set needs_code to FALSE for ALL sections
+- DO NOT use "practice" or "challenge" section types
+- NO interactive exercises, hands-on activities, or "try it yourself" sections
+- Use ONLY: introduction | concept | example | summary
+- Focus on explanations, definitions, key points, and informational content only
+"""
+        allowed_types = "introduction | concept | example | summary"
+    else:
+        coding_constraint = """
+CODING SUPPORT: This course supports coding. Use needs_code=true for practice/example sections.
+"""
+        allowed_types = "introduction | concept | tutorial | example | practice | summary"
+
     return f"""
 Generate a detailed outline for this lesson.
 
-CURRICULUM CONTEXT:
-{curriculum_context}
-
+CURRICULUM: {curriculum_digest}
 MODULE: {module_title}
 LESSON: {lesson_title}
 DIFFICULTY: {difficulty}
+{avoidance_section}
 
 TASK: Break this lesson into 4-5 logical sections (MAXIMUM 5, prefer 4).
 
 For each section, specify:
 - title: Clear, descriptive title (must be DISTINCT - no overlap with other sections)
-- type: introduction | concept | tutorial | example | practice | summary
+- type: {allowed_types}
 - focus: What this section teaches (1 sentence)
-- needs_code: true if code examples needed, false otherwise
+- needs_code: Always set to false (no coding support in this course)
+
+{coding_constraint}
 
 GUIDELINES:
 - Tutorial lessons (setup, installation): Combine related steps into ONE tutorial section
-- Concept lessons (variables, OOP): Use "concept" + "example" + "practice"
-- Balance theory and hands-on practice
-- Each section should take 4-6 minutes (don't split into tiny sections)
-- **MERGE overlapping topics**: "Installation" + "Configuration" = ONE section called "Installation and Configuration"
+- For non-coding: Use "concept" + "example" + "summary" structure
+- Balance theory with clear explanations and examples
+- Each section should take 4-6 minutes
+- MERGE overlapping topics into single sections
 
 Output ONLY valid JSON:
 {{
@@ -86,9 +155,9 @@ Output ONLY valid JSON:
   "sections": [
     {{
       "title": "Section Title",
-      "type": "introduction|concept|tutorial|example|practice|summary",
+      "type": "{allowed_types}",
       "focus": "What this section covers",
-      "needs_code": true|false
+      "needs_code": false
     }}
   ]
 }}

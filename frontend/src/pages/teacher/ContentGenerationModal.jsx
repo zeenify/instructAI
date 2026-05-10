@@ -58,13 +58,11 @@ export default function ContentGenerationModal({
 
         generatedContent.modules.forEach(module => {
             lessons += module.lessons?.length || 0;
-            module.quizzes?.forEach(quiz => {
-                quizzes++;
-                questions += editingQuizzes[quiz.id] ?? quiz.predictedQuestions ?? 10;
-            });
+            quizzes += module.quizzes?.length || 0;
         });
 
-        return { lessons, quizzes, questions };
+        // Questions count is determined by AI (not predictable)
+        return { lessons, quizzes, questions: null };
     };
 
 
@@ -120,7 +118,7 @@ export default function ContentGenerationModal({
                         </div>
                         <div className="flex-1 bg-green-500/10 border border-green-500/30 rounded-xl p-4">
                             <div className="text-xs text-green-400 font-bold uppercase tracking-wider mb-1">Total Questions</div>
-                            <div className="text-2xl font-black text-white">{counts.questions}</div>
+                            <div className="text-2xl font-black text-white">{counts.questions ?? 'AI decides'}</div>
                         </div>
                     </div>
                 </div>
@@ -274,18 +272,7 @@ export default function ContentGenerationModal({
                                                                 <span className="font-semibold text-white">{quiz.title}</span>
                                                             </div>
                                                             <div className="flex items-center gap-3">
-                                                                <span className="text-xs text-slate-500">Questions:</span>
-                                                                <input
-                                                                    type="number"
-                                                                    min="1"
-                                                                    max="100"
-                                                                    value={editingQuizzes[quiz.id] ?? quiz.predictedQuestions ?? 10}
-                                                                    onChange={(e) => handleQuizEdit(quiz.id, Number(e.target.value))}
-                                                                    className="w-20 px-3 py-1 bg-white/[0.05] border border-cyan-500/30 rounded-lg text-white text-sm font-bold outline-none focus:border-cyan-500/60"
-                                                                />
-                                                                <span className="text-xs text-cyan-400">
-                                                                    {editingQuizzes[quiz.id] && editingQuizzes[quiz.id] !== quiz.predictedQuestions && '(edited)'}
-                                                                </span>
+                                                                <span className="text-xs text-slate-500 italic">AI determines question count</span>
                                                             </div>
                                                         </div>
                                                         <button

@@ -4,7 +4,7 @@ import { ClassProvider } from './context/ClassContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // --- Page Imports ---
-import LandingPage from './pages/LandingPage';
+import LandingPageV2 from './pages/LandingPageV2';
 import LoginPage from './pages/auth/LoginPage';
 import TeacherRegisterPage from './pages/auth/TeacherRegisterPage';
 import StudentRegisterPage from './pages/auth/StudentRegisterPage';
@@ -32,7 +32,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* --- Public Routes --- */}
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<LandingPageV2 />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register/teacher" element={<TeacherRegisterPage />} />
           <Route path="/register/student" element={<StudentRegisterPage />} />

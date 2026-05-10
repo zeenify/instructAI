@@ -74,10 +74,29 @@ class CourseController extends Controller
                     throw new \Exception("Cloudinary credentials missing");
                 }
 
-                // Text extraction temporarily disabled until packages installed
-                // TODO: Re-enable after: composer require smalot/pdfparser phpoffice/phpword
-                // $curriculumText = $this->extractTextFromFile($file);
-                $curriculumText = '';
+                // Extract text from uploaded file
+                $curriculumText = $this->extractTextFromFile($file);
+            }
+
+            // Detect if curriculum contains programming content using AI
+            $isCoding = false;
+            if ($curriculumText) {
+                try {
+                    $aiServiceUrl = env('AI_SERVICE_URL', 'http://localhost:8001');
+                    $response = Http::asJson()->post("{$aiServiceUrl}/ai/detect-programming-content", [
+                        'curriculum_text' => $curriculumText
+                    ]);
+
+                    if ($response->successful()) {
+                        $isCoding = $response->json('is_coding', false);
+                        \Log::info("AI Detection Result", ['is_coding' => $isCoding, 'response' => $response->json()]);
+                    } else {
+                        \Log::warning("AI detection failed with status: " . $response->status());
+                    }
+                } catch (\Exception $detectionError) {
+                    \Log::warning("AI detection failed during course creation: " . $detectionError->getMessage());
+                    $isCoding = false;
+                }
             }
 
             $course = Course::create([
@@ -87,6 +106,7 @@ class CourseController extends Controller
                 'description' => $request->description,
                 'curriculum_file_url' => $curriculumFileUrl,
                 'curriculum_text' => $curriculumText,
+                'is_coding' => $isCoding,
                 'is_published' => false,
                 'order_index' => $classroom->courses()->count() + 1
             ]);
@@ -256,17 +276,48 @@ class CourseController extends Controller
                 \Log::warning("Text extraction failed but continuing: " . $extractError->getMessage());
             }
 
-            // Update course
+            // Detect if curriculum contains programming content using AI
+            $isCoding = false;
+            if ($curriculumText) {
+                try {
+                    $aiServiceUrl = env('AI_SERVICE_URL', 'http://localhost:8001');
+                    $response = Http::asJson()->post("{$aiServiceUrl}/ai/detect-programming-content", [
+                        'curriculum_text' => $curriculumText
+                    ]);
+
+                    if ($response->successful()) {
+                        $isCoding = $response->json('is_coding', false);
+                        \Log::info("AI Detection Result", ['is_coding' => $isCoding, 'response' => $response->json()]);
+                    } else {
+                        \Log::warning("AI detection failed with status: " . $response->status());
+                    }
+                } catch (\Exception $detectionError) {
+                    \Log::warning("AI detection failed on upload: " . $detectionError->getMessage());
+                    $isCoding = false;
+                }
+            }
+
+            // Log detection result
+            \Log::info("Curriculum Detection for Course {$id}", [
+                'file_name' => $file->getClientOriginalName(),
+                'text_length' => strlen($curriculumText),
+                'is_coding' => $isCoding
+            ]);
+
+            // Update course with is_coding flag
             $course->update([
                 'curriculum_file_url' => $curriculumFileUrl,
                 'curriculum_text' => $curriculumText,
+                'is_coding' => $isCoding,
             ]);
 
-            $message = 'Curriculum document uploaded successfully (text extraction pending package install)';
+            $message = 'Curriculum document uploaded and text extracted successfully';
 
             return response()->json([
                 'success' => true,
                 'curriculum_file_url' => $curriculumFileUrl,
+                'is_coding' => $isCoding,
+                'course' => $course,
                 'message' => $message
             ]);
         } catch (\Exception $e) {
@@ -481,11 +532,10 @@ class CourseController extends Controller
                 ['name' => 'content_depth', 'contents' => $params['contentDepth'] ?? 'standard'],
                 ['name' => 'code_examples_per_lesson', 'contents' => $params['codeExamplesPerLesson'] ?? '3-4'],
                 ['name' => 'writing_style', 'contents' => $params['writingStyle'] ?? 'conversational'],
-                ['name' => 'questions_per_quiz', 'contents' => strval($params['questionsPerQuiz'] ?? 10)],
-                ['name' => 'question_type_mix', 'contents' => $params['questionTypeMix'] ?? 'mixed'],
-                ['name' => 'points_per_question', 'contents' => strval($params['pointsPerQuestion'] ?? 5)],
+                ['name' => 'question_type_distribution', 'contents' => $params['questionTypeDistribution'] ?? 'balanced'],
                 ['name' => 'include_images', 'contents' => $params['includeImages'] ? 'true' : 'false'],
                 ['name' => 'include_videos', 'contents' => $params['includeVideos'] ? 'true' : 'false'],
+                ['name' => 'is_coding', 'contents' => $params['is_coding'] || $course->is_coding ? 'true' : 'false'],
             ];
 
             // Add curriculum text if exists
@@ -519,14 +569,15 @@ class CourseController extends Controller
                 $buffer = '';
 
                 while (!$body->eof()) {
-                    $chunk = $body->read(1024);
+                    $chunk = $body->read(512); // Smaller chunk size for more responsive streaming
                     $buffer .= $chunk;
 
-                    // Process complete SSE messages
-                    $lines = explode("\n", $buffer);
-                    $buffer = array_pop($lines); // Keep incomplete line in buffer
+                    // Look for complete SSE messages (ending with \n\n)
+                    while (($messageEnd = strpos($buffer, "\n\n")) !== false) {
+                        $message = substr($buffer, 0, $messageEnd + 2);
+                        $buffer = substr($buffer, $messageEnd + 2);
 
-                    foreach ($lines as $line) {
+                        $line = trim($message);
                         if (strpos($line, 'data: ') === 0) {
                             $data = json_decode(substr($line, 6), true);
 
@@ -553,23 +604,104 @@ class CourseController extends Controller
                                     $quiz = Quiz::find($quizData['quiz_id']);
 
                                     if ($quiz) {
-                                        $questions = $quizData['questions'];
+                                        // Handle grouped structure (preferred) or flat array (fallback)
+                                        $questions = [];
+                                        if (isset($quizData['multiple_choice'])) {
+                                            // New grouped format - flatten in order
+                                            \Log::info("Quiz {$quiz->id}: Using grouped structure");
+                                            $questions = array_merge(
+                                                $quizData['multiple_choice'] ?? [],
+                                                $quizData['true_false'] ?? [],
+                                                $quizData['identification'] ?? [],
+                                                $quizData['enumeration'] ?? [],
+                                                $quizData['coding'] ?? []
+                                            );
+                                        } elseif (isset($quizData['questions'])) {
+                                            // Old flat format - convert to grouped order
+                                            \Log::warning("Quiz {$quiz->id}: AI returned flat structure, converting to grouped order");
+
+                                            // Group questions by type
+                                            $grouped = [
+                                                'multiple_choice' => [],
+                                                'true_false' => [],
+                                                'identification' => [],
+                                                'enumeration' => [],
+                                                'coding' => []
+                                            ];
+
+                                            foreach ($quizData['questions'] as $q) {
+                                                $type = $q['type'] ?? 'multiple_choice';
+                                                if (isset($grouped[$type])) {
+                                                    $grouped[$type][] = $q;
+                                                }
+                                            }
+
+                                            // Flatten in correct order
+                                            $questions = array_merge(
+                                                $grouped['multiple_choice'],
+                                                $grouped['true_false'],
+                                                $grouped['identification'],
+                                                $grouped['enumeration'],
+                                                $grouped['coding']
+                                            );
+                                        } else {
+                                            \Log::error("Quiz {$quiz->id}: Invalid quiz data format", ['keys' => array_keys($quizData)]);
+                                            $questions = [];
+                                        }
+
+                                        // Use timer settings from content params
+                                        $timeLimitMinutes = $request->input('content_params.quizTimeLimit', 15);
+                                        $timerMode = $request->input('content_params.quizTimerMode', 'entire_quiz');
+
+                                        $quiz->update([
+                                            'time_limit_minutes' => $timeLimitMinutes,
+                                            'timer_mode' => $timerMode
+                                        ]);
+
                                         $totalPoints = 0;
                                         $orderIndex = 1;
 
                                         foreach ($questions as $questionData) {
+                                            // Fallback: if AI used 'answer' instead of 'expected_output', use it
+                                            $expectedOutput = $questionData['expected_output'] ?? $questionData['answer'] ?? '';
+
+                                            // Fallback: if AI used 'question' instead of 'question_text', use it
+                                            $questionText = $questionData['question_text'] ?? $questionData['question'] ?? '';
+
+                                            // For enumeration, expected_output should always be empty string (answer is in options)
+                                            if (isset($questionData['type']) && $questionData['type'] === 'enumeration') {
+                                                $expectedOutput = '';
+                                            }
+
+                                            // For multiple_choice, if expected_output is answer text instead of index, find the index
+                                            if (isset($questionData['type']) && $questionData['type'] === 'multiple_choice' && isset($questionData['options']) && !is_numeric($expectedOutput)) {
+                                                $index = array_search($expectedOutput, $questionData['options'], true);
+                                                if ($index !== false) {
+                                                    $expectedOutput = (string)$index;
+                                                }
+                                            }
+
+                                            // Set options based on type
+                                            $questionType = $questionData['type'] ?? 'multiple_choice';
+                                            $options = $questionData['options'] ?? null;
+
+                                            // For non-MC/TF types, options should be empty array, not null
+                                            if (in_array($questionType, ['identification', 'enumeration', 'coding']) && is_null($options)) {
+                                                $options = [];
+                                            }
+
                                             Question::create([
                                                 'quiz_id' => $quiz->id,
-                                                'question_text' => $questionData['question_text'] ?? '',
-                                                'type' => $questionData['type'] ?? 'multiple_choice',
-                                                'options' => $questionData['options'] ?? null,
-                                                'expected_output' => $questionData['expected_output'] ?? null,
+                                                'question_text' => $questionText,
+                                                'type' => $questionType,
+                                                'options' => $options,
+                                                'expected_output' => $expectedOutput,
                                                 'boilerplate' => $questionData['boilerplate'] ?? null,
-                                                'points' => $questionData['points'] ?? 5,
+                                                'points' => $questionData['points'] ?? 1,
                                                 'order_index' => $orderIndex++,
                                             ]);
 
-                                            $totalPoints += $questionData['points'] ?? 5;
+                                            $totalPoints += $questionData['points'] ?? 1;
                                         }
 
                                         // Calculate passing score from percentage
@@ -585,8 +717,8 @@ class CourseController extends Controller
                                 }
                             }
 
-                            // Forward to frontend
-                            echo $line . "\n";
+                            // Forward to frontend with proper SSE format
+                            echo $message;
                             if (ob_get_level() > 0) {
                                 ob_flush();
                             }

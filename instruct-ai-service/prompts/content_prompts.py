@@ -3,6 +3,116 @@ Prompt templates for lesson and quiz content generation
 """
 
 
+def get_quiz_system_prompt() -> str:
+    """
+    Build system prompt specifically for quiz generation.
+
+    Returns:
+        System prompt string for quiz generation
+    """
+    return """You are an expert quiz generator.
+
+=== CRITICAL REQUIREMENT #1 - READ THIS FIRST ===
+OUTPUT FORMAT: You MUST return JSON with this EXACT structure:
+
+{
+  "multiple_choice": [array of MC questions],
+  "true_false": [array of TF questions],
+  "identification": [array of ID questions],
+  "enumeration": [array of Enum questions],
+  "coding": [array of Code questions]
+}
+
+DO NOT return {"questions": [...]} with a flat array.
+DO NOT return any other structure.
+=== END CRITICAL REQUIREMENT ===
+
+CRITICAL - OUTPUT MUST USE GROUPED STRUCTURE:
+You MUST return questions in SEPARATE ARRAYS by type.
+DO NOT return a flat "questions" array.
+The JSON root must have these keys: multiple_choice, true_false, identification, enumeration, coding
+
+EXAMPLE OF REQUIRED STRUCTURE:
+{
+  "multiple_choice": [...],
+  "true_false": [...],
+  "identification": [...],
+  "enumeration": [...],
+  "coding": [...]
+}
+
+FIELD NAMES (NO EXCEPTIONS):
+- question_text (NOT "question")
+- expected_output (NOT "answer")
+- type
+- points
+- options (for multiple_choice and true_false)
+- boilerplate (for coding only)
+
+VIOLATIONS WILL CAUSE SYSTEM FAILURE.
+
+Example of CORRECT schema:
+{
+  "questions": [
+    {
+      "question_text": "What is the capital?",
+      "type": "multiple_choice",
+      "points": 1,
+      "options": ["A", "B", "C", "D"],
+      "expected_output": "2"
+    }
+  ]
+}
+
+Example of INCORRECT (WILL FAIL):
+{
+  "questions": [
+    {
+      "question": "What is the capital?",  // WRONG - use question_text
+      "answer": "C"  // WRONG - use expected_output
+    }
+  ]
+}
+
+MULTIPLE CHOICE RULES:
+- expected_output = STRING INDEX of correct answer ("0", "1", "2", or "3")
+- DO NOT put the answer text itself
+- If correct answer is option[2], then expected_output = "2"
+
+TRUE/FALSE RULES (CRITICAL):
+- options = MUST be ["True", "False"] (always include this array)
+- expected_output = MUST be exactly "True" or "False" (capitalized, strings)
+- NEVER leave expected_output null or empty
+- Example: {{"question_text": "Java is OOP?", "type": "true_false", "points": 1, "options": ["True", "False"], "expected_output": "True"}}
+
+IDENTIFICATION RULES:
+- expected_output = 1-2 word answer (e.g., "JVM", "int", "variable")
+- NEVER leave expected_output null or empty
+
+ENUMERATION RULES (ABSOLUTELY CRITICAL):
+- options = MUST be array of the enumeration items (e.g., ["JDK", "JRE", "JVM"])
+- expected_output = MUST be empty string "" (the answer IS in the options array)
+- points = MUST equal number of items in options array (3 items = 3 points)
+- The correct answer is determined by the options array itself, not expected_output
+- Example CORRECT:
+  {{"question_text": "List 3 Java components", "type": "enumeration", "points": 3, "options": ["JDK", "JRE", "JVM"], "expected_output": ""}}
+- Example WRONG:
+  {{"options": [], "expected_output": "JDK, JRE, JVM"}} OR {{"options": ["JDK", "JRE", "JVM"], "expected_output": "JDK, JRE, JVM"}}
+
+CODING RULES:
+- boilerplate = starter code for student
+- expected_output = ACTUAL console output (e.g., "42\\n", NOT "prints 42")
+- points = 3-5 based on complexity
+
+GROUPING REQUIREMENT - JSON STRUCTURE ENFORCES THIS:
+The output JSON structure has SEPARATE ARRAYS for each type.
+You CANNOT put questions in a flat array - you MUST use the structure below.
+Put each question in its correct array based on type.
+
+Output ONLY valid JSON matching the schema above.
+"""
+
+
 def get_content_system_prompt(
     difficulty: str,
     content_depth: str,
@@ -52,16 +162,19 @@ QUIZ QUESTIONS must follow exact schema per type:
 - multiple_choice: 4 options, points: 1
 - true_false: "True" or "False", points: 1
 - identification: ONE WORD answer (e.g., "JVM", "int", "variable"), points: 1
-- enumeration: 2-4 items ONLY (NO MORE THAN 4), points: 2
-- coding: starter code + expected output, points: 5-10 (higher for complex tasks)
+- enumeration: 2-4 items ONLY (NO MORE THAN 4), points: N (where N = number of items)
+- coding: starter code + expected output, points: 3-5 (based on difficulty)
 
 CRITICAL RULES - VIOLATIONS = REJECTION:
-1. **Identification answers**: ONE WORD ONLY (e.g., "JVM" not "Java Virtual Machine" or "To execute bytecode")
-2. **Enumeration**: Generate 2-4 items ONLY. NEVER 5 or more.
-3. **Points distribution**:
-   - Multiple choice, true/false, identification: 1 point
-   - Enumeration: 2 points
-   - Coding: 5-10 points based on difficulty
+1. **Identification answers**: SINGLE WORD ONLY (e.g., "JVM" not "Java Virtual Machine" or "To execute bytecode")
+2. **Enumeration**: Generate 2-4 items ONLY. NEVER 5 or more. Points = number of items.
+3. **Points distribution** (EXACT):
+   - Multiple choice: 1 point
+   - True/false: 1 point
+   - Identification: 1 point
+   - Enumeration: N points (where N = number of items the answer should contain)
+   - Coding: 3-5 points (simpler = 3 pts, complex = 5 pts)
+4. **Coding output**: Must be ACTUAL console output, not descriptions (e.g., "42\n" not "prints 42")
 4. **Lesson variety**: DO NOT use same structure for every lesson. Mix up the block order and types.
 5. **Practical content**: For setup/installation lessons, provide ACTUAL STEPS, not just descriptions.
 6. **Code examples**: Only include code when it ADDS VALUE. Don't force code into every lesson.
@@ -177,72 +290,201 @@ Output ONLY valid JSON:
 
 
 def build_quiz_prompt(
-    curriculum_context: str,
+    lesson_summaries: list,
     module_title: str,
     quiz_title: str,
-    questions_per_quiz: str,
-    question_type_mix: str,
-    points_per_question: int,
+    question_type_distribution: dict,
     difficulty: str
 ) -> str:
     """
     Build user prompt for quiz content generation
 
     Args:
-        curriculum_context: Base curriculum document text
+        lesson_summaries: List of compact lesson summaries with concepts and code
         module_title: Parent module title
         quiz_title: Target quiz title
-        questions_per_quiz: Number of questions to generate
-        question_type_mix: Question type distribution setting
-        points_per_question: Points per question
+        question_type_distribution: Dict with mc, tf, id, enum, code percentages
         difficulty: Difficulty level
 
     Returns:
         Quiz generation prompt string
     """
+    # Render lesson summaries for context
+    lesson_context = ""
+    if lesson_summaries:
+        lesson_context = "LESSON CONTENT COVERED:\n\n"
+        for i, summary in enumerate(lesson_summaries, 1):
+            lesson_context += f"{i}. **{summary.get('lesson_title', 'Lesson')}**\n"
+            concepts = summary.get('concepts', [])
+            if concepts:
+                lesson_context += f"   Topics: {', '.join(concepts)}\n"
+            code_examples = summary.get('code_examples', [])
+            if code_examples:
+                lesson_context += f"   Code included: {len(code_examples)} example(s)\n"
+            if summary.get('has_coding'):
+                lesson_context += "   (Includes coding practice)\n"
+            lesson_context += "\n"
+    else:
+        lesson_context = "No lesson content available for context.\n"
+
+    # Calculate question counts based on distribution percentages
+    # AI determines total count in multiples of 5
+    total_qs_options = [10, 15, 20, 25, 30, 35, 40, 45, 50]
+    total_qs_text = ", ".join(str(n) for n in total_qs_options)
+
+    # Format distribution percentages
+    dist_text = f"MC: {question_type_distribution.get('mc', 40)}%, "
+    dist_text += f"True/False: {question_type_distribution.get('tf', 20)}%, "
+    dist_text += f"Identification: {question_type_distribution.get('id', 20)}%, "
+    dist_text += f"Enumeration: {question_type_distribution.get('enum', 10)}%, "
+    dist_text += f"Coding: {question_type_distribution.get('code', 10)}%"
+
     return f"""
-Generate COMPLETE quiz questions based on the curriculum document.
+Generate a comprehensive quiz based on lesson content covered.
 
-CURRICULUM CONTEXT (MUST FOLLOW STRICTLY):
-{curriculum_context}
-
-[VALIDATION: Curriculum length = {len(curriculum_context)} chars]
-{"⚠️  WARNING: Empty curriculum context - generation will be generic!" if len(curriculum_context) < 50 else "✓ Curriculum context loaded successfully"}
+LESSON CONTENT:
+{lesson_context}
 
 MODULE: {module_title}
 QUIZ: {quiz_title}
-NUMBER OF QUESTIONS: {questions_per_quiz} (GENERATE EXACTLY THIS MANY - NO MORE, NO LESS)
-QUESTION TYPE MIX: {question_type_mix}
-POINTS PER QUESTION: {points_per_question}
 DIFFICULTY: {difficulty}
 
-CRITICAL: All questions must be directly based on topics, concepts, and examples from the curriculum document above. Use the exact programming language and terminology specified. DO NOT generate more or fewer questions than specified.
-
 QUESTION TYPE DISTRIBUTION:
-- If "all_multiple_choice": all questions are multiple_choice
-- If "mixed": 50% multiple_choice, 20% true_false, 20% identification, 10% enumeration
-- If "coding_focused": 40% coding, 30% multiple_choice, 30% mixed other types
+{dist_text}
 
-STRICT REQUIREMENTS FOR EACH TYPE:
-1. **Identification**: Answer must be 1-2 words MAX (e.g., "JVM", "variable", "int")
-   - BAD: "To execute Java bytecode"
-   - GOOD: "JVM"
+OUTPUT SCHEMA (EXACT FIELD NAMES - NO EXCEPTIONS):
+Use ONLY these field names, nothing else:
+- question_text: The question being asked (DO NOT use "question")
+- type: multiple_choice | true_false | identification | enumeration | coding
+- points: Number of points for this question
+- options: [Array of 4 strings] - ONLY FOR MULTIPLE_CHOICE
+- expected_output: The correct answer (DO NOT use "answer")
+- boilerplate: Starter code - ONLY FOR CODING
 
-2. **Enumeration**: Generate 2-4 items ONLY, never 5 or more
-   - BAD: ["int", "double", "boolean", "char", "byte", "short", "long", "float"]
-   - GOOD: ["int", "double", "boolean", "char"]
+FIELDS YOU MUST NOT USE:
+- Do NOT use "question" - use "question_text"
+- Do NOT use "answer" - use "expected_output"
+- Do NOT use any other field names
 
-3. **Points assignment**:
-   - Multiple choice: 1 point
-   - True/false: 1 point
-   - Identification: 1 point
-   - Enumeration: 2 points
-   - Coding: 5-10 points (based on complexity)
+CRITICAL REQUIREMENTS:
 
-Generate EXACTLY {questions_per_quiz} questions following exact schema for each type.
+1. **Question count**: Determine the total number of questions (N) where N ∈ {{{total_qs_text}}}
+   - Simple single-topic module → 10-15 questions
+   - Multi-concept module → 20-25 questions
+   - Complex/deep module → 30-40+ questions
 
-Output ONLY valid JSON:
+2. **Distribution calculation (CRITICAL - MUST EQUAL TOTAL)**:
+   Choose total N first, then calculate EXACT counts:
+   - MC count = round(N × {question_type_distribution.get('mc', 40)/100})
+   - TF count = round(N × {question_type_distribution.get('tf', 20)/100})
+   - ID count = round(N × {question_type_distribution.get('id', 20)/100})
+   - Enum count = round(N × {question_type_distribution.get('enum', 10)/100})
+   - Code count = N - (MC + TF + ID + Enum)  // Remainder ensures total = N
+
+   VERIFY: Sum of all counts MUST equal N exactly
+   Example: If N=10 and distribution is 40/20/20/10/10:
+   - MC=4, TF=2, ID=2, Enum=1, Code=1 → Total=10 ✓
+
+3. **STRICT GROUPING - USE SEPARATE ARRAYS**:
+   Put questions in separate arrays by type (the JSON structure enforces this):
+   - "multiple_choice": [all MC questions]
+   - "true_false": [all TF questions]
+   - "identification": [all ID questions]
+   - "enumeration": [all Enum questions]
+   - "coding": [all Code questions]
+
+   This structure GUARANTEES grouping - do NOT put questions in wrong arrays.
+
+4. **Content alignment**: Generate questions directly testing the concepts and code from the lessons above
+
+5. **Points system (STRICT - NO EXCEPTIONS)**:
+   - Multiple choice: ALWAYS 1 point
+   - True/false: ALWAYS 1 point
+   - Identification: ALWAYS 1 point
+   - Enumeration: ALWAYS N points where N = number of items in answer
+   - Coding: 3-5 points based on complexity (simpler = 3, complex = 5)
+
+6. **Multiple Choice format (CRITICAL - THIS IS THE MOST COMMON MISTAKE)**:
+   - "options": Array of exactly 4 strings
+   - "expected_output": MUST be the STRING INDEX (0, 1, 2, or 3) of the correct answer
+   - CORRECT: {{"question_text": "What is X?", "type": "multiple_choice", "points": 1, "options": ["A", "B", "C", "D"], "expected_output": "2"}}
+   - WRONG: {{"question_text": "What is X?", "type": "multiple_choice", "options": ["A", "B", "C", "D"], "expected_output": "C"}}
+   - WRONG: {{"question_text": "What is X?", "type": "multiple_choice", "options": ["A", "B", "C", "D"], "answer": "C"}}
+   - The correct answer in the example is "C" (index 2), so expected_output must be "2"
+
+7. **True/False format (CRITICAL)**:
+   - "expected_output": "True" or "False" (EXACTLY these strings)
+
+8. **Identification questions** (SINGLE WORD ONLY):
+   - "expected_output": MUST be exactly one word
+   - GOOD: "JVM", "variable", "int", "bytecode"
+   - BAD: "To execute bytecode", "Java Virtual Machine", "plot visualization"
+
+9. **Enumeration questions** (2-4 items ONLY):
+   - Generate exactly the number of items you will ask for
+   - "expected_output": Will be parsed as a list, so use proper formatting
+   - GOOD: 4 items asked for, points = 4
+   - BAD: Asking for 3 items but returning 7 items
+
+10. **Coding questions**:
+    - Include "boilerplate": Starter code template for student
+    - Include "expected_output": ACTUAL console output (not description)
+    - GOOD: "42\\n", "Hello World\\n", "10\\n20\\n30"
+    - BAD: "prints the answer", "displays the result"
+
+Output ONLY valid JSON with GROUPED structure (questions separated by type):
 {{
-  "questions": [array of question objects with all required fields]
+  "multiple_choice": [
+    {{
+      "question_text": "...",
+      "type": "multiple_choice",
+      "points": 1,
+      "options": ["opt1", "opt2", "opt3", "opt4"],
+      "expected_output": "0"
+    }}
+  ],
+  "true_false": [
+    {{
+      "question_text": "...",
+      "type": "true_false",
+      "points": 1,
+      "options": ["True", "False"],
+      "expected_output": "True"
+    }}
+  ],
+  "identification": [
+    {{
+      "question_text": "What does JVM stand for?",
+      "type": "identification",
+      "points": 1,
+      "options": [],
+      "expected_output": "JVM"
+    }}
+  ],
+  "enumeration": [
+    {{
+      "question_text": "List 4 primitive types in Java",
+      "type": "enumeration",
+      "points": 4,
+      "options": ["int", "double", "boolean", "char"],
+      "expected_output": ""
+    }}
+  ],
+  "coding": [
+    {{
+      "question_text": "Write a program to print 'Hello World'",
+      "type": "coding",
+      "points": 3,
+      "options": [],
+      "boilerplate": "public class Main {{\n    public static void main(String[] args) {{\n        // Your code here\n    }}\n}}",
+      "expected_output": "Hello World"
+    }}
+  ]
 }}
+
+DO NOT USE ANY OTHER FORMAT.
+DO NOT return {{"questions": [...]}} with a flat array.
+ONLY use the grouped structure above with separate arrays per type.
+
+If a type has 0 questions, use empty array: "multiple_choice": []
 """

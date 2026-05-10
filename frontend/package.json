@@ -7,11 +7,18 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,css,json}\"",
+    "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,css,json}\"",
+    "lint:fix": "eslint . --fix",
     "preview": "vite preview"
   },
   "dependencies": {
     "@codemirror/lang-java": "^6.0.2",
+    "@pixiv/three-vrm": "^3.5.2",
     "@react-oauth/google": "^0.13.4",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
+    "@react-three/rapier": "^2.2.0",
     "@tiptap/extension-bubble-menu": "^3.22.5",
     "@tiptap/extension-link": "^3.22.5",
     "@tiptap/extension-placeholder": "^3.22.5",
@@ -27,6 +34,7 @@
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.2",
     "sonner": "^2.0.7",
+    "three": "^0.184.0",
     "tippy.js": "^6.3.7"
   },
   "devDependencies": {

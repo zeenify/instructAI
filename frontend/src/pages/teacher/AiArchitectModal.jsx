@@ -13,7 +13,6 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
         lessonsPerModule: '3-5',
         lessonsCustom: false,
         includeQuiz: true,
-        includeCodingExercises: true,
         pacing: 'standard'
     });
 
@@ -196,15 +195,6 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
                                                 className="w-4 h-4 rounded bg-white/5 border-white/10 checked:bg-purple-500 cursor-pointer"
                                             />
                                             Quiz per module
-                                        </label>
-                                        <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={params.includeCodingExercises}
-                                                onChange={(e) => setParams({...params, includeCodingExercises: e.target.checked})}
-                                                className="w-4 h-4 rounded bg-white/5 border-white/10 checked:bg-purple-500 cursor-pointer"
-                                            />
-                                            Include coding exercises
                                         </label>
                                     </div>
                                 </div>

@@ -9,8 +9,19 @@ from prompts.stage2_content_prompts import get_section_content_system_prompt, bu
 from utils.logger import log_api_request, log_api_response, log_error
 
 
+def get_optimal_model(section_type: str) -> str:
+    """
+    Select model based on section type for cost optimization.
+    Critical sections use 70b (quality), others use 8b (speed/cost).
+    """
+    critical_sections = ["concept", "tutorial"]
+    if section_type in critical_sections:
+        return "llama-3.3-70b-versatile"
+    return "llama-3.1-8b-instant"
+
+
 async def generate_section_content(
-    client: Groq,
+    groq_pool,
     curriculum_context: str,
     module_title: str,
     lesson_title: str,
@@ -18,8 +29,9 @@ async def generate_section_content(
     difficulty: str,
     content_depth: str = "standard",
     writing_style: str = "conversational",
-    fallback_client: Groq = None,
-    previous_sections: list = None
+    previous_sections: list = None,
+    previous_lessons: list = None,
+    is_coding: bool = True
 ) -> dict:
     """
     Generate detailed content for a single section
@@ -33,6 +45,8 @@ async def generate_section_content(
         difficulty: Difficulty level
         content_depth: How detailed the content should be
         writing_style: Tone of the writing
+        previous_sections: Sections already covered in this lesson
+        previous_lessons: Lessons already covered in this module (for cross-lesson context)
 
     Returns:
         Dictionary with section content
@@ -40,6 +54,9 @@ async def generate_section_content(
     section_title = section['title']
     section_type = section['type']
     section_focus = section['focus']
+
+    # Override needs_code based on course setting - if course is not coding, disable code regardless of section type
+    needs_code = section.get('needs_code', False) and is_coding
 
     system_prompt = get_section_content_system_prompt(section_type, writing_style, content_depth, curriculum_context)
     user_prompt = build_section_content_prompt(
@@ -50,7 +67,9 @@ async def generate_section_content(
         section_type=section_type,
         section_focus=section_focus,
         difficulty=difficulty,
-        previous_sections=previous_sections or []
+        previous_sections=previous_sections or [],
+        previous_lessons=previous_lessons or [],
+        needs_code=needs_code  # Pass the enforced flag
     )
 
     messages = [
@@ -58,29 +77,96 @@ async def generate_section_content(
         {"role": "user", "content": user_prompt}
     ]
 
+    # Determine optimal model for this section type
+    model = get_optimal_model(section_type)
+    import time as time_module
+    start_time = time_module.time()
+
+    # Log the request
+    log_api_request(
+        endpoint=f"stage2-content-{section_type}-{section_title[:30]}",
+        messages=messages,
+        model=model
+    )
+
+    # Try to get a response, cycling through keys on rate limit
+    response = None
+    attempt_count = 0
+    max_attempts = len(groq_pool.clients)
+    key_num = None
+
+    while attempt_count < max_attempts and not response:
+        try:
+            client, key_num = groq_pool.get_available_client()
+            model_short = model.split('/')[-1] if '/' in model else model
+            print(f"[STAGE2-CONTENT] Using API key {key_num}, model {model_short} (attempt {attempt_count + 1}/{max_attempts})")
+
+            response = client.chat.completions.create(
+                messages=messages,
+                model=model,
+                response_format={"type": "json_object"},
+                temperature=0.7
+            )
+
+            groq_pool.mark_success(key_num)
+            print(f"[STAGE2-CONTENT] Key {key_num} succeeded")
+
+        except Exception as e:
+            error_str = str(e).lower()
+            if "rate_limit" in error_str:
+                groq_pool.mark_rate_limited(key_num, backoff_seconds=60)
+                print(f"[STAGE2-CONTENT] Key {key_num} rate-limited, trying next key...")
+                attempt_count += 1
+                if attempt_count < max_attempts:
+                    await asyncio.sleep(0.3)  # Brief delay before retry
+                    continue
+                else:
+                    print(f"[STAGE2-CONTENT] All {max_attempts} keys exhausted for {section_title[:30]}")
+                    duration_ms = (time_module.time() - start_time) * 1000
+                    log_error(f"stage2-content-all-keys-exhausted-{section_type}-{section_title[:30]}", e, duration_ms=duration_ms)
+                    return {
+                        "section_title": section_title,
+                        "section_type": section_type,
+                        "content_type": section_type,
+                        "error": "All API keys rate-limited. Please wait and try again.",
+                        "fallback": True,
+                        "rate_limit_error": True
+                    }
+            else:
+                # Non-rate-limit error, don't retry
+                duration_ms = (time_module.time() - start_time) * 1000
+                log_error(f"stage2-content-{section_type}-{section_title[:30]}", e, duration_ms=duration_ms)
+                return {
+                    "section_title": section_title,
+                    "section_type": section_type,
+                    "content_type": section_type,
+                    "error": str(e),
+                    "fallback": True,
+                    "rate_limit_error": False
+                }
+
+    if not response:
+        duration_ms = (time_module.time() - start_time) * 1000
+        log_error(f"stage2-content-no-response-{section_type}-{section_title[:30]}", Exception("No response received"), duration_ms=duration_ms)
+        return {
+            "section_title": section_title,
+            "section_type": section_type,
+            "content_type": section_type,
+            "error": "Failed to get response from API",
+            "fallback": True,
+            "rate_limit_error": False
+        }
+
     try:
-        # Log the request
-        log_api_request(
-            endpoint=f"stage2-content-{section_type}-{section_title[:30]}",
-            messages=messages,
-            model="llama-3.3-70b-versatile",
-            response_format={"type": "json_object"},
-            temperature=0.7
-        )
-
-        response = client.chat.completions.create(
-            messages=messages,
-            model="llama-3.3-70b-versatile",
-            response_format={"type": "json_object"},
-            temperature=0.7
-        )
-
         raw_response = response.choices[0].message.content
 
-        # Log the response
+        # Log the response with timing
+        duration_ms = (time_module.time() - start_time) * 1000
         log_api_response(
             endpoint=f"stage2-content-{section_type}-{section_title[:30]}",
             response_content=raw_response,
+            completion_tokens=len(raw_response) // 4,
+            duration_ms=duration_ms,
             streaming=False
         )
 
@@ -97,53 +183,20 @@ async def generate_section_content(
         return content_data
 
     except Exception as e:
-        # Try fallback client on rate limit error
-        error_str = str(e).lower()
-        if "rate_limit" in error_str and fallback_client:
-            print(f"[FALLBACK] Rate limit hit, switching to API key 2 for {section_title[:30]}")
-            try:
-                response = fallback_client.chat.completions.create(
-                    messages=messages,
-                    model="llama-3.3-70b-versatile",
-                    response_format={"type": "json_object"},
-                    temperature=0.7
-                )
-                raw_response = response.choices[0].message.content
-                content_data = json.loads(raw_response)
-                content_data['section_title'] = section_title
-                content_data['section_type'] = section_type
-                await asyncio.sleep(0.8)
-                return content_data
-            except Exception as fallback_error:
-                if "rate_limit" in str(fallback_error).lower():
-                    print(f"[ERROR] Both API keys exhausted for {section_title[:30]}")
-                    # Return error that will be caught upstream
-                    return {
-                        "section_title": section_title,
-                        "section_type": section_type,
-                        "content_type": section_type,
-                        "error": "Rate limit reached on both API keys. Please wait a few minutes.",
-                        "fallback": True,
-                        "rate_limit_error": True
-                    }
-                log_error(f"stage2-fallback-{section_type}-{section_title[:30]}", fallback_error)
-
-        log_error(f"stage2-content-{section_type}-{section_title[:30]}", e)
-
-        # Return fallback content
-        error_message = "Rate limit reached. Please wait and try again." if "rate_limit" in error_str else str(e)
+        duration_ms = (time_module.time() - start_time) * 1000
+        log_error(f"stage2-content-parse-{section_type}-{section_title[:30]}", e, duration_ms=duration_ms)
         return {
             "section_title": section_title,
             "section_type": section_type,
             "content_type": section_type,
-            "error": error_message,
+            "error": f"Failed to parse response: {str(e)}",
             "fallback": True,
-            "rate_limit_error": "rate_limit" in error_str
+            "rate_limit_error": False
         }
 
 
 async def generate_all_section_contents(
-    client: Groq,
+    groq_pool,
     curriculum_context: str,
     module_title: str,
     lesson_title: str,
@@ -154,7 +207,7 @@ async def generate_all_section_contents(
     Generate content for all sections in a lesson
 
     Args:
-        client: Groq API client
+        groq_pool: Groq client pool
         curriculum_context: Full curriculum document
         module_title: Parent module
         lesson_title: Parent lesson
@@ -168,7 +221,7 @@ async def generate_all_section_contents(
 
     for section in sections:
         content = await generate_section_content(
-            client=client,
+            groq_pool=groq_pool,
             curriculum_context=curriculum_context,
             module_title=module_title,
             lesson_title=lesson_title,

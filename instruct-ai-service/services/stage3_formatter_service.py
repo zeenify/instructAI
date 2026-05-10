@@ -10,6 +10,30 @@ from utils.media_fetcher import (
     generate_image_keywords,
     generate_video_keywords
 )
+from utils.code_formatter import format_code_block, fix_json_escapes_in_code
+
+
+def convert_markdown_to_html(text: str) -> str:
+    """
+    Convert markdown formatting to HTML tags
+
+    Args:
+        text: Text with markdown formatting
+
+    Returns:
+        Text with HTML formatting tags
+    """
+    if not text:
+        return ""
+
+    # **bold** → <b>bold</b>
+    text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+    # *italic* → <i>italic</i>
+    text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
+    # __underline__ → <u>underline</u>
+    text = re.sub(r'__(.+?)__', r'<u>\1</u>', text)
+
+    return text
 
 
 def format_paragraphs(text: str) -> str:
@@ -28,8 +52,8 @@ def format_paragraphs(text: str) -> str:
     # Split by double newlines (paragraph breaks)
     paragraphs = re.split(r'\n\s*\n', text.strip())
 
-    # Wrap each paragraph in <p> tags
-    formatted = "".join([f"<p>{p.strip()}</p>" for p in paragraphs if p.strip()])
+    # Wrap each paragraph in <p> tags and convert markdown formatting
+    formatted = "".join([f"<p>{convert_markdown_to_html(p.strip())}</p>" for p in paragraphs if p.strip()])
 
     return formatted
 
@@ -39,7 +63,8 @@ def format_section_to_blocks(
     lesson_title: str,
     module_title: str = "",
     include_images: bool = True,
-    include_videos: bool = True
+    include_videos: bool = True,
+    banned_video_titles: set = None
 ) -> list:
     """
     Convert a section's content into lesson blocks
@@ -49,10 +74,13 @@ def format_section_to_blocks(
         lesson_title: Lesson title for media keywords
         include_images: Whether to include image blocks
         include_videos: Whether to include video blocks
+        banned_video_titles: Set of video titles to avoid (from previous lessons)
 
     Returns:
         List of lesson blocks
     """
+    if banned_video_titles is None:
+        banned_video_titles = set()
     blocks = []
     section_title = section_content.get("section_title", "")
     content_type = section_content.get("content_type", "")
@@ -76,7 +104,7 @@ def format_section_to_blocks(
 
         # What you'll learn (bullet list)
         if section_content.get("what_youll_learn"):
-            items = "".join([f"<li>{item}</li>" for item in section_content["what_youll_learn"]])
+            items = "".join([f"<li>{convert_markdown_to_html(item)}</li>" for item in section_content["what_youll_learn"]])
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "text",
@@ -86,7 +114,7 @@ def format_section_to_blocks(
     elif content_type == "tutorial":
         # Steps as numbered list
         if section_content.get("steps"):
-            items = "".join([f"<li>{step}</li>" for step in section_content["steps"]])
+            items = "".join([f"<li>{convert_markdown_to_html(step)}</li>" for step in section_content["steps"]])
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "text",
@@ -96,19 +124,22 @@ def format_section_to_blocks(
         # Commands as code block
         if section_content.get("commands"):
             commands = "\n".join(section_content["commands"])
+            # Format the commands
+            formatted_commands = format_code_block(commands)
+
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "code",
                 "data": {
                     "mode": "playground",
-                    "code": commands,
+                    "code": formatted_commands,
                     "expected": ""
                 }
             })
 
         # Warnings
         if section_content.get("warnings"):
-            items = "".join([f"<li>{warning}</li>" for warning in section_content["warnings"]])
+            items = "".join([f"<li>{convert_markdown_to_html(warning)}</li>" for warning in section_content["warnings"]])
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "text",
@@ -121,7 +152,7 @@ def format_section_to_blocks(
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "text",
-                "data": {"text": f"<p><strong>Definition:</strong> {section_content['definition']}</p>"}
+                "data": {"text": f"<p><strong>Definition:</strong> {convert_markdown_to_html(section_content['definition'])}</p>"}
             })
 
         # Explanation
@@ -134,7 +165,7 @@ def format_section_to_blocks(
 
         # Key points
         if section_content.get("key_points"):
-            items = "".join([f"<li>{point}</li>" for point in section_content["key_points"]])
+            items = "".join([f"<li>{convert_markdown_to_html(point)}</li>" for point in section_content["key_points"]])
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "text",
@@ -152,13 +183,18 @@ def format_section_to_blocks(
 
         # Code example (programming courses)
         if section_content.get("code"):
+            raw_code = section_content["code"]
+            # Fix JSON escape sequences and format
+            raw_code = fix_json_escapes_in_code(raw_code)
+            formatted_code = format_code_block(raw_code)
+
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "code",
                 "data": {
                     "mode": "playground",
-                    "code": section_content["code"],
-                    "expected": section_content.get("output", "")
+                    "code": formatted_code,
+                    "expected": fix_json_escapes_in_code(section_content.get("output", ""))
                 }
             })
 
@@ -172,7 +208,7 @@ def format_section_to_blocks(
 
         # Key elements (non-programming)
         if section_content.get("key_elements"):
-            items = "".join([f"<li>{elem}</li>" for elem in section_content["key_elements"]])
+            items = "".join([f"<li>{convert_markdown_to_html(elem)}</li>" for elem in section_content["key_elements"]])
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "text",
@@ -201,18 +237,23 @@ def format_section_to_blocks(
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "text",
-                "data": {"text": f"<p><strong>Guidelines:</strong></p><p>{section_content['guidelines']}</p>"}
+                "data": {"text": f"<p><strong>Guidelines:</strong></p><p>{convert_markdown_to_html(section_content['guidelines'])}</p>"}
             })
 
         # Starter code (programming)
         if section_content.get("starter_code"):
+            starter_code = section_content["starter_code"]
+            # Fix JSON escape sequences and format
+            starter_code = fix_json_escapes_in_code(starter_code)
+            formatted_starter = format_code_block(starter_code)
+
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "code",
                 "data": {
                     "mode": "challenge",
-                    "code": section_content["starter_code"],
-                    "expected": section_content.get("expected_output", "")
+                    "code": formatted_starter,
+                    "expected": fix_json_escapes_in_code(section_content.get("expected_output", ""))
                 }
             })
 
@@ -236,7 +277,7 @@ def format_section_to_blocks(
     elif content_type == "summary":
         # Key takeaways
         if section_content.get("key_takeaways"):
-            items = "".join([f"<li>{takeaway}</li>" for takeaway in section_content["key_takeaways"]])
+            items = "".join([f"<li>{convert_markdown_to_html(takeaway)}</li>" for takeaway in section_content["key_takeaways"]])
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "text",
@@ -248,31 +289,37 @@ def format_section_to_blocks(
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "text",
-                "data": {"text": f"<p><strong>🎯 Remember This:</strong> {section_content['remember_this']}</p>"}
+                "data": {"text": f"<p><strong>🎯 Remember This:</strong> {convert_markdown_to_html(section_content['remember_this'])}</p>"}
             })
 
-    # Add image if requested (for concept/tutorial/example sections)
-    if include_images and content_type in ["concept", "tutorial", "example"]:
-        keywords = generate_image_keywords(lesson_title, section_title, module_title)
-        image_url = fetch_pexels_image(keywords)
-        blocks.append({
-            "id": str(uuid.uuid4()),
-            "type": "image",
-            "data": {
-                "url": image_url,
-                "caption": section_title
-            }
-        })
-
     # Add video if requested (for concept/tutorial sections)
+    # Images removed entirely - they were repetitive and not relevant to topics
     if include_videos and content_type in ["concept", "tutorial"]:
         keywords = generate_video_keywords(lesson_title, section_title, module_title)
         video_data = fetch_youtube_video(keywords)
-        blocks.append({
-            "id": str(uuid.uuid4()),
-            "type": "video",
-            "data": video_data
-        })
+
+        # Check if video is relevant and not already used
+        video_url = video_data.get('url', '')
+        video_title = video_data.get('title', '')
+
+        # Only add video if:
+        # 1. We got a real URL (not a "Suggested: Search YouTube" placeholder)
+        # 2. Video title is not already used in this lesson
+        # 3. Video title is not used in previous lessons (banned)
+        if video_url and video_url.startswith('https://www.youtube.com/watch?v='):
+            title_lower = video_title.lower().strip()
+            if title_lower not in {v.lower().strip() for v in banned_video_titles}:
+                blocks.append({
+                    "id": str(uuid.uuid4()),
+                    "type": "video",
+                    "data": video_data
+                })
+                print(f"[VIDEO] Added video for {section_title}: {video_title}")
+            else:
+                print(f"[VIDEO-SKIP] Video already used in previous lesson: {video_title}")
+        else:
+            # No relevant video found, skip (don't add placeholder)
+            print(f"[VIDEO-SKIP] No relevant video found for {section_title}")
 
     # Add links from section content
     if section_content.get("links"):
@@ -294,7 +341,8 @@ def format_all_sections_to_lesson(
     lesson_title: str,
     module_title: str = "",
     include_images: bool = True,
-    include_videos: bool = True
+    include_videos: bool = True,
+    previous_lesson_videos: list = None
 ) -> dict:
     """
     Convert all section contents into a complete lesson
@@ -303,68 +351,57 @@ def format_all_sections_to_lesson(
         section_contents: List of section contents from Stage 2
         lesson_title: Lesson title
         module_title: Module title (for media context)
-        include_images: Whether to include images
-        include_videos: Whether to include videos
+        include_images: Deprecated - images are no longer added (removed due to repetitive/irrelevant content)
+        include_videos: Whether to include videos (only if relevant and not already used)
+        previous_lesson_videos: List of lesson summaries from earlier lessons (contains video titles to avoid)
 
     Returns:
         Complete lesson with blocks
     """
     all_blocks = []
-    used_image_urls = set()  # Track used images to avoid duplicates
-    used_video_ids = set()   # Track used videos to avoid duplicates
+    used_video_titles = set()   # Track video titles used in this lesson
 
-    # Smart media distribution: limit to 2-3 images and 1-2 videos per lesson
-    # Prioritize concept and tutorial sections for media
-    media_eligible_sections = [
-        (idx, s) for idx, s in enumerate(section_contents)
-        if s.get('content_type') in ['concept', 'tutorial', 'example']
-    ]
-
-    # Allow up to 3 unique images and 2 unique videos
-    images_added = 0
-    videos_added = 0
-    max_images = 3
-    max_videos = 2
+    # Collect video titles from previous lessons to avoid (cross-lesson deduplication)
+    banned_video_titles = set()
+    if previous_lesson_videos:
+        for prev_lesson in previous_lesson_videos:
+            videos = prev_lesson.get('videos_used', [])
+            if videos:
+                banned_video_titles.update(videos)
 
     for idx, section_content in enumerate(section_contents):
-        # Determine if this section should get media
-        is_eligible = idx in [i for i, _ in media_eligible_sections]
-        add_image = include_images and is_eligible and images_added < max_images
-        add_video = include_videos and is_eligible and videos_added < max_videos
-
+        # Always include videos if requested (let format_section_to_blocks decide relevance)
+        # Images are never included (removed entirely)
         section_blocks = format_section_to_blocks(
             section_content=section_content,
             lesson_title=lesson_title,
             module_title=module_title,
-            include_images=add_image,
-            include_videos=add_video
+            include_images=False,  # Images removed entirely
+            include_videos=include_videos,
+            banned_video_titles=banned_video_titles  # Pass banned videos from previous lessons
         )
 
-        # Track added media and remove duplicates
+        # Track videos to avoid duplicates within this lesson
         for block in section_blocks:
-            if block['type'] == 'image':
-                url = block['data']['url']
-                if url in used_image_urls:
-                    continue  # Skip duplicate image
-                used_image_urls.add(url)
-                images_added += 1
-                all_blocks.append(block)
-            elif block['type'] == 'video':
-                url = block['data'].get('url', '')
-                video_id = url.split('v=')[-1] if 'v=' in url else url
-                if video_id in used_video_ids:
-                    continue  # Skip duplicate video
-                used_video_ids.add(video_id)
-                videos_added += 1
-                all_blocks.append(block)
+            if block['type'] == 'video':
+                video_title = block['data'].get('title', '')
+                if video_title.lower().strip() not in {v.lower().strip() for v in used_video_titles}:
+                    used_video_titles.add(video_title)
+                    all_blocks.append(block)
+                else:
+                    print(f"[VIDEO-SKIP] Duplicate video in lesson: {video_title}")
             else:
                 all_blocks.append(block)
+
+    # Collect video titles used in this lesson for deduplication in next lesson
+    videos_used = [b["data"].get("title", "") for b in all_blocks if b["type"] == "video"]
 
     return {
         "lesson_title": lesson_title,
         "blocks": all_blocks,
         "block_count": len(all_blocks),
         "has_code": any(b["type"] == "code" for b in all_blocks),
-        "has_images": any(b["type"] == "image" for b in all_blocks),
-        "has_videos": any(b["type"] == "video" for b in all_blocks)
+        "has_images": False,  # Images removed entirely
+        "has_videos": any(b["type"] == "video" for b in all_blocks),
+        "videos_used": videos_used  # Track videos for next lesson deduplication
     }

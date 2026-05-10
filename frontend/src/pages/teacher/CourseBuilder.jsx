@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls, Reorder } from 'framer-motion';
 import {
     ChevronLeft, Plus, FileText, HelpCircle, Loader2,
-    Sparkles, ExternalLink, X, Check, GripVertical, Eye, EyeOff, Globe, Lock, Rocket, Trash2, Edit3, Send, Layers, GripHorizontal, Upload, CheckCircle
+    Sparkles, ExternalLink, X, Check, GripVertical, Eye, EyeOff, Globe, Lock, Rocket, Trash2, Edit3, Send, Layers, GripHorizontal, Upload, CheckCircle, BookOpen
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
@@ -12,7 +12,7 @@ import DeleteModal from '../../components/ui/DeleteModal';
 import AiArchitectModal from './AiArchitectModal';
 import CurriculumReviewModal from './CurriculumReviewModal.jsx';
 import ContentParametersModal from './ContentParametersModal.jsx';
-import ContentGenerationModal from './ContentGenerationModal.jsx';
+import GenerationConsole from './GenerationConsole.jsx';
 import './CourseBuilder.css';
 
 export default function CourseBuilder() {
@@ -25,15 +25,21 @@ export default function CourseBuilder() {
     const [isPublished, setIsPublished] = useState(false);
     
     // UI View States
-    const [activeModuleId, setActiveModuleId] = useState(null); 
-    const [isReorderMode, setIsReorderMode] = useState(false); 
-    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false); 
+    const [activeModuleId, setActiveModuleId] = useState(null);
+    const [isReorderMode, setIsReorderMode] = useState(false);
+    const [isBulkDeleteMode, setIsBulkDeleteMode] = useState(false);
+    const [selectedModuleIds, setSelectedModuleIds] = useState(new Set());
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [isSubmittingItem, setIsSubmittingItem] = useState(false);
     
     // Modals & Inputs
     const [moduleModal, setModuleModal] = useState({ isOpen: false, mode: 'create', id: null, title: '' });
     const [activeInput, setActiveInput] = useState({ type: null, value: '' });
+    const [isTitleEditing, setIsTitleEditing] = useState(false);
+    const [editingTitle, setEditingTitle] = useState('');
+    const [draggingModuleId, setDraggingModuleId] = useState(null);
+    const [dragOverModuleId, setDragOverModuleId] = useState(null);
     const debounceTimer = useRef(null);
 
     // AI States
@@ -48,9 +54,11 @@ export default function CourseBuilder() {
     const [contentParams, setContentParams] = useState(null);
     const [savedModulesData, setSavedModulesData] = useState(null);
     const [isContentParamsOpen, setIsContentParamsOpen] = useState(false);
+    const [isSavingStructure, setIsSavingStructure] = useState(false);
     const [generatedContent, setGeneratedContent] = useState(null);
     const [isContentModalOpen, setIsContentModalOpen] = useState(false);
     const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+    const [generationLogs, setGenerationLogs] = useState([]);
 
     // Delete State
     const [deleteConfig, setDeleteModal] = useState({ isOpen: false, type: '', id: null });
@@ -59,6 +67,7 @@ export default function CourseBuilder() {
     // Curriculum File State
     const [showCurriculumModal, setShowCurriculumModal] = useState(false);
     const [uploadingCurriculum, setUploadingCurriculum] = useState(false);
+    const [uploadSuccess, setUploadSuccess] = useState(null);
 
     useEffect(() => { fetchCourse(); }, [id]);
 
@@ -82,6 +91,7 @@ export default function CourseBuilder() {
         const newStatus = !isPublished;
         try {
             await api.post(`/teacher/courses/${id}/publish`, { is_published: newStatus });
+            invalidateCache(`/teacher/courses/${id}`);
             setIsPublished(newStatus);
             toast.success(newStatus ? "Course is now live" : "Course set to draft");
         } catch (err) { toast.error("Update failed"); }
@@ -93,6 +103,7 @@ export default function CourseBuilder() {
         const toastId = toast.loading("Publishing all contents...");
         try {
             await api.post(`/teacher/courses/${id}/publish-all`);
+            invalidateCache(`/teacher/courses/${id}`);
             toast.success("All contents published successfully", { id: toastId });
             fetchCourse();
         } catch (err) { toast.error("Publishing failed", { id: toastId }); }
@@ -106,10 +117,12 @@ export default function CourseBuilder() {
         try {
             if (moduleModal.mode === 'create') {
                 const res = await api.post(`/teacher/courses/${id}/modules`, { title: moduleModal.title });
+                invalidateCache(`/teacher/courses/${id}`);
                 setCourse(prev => ({ ...prev, modules: [...prev.modules, { ...res.data, lessons: [], quizzes: [] }] }));
                 toast.success("Created");
             } else {
                 await api.put(`/teacher/modules/${moduleModal.id}`, { title: moduleModal.title });
+                invalidateCache(`/teacher/courses/${id}`);
                 setCourse(prev => ({
                     ...prev,
                     modules: prev.modules.map(m => m.id === moduleModal.id ? { ...m, title: moduleModal.title } : m)
@@ -119,6 +132,47 @@ export default function CourseBuilder() {
             setModuleModal({ isOpen: false, mode: 'create', id: null, title: '' });
         } catch (err) { toast.error("Failed"); }
         finally { setIsSubmittingItem(false); }
+    };
+
+    const handleCourseTitle = async (newTitle) => {
+        if (!newTitle || !newTitle.trim() || newTitle === course.title) {
+            setIsTitleEditing(false);
+            return;
+        }
+        try {
+            await api.put(`/teacher/courses/${id}`, { title: newTitle.trim() });
+            setCourse(prev => ({ ...prev, title: newTitle.trim() }));
+            invalidateCache(`/teacher/courses/${id}`);
+            toast.success('Course renamed');
+            setIsTitleEditing(false);
+        } catch (err) {
+            toast.error('Failed to rename');
+        }
+    };
+
+    const handleSwap = async (draggedId, targetId) => {
+        if (!draggedId || !targetId || draggedId === targetId) return;
+
+        const draggedIndex = course.modules.findIndex(m => m.id === draggedId);
+        const targetIndex = course.modules.findIndex(m => m.id === targetId);
+
+        if (draggedIndex === -1 || targetIndex === -1) return;
+
+        const newModules = [...course.modules];
+        [newModules[draggedIndex], newModules[targetIndex]] = [newModules[targetIndex], newModules[draggedIndex]];
+
+        setCourse(prev => ({ ...prev, modules: newModules }));
+
+        // Save to backend
+        api.post(`/teacher/courses/${id}/modules/reorder`, {
+            modules: newModules.map(m => m.id)
+        }).then(() => {
+            invalidateCache(`/teacher/courses/${id}`);
+            toast.success('Reordered');
+        }).catch(() => {
+            toast.error('Failed to save order');
+            fetchCourse();
+        });
     };
 
     const handleReorderModules = (newOrder) => {
@@ -132,7 +186,7 @@ export default function CourseBuilder() {
                 ...m,
                 lessons: newOrder.filter(i => i.itemType === 'lesson'),
                 quizzes: newOrder.filter(i => i.itemType === 'quiz'),
-                _lastOrder: newOrder 
+                _lastOrder: newOrder
             } : m)
         }));
 
@@ -141,6 +195,7 @@ export default function CourseBuilder() {
             try {
                 const payload = newOrder.map(item => ({ id: item.id, itemType: item.itemType }));
                 await api.post(`/teacher/modules/${activeModuleId}/reorder`, { items: payload });
+                invalidateCache(`/teacher/courses/${id}`);
             } catch (err) {}
         }, 1000);
     };
@@ -154,7 +209,7 @@ export default function CourseBuilder() {
     const toggleItemStatus = async (item) => {
         const newStatus = !item.is_published;
         const type = item.itemType === 'lesson' ? 'lessons' : 'quizzes';
-        
+
         setCourse(prev => ({
             ...prev,
             modules: prev.modules.map(m => {
@@ -168,8 +223,14 @@ export default function CourseBuilder() {
             })
         }));
 
-        try { await api.put(`/teacher/${type}/${item.id}`, { is_published: newStatus }); }
-        catch (err) { fetchCourse(); }
+        try {
+            await api.put(`/teacher/${type}/${item.id}`, { is_published: newStatus });
+            invalidateCache(`/teacher/courses/${id}`);
+        }
+        catch (err) {
+            invalidateCache(`/teacher/courses/${id}`);
+            fetchCourse();
+        }
     };
 
     const handleCreateItem = async () => {
@@ -180,11 +241,12 @@ export default function CourseBuilder() {
         try {
             const res = await api.post(endpoint, { title: value });
             const newItem = { ...res.data, itemType: type };
+            invalidateCache(`/teacher/courses/${id}`);
             setCourse(prev => ({
                 ...prev,
-                modules: prev.modules.map(m => m.id === activeModuleId ? { 
-                    ...m, 
-                    [type === 'lesson' ? 'lessons' : 'quizzes']: [...m[type === 'lesson' ? 'lessons' : 'quizzes'], newItem] 
+                modules: prev.modules.map(m => m.id === activeModuleId ? {
+                    ...m,
+                    [type === 'lesson' ? 'lessons' : 'quizzes']: [...m[type === 'lesson' ? 'lessons' : 'quizzes'], newItem]
                 } : m)
             }));
             setActiveInput({ type: null, value: '' });
@@ -231,6 +293,45 @@ export default function CourseBuilder() {
         } catch (err) {
             toast.error("Failed to delete");
             console.error('Delete error:', err);
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedModuleIds.size === 0) {
+            toast.error("No modules selected");
+            return;
+        }
+
+        setIsDeleting(true);
+        const count = selectedModuleIds.size;
+        const toastId = toast.loading(`Deleting ${count} module${count === 1 ? '' : 's'}...`);
+
+        try {
+            // Delete each selected module
+            for (const moduleId of selectedModuleIds) {
+                await api.delete(`/teacher/modules/${moduleId}`);
+            }
+
+            // Update UI to remove deleted modules
+            setCourse(prev => ({
+                ...prev,
+                modules: prev.modules.filter(m => !selectedModuleIds.has(m.id))
+            }));
+
+            // Invalidate cache
+            invalidateCache(`/teacher/courses/${id}`);
+            if (activeModuleId && selectedModuleIds.has(activeModuleId)) {
+                setActiveModuleId(null);
+            }
+
+            setSelectedModuleIds(new Set());
+            setIsBulkDeleteMode(false);
+            toast.success(`Deleted ${count} module${count === 1 ? '' : 's'} successfully`, { id: toastId });
+        } catch (err) {
+            toast.error("Failed to delete modules", { id: toastId });
+            console.error('Bulk delete error:', err);
         } finally {
             setIsDeleting(false);
         }
@@ -347,26 +448,27 @@ export default function CourseBuilder() {
     const handleConfirmAI = async (finalData) => {
         setIsReviewOpen(false);
 
+        // Show content parameters modal instantly - teacher can select options while saving
+        setSavedModulesData(finalData.new_modules);
+        setIsContentParamsOpen(true);
+        setIsSavingStructure(true); // Lock confirm button
+
+        // Save structure to DB in background and fetch real IDs
+        const toastId = toast.loading('Saving curriculum structure...');
         try {
-            // Stage 1: Save structure (titles only)
-            const toastId = toast.loading('Saving curriculum structure...');
-            const response = await api.post(`/teacher/courses/${id}/ai-commit`, finalData);
-            const savedModules = response.data.new_modules;
+            await api.post(`/teacher/courses/${id}/ai-commit`, finalData);
             toast.success('Structure saved!', { id: toastId });
+
+            // Fetch the saved course with real module/lesson/quiz IDs
+            const courseData = await api.get(`/teacher/courses/${id}`);
+            setSavedModulesData(courseData.data.modules || []);
 
             // Invalidate cache so new modules appear
             invalidateCache(`/teacher/courses/${id}`);
-
-            // Immediately save modules and open content parameters modal (no delay)
-            setSavedModulesData(savedModules);
-
-            // Use setTimeout to ensure state updates before modal opens
-            setTimeout(() => {
-                setIsContentParamsOpen(true);
-            }, 100);
-
         } catch (err) {
-            toast.error('Failed to save curriculum');
+            toast.error('Failed to save curriculum', { id: toastId });
+        } finally {
+            setIsSavingStructure(false); // Unlock confirm button
         }
     };
 
@@ -387,27 +489,55 @@ export default function CourseBuilder() {
         generateLessonContent(savedModulesData, allParams);
     };
 
+    // Add log entry for generation console with optional stagger delay
+    const addLog = (type, message, delayMs = 0) => {
+        const timestamp = new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        if (delayMs > 0) {
+            // Queue the log for delayed addition without blocking stream reading
+            setTimeout(() => {
+                setGenerationLogs(prev => [...prev, { type, message, timestamp }]);
+            }, delayMs);
+        } else {
+            setGenerationLogs(prev => [...prev, { type, message, timestamp }]);
+        }
+    };
+
     const generateLessonContent = async (modules, params) => {
         setIsGeneratingContent(true);
         setIsContentModalOpen(true);
         setContentParams(params); // Save for validation
+        setGenerationLogs([]); // Clear previous logs
 
-        // Build structure for content generation with predicted quiz counts
-        const structure = modules.map(module => ({
-            title: module.title,
-            lessons: module.lessons.map(l => ({ id: l.id, title: l.title })),
-            quizzes: module.quizzes.map(q => ({
-                id: q.id,
-                title: q.title,
-                predictedQuestions: predictQuestionCount(q.title, params.questionsPerQuiz)
-            }))
-        }));
+        // Build structure for content generation (AI determines quiz question counts)
+        const structure = modules.map(module => {
+            // Handle both old format (lessons/quizzes arrays) and new format (items array)
+            const lessons = module.lessons ? module.lessons : (module.items || []).filter(item => item.type === 'lesson');
+            const quizzes = module.quizzes ? module.quizzes : (module.items || []).filter(item => item.type === 'quiz');
+
+            return {
+                title: module.title,
+                lessons: lessons.map((l, idx) => ({ id: l.id || `lesson_${idx}`, title: l.title })),
+                quizzes: quizzes.map((q, idx) => ({
+                    id: q.id || `quiz_${idx}`,
+                    title: q.title
+                    // No predictedQuestions - AI decides the count
+                }))
+            };
+        });
 
         setGeneratedContent({ modules: structure.map(m => ({
             ...m,
-            lessons: m.lessons.map(l => ({ ...l, blockCount: 0, codeCount: 0 })),
-            quizzes: m.quizzes.map(q => ({ ...q, questionCount: 0 }))
+            lessons: m.lessons.map(l => ({ ...l, blockCount: 0, codeCount: 0, generating: false, generated: false })),
+            quizzes: m.quizzes.map(q => ({ ...q, questionCount: 0, generating: false, generated: false }))
         }))});
+
+        // Add initial logs
+        addLog('start', 'Initializing AI content generation pipeline...');
+        addLog('info', 'Connecting to Groq API (llama-3.3-70b-versatile)');
 
         // Add artificial delay to show streaming UI
         await new Promise(resolve => setTimeout(resolve, 800));
@@ -433,6 +563,7 @@ export default function CourseBuilder() {
             let buffer = '';
 
             let lessonsCompleted = 0;
+            let logDelayOffset = 0;
             const totalLessons = structure.reduce((sum, m) => sum + m.lessons.length, 0);
 
             while (true) {
@@ -457,9 +588,35 @@ export default function CourseBuilder() {
 
                             if (data.type === 'status') {
                                 console.log('Status:', data.message);
+                                addLog('progress', data.message, logDelayOffset);
+                                logDelayOffset += 40;
+                            } else if (data.type === 'section_complete') {
+                                const sectionData = data.data;
+                                addLog('info', `✓ Section ${sectionData.section_index}/${sectionData.total_sections}: ${sectionData.section_title}`, logDelayOffset);
+                                logDelayOffset += 30;
+                            } else if (data.type === 'section_preview') {
+                                // Add section preview as it's generated
+                                const previewData = data.data;
+                                setGeneratedContent(prev => ({
+                                    ...prev,
+                                    modules: prev.modules.map(m => ({
+                                        ...m,
+                                        lessons: m.lessons.map(l =>
+                                            l.id === previewData.lesson_id
+                                                ? {
+                                                    ...l,
+                                                    blocks: [...(l.blocks || []), previewData.section_block],
+                                                    generated: false  // Not fully done yet
+                                                }
+                                                : l
+                                        )
+                                    }))
+                                }));
                             } else if (data.type === 'lesson_complete') {
                                 lessonsCompleted++;
                                 const lessonData = data.data;
+                                addLog('complete', `✓ Lesson "${lessonData.lesson_title}" complete`, logDelayOffset);
+                                logDelayOffset += 60;
                                 setGeneratedContent(prev => ({
                                     ...prev,
                                     modules: prev.modules.map(m => ({
@@ -472,7 +629,9 @@ export default function CourseBuilder() {
                                                     codeCount: lessonData.blocks?.filter(b => b.type === 'code').length || 0,
                                                     hasImage: lessonData.blocks?.some(b => b.type === 'image'),
                                                     hasVideo: lessonData.blocks?.some(b => b.type === 'video'),
-                                                    generated: true
+                                                    blocks: lessonData.blocks,
+                                                    generated: true,
+                                                    generating: false
                                                 }
                                                 : l
                                         )
@@ -480,6 +639,24 @@ export default function CourseBuilder() {
                                 }));
                             } else if (data.type === 'quiz_complete') {
                                 const quizData = data.data;
+                                addLog('complete', `✓ Quiz "${quizData.quiz_title}" complete`, logDelayOffset);
+                                logDelayOffset += 60;
+
+                                // Extract questions based on structure (grouped or flat)
+                                let questions = [];
+                                if (quizData.multiple_choice || quizData.true_false || quizData.identification || quizData.enumeration || quizData.coding) {
+                                  // Grouped structure
+                                  questions = [
+                                    ...(quizData.multiple_choice || []),
+                                    ...(quizData.true_false || []),
+                                    ...(quizData.identification || []),
+                                    ...(quizData.enumeration || []),
+                                    ...(quizData.coding || [])
+                                  ];
+                                } else if (quizData.questions) {
+                                  questions = quizData.questions;
+                                }
+
                                 setGeneratedContent(prev => ({
                                     ...prev,
                                     modules: prev.modules.map(m => ({
@@ -488,24 +665,30 @@ export default function CourseBuilder() {
                                             q.id === quizData.quiz_id
                                                 ? {
                                                     ...q,
-                                                    questionCount: quizData.questions?.length || 0,
-                                                    generated: true
+                                                    questions: questions,
+                                                    questionCount: questions.length,
+                                                    generated: true,
+                                                    generating: false
                                                 }
                                                 : q
                                         )
                                     }))
                                 }));
                             } else if (data.type === 'complete') {
-                                toast.success('All content generated successfully!');
-                                setIsGeneratingContent(false);
+                                addLog('complete', '✓ All content generated successfully', logDelayOffset + 100);
+                                setTimeout(() => {
+                                    toast.success('All content generated successfully!');
+                                    setIsGeneratingContent(false);
 
-                                // Invalidate cache to force fresh data
-                                invalidateCache(`/teacher/courses/${id}`);
-                                invalidateCache('/teacher/lessons/');
-                                invalidateCache('/teacher/quizzes/');
+                                    // Invalidate cache to force fresh data
+                                    invalidateCache(`/teacher/courses/${id}`);
+                                    invalidateCache('/teacher/lessons/');
+                                    invalidateCache('/teacher/quizzes/');
 
-                                await fetchCourse(); // Refresh to show new content
+                                    fetchCourse(); // Refresh to show new content
+                                }, logDelayOffset + 100);
                             } else if (data.type === 'error') {
+                                addLog('error', `✗ Error: ${data.message}`, logDelayOffset);
                                 toast.error('Content generation failed');
                                 setIsGeneratingContent(false);
                             }
@@ -519,6 +702,22 @@ export default function CourseBuilder() {
             toast.error('Failed to generate content');
             setIsGeneratingContent(false);
         }
+    };
+
+    const calculateQuestionCount = (quizData) => {
+        // Handle new grouped structure or old flat structure
+        if (quizData.multiple_choice || quizData.true_false || quizData.identification || quizData.enumeration || quizData.coding) {
+            // New grouped structure
+            return (
+                (quizData.multiple_choice?.length || 0) +
+                (quizData.true_false?.length || 0) +
+                (quizData.identification?.length || 0) +
+                (quizData.enumeration?.length || 0) +
+                (quizData.coding?.length || 0)
+            );
+        }
+        // Old flat structure
+        return quizData.questions?.length || 0;
     };
 
     const predictQuestionCount = (quizTitle, baseCountOrRange = '10-15') => {
@@ -609,138 +808,446 @@ export default function CourseBuilder() {
         }
 
         setUploadingCurriculum(true);
+        setUploadSuccess(null);
         try {
             const formData = new FormData();
             formData.append('curriculum_file', file);
 
-            await api.post(`/teacher/courses/${id}/upload-curriculum`, formData, {
+            const response = await api.post(`/teacher/courses/${id}/upload-curriculum`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            toast.success('Curriculum document uploaded!');
+            const { is_coding } = response.data;
+
+            // Show success message in modal
+            setUploadSuccess({
+                fileName: file.name,
+                isCoding: is_coding,
+                message: is_coding ? '📚 Programming Course Detected' : '📖 Non-Programming Course'
+            });
+
+            // Invalidate cache and refetch
+            invalidateCache(`/teacher/courses/${id}`);
             fetchCourse();
-            setShowCurriculumModal(false);
+
+            // Auto-close modal after 3 seconds
+            setTimeout(() => {
+                setShowCurriculumModal(false);
+                setUploadSuccess(null);
+            }, 3000);
         } catch (err) {
-            toast.error('Failed to upload curriculum');
+            console.error('Upload error:', err);
+            setUploadSuccess({
+                error: err.response?.data?.error || 'Failed to upload curriculum'
+            });
         } finally {
             setUploadingCurriculum(false);
         }
     };
 
-    if (loading || !course) return <div className="flex h-screen items-center justify-center bg-[#02010a]"><Loader2 className="animate-spin text-purple-500" size={48} /></div>;
+    if (loading || !course) return (
+        <div className="builder-container">
+            <header className="mb-10">
+                <div className="mb-8 h-6 w-32 bg-white/5 rounded-lg animate-pulse" />
+
+                <div className="mb-8 p-5 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="h-8 w-20 bg-white/5 rounded-lg animate-pulse" />
+                        <div className="h-8 w-24 bg-white/5 rounded-lg animate-pulse" />
+                    </div>
+                    <div className="h-8 w-32 bg-white/5 rounded-lg animate-pulse ml-auto" />
+                </div>
+
+                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+                    <div className="flex-1">
+                        <div className="h-12 w-48 bg-white/5 rounded-lg animate-pulse mb-4" />
+                        <div className="h-6 w-full bg-white/5 rounded-lg animate-pulse" />
+                    </div>
+                    <div className="flex gap-3">
+                        <div className="h-10 w-24 bg-white/5 rounded-xl animate-pulse" />
+                        <div className="h-10 w-24 bg-white/5 rounded-xl animate-pulse" />
+                        <div className="h-10 w-24 bg-white/5 rounded-xl animate-pulse" />
+                    </div>
+                </div>
+            </header>
+
+            <div className="space-y-6">
+                <div className="flex gap-3 p-5 rounded-2xl border border-white/5 bg-white/[0.02]">
+                    <div className="h-10 w-32 bg-white/5 rounded-xl animate-pulse" />
+                    <div className="ml-auto flex gap-2">
+                        <div className="h-10 w-24 bg-white/5 rounded-xl animate-pulse" />
+                        <div className="h-10 w-24 bg-white/5 rounded-xl animate-pulse" />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <div key={i} className="rounded-3xl border border-white/10 bg-white/[0.02] overflow-hidden">
+                            <div className="h-32 bg-white/5 animate-pulse" />
+                            <div className="p-6 space-y-4">
+                                <div className="h-6 w-full bg-white/5 rounded-lg animate-pulse" />
+                                <div className="h-4 w-3/4 bg-white/5 rounded-lg animate-pulse" />
+                                <div className="flex gap-3 mt-auto pt-4 border-t border-white/5">
+                                    <div className="h-6 w-24 bg-white/5 rounded-lg animate-pulse" />
+                                    <div className="h-6 w-16 bg-white/5 rounded-lg animate-pulse ml-auto" />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
 
     const activeModuleData = activeModuleId ? course.modules.find(m => m.id === activeModuleId) : null;
 
     return (
         <div className="builder-container">
-            <header className="mb-12">
-                <button onClick={() => activeModuleId ? setActiveModuleId(null) : navigate(-1)} className="back-btn border-none bg-transparent cursor-pointer mb-6">
-                    <ChevronLeft size={16} /> {activeModuleId ? 'Return to Modules' : 'Exit to Classroom'}
+            <header className="mb-10">
+                <button onClick={() => activeModuleId ? setActiveModuleId(null) : navigate(-1)} className="back-btn border-none bg-transparent cursor-pointer mb-8 text-slate-400 hover:text-white transition-colors flex items-center gap-2">
+                    <ChevronLeft size={18} />
+                    <span className="text-xs font-bold uppercase tracking-[0.1em]">{activeModuleId ? 'Return to Modules' : 'Exit to Classroom'}</span>
                 </button>
-                <div className="builder-header">
-                    <div>
-                        <h1 className="text-4xl font-black text-white mb-3 tracking-tighter leading-[1.1]">{activeModuleId ? activeModuleData?.title : course.title}</h1>
-                        <div className="flex items-center gap-4 flex-wrap">
-                            <div className={`status-pill ${isPublished ? 'live' : 'draft'}`}>{isPublished ? <Globe size={10} /> : <Lock size={10} />} {isPublished ? 'Live' : 'Draft'}</div>
 
-                            {!activeModuleId && course.curriculum_file_url && (
-                                <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-[10px] font-bold uppercase">
-                                    <FileText size={12} />
-                                    <span>Curriculum Attached</span>
+                {/* Top Control Bar - Enhanced */}
+                {!activeModuleId && (
+                    <div className="mb-8 p-5 rounded-2xl bg-gradient-to-r from-purple-900/30 to-transparent border border-purple-500/20 flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <span className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider ${
+                                isPublished
+                                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                    : 'bg-slate-600/20 text-slate-300 border border-slate-500/30'
+                            }`}>
+                                {isPublished ? '✓ Live' : '◊ Draft'}
+                            </span>
+                            {course.curriculum_file_url && (
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-xs font-bold uppercase">
+                                    <FileText size={14} />
+                                    <span className="text-[11px]">{course.curriculum_file_url.split('/').pop()?.slice(0, 30) || 'Curriculum'}</span>
                                 </div>
                             )}
-
-                            <div className="flex items-center gap-2">
-                                <button
-                                    disabled={isUpdatingStatus}
-                                    onClick={publishAllItems}
-                                    className="text-[10px] font-black text-purple-400 hover:text-white uppercase tracking-widest border-none bg-transparent cursor-pointer underline underline-offset-4 disabled:opacity-50"
-                                >
-                                    Publish All Contents
-                                </button>
-                                {isUpdatingStatus && <Loader2 size={10} className="animate-spin text-purple-400" />}
-                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 ml-auto">
+                            <button
+                                disabled={isUpdatingStatus}
+                                onClick={publishAllItems}
+                                className="text-xs font-bold text-purple-300 hover:text-purple-200 uppercase tracking-wider border-none bg-transparent cursor-pointer px-3 py-1.5 hover:bg-purple-500/10 rounded-lg transition-all disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {isUpdatingStatus ? <Loader2 size={14} className="animate-spin" /> : 'Publish All'}
+                            </button>
                         </div>
                     </div>
-                    <div className="flex gap-3">
-                        {!activeModuleId && (
+                )}
+
+                {/* Header Title and Action Buttons */}
+                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-8">
+                    <div className="flex-1">
+                        {!activeModuleId ? (
                             <>
-                                <button
-                                    onClick={() => setShowCurriculumModal(true)}
-                                    className="px-6 py-3 bg-white/5 hover:bg-white/10 text-slate-300 rounded-2xl text-[10px] font-black uppercase border-none cursor-pointer flex items-center gap-2 transition-all"
-                                >
-                                    <FileText size={16} />
-                                    {course.curriculum_file_url ? 'Manage Curriculum' : 'Upload Curriculum'}
-                                </button>
-                                <button onClick={toggleCourseStatus} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase transition-all border-none cursor-pointer flex items-center gap-2 ${isPublished ? 'bg-slate-800 text-slate-400' : 'bg-purple-600 text-white shadow-lg shadow-purple-500/20 hover:scale-105'}`}>{isPublished ? 'Unpublish' : 'Go Live'}</button>
-                                <button onClick={() => setIsAiModalOpen(true)} className="px-6 py-3 bg-gradient-to-r from-cyan-400 to-blue-500 text-black rounded-2xl text-[10px] font-black uppercase border-none cursor-pointer flex items-center gap-2 hover:scale-105 transition-all shadow-lg shadow-cyan-500/20"><Sparkles size={16} /> AI Architect</button>
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">Course</span>
+                                <div className="flex items-center gap-3 mt-2 group">
+                                    {isTitleEditing ? (
+                                        <div className="flex items-center gap-2 bg-white/5 border border-purple-500/50 rounded-xl p-2 flex-1">
+                                            <input
+                                                autoFocus
+                                                value={editingTitle}
+                                                onChange={(e) => setEditingTitle(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') handleCourseTitle(editingTitle);
+                                                    if (e.key === 'Escape') setIsTitleEditing(false);
+                                                }}
+                                                className="flex-1 bg-transparent border-none text-white text-4xl font-black outline-none"
+                                            />
+                                            <button
+                                                onClick={() => handleCourseTitle(editingTitle)}
+                                                className="p-2 hover:bg-green-500/20 text-green-400 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+                                            >
+                                                <Check size={20} />
+                                            </button>
+                                            <button
+                                                onClick={() => setIsTitleEditing(false)}
+                                                className="p-2 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+                                            >
+                                                <X size={20} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <h1 className="text-5xl font-black text-white tracking-tight cursor-pointer hover:text-purple-400 transition-colors" onClick={() => {
+                                                setEditingTitle(course.title);
+                                                setIsTitleEditing(true);
+                                            }}>
+                                                {course.title}
+                                            </h1>
+                                            <span className="text-slate-500 text-xs uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Click to edit</span>
+                                        </>
+                                    )}
+                                </div>
+                                {course.description && (
+                                    <p className="text-slate-400 text-sm mt-3 max-w-2xl">{course.description}</p>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">Module</span>
+                                <h1 className="text-5xl font-black text-white tracking-tight mt-2">
+                                    {activeModuleData?.title}
+                                </h1>
                             </>
                         )}
                     </div>
+
+                    {/* Action Buttons - Redesigned */}
+                    {!activeModuleId && (
+                        <div className="flex flex-wrap gap-3 md:flex-nowrap md:justify-end">
+                            <button
+                                onClick={() => setShowCurriculumModal(true)}
+                                className="px-5 py-3 bg-white/10 hover:bg-white/15 text-slate-300 hover:text-white rounded-xl text-xs font-bold uppercase border border-white/10 hover:border-white/20 flex items-center gap-2 transition-all"
+                            >
+                                <FileText size={16} />
+                                {course.curriculum_file_url ? 'Manage' : 'Upload'}
+                            </button>
+                            <button
+                                onClick={toggleCourseStatus}
+                                className={`px-5 py-3 rounded-xl text-xs font-bold uppercase transition-all border flex items-center gap-2 ${
+                                    isPublished
+                                        ? 'bg-slate-800/40 text-slate-400 border-slate-700/40 hover:bg-slate-700/40'
+                                        : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white border-purple-600/50 shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-purple-600'
+                                }`}
+                            >
+                                {isPublished ? 'Unpublish' : 'Go Live'}
+                            </button>
+                            <button
+                                onClick={() => setIsAiModalOpen(true)}
+                                className="px-5 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl text-xs font-bold uppercase border-none cursor-pointer flex items-center gap-2 hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/20"
+                            >
+                                <Sparkles size={16} /> AI
+                            </button>
+                        </div>
+                    )}
                 </div>
             </header>
 
             <AnimatePresence mode="wait">
                 {!activeModuleId ? (
                     <motion.div key="grid" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
-                        <div className="flex justify-between items-center bg-white/[0.02] border border-white/5 p-4 rounded-3xl">
-                            <button onClick={() => setModuleModal({ isOpen: true, mode: 'create', id: null, title: '' })} className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest border-none cursor-pointer flex items-center gap-2 transition-all"><Plus size={16} /> New Module</button>
-                            <button onClick={() => setIsReorderMode(!isReorderMode)} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border-none cursor-pointer transition-all ${isReorderMode ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-transparent text-slate-500'}`}><GripHorizontal size={16} /> {isReorderMode ? 'Save Order' : 'Rearrange Grid'}</button>
+                        {/* Control Toolbar */}
+                        <div className="flex flex-wrap justify-between items-center gap-4 p-5 rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.03] to-transparent">
+                            <button
+                                onClick={() => setModuleModal({ isOpen: true, mode: 'create', id: null, title: '' })}
+                                className="px-5 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider border-none cursor-pointer flex items-center gap-2 transition-all shadow-lg shadow-purple-500/20"
+                            >
+                                <Plus size={16} /> New Module
+                            </button>
+
+                            <div className="flex gap-2 ml-auto">
+                                <button
+                                    onClick={() => setIsReorderMode(!isReorderMode)}
+                                    className={`px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all flex items-center gap-2 ${
+                                        isReorderMode
+                                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                                            : 'bg-transparent text-slate-500 border-white/10 hover:text-slate-300 hover:border-white/20'
+                                    }`}
+                                >
+                                    <GripHorizontal size={16} />
+                                    {isReorderMode ? 'Done' : 'Reorder'}
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        setIsBulkDeleteMode(!isBulkDeleteMode);
+                                        setSelectedModuleIds(new Set());
+                                    }}
+                                    className={`px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all flex items-center gap-2 ${
+                                        isBulkDeleteMode
+                                            ? 'bg-red-500/20 text-red-400 border-red-500/40'
+                                            : 'bg-transparent text-slate-500 border-white/10 hover:text-slate-300 hover:border-white/20'
+                                    }`}
+                                >
+                                    <Trash2 size={16} />
+                                    {isBulkDeleteMode ? 'Cancel' : 'Delete'}
+                                </button>
+
+                                {isBulkDeleteMode && selectedModuleIds.size > 0 && (
+                                    <button
+                                        onClick={handleBulkDelete}
+                                        disabled={isDeleting}
+                                        className="px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider border-none cursor-pointer transition-all bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-red-500/20"
+                                    >
+                                        {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                                        Delete {selectedModuleIds.size}
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
-                        <Reorder.Group axis="x" values={course.modules} onReorder={handleReorderModules} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 list-none p-0 relative">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 list-none p-0 relative">
                             {course.modules.map((module) => {
                                 const total = (module.lessons?.length || 0) + (module.quizzes?.length || 0);
                                 const published = [...(module.lessons || []), ...(module.quizzes || [])].filter(i => i.is_published).length;
                                 const unpublished = total - published;
-                                const statusText = total === 0 ? 'Empty' : (unpublished === 0 ? 'Published' : `${unpublished} Unpublished`);
-                                const statusClass = total === 0 ? 'bg-slate-500/10 text-slate-500' : (unpublished === 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500');
+                                const statusText = total === 0 ? 'Empty' : (unpublished === 0 ? 'All Published' : `${unpublished} Draft`);
+                                const statusColor = total === 0 ? 'slate' : (unpublished === 0 ? 'emerald' : 'amber');
+                                const isDragging = draggingModuleId === module.id;
 
                                 return (
-                                    <Reorder.Item key={module.id} value={module} dragListener={isReorderMode} layout
-                                        whileDrag={{ scale: 1.05, boxShadow: "0 20px 50px rgba(0,0,0,0.5)", zIndex: 50 }}
-                                        className={`relative group ${isReorderMode ? 'is-wiggling cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
-                                        onClick={() => !isReorderMode && setActiveModuleId(module.id)}
+                                    <div
+                                        key={module.id}
+                                        draggable={isReorderMode}
+                                        onDragStart={(e) => {
+                                            setDraggingModuleId(module.id);
+                                            e.dataTransfer.effectAllowed = 'move';
+                                        }}
+                                        onDragEnd={() => {
+                                            if (dragOverModuleId) {
+                                                handleSwap(draggingModuleId, dragOverModuleId);
+                                            }
+                                            setDraggingModuleId(null);
+                                            setDragOverModuleId(null);
+                                        }}
+                                        onDragOver={(e) => {
+                                            e.preventDefault();
+                                            e.dataTransfer.dropEffect = 'move';
+                                            if (draggingModuleId !== module.id) {
+                                                setDragOverModuleId(module.id);
+                                            }
+                                        }}
+                                        onDragLeave={() => setDragOverModuleId(null)}
+                                        className={`relative group transition-opacity ${isReorderMode ? 'cursor-grab active:cursor-grabbing' : isBulkDeleteMode ? 'cursor-pointer' : 'cursor-pointer'} ${draggingModuleId === module.id ? 'opacity-40' : ''} ${dragOverModuleId === module.id ? 'opacity-60 scale-95' : ''}`}
+                                        onClick={() => {
+                                            if (isBulkDeleteMode) {
+                                                const newSelected = new Set(selectedModuleIds);
+                                                if (newSelected.has(module.id)) {
+                                                    newSelected.delete(module.id);
+                                                } else {
+                                                    newSelected.add(module.id);
+                                                }
+                                                setSelectedModuleIds(newSelected);
+                                            } else if (!isReorderMode) {
+                                                setActiveModuleId(module.id);
+                                            }
+                                        }}
                                     >
-                                        <div className="h-full min-h-[220px] rounded-[35px] border border-white/10 bg-[#050505] overflow-hidden transition-all flex flex-col group-hover:border-purple-500/50">
-                                            <div className="h-24 bg-gradient-to-br from-purple-900/40 to-blue-900/20 p-6 flex justify-between items-start relative">
-                                                <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white shadow-xl"><Layers size={20}/></div>
-                                                {!isReorderMode && (
-                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 backdrop-blur-xl rounded-xl p-1 border border-white/10 shadow-xl">
-                                                        <button onClick={(e) => { e.stopPropagation(); setModuleModal({ isOpen: true, mode: 'edit', id: module.id, title: module.title }); }} className="p-2 text-slate-400 hover:text-white border-none bg-transparent cursor-pointer transition-colors"><Edit3 size={16}/></button>
-                                                        <button onClick={(e) => { e.stopPropagation(); setDeleteModal({ isOpen: true, type: 'module', id: module.id }); }} className="p-2 text-slate-400 hover:text-red-500 border-none bg-transparent cursor-pointer transition-colors"><Trash2 size={16}/></button>
+                                        <div className={`h-full min-h-[280px] rounded-3xl border transition-all flex flex-col overflow-hidden ${
+                                            isBulkDeleteMode && selectedModuleIds.has(module.id)
+                                                ? 'border-red-500/60 bg-red-500/10'
+                                                : isReorderMode
+                                                ? 'border-purple-500/40 bg-gradient-to-br from-purple-900/30 to-transparent shadow-lg shadow-purple-500/20'
+                                                : 'border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent group-hover:shadow-xl group-hover:shadow-purple-500/10 hover:border-purple-500/40 hover:from-purple-900/20'
+                                        }`}>
+                                            {/* Header Section */}
+                                            <div className="h-32 bg-gradient-to-br from-purple-900/50 to-purple-900/20 p-6 flex justify-between items-start border-b border-white/5 relative group/header">
+                                                {isReorderMode && (
+                                                    <div className="absolute top-1/2 left-3 -translate-y-1/2 w-8 h-10 rounded-lg bg-purple-500/40 border-2 border-purple-500/70 flex items-center justify-center text-purple-200 text-lg font-bold opacity-100 transition-all group-hover/header:bg-purple-500/60 group-hover/header:border-purple-400 cursor-grab active:cursor-grabbing shadow-lg shadow-purple-500/30">
+                                                        ⋮⋮
                                                     </div>
                                                 )}
+                                                {isBulkDeleteMode ? (
+                                                    <div className="relative w-full flex items-center justify-between gap-3">
+                                                        <div className="flex items-center">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedModuleIds.has(module.id)}
+                                                                onChange={() => {}}
+                                                                className="w-6 h-6 rounded-lg border-2 border-white/30 bg-white/5 cursor-pointer checked:bg-red-500 checked:border-red-500 accent-red-500 appearance-none"
+                                                            />
+                                                        </div>
+                                                        <span className="text-sm font-bold text-white flex-1 line-clamp-2">{module.title}</span>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/30 to-blue-500/20 border border-purple-500/30 flex items-center justify-center text-white shadow-lg">
+                                                            <Layers size={24} />
+                                                        </div>
+                                                        {!isReorderMode && !isBulkDeleteMode && (
+                                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 backdrop-blur-xl rounded-xl p-2 border border-white/10 shadow-xl">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setModuleModal({ isOpen: true, mode: 'edit', id: module.id, title: module.title });
+                                                                    }}
+                                                                    className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg border-none bg-transparent cursor-pointer transition-colors"
+                                                                    title="Edit module"
+                                                                >
+                                                                    <Edit3 size={16} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setDeleteModal({ isOpen: true, type: 'module', id: module.id });
+                                                                    }}
+                                                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg border-none bg-transparent cursor-pointer transition-colors"
+                                                                    title="Delete module"
+                                                                >
+                                                                    <Trash2 size={16} />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
                                             </div>
+
+                                            {/* Content Section */}
                                             <div className="p-6 flex-grow flex flex-col justify-between">
-                                                <h3 className="text-xl font-bold text-white mb-6 line-clamp-2 leading-snug">{module.title}</h3>
-                                                <div className="flex items-center justify-between mt-auto">
-                                                    <div className="flex gap-4 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                        <span>{module.lessons?.length || 0} Lessons</span>
-                                                        <span>{module.quizzes?.length || 0} Quizzes</span>
+                                                <div>
+                                                    <h3 className="text-xl font-bold text-white mb-4 line-clamp-2 leading-snug">{module.title}</h3>
+                                                    <div className="flex gap-4 text-sm text-slate-400 mb-6">
+                                                        <div className="flex items-center gap-2">
+                                                            <BookOpen size={16} className="text-purple-400" />
+                                                            <span className="font-semibold">{module.lessons?.length || 0}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <HelpCircle size={16} className="text-blue-400" />
+                                                            <span className="font-semibold">{module.quizzes?.length || 0}</span>
+                                                        </div>
                                                     </div>
-                                                    <div className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${statusClass}`}>
+                                                </div>
+
+                                                {/* Footer with Status */}
+                                                <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between">
+                                                    <span className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider inline-block bg-${statusColor}-500/20 text-${statusColor}-400 border border-${statusColor}-500/30`}>
                                                         {statusText}
-                                                    </div>
+                                                    </span>
+                                                    <span className="text-xs text-slate-500 font-semibold">{total} items</span>
                                                 </div>
                                             </div>
                                         </div>
-                                    </Reorder.Item>
+                                    </div>
                                 );
                             })}
-                        </Reorder.Group>
+                        </div>
                     </motion.div>
                 ) : (
                     <motion.div key="timeline" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="bg-[#050505] border border-white/5 rounded-[45px] p-10 shadow-2xl">
-                        <div className="flex justify-between items-center mb-12">
-                            <div className="flex items-center gap-5">
-                                <div className="w-16 h-16 rounded-3xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shadow-[0_0_20px_rgba(167,139,250,0.1)]"><Layers size={32}/></div>
-                                <div>
-                                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 block mb-1">Architecture View</span>
-                                    <h2 className="text-2xl font-black text-white">{activeModuleData?.title}</h2>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-12 pb-8 border-b border-white/10">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                                    <BookOpen size={24}/>
                                 </div>
+                                <p className="text-sm text-slate-400 font-semibold">{(activeModuleData?.lessons?.length || 0)} lessons • {(activeModuleData?.quizzes?.length || 0)} quizzes</p>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap md:flex-nowrap">
+                                <button
+                                    disabled={isUpdatingStatus}
+                                    onClick={() => {
+                                        setIsUpdatingStatus(true);
+                                        const lessonIds = activeModuleData?.lessons?.map(l => l.id) || [];
+                                        const quizIds = activeModuleData?.quizzes?.map(q => q.id) || [];
+                                        const allPublished = [...(activeModuleData?.lessons || []), ...(activeModuleData?.quizzes || [])].every(i => i.is_published);
+
+                                        Promise.all([
+                                            ...lessonIds.map(lid => api.put(`/teacher/lessons/${lid}`, { is_published: !allPublished })),
+                                            ...quizIds.map(qid => api.put(`/teacher/quizzes/${qid}`, { is_published: !allPublished }))
+                                        ]).then(() => {
+                                            invalidateCache(`/teacher/courses/${id}`);
+                                            fetchCourse();
+                                            toast.success(allPublished ? 'All unpublished' : 'All published');
+                                        }).catch(() => toast.error('Failed to update')).finally(() => setIsUpdatingStatus(false));
+                                    }}
+                                    className="text-xs font-bold px-4 py-2 rounded-lg border transition-all disabled:opacity-50 flex items-center gap-2 bg-white/10 hover:bg-white/15 text-slate-300 border-white/20"
+                                >
+                                    {isUpdatingStatus ? <Loader2 size={14} className="animate-spin" /> : 'Toggle All'}
+                                </button>
                                 <button onClick={() => setDeleteModal({ isOpen: true, type: 'module', id: activeModuleId })} className="p-3 bg-white/5 hover:bg-red-500/10 hover:text-red-400 text-slate-400 rounded-xl border-none cursor-pointer transition-all shadow-sm"><Trash2 size={18}/></button>
                             </div>
                         </div>
@@ -831,26 +1338,20 @@ export default function CourseBuilder() {
                 onClose={() => setIsContentParamsOpen(false)}
                 onGenerate={handleStartContentGeneration}
                 structureParams={structureParams}
+                course={course}
+                isSavingStructure={isSavingStructure}
             />
 
-            {/* Content Generation Modal */}
-            <ContentGenerationModal
+            {/* Generation Console (Terminal-style UI) */}
+            <GenerationConsole
                 isOpen={isContentModalOpen}
                 onClose={() => {
                     setIsContentModalOpen(false);
                     fetchCourse();
                 }}
                 generatedContent={generatedContent}
-                isGeneratingContent={isGeneratingContent}
-                onGenerateQuizzes={handleGenerateQuizzes}
-                onDeleteLesson={handleDeleteLesson}
-                onDeleteQuiz={handleDeleteQuiz}
-                expectedParams={contentParams}
-                onRegenerate={() => {
-                    setIsContentModalOpen(false);
-                    setIsAiModalOpen(true);
-                    toast.info('Adjust parameters and regenerate');
-                }}
+                isGenerating={isGeneratingContent}
+                logs={generationLogs}
             />
 
             {/* Curriculum Management Modal */}
@@ -870,6 +1371,32 @@ export default function CourseBuilder() {
                             exit={{ scale: 0.9, opacity: 0 }}
                             className="relative z-10 w-full max-w-lg bg-[#030014] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl"
                         >
+                            {uploadSuccess && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    className={`${uploadSuccess.error ? 'bg-red-500/10 border-b border-red-500/30' : 'bg-green-500/10 border-b border-green-500/30'} px-6 py-4`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        {uploadSuccess.error ? (
+                                            <>
+                                                <X size={20} className="text-red-400 flex-shrink-0" />
+                                                <div>
+                                                    <p className="text-red-400 font-semibold text-sm">{uploadSuccess.error}</p>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CheckCircle size={20} className="text-green-400 flex-shrink-0" />
+                                                <div>
+                                                    <p className="text-green-400 font-semibold text-sm">{uploadSuccess.fileName} uploaded!</p>
+                                                    <p className="text-green-300/80 text-xs mt-1">{uploadSuccess.message}</p>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
                             <div className="p-8">
                                 <div className="flex justify-between items-center mb-8">
                                     <h2 className="text-2xl font-bold text-white flex items-center gap-2">
@@ -898,6 +1425,24 @@ export default function CourseBuilder() {
                                             >
                                                 {course.curriculum_file_url.split('/').pop()}
                                             </a>
+                                            <div className="mt-4 pt-4 border-t border-green-500/20">
+                                                <button
+                                                    onClick={() => setCourse(prev => ({ ...prev, is_coding: !prev.is_coding }))}
+                                                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold uppercase tracking-widest transition-all cursor-pointer text-slate-400 hover:text-white"
+                                                >
+                                                    {course.is_coding ? (
+                                                        <>
+                                                            <span className="text-blue-400">📚</span>
+                                                            <span>Programming Course Detected (Click to toggle)</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <span className="text-amber-400">📖</span>
+                                                            <span>Non-Programming Course (Click to toggle)</span>
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
                                         </div>
 
                                         <div>

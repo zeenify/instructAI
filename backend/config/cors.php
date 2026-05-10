@@ -20,8 +20,9 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-        'http://localhost:5173', 
-        'https://instruct-ai-topaz.vercel.app' 
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'https://instruct-ai-topaz.vercel.app'
     ],
 
     'allowed_origins_patterns' => [],

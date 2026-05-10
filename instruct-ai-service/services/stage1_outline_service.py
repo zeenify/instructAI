@@ -9,11 +9,13 @@ from utils.logger import log_api_request, log_api_response, log_error
 
 
 async def generate_lesson_outline(
-    client: Groq,
+    groq_pool,
     curriculum_context: str,
     module_title: str,
     lesson_title: str,
-    difficulty: str
+    difficulty: str,
+    previous_lessons: list = None,
+    is_coding: bool = True
 ) -> dict:
     """
     Generate outline for a single lesson
@@ -24,6 +26,8 @@ async def generate_lesson_outline(
         module_title: Parent module title
         lesson_title: Target lesson title
         difficulty: Difficulty level
+        previous_lessons: List of lesson summaries from earlier lessons (for context awareness)
+        is_coding: Whether the course supports coding
 
     Returns:
         Dictionary with lesson outline
@@ -33,7 +37,9 @@ async def generate_lesson_outline(
         curriculum_context=curriculum_context,
         module_title=module_title,
         lesson_title=lesson_title,
-        difficulty=difficulty
+        difficulty=difficulty,
+        previous_lessons=previous_lessons,
+        is_coding=is_coding  # Pass coding flag to prompt
     )
 
     messages = [
@@ -42,29 +48,36 @@ async def generate_lesson_outline(
     ]
 
     try:
-        # Use cheaper 8B model for outlines - saves 80% tokens, still excellent for structured planning
-        # Stage 1 doesn't need 70B intelligence, just good structure
+        import time as time_module
+        start_time = time_module.time()
+
         log_api_request(
             endpoint=f"stage1-outline-{lesson_title}",
             messages=messages,
-            model="llama-3.1-8b-instant",
-            response_format={"type": "json_object"},
-            temperature=0.5  # Lower temperature for structured planning
+            model="llama-3.1-8b-instant"
         )
+
+        client, key_num = groq_pool.get_available_client()
+        print(f"[STAGE1-OUTLINE] Using API key {key_num}")
 
         response = client.chat.completions.create(
             messages=messages,
-            model="llama-3.1-8b-instant",  # TPD: 500K vs 100K for 70B
+            model="llama-3.1-8b-instant",
             response_format={"type": "json_object"},
             temperature=0.5
         )
 
+        groq_pool.mark_success(key_num)
+
         raw_response = response.choices[0].message.content
 
-        # Log the response
+        # Log the response with timing
+        duration_ms = (time_module.time() - start_time) * 1000
         log_api_response(
             endpoint=f"stage1-outline-{lesson_title}",
             response_content=raw_response,
+            completion_tokens=len(raw_response) // 4,
+            duration_ms=duration_ms,
             streaming=False
         )
 
@@ -72,7 +85,9 @@ async def generate_lesson_outline(
         return outline_data
 
     except Exception as e:
-        log_error(f"stage1-outline-{lesson_title}", e)
+        import time as time_module
+        duration_ms = (time_module.time() - start_time) * 1000 if 'start_time' in locals() else 0
+        log_error(f"stage1-outline-{lesson_title}", e, duration_ms=duration_ms)
         # Return fallback outline
         return {
             "lesson_title": lesson_title,

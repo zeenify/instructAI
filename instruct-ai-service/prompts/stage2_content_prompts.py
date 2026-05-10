@@ -33,10 +33,37 @@ def get_section_content_system_prompt(section_type: str, writing_style: str = "c
         "detailed": "Comprehensive coverage - include examples, edge cases, and deeper explanations."
     }
 
+    style_str = style_map.get(writing_style, style_map['conversational'])
+    depth_str = depth_map.get(content_depth, depth_map['standard'])
+
     base = f"""You are an expert educational content creator.
 
-WRITING STYLE: {style_map.get(writing_style, style_map['conversational'])}
-CONTENT DEPTH: {depth_map.get(content_depth, depth_map['standard'])}
+WRITING STYLE: {style_str}
+CONTENT DEPTH: {depth_str}
+
+PLATFORM AWARENESS:
+- Students learn in an ONLINE CODE EDITOR/IDE with built-in compiler
+- Code is executable directly in the editor (no terminal needed)
+- Students click "Run" to execute code - NOT terminal commands like "javac" or "java"
+- However, teach about javac/java as CONCEPTS when relevant to the lesson topic
+- In practice problems and examples: students run code in the editor, not command line
+- Hints should guide students to use the editor interface, not terminal commands
+
+CRITICAL FORMATTING RULES:
+1. When writing code in JSON: Use ACTUAL line breaks between statements, NOT escape sequences
+2. When writing expected output: Show it exactly as it prints, one line per line (actual newlines in JSON)
+3. NEVER use escape sequences in code or output fields - always use real line breaks
+4. Multi-line strings in JSON should use actual newlines within the JSON string
+
+Example RIGHT - code field with actual line breaks:
+  "code": "public class Hello {{
+  public static void main(String[] args) {{
+    System.out.println('Hello');
+  }}
+}}"
+
+Example WRONG - cramping it into one line:
+  "code": "public class Hello {{ public static void main(String[] args) {{ System.out.println('Hello'); }} }}"
 
 """
 
@@ -105,12 +132,14 @@ Output format:
 Your job is to provide CODE EXAMPLES with clear explanations.
 
 RULES:
-1. Show complete, runnable code
+1. Show complete, runnable code (students will run it in the online editor)
 2. Explain WHAT the code does
 3. Explain WHY it's written this way
 4. Point out important lines
 5. Show expected output
-6. Code must be syntactically correct
+6. Code must be syntactically correct and runnable immediately
+7. Do NOT mention javac, compilation steps, or terminal commands
+8. Assume students will click "Run" in the editor to test the code
 
 STYLE: Code-first, then explain. Like showing AND telling.
 
@@ -118,9 +147,9 @@ Output format:
 {
   "content_type": "example",
   "intro": "Brief intro to what we're demonstrating",
-  "code": "Complete code example",
+  "code": "Complete, properly formatted code with:\n  - ACTUAL line breaks between statements (not \\n escape sequences)\n  - Clear indentation (4 spaces per level)\n  - Comments explaining key lines\n  - Blank lines between logical sections\n  - Readable structure (never cramped into one line)",
   "explanation": "Line-by-line or block-by-block explanation",
-  "output": "What you should see when you run this",
+  "output": "What you should see when you run this (use actual line breaks, not \\n)",
   "key_concepts": ["Concept 1 shown in code", "Concept 2 shown in code"]
 }
 """
@@ -162,23 +191,48 @@ Your job is to create CODING PRACTICE EXERCISES.
 
 RULES:
 1. State the challenge clearly - MUST be related to THIS lesson's topic only
-2. Provide starter code or scaffolding
-3. Give hints (not solutions)
-4. Describe expected output - **CRITICAL: Put the EXACT literal output, not a description**
-5. Make it achievable but not trivial
-6. **CRITICAL**: The exercise must practice ONLY what was taught in this lesson, not unrelated topics
+2. Provide DETAILED starter code with structure already in place - students fill in missing parts
+3. Use COMMENTS showing EXACTLY where code goes and what to do (not vague placeholders)
+4. Give detailed hints that guide without solving - show patterns, not answers
+5. Describe expected output - **CRITICAL: Put the EXACT literal output, not a description**
+6. Make it achievable in 5-10 minutes of focused work, not trivial but not overwhelming
+7. **CRITICAL**: The exercise must practice ONLY what was taught in this lesson, not unrelated topics
+8. Students run code in the ONLINE EDITOR by clicking "Run" - do NOT mention javac, terminal, or compilation
+
+STARTER CODE REQUIREMENTS:
+- Include the entire structure (imports, class definition, method signatures)
+- Use vague layout comments ONLY - show WHERE code goes, not WHAT code looks like
+  BAD: "// TODO: Add a for loop: for(int i=1; i<=5; i++)"
+  GOOD: "// TODO: Add a loop here to repeat 5 times"
+  GOOD: "// TODO: Replace this placeholder with a loop"
+- DO NOT show example code in comments - that's cheating
+- Properly formatted with good indentation and ACTUAL newlines (not \n escape sequences)
+- When writing JSON, use actual line breaks between logical sections
+- Code must be immediately runnable in the online editor (no setup needed)
+
+HINT REQUIREMENTS:
+- 3-5 specific hints that guide WITHOUT solving
+- Hint 1: Broad direction ("You'll need a loop to repeat this 5 times")
+- Hint 2: What keyword/approach ("Use a 'for' loop, not a 'while' loop")
+- Hint 3: Structure guidance ("Your loop should go inside the main method, after the variable declaration")
+- Hint 4: One small detail ("The loop counter should start at 1")
+- Hint 5: Last resort ("Count from 1 to 5, then stop")
+- NEVER show actual code snippets in hints - describe only
+- Direct students to use the online editor's "Run" button, not terminal commands
 
 EXPECTED_OUTPUT REQUIREMENTS:
-- **MUST contain the EXACT text the program outputs** - Every character, every line
-- **NOT a description of what it outputs** (e.g., "A greeting message" is WRONG)
-- **Use concrete examples** (e.g., if the code prints a greeting, put "Hello, John!" not "A greeting")
-- For multi-line output, include all lines exactly as they appear
-- Include any blank lines, spacing, or formatting exactly
-- Do NOT describe - DO provide the literal output
+- **MUST be the EXACT literal output** - Every character, line, space
+- **NOT a description** (e.g., "A greeting message" is WRONG)
+- **Multi-line output MUST use actual line breaks** - NOT \n escape sequences
+- Write it exactly as the program prints it, one line per line
+- Include empty lines if the output has them
+- Include any spacing or formatting exactly
 
-Example WRONG: "A message displaying the user's name and calculation result"
-Example RIGHT: "Hello, Alice!
-Your number doubled is 20"
+Example WRONG: "Hello, Alice!\\nYour number doubled is 20" (escape sequences)
+Example WRONG: "A greeting with calculation result"
+Example RIGHT (write this exact format):
+Hello, Alice!
+Your number doubled is 20
 
 ANTI-PATTERNS TO AVOID:
 - Creating a calculator when the lesson is about environment setup (WRONG)
@@ -190,11 +244,11 @@ STYLE: Encouraging but challenging. Build confidence through doing.
 Output format:
 {
   "content_type": "practice",
-  "challenge": "What the student should build/do (directly related to this lesson)",
-  "starter_code": "Starting point code if applicable",
-  "hints": ["Hint 1", "Hint 2"],
-  "expected_output": "The EXACT literal output the program produces when run. Example: 'Hello, World!' (not 'A greeting message')",
-  "success_criteria": "How to know if they got it right"
+  "challenge": "Clear statement of what to build/do (1-2 sentences, directly related to this lesson)",
+  "starter_code": "Fully structured code with:\n  - All imports and class setup\n  - Method signatures ready\n  - VAGUE TODO comments (show WHERE, not WHAT)\n  - NO example code in comments\n  - Proper formatting with actual line breaks (not \\n)",
+  "hints": ["Hint 1: Broad direction", "Hint 2: What approach/keyword", "Hint 3: Where/when to use it", "Hint 4: One small detail", "Hint 5: Last resort"],
+  "expected_output": "The EXACT literal output (actual line breaks, not \\n)",
+  "success_criteria": "How to verify it works - be specific about what to check"
 }
 """
         else:
@@ -269,6 +323,24 @@ Output format:
         return base + "Generate appropriate content based on context."
 
 
+def _extract_curriculum_digest(curriculum_context: str) -> str:
+    """Extract key info from curriculum instead of sending full text"""
+    if not curriculum_context:
+        return ""
+
+    first_line = curriculum_context.split('\n')[0].strip()
+    keywords = []
+    words = curriculum_context.split()
+    for word in words[:100]:
+        if word and word[0].isupper() and len(word) > 3:
+            keywords.append(word)
+
+    unique_keywords = list(set(keywords))[:5]
+    topics = ", ".join(unique_keywords) if unique_keywords else "various topics"
+
+    return f"{first_line}\nKey Topics: {topics}"
+
+
 def build_section_content_prompt(
     curriculum_context: str,
     module_title: str,
@@ -277,7 +349,9 @@ def build_section_content_prompt(
     section_type: str,
     section_focus: str,
     difficulty: str,
-    previous_sections: list = None
+    previous_sections: list = None,
+    previous_lessons: list = None,
+    needs_code: bool = False
 ) -> str:
     """
     Build prompt for generating content for a specific section
@@ -290,67 +364,74 @@ def build_section_content_prompt(
         section_type: Type of section
         section_focus: What this section should cover
         difficulty: Difficulty level
-        previous_sections: List of previously covered sections
+        previous_sections: List of previously covered sections within this lesson
+        previous_lessons: List of lesson summaries from earlier lessons in this module
+        needs_code: Whether to include code examples
 
     Returns:
         Content generation prompt
     """
-    # Build context about what's already been covered
+    # Use curriculum digest instead of full text
+    curriculum_digest = _extract_curriculum_digest(curriculum_context)
+
+    # Build context about what's already been covered (compact version)
     previous_context = ""
+
+    # Section-level context (within this lesson)
     if previous_sections and len(previous_sections) > 0:
-        section_list = ", ".join([f"'{s['title']}'" for s in previous_sections])
+        section_list = ", ".join([s['title'] for s in previous_sections[:4]])
         previous_context = f"""
-PREVIOUSLY COVERED SECTIONS:
-{section_list}
-
-**CRITICAL - AVOID ALL REPETITION**:
-✗ DO NOT repeat ANY explanations from previous sections
-✗ DO NOT show the same commands/steps again
-✗ DO NOT re-explain concepts already covered
-✓ ONLY add NEW information specific to THIS section
-✓ Reference previous sections instead of repeating them
-✓ Build upon what came before, don't duplicate it
-
-Example: If previous section covered "Download JDK", this section should cover "Configure environment variables" - NOT re-explain downloading.
+EARLIER SECTIONS IN THIS LESSON: {section_list}
+DO NOT repeat these sections. Add NEW information only.
 """
+
+    # Lesson-level context (from earlier lessons in module)
+    previous_lesson_context = ""
+    if previous_lessons and len(previous_lessons) > 0:
+        prev_topics = []
+        prev_videos = []
+        for l in previous_lessons[:3]:  # Only first 3 previous lessons
+            prev_topics.extend(l.get('topics_covered', [])[:3])  # Only 3 topics per lesson
+            prev_videos.extend(l.get('videos_used', [])[:2])  # Only 2 videos per lesson
+
+        topics_str = ", ".join(list(set(prev_topics))[:5]) if prev_topics else "None"
+        videos_str = ", ".join(list(set(prev_videos))[:3]) if prev_videos else "None"
+
+        previous_lesson_context = f"""
+EARLIER LESSONS: Topics covered: {topics_str} | Videos used: {videos_str}
+Use different resources and build on these topics with fresh angles.
+"""
+
+    code_constraint = """
+NO CODING/CHALLENGE CONSTRAINT: This course does NOT support ANY challenges or exercises. DO NOT include:
+- Code blocks, snippets, or examples
+- Programming commands or syntax
+- Challenge blocks (coding or non-coding)
+- Any interactive exercises, hands-on activities, or questions
+- "Try it yourself", "Your turn", or challenge prompts
+ONLY generate theoretical, conceptual, and informational (read-only) content.
+""" if not needs_code else ""
 
     return f"""
 Generate detailed content for this section.
 
-CURRICULUM CONTEXT (MUST FOLLOW):
-{curriculum_context}
+CURRICULUM: {curriculum_digest}
 
-LESSON CONTEXT:
+CONTEXT:
 - Module: {module_title}
 - Lesson: {lesson_title}
 - Section: {section_title}
-- Section Type: {section_type}
+- Type: {section_type}
 - Focus: {section_focus}
 - Difficulty: {difficulty}
 
-{previous_context}
+{previous_context}{previous_lesson_context}
 
-SECTION-SPECIFIC FOCUS:
-✓ For TUTORIAL sections: Provide step-by-step instructions for THIS section's focus area only
-✓ For CONCEPT sections: Explain the specific concept mentioned, don't teach related topics
-✓ For EXAMPLE sections: Show code/examples that demonstrate THIS section's topic only
-✓ For PRACTICE sections: Create exercises that practice ONLY what's in THIS lesson's section
-✓ For INTRODUCTION sections: Hook on THIS lesson's specific topic
-✓ For SUMMARY sections: Summarize THIS lesson's key points
+CRITICAL: Stay laser-focused on "{section_focus}" only. Don't create off-topic content.
 
-CRITICAL REQUIREMENTS FOR "{section_title}":
-- Stay laser-focused on this section: "{section_focus}"
-- DO NOT create content about unrelated topics
-- Example of WRONG: In "Troubleshooting Errors" section for Java setup, asking for calculator code (totally off-topic)
-- Example of RIGHT: In "Troubleshooting" section, create practice for fixing common environment setup errors
-- Follow the curriculum context strictly
-- Match the difficulty level
-- For programming: Use correct syntax for the language in curriculum
-- For non-programming: Use clear examples from the field
-- **AVOID REPETITION**: Don't duplicate steps/commands from previous sections
+{code_constraint}
 
-TASK:
-Generate content ONLY for this specific section. Follow the output format specified in the system prompt.
+TASK: Generate content ONLY for this specific section. Follow the output format specified in the system prompt.
 
 Output ONLY valid JSON matching the format for section type "{section_type}".
 """

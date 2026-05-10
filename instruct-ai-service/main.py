@@ -13,6 +13,8 @@ from dotenv import load_dotenv
 # Import modular components
 from schemas import CurriculumResponse
 from utils.file_handler import extract_text
+from utils.groq_client_pool import GroqClientPool
+from utils.logger import print_metrics_summary
 from services.curriculum_service import generate_curriculum_stream, generate_curriculum_legacy
 from services.content_service import generate_content_stream
 from services.stage1_outline_service import generate_lesson_outline
@@ -37,13 +39,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Groq clients (primary + fallback)
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-client2 = Groq(api_key=os.getenv("GROQ_API_KEY2")) if os.getenv("GROQ_API_KEY2") else None
-
-print(f"[INIT] Primary API key: {os.getenv('GROQ_API_KEY')[:15]}...")
-if client2:
-    print(f"[INIT] Fallback API key: {os.getenv('GROQ_API_KEY2')[:15]}...")
+# Initialize Groq client pool (4 keys with round-robin + backoff)
+groq_pool = GroqClientPool()
 
 
 # ===== HEALTH CHECK ENDPOINT =====
@@ -55,6 +52,56 @@ def health_check():
         "service": "InstructAI",
         "version": "2.0.0"
     }
+
+
+# ===== DETECT PROGRAMMING CONTENT =====
+from pydantic import BaseModel
+
+class DetectionRequest(BaseModel):
+    curriculum_text: str
+
+@app.post("/ai/detect-programming-content")
+async def detect_programming_content_endpoint(data: DetectionRequest):
+    """
+    Use AI to detect if curriculum contains programming content
+
+    Returns:
+        {"is_coding": true/false}
+    """
+    try:
+        curriculum_text = data.curriculum_text
+
+        if not curriculum_text:
+            return {"is_coding": False}
+
+        client, key_num = groq_pool.get_available_client()
+
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an expert at analyzing educational curriculum documents. Your task is to determine if a curriculum contains programming/coding content. Respond with ONLY 'true' or 'false' - nothing else."
+                },
+                {
+                    "role": "user",
+                    "content": f"Does this curriculum contain programming or coding content?\n\n{curriculum_text[:2000]}"
+                }
+            ],
+            temperature=0.1,
+            max_tokens=10
+        )
+
+        groq_pool.mark_success(key_num)
+        answer = response.choices[0].message.content.strip().lower()
+        is_coding = answer == "true"
+
+        print(f"[AI Detection] Response: '{answer}' -> is_coding: {is_coding}")
+
+        return {"is_coding": is_coding}
+    except Exception as e:
+        print(f"[AI Detection Error] {str(e)}")
+        return {"is_coding": False}
 
 
 # ===== CURRICULUM GENERATION - STREAMING =====
@@ -83,7 +130,7 @@ async def curriculum_stream_endpoint(
 
     return StreamingResponse(
         generate_curriculum_stream(
-            client=client,
+            groq_pool=groq_pool,
             context_text=context_text,
             prompt=prompt,
             difficulty=difficulty,
@@ -91,8 +138,7 @@ async def curriculum_stream_endpoint(
             lessons_per_module=lessons_per_module,
             include_quiz=include_quiz,
             include_coding=include_coding,
-            pacing=pacing,
-            fallback_client=client2
+            pacing=pacing
         ),
         media_type="text/event-stream"
     )
@@ -113,7 +159,7 @@ async def curriculum_legacy_endpoint(
         context_text = f"Context from uploaded file: {extract_text(file)[:4000]}"
 
     result = await generate_curriculum_legacy(
-        client=client,
+        groq_pool=groq_pool,
         context_text=context_text,
         prompt=prompt
     )
@@ -130,11 +176,10 @@ async def content_stream_endpoint(
     content_depth: str = Form("standard"),
     code_examples_per_lesson: str = Form("3-4"),
     writing_style: str = Form("conversational"),
-    questions_per_quiz: str = Form("10"),
-    question_type_mix: str = Form("mixed"),
-    points_per_question: int = Form(5),
+    question_type_distribution: str = Form("balanced"),
     include_images: str = Form("true"),
-    include_videos: str = Form("true")
+    include_videos: str = Form("true"),
+    is_coding: str = Form("false")
 ):
     """
     Generate full content for approved curriculum structure
@@ -145,19 +190,17 @@ async def content_stream_endpoint(
 
     return StreamingResponse(
         generate_content_stream(
-            client=client,
+            groq_pool=groq_pool,
             curriculum_structure=structure,
             curriculum_context=curriculum_context,
             difficulty=difficulty,
             content_depth=content_depth,
             code_examples_per_lesson=code_examples_per_lesson,
             writing_style=writing_style,
-            questions_per_quiz=questions_per_quiz,
-            question_type_mix=question_type_mix,
-            points_per_question=points_per_question,
+            question_type_distribution=question_type_distribution,
             include_images=include_images,
             include_videos=include_videos,
-            fallback_client=client2
+            is_coding=is_coding.lower() == 'true'
         ),
         media_type="text/event-stream"
     )
@@ -177,7 +220,7 @@ async def test_outline_endpoint(
     curriculum_context = curriculum_text[:8000] if curriculum_text else ""
 
     outline = await generate_lesson_outline(
-        client=client,
+        groq_pool=groq_pool,
         curriculum_context=curriculum_context,
         module_title=module_title,
         lesson_title=lesson_title,
@@ -202,39 +245,52 @@ async def test_full_lesson_endpoint(
     """
     curriculum_context = curriculum_text[:8000] if curriculum_text else ""
 
-    # Stage 1: Generate outline
-    outline = await generate_lesson_outline(
-        client=client,
-        curriculum_context=curriculum_context,
-        module_title=module_title,
-        lesson_title=lesson_title,
-        difficulty=difficulty
-    )
+    try:
+        # Stage 1: Generate outline
+        outline = await generate_lesson_outline(
+            groq_pool=groq_pool,
+            curriculum_context=curriculum_context,
+            module_title=module_title,
+            lesson_title=lesson_title,
+            difficulty=difficulty
+        )
 
-    # Stage 2: Generate content for each section
-    section_contents = await generate_all_section_contents(
-        client=client,
-        curriculum_context=curriculum_context,
-        module_title=module_title,
-        lesson_title=lesson_title,
-        sections=outline.get('sections', []),
-        difficulty=difficulty
-    )
+        # Stage 2: Generate content for each section
+        section_contents = await generate_all_section_contents(
+            groq_pool=groq_pool,
+            curriculum_context=curriculum_context,
+            module_title=module_title,
+            lesson_title=lesson_title,
+            sections=outline.get('sections', []),
+            difficulty=difficulty
+        )
 
-    # Stage 3: Format to lesson blocks with real media
-    formatted_lesson = format_all_sections_to_lesson(
-        section_contents=section_contents,
-        lesson_title=lesson_title,
-        module_title=module_title,
-        include_images=(include_images.lower() == "true"),
-        include_videos=(include_videos.lower() == "true")
-    )
+        # Stage 3: Format to lesson blocks with real media
+        formatted_lesson = format_all_sections_to_lesson(
+            section_contents=section_contents,
+            lesson_title=lesson_title,
+            module_title=module_title,
+            include_images=(include_images.lower() == "true"),
+            include_videos=(include_videos.lower() == "true")
+        )
 
-    return {
-        "outline": outline,
-        "section_contents": section_contents,
-        "formatted_lesson": formatted_lesson
-    }
+        result = {
+            "outline": outline,
+            "section_contents": section_contents,
+            "formatted_lesson": formatted_lesson
+        }
+
+        # Print metrics summary after completion
+        print("\n")
+        print_metrics_summary()
+
+        return result
+
+    except Exception as e:
+        # Print metrics summary even on error
+        print("\n")
+        print_metrics_summary()
+        raise
 
 
 # ===== RUN SERVER =====
@@ -244,9 +300,13 @@ if __name__ == "__main__":
     print("InstructAI Service v2.0.0 - Multi-Stage Pipeline")
     print("=" * 60)
     print("Server: http://localhost:8001")
-    print("Debug logging: ENABLED (Groq API requests/responses)")
+    print("Metrics logging: ENABLED (tokens, requests, performance)")
     print("Test endpoints:")
     print("  - POST /ai/test-outline (Stage 1 only)")
     print("  - POST /ai/test-full-lesson (Stage 1+2)")
     print("=" * 60 + "\n")
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+
+    try:
+        uvicorn.run(app, host="0.0.0.0", port=8001)
+    finally:
+        print_metrics_summary()

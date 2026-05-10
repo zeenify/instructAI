@@ -48,23 +48,31 @@ def build_curriculum_user_prompt(
         module_count: Target number of modules (e.g., "3-5")
         lessons_per_module: Target lessons per module (e.g., "3-5")
         include_quiz: Whether to include quizzes ("true" or "false")
-        include_quiz: Whether to include coding exercises ("true" or "false")
+        include_coding: Whether to include coding exercises ("true" or "false")
         pacing: Course pacing (fast, standard, slow)
 
     Returns:
         Formatted user prompt string
     """
+    # Log the first 200 chars of context to verify it's being loaded
+    context_preview = context_text[:200] if context_text else "(NO CONTEXT)"
+    print(f"\n[CURRICULUM-CONTEXT] First 200 chars: {context_preview}...")
+    print(f"[CURRICULUM-CONTEXT] Total length: {len(context_text) if context_text else 0} chars\n")
+
+    # Use full context instead of truncating - let Groq handle it
+    # The DLL is important, don't cut it short!
+    context_digest = context_text if context_text else ""
+
     param_instructions = f"""
-GENERATION PARAMETERS:
-- Difficulty Level: {difficulty}
-- Module Count: {module_count} (absolute max: 8 modules)
-- Lessons per Module: {lessons_per_module} (absolute max: 8 lessons per module)
-- Include Quiz per Module: {include_quiz}
-- Include Coding Exercises: {include_coding}
+PARAMETERS:
+- Difficulty: {difficulty}
+- Modules: {module_count} (max 8)
+- Lessons/Module: {lessons_per_module} (max 8)
+- Quizzes: {include_quiz}
+- Coding: {include_coding}
 - Pacing: {pacing}
 
-Generate a curriculum that strictly adheres to these parameters.
-Stay within the absolute maximum limits to prevent rate limiting issues.
+User Instructions: {prompt}
 """
 
-    return f"{context_text}{param_instructions}\nUser Instructions: {prompt}"
+    return f"{context_digest}\n{param_instructions}"

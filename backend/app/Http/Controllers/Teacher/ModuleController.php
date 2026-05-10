@@ -76,17 +76,31 @@ public function destroy($id)
     public function update(Request $request, $id)
     {
         $request->validate(['title' => 'required|string|max:255']);
-        
+
         $module = Module::whereHas('course', function($q) use ($request) {
             $q->where('teacher_id', $request->user()->id);
         })->findOrFail($id);
 
         $module->update(['title' => $request->title]);
-        
+
         return response()->json($module);
     }
 
+    public function reorderModules(Request $request, $courseId)
+    {
+        $course = Course::where('teacher_id', $request->user()->id)->findOrFail($courseId);
 
+        $request->validate([
+            'modules' => 'required|array',
+            'modules.*' => 'required|integer|exists:modules,id'
+        ]);
 
+        DB::transaction(function () use ($request) {
+            foreach ($request->modules as $index => $moduleId) {
+                DB::table('modules')->where('id', $moduleId)->update(['order_index' => $index]);
+            }
+        });
 
+        return response()->json(['message' => 'Modules reordered']);
+    }
 }

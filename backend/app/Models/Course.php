@@ -14,11 +14,13 @@ class Course extends Model
         'curriculum_file_url',
         'curriculum_text',
         'is_published',
+        'is_coding',
         'order_index'
     ];
 
     protected $casts = [
         'is_published' => 'boolean',
+        'is_coding' => 'boolean',
         'order_index' => 'integer'
     ];
 

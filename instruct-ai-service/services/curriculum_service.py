@@ -5,11 +5,11 @@ import json
 from groq import Groq
 from schemas import CurriculumResponse
 from prompts.curriculum_prompts import get_curriculum_system_prompt, build_curriculum_user_prompt
-from utils.logger import log_api_request, log_api_response, log_error
+from utils.logger import log_api_request, log_api_response, log_error, print_metrics_summary
 
 
 async def generate_curriculum_stream(
-    client: Groq,
+    groq_pool,
     context_text: str,
     prompt: str,
     difficulty: str,
@@ -17,8 +17,7 @@ async def generate_curriculum_stream(
     lessons_per_module: str,
     include_quiz: str,
     include_coding: str,
-    pacing: str,
-    fallback_client: Groq = None
+    pacing: str
 ):
     """
     Generate curriculum structure with streaming support
@@ -56,52 +55,57 @@ async def generate_curriculum_stream(
         ]
 
         # Log the request
+        import time as time_module
+        start_time = time_module.time()
         log_api_request(
             endpoint="generate-curriculum-stream",
             messages=messages,
-            model="llama-3.3-70b-versatile",
-            response_format={"type": "json_object"},
-            stream=True
+            model="llama-3.3-70b-versatile"
         )
 
         # Send initial status
         yield f"data: {json.dumps({'type': 'status', 'message': 'Analyzing curriculum...'})}\n\n"
 
-        # Try with primary client, fallback to secondary on rate limit
-        active_client = client
-        try:
-            stream = client.chat.completions.create(
-                messages=messages,
-                model="llama-3.3-70b-versatile",
-                response_format={"type": "json_object"},
-                stream=True
-            )
-        except Exception as e:
-            error_str = str(e).lower()
-            if "rate_limit" in error_str and fallback_client:
-                print("[FALLBACK] Rate limit on curriculum generation, switching to API key 2")
-                yield f"data: {json.dumps({'type': 'status', 'message': 'Switching to backup API key...'})}\n\n"
-                active_client = fallback_client
-                try:
-                    stream = fallback_client.chat.completions.create(
-                        messages=messages,
-                        model="llama-3.3-70b-versatile",
-                        response_format={"type": "json_object"},
-                        stream=True
-                    )
-                except Exception as fallback_error:
-                    if "rate_limit" in str(fallback_error).lower():
-                        print("[ERROR] Both API keys hit rate limit")
-                        yield f"data: {json.dumps({'type': 'error', 'message': 'Rate limit reached on both API keys. Please wait a few minutes and try again.'})}\n\n"
-                        return
+        # Try to get an available client from pool
+        stream = None
+        attempt_count = 0
+        max_attempts = len(groq_pool.clients)
+        import time as time_module
+
+        while attempt_count < max_attempts and not stream:
+            try:
+                client, key_num = groq_pool.get_available_client()
+                print(f"[CURRICULUM] Using API key {key_num}")
+                stream = client.chat.completions.create(
+                    messages=messages,
+                    model="llama-3.3-70b-versatile",
+                    response_format={"type": "json_object"},
+                    stream=True
+                )
+                groq_pool.mark_success(key_num)
+            except Exception as e:
+                error_str = str(e).lower()
+                if "rate_limit" in error_str:
+                    groq_pool.mark_rate_limited(key_num, backoff_seconds=60)
+                    attempt_count += 1
+                    if attempt_count < max_attempts:
+                        available_count = groq_pool.get_available_count()
+                        if available_count > 0:
+                            yield f"data: {json.dumps({'type': 'status', 'message': f'Key {key_num} rate-limited, trying another ({available_count} keys available)...'})}\n\n"
+                        else:
+                            print(f"[CURRICULUM] All keys rate-limited, waiting before retry...")
+                            time_module.sleep(2)  # Wait before retrying a backed-off key
+                            yield f"data: {json.dumps({'type': 'status', 'message': 'All keys temporarily rate-limited, retrying...'})}\n\n"
                     else:
-                        raise fallback_error
-            elif "rate_limit" in error_str and not fallback_client:
-                print("[ERROR] Rate limit hit, no fallback available")
-                yield f"data: {json.dumps({'type': 'error', 'message': 'Rate limit reached. Please wait a few minutes and try again.'})}\n\n"
-                return
-            else:
-                raise
+                        print("[ERROR] All API keys exhausted")
+                        yield f"data: {json.dumps({'type': 'error', 'message': 'All API keys rate-limited. Please wait and try again.'})}\n\n"
+                        return
+                else:
+                    raise
+
+        if not stream:
+            yield f"data: {json.dumps({'type': 'error', 'message': 'No available API keys'})}\n\n"
+            return
 
         accumulated = ""
         last_module_count = 0
@@ -132,10 +136,13 @@ async def generate_curriculum_stream(
                     # Partial JSON not yet valid, continue accumulating
                     pass
 
-        # Log the complete response
+        # Log the complete response with timing
+        duration_ms = (time_module.time() - start_time) * 1000
         log_api_response(
             endpoint="generate-curriculum-stream",
             response_content=accumulated,
+            completion_tokens=len(accumulated) // 4,
+            duration_ms=duration_ms,
             streaming=True
         )
 
@@ -150,13 +157,20 @@ async def generate_curriculum_stream(
             log_error("generate-curriculum-stream (validation)", e)
             yield f"data: {json.dumps({'type': 'error', 'message': 'Failed to parse AI response'})}\n\n"
 
+        # Print metrics summary after completion
+        print("\n")
+        print_metrics_summary()
+
     except Exception as e:
         log_error("generate-curriculum-stream", e)
         yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        # Print metrics summary even on error
+        print("\n")
+        print_metrics_summary()
 
 
 async def generate_curriculum_legacy(
-    client: Groq,
+    groq_pool,
     context_text: str,
     prompt: str
 ) -> dict:
@@ -179,13 +193,18 @@ async def generate_curriculum_legacy(
     ]
 
     try:
+        import time as time_module
+        start_time = time_module.time()
+
         # Log the request
         log_api_request(
             endpoint="generate-curriculum",
             messages=messages,
-            model="llama-3.3-70b-versatile",
-            response_format={"type": "json_object"}
+            model="llama-3.3-70b-versatile"
         )
+
+        client, key_num = groq_pool.get_available_client()
+        print(f"[CURRICULUM-LEGACY] Using API key {key_num}")
 
         chat_completion = client.chat.completions.create(
             messages=messages,
@@ -193,12 +212,17 @@ async def generate_curriculum_legacy(
             response_format={"type": "json_object"}
         )
 
+        groq_pool.mark_success(key_num)
+
         raw_output = chat_completion.choices[0].message.content
 
-        # Log the response
+        # Log the response with timing
+        duration_ms = (time_module.time() - start_time) * 1000
         log_api_response(
             endpoint="generate-curriculum",
             response_content=raw_output,
+            completion_tokens=len(raw_output) // 4,
+            duration_ms=duration_ms,
             streaming=False
         )
 
@@ -208,5 +232,6 @@ async def generate_curriculum_legacy(
         return safe_curriculum.dict()
 
     except Exception as e:
-        log_error("generate-curriculum", e)
+        duration_ms = (time_module.time() - start_time) * 1000
+        log_error("generate-curriculum", e, duration_ms=duration_ms)
         return {"new_modules": []}
