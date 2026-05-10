@@ -78,24 +78,7 @@ body {
 .canvas-container { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 .hero-content { position: relative; z-index: 10; max-width: 900px; padding: 0 20px; }
 
-.hero-badge {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(255,255,255,0.05); border: 1px solid var(--border);
-  padding: 6px 14px; border-radius: 20px; margin-bottom: 24px;
-  opacity: 0; transform: translateY(20px);
-}
-.hero-badge.visible { opacity: 1; transform: translateY(0); transition: 1s ease 0.2s; }
-.badge-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent); }
-
-.hero-title { font-size: clamp(2.5rem, 8vw, 4.5rem); line-height: 1.1; margin-bottom: 24px; opacity: 0; transform: translateY(20px); color: white; letter-spacing: -0.04em; }
-.hero-title.visible { opacity: 1; transform: translateY(0); transition: 1s ease 0.4s; }
-.text-gradient { background: linear-gradient(to right, #a78bfa, #e879f9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-
-.hero-subtitle { color: var(--text-dim); font-size: clamp(1rem, 4vw, 1.2rem); max-width: 600px; margin: 0 auto 40px; opacity: 0; transform: translateY(20px); line-height: 1.6; }
-.hero-subtitle.visible { opacity: 1; transform: translateY(0); transition: 1s ease 0.6s; }
-
-.hero-buttons { display: flex; gap: 16px; justify-content: center; align-items: center; opacity: 0; transform: translateY(20px); flex-wrap: wrap; }
-.hero-buttons.visible { opacity: 1; transform: translateY(0); transition: 1s ease 0.8s; }
+/* Hero animations removed - each page defines its own hero styles */
 
 .btn-primary { 
   background: white; color: black; padding: 16px 32px; border-radius: 12px; 
