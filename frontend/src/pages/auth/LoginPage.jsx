@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react'; 
-import { useNavigate } from 'react-router-dom'; 
-import { motion, AnimatePresence } from 'framer-motion'; 
-import { Mail, Lock, ArrowRight, GraduationCap, Briefcase, Loader2 } from 'lucide-react'; 
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Mail, Lock, ArrowRight, GraduationCap, Briefcase, Loader2 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { useGoogleLogin } from '@react-oauth/google';
+import '../LandingPage.css';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);

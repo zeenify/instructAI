@@ -8,6 +8,7 @@ import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import '../LandingPage.css';
 
 export default function StudentRegisterPage() {
     const [loading, setLoading] = useState(false);
