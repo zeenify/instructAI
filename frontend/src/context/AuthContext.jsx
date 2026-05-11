@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, useContext } from 'react';
-import api from '../services/api';
+import api, { invalidateCache } from '../services/api';
+import cache from '../utils/cache';
 
 const AuthContext = createContext();
 
@@ -23,14 +24,15 @@ export const AuthProvider = ({ children }) => {
         setRole(null);
         localStorage.removeItem('token');
         localStorage.removeItem('role');
+        cache.clear();
     };
 
     useEffect(() => {
         const loadUser = async () => {
             if (token) {
                 try {
-                    // Fetch full user data including profiles
-                    const res = await api.get('/user');
+                    // Fetch full user data including profiles with bypassCache to get fresh data
+                    const res = await api.get('/user', { bypassCache: true });
                     setUser(res.data);
                     setRole(res.data.role);
                 } catch (err) {

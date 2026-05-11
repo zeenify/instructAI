@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Auth Pages Preview</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="http://localhost:5173/@vite/client" rel="stylesheet">
+  <style>
+    body { margin: 0; padding: 20px; background: #0a0a0a; font-family: system-ui; }
+    .preview { display: flex; gap: 40px; flex-wrap: wrap; }
+    .frame { border: 2px solid #333; border-radius: 12px; overflow: hidden; }
+    iframe { border: none; display: block; }
+  </style>
+</head>
+<body>
+  <h1 style="color: #fff; margin-bottom: 30px;">Auth Pages Preview</h1>
+  <div class="preview">
+    <div class="frame">
+      <h3 style="color: #a78bfa; margin: 10px; font-size: 12px; text-transform: uppercase;">Login</h3>
+      <iframe src="http://localhost:5173/login" width="480" height="600"></iframe>
+    </div>
+    <div class="frame">
+      <h3 style="color: #22d3ee; margin: 10px; font-size: 12px; text-transform: uppercase;">Student Register</h3>
+      <iframe src="http://localhost:5173/register/student" width="480" height="700"></iframe>
+    </div>
+    <div class="frame">
+      <h3 style="color: #a78bfa; margin: 10px; font-size: 12px; text-transform: uppercase;">Teacher Register</h3>
+      <iframe src="http://localhost:5173/register/teacher" width="480" height="700"></iframe>
+    </div>
+  </div>
+</body>
+</html>

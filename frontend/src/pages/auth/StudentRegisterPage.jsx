@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-// eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
 import { User, Mail, Lock, ArrowRight, Sparkles } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
@@ -8,7 +7,7 @@ import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import '../LandingPage.css';
+import './StudentRegisterPage.css';
 
 export default function StudentRegisterPage() {
     const [loading, setLoading] = useState(false);
@@ -31,44 +30,84 @@ export default function StudentRegisterPage() {
     };
 
     return (
-        <div className="landing-wrapper min-h-screen flex items-center justify-center p-6 bg-[#030014] student-theme">
+        <div className="register-container" style={{ background: '#030014' }}>
             <Toaster position="top-center" theme="dark" richColors />
-            <div className="mouse-glow" id="global-mouse-glow" />
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 w-full max-w-[480px]">
-                <div className="spotlight-card p-[1px] bg-gradient-to-b from-cyan-500/20 to-transparent rounded-[32px]">
-                    <div className="bg-[#030014]/95 backdrop-blur-3xl rounded-[31px] p-8 md:p-12">
-                        
-                        <div className="text-center mb-10">
-                            <motion.div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-bold uppercase tracking-widest mb-6">
-                                <Sparkles size={12} /> Student Access
-                            </motion.div>
-                            <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Create Account</h1>
-                            <p className="text-slate-400 text-sm">Join the intelligent classroom ecosystem.</p>
-                        </div>
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="register-card"
+            >
+                {loading && (
+                    <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: 2, ease: "easeInOut" }}
+                        className="absolute top-0 left-0 h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent"
+                        style={{ borderRadius: '32px 0 0 0' }}
+                    />
+                )}
 
-                        <div style={{ position: 'relative', zIndex: 20 }}>
-                            <form onSubmit={handleSubmit} className="space-y-5">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <Input label="First Name" icon={User} placeholder="First Name" onChange={e => setForm({...form, first_name: e.target.value})} required />
-                                    <Input label="Last Name" placeholder="Last Name" onChange={e => setForm({...form, last_name: e.target.value})} required />
-                                </div>
-                                
-                                <Input label="Email" icon={Mail} type="email" placeholder="name@email.com" onChange={e => setForm({...form, email: e.target.value})} required />
-                                <Input label="Choose Password" icon={Lock} type="password" placeholder="••••••••" onChange={e => setForm({...form, password: e.target.value})} required />
-
-                                <Button variant="student" loading={loading} className="w-full py-4 mt-4 font-bold uppercase tracking-widest">
-                                    Get Started <ArrowRight className="ml-2 w-4 h-4" />
-                                </Button>
-                            </form>
-                        </div>
-
-                        <div className="mt-10 pt-8 border-t border-white/5 text-center">
-                            <p className="text-slate-500 text-xs uppercase tracking-widest">
-                                Already have an account? <a href="/login" className="text-cyan-400 font-bold ml-2">Sign In</a>
-                            </p>
-                        </div>
+                <div className="register-header">
+                    <div className="register-badge">
+                        <Sparkles size={12} /> Student Access
                     </div>
+                    <h1>Create Account</h1>
+                    <p>Join the intelligent classroom ecosystem.</p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="register-form">
+                    <div className="register-form-row">
+                        <Input
+                            label="First Name"
+                            icon={User}
+                            placeholder="First Name"
+                            onChange={e => setForm({...form, first_name: e.target.value})}
+                            required
+                            disabled={loading}
+                        />
+                        <Input
+                            label="Last Name"
+                            icon={User}
+                            placeholder="Last Name"
+                            onChange={e => setForm({...form, last_name: e.target.value})}
+                            required
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <Input
+                        label="Email"
+                        icon={Mail}
+                        type="email"
+                        placeholder="name@email.com"
+                        onChange={e => setForm({...form, email: e.target.value})}
+                        required
+                        disabled={loading}
+                    />
+                    <Input
+                        label="Choose Password"
+                        icon={Lock}
+                        type="password"
+                        placeholder="••••••••"
+                        onChange={e => setForm({...form, password: e.target.value})}
+                        required
+                        disabled={loading}
+                    />
+
+                    <motion.div
+                        animate={loading ? { opacity: [1, 0.7, 1] } : {}}
+                        transition={{ repeat: Infinity, duration: 1.5 }}
+                    >
+                        <Button variant="student" loading={loading} loadingText="Creating..." className="w-full">
+                            Get Started <ArrowRight className="ml-2 w-4 h-4" />
+                        </Button>
+                    </motion.div>
+                </form>
+
+                <div className="register-footer">
+                    <p>Already have an account? <a href="/login">Sign In</a></p>
                 </div>
             </motion.div>
         </div>

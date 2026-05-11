@@ -153,31 +153,33 @@ export default function LessonEditor() {
             `}</style>
 
             {/* STICKY CONTROL BAR */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-16 sticky top-0 z-40 bg-[#030014]/90 backdrop-blur-xl py-6 border-b border-white/5">
-                <div className="flex items-center gap-4 w-full md:w-auto">
-                    <button 
-                        onClick={() => navigate(-1)} 
-                        className="p-2 hover:bg-white/5 rounded-full text-slate-500 hover:text-white transition-all border-none bg-transparent cursor-pointer"
+            <div style={{ padding: '20px 0', marginBottom: '32px', gap: '24px' }} className="flex flex-col md:flex-row justify-between items-center sticky top-0 z-40 bg-[#030014]/90 backdrop-blur-xl border-b border-white/5">
+                <div style={{ gap: '16px' }} className="flex items-center w-full md:w-auto">
+                    <button
+                        onClick={() => navigate(-1)}
+                        style={{ padding: '10px 12px' }}
+                        className="hover:bg-white/5 rounded-full text-slate-500 hover:text-white transition-all border-none bg-transparent cursor-pointer"
                     >
                         <ChevronLeft size={24} />
                     </button>
                     <div className="flex flex-col flex-grow">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-500 mb-1">Architecture Mode</span>
-                        <input 
-                            value={title || ""} 
-                            onChange={(e) => setTitle(e.target.value)} 
-                            className="bg-transparent border-none outline-none text-2xl font-bold text-white w-full placeholder:text-slate-800" 
-                            placeholder="Unit Title..." 
+                        <span style={{ marginBottom: '4px' }} className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-500">Architecture Mode</span>
+                        <input
+                            value={title || ""}
+                            onChange={(e) => setTitle(e.target.value)}
+                            className="bg-transparent border-none outline-none text-2xl font-bold text-white w-full placeholder:text-slate-800"
+                            placeholder="Unit Title..."
                         />
                     </div>
                 </div>
-                <div className="flex gap-3">
-                    <Button loading={saving} onClick={() => handleSave()} className="px-8 py-3 text-xs uppercase tracking-widest font-black" variant="primary">
+                <div style={{ gap: '12px' }} className="flex">
+                    <Button loading={saving} onClick={() => handleSave()} style={{ padding: '14px 24px' }} className="text-xs uppercase tracking-widest font-black" variant="primary">
                         Sync Changes
                     </Button>
-                    <button 
-                        onClick={() => handleSave(!isPublished)} 
-                        className={`px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest border-none cursor-pointer transition-all ${isPublished ? 'bg-slate-800 text-slate-400' : 'bg-gradient-to-r from-purple-600 to-accent text-white shadow-lg shadow-purple-500/20'}`}
+                    <button
+                        onClick={() => handleSave(!isPublished)}
+                        style={{ padding: '14px 24px' }}
+                        className={`rounded-xl text-xs font-black uppercase tracking-widest border-none cursor-pointer transition-all ${isPublished ? 'bg-slate-800 text-slate-400' : 'bg-gradient-to-r from-purple-600 to-accent text-white shadow-lg shadow-purple-500/20'}`}
                     >
                         {isPublished ? 'Return to Draft' : 'Publish Content'}
                     </button>
@@ -186,27 +188,29 @@ export default function LessonEditor() {
 
             {/* DRAGGABLE CANVAS */}
             <div className="max-w-3xl mx-auto pb-60">
-                <Reorder.Group axis="y" values={blocks} onReorder={setBlocks} className="space-y-12 list-none p-0">
+                <Reorder.Group axis="y" values={blocks} onReorder={setBlocks} style={{ gap: '32px' }} className="flex flex-col list-none p-0">
                     {blocks.map((block) => (
                         <Reorder.Item key={block.id} value={block} className="group relative">
-                            {/* BLOCK SIDEBAR CONTROLS (Restored Delete Confirm) */}
-                            <div className="absolute -left-16 top-0 h-full hidden lg:flex flex-col items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                                <div className="cursor-grab active:cursor-grabbing p-2 text-slate-700 hover:text-purple-400 transition-colors">
-                                    <GripVertical size={20} />
+                            {/* BLOCK SIDEBAR CONTROLS - Visible on Hover */}
+                            <div style={{ gap: '8px', padding: '12px' }} className="absolute -left-20 top-0 flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                <div style={{ padding: '10px 12px' }} className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-purple-300 hover:bg-purple-500/20 transition-all bg-white/5 rounded-lg border border-white/10">
+                                    <GripVertical size={18} />
                                 </div>
                                 <AnimatePresence mode="wait">
                                     {confirmDeleteId === block.id ? (
-                                        <motion.button 
+                                        <motion.button
                                             initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
                                             onClick={() => removeBlock(block.id)}
-                                            className="p-2 bg-red-500 rounded-full text-white border-none cursor-pointer shadow-lg shadow-red-500/40"
+                                            style={{ padding: '10px 12px' }}
+                                            className="bg-red-500 rounded-lg text-white border-none cursor-pointer shadow-lg shadow-red-500/40 hover:bg-red-600 transition-all"
                                         >
                                             <Check size={16} />
                                         </motion.button>
                                     ) : (
-                                        <button 
+                                        <button
                                             onClick={() => setConfirmDeleteId(block.id)}
-                                            className="p-2 text-slate-700 hover:text-red-500 transition-colors border-none bg-transparent cursor-pointer"
+                                            style={{ padding: '10px 12px' }}
+                                            className="text-slate-400 hover:text-red-300 hover:bg-red-500/20 border-none bg-white/5 cursor-pointer rounded-lg transition-all border border-white/10"
                                         >
                                             <Trash2 size={18} />
                                         </button>
@@ -226,13 +230,13 @@ export default function LessonEditor() {
                 </Reorder.Group>
 
                 {/* INSERTER HUB */}
-                <div className="mt-24">
-                    <div className="flex items-center gap-4 mb-10">
+                <div style={{ marginTop: '48px' }}>
+                    <div style={{ gap: '16px', marginBottom: '24px' }} className="flex items-center">
                         <div className="h-[1px] flex-grow bg-white/5" />
                         <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-700">Add Element</span>
                         <div className="h-[1px] flex-grow bg-white/5" />
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
                         <AddBlockBtn icon={Heading1} label="H1" onClick={() => addBlock('h1')} />
                         <AddBlockBtn icon={Type} label="Text" onClick={() => addBlock('text')} />
                         <AddBlockBtn icon={Code} label="Sandbox" onClick={() => addBlock('code')} />
@@ -276,10 +280,10 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
                 onChange={(html) => update(block.id, { text: html })} 
             />
         );
-        case 'video': 
+        case 'video':
             const ytId = getYoutubeId(block.data.url);
             return (
-                <div className="p-8 rounded-[40px] bg-white/[0.02] border border-white/5 space-y-6">
+                <div style={{ padding: '32px 40px', gap: '24px' }} className="rounded-[40px] bg-white/[0.02] border border-white/5 flex flex-col">
                     <div className="flex items-center gap-3 text-red-500">
                         <Video size={20} />
                         <span className="text-[10px] font-black uppercase tracking-widest">Video Instruction</span>
@@ -289,41 +293,41 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
                             <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${ytId}`} frameBorder="0" allowFullScreen />
                         </div>
                     ) : (
-                        <div className="h-48 bg-white/5 rounded-3xl flex flex-col items-center justify-center border border-dashed border-white/10 group">
-                            <Play className="text-white/10 group-hover:text-red-500 transition-colors mb-3" size={48} />
+                        <div style={{ gap: '12px' }} className="h-48 bg-white/5 rounded-3xl flex flex-col items-center justify-center border border-dashed border-white/10 group">
+                            <Play className="text-white/10 group-hover:text-red-500 transition-colors" size={48} />
                             <p className="text-[10px] text-slate-600 font-black uppercase tracking-widest">Paste YouTube Link Below</p>
                         </div>
                     )}
-                    <input className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-sm text-white outline-none focus:border-red-500/50 transition-all" placeholder="YouTube URL..." value={block.data.url || ""} onChange={(e) => update(block.id, { url: e.target.value })} />
+                    <input style={{ padding: '10px 12px' }} className="w-full bg-white/5 border border-white/10 rounded-2xl text-sm text-white outline-none focus:border-red-500/50 transition-all" placeholder="YouTube URL..." value={block.data.url || ""} onChange={(e) => update(block.id, { url: e.target.value })} />
                 </div>
             );
         case 'link': return (
-            <div className="p-6 rounded-[32px] bg-white/[0.02] border border-white/5 flex items-center gap-6 group/link transition-all hover:bg-white/[0.04]">
+            <div style={{ padding: '24px 28px', gap: '16px' }} className="rounded-[32px] bg-white/[0.02] border border-white/5 flex items-center group/link transition-all hover:bg-white/[0.04]">
                 <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover/link:scale-110 transition-transform"><ExternalLink size={28} /></div>
-                <div className="flex-grow space-y-1">
+                <div className="flex-grow" style={{ gap: '4px' }} className="flex flex-col">
                     <input className="w-full bg-transparent border-none outline-none text-lg text-white font-black placeholder:text-slate-800" placeholder="Resource Title..." value={block.data.title || ""} onChange={(e) => update(block.id, { title: e.target.value })} />
                     <input className="w-full bg-transparent border-none outline-none text-[10px] text-slate-500 font-mono tracking-widest uppercase" placeholder="https://..." value={block.data.url || ""} onChange={(e) => update(block.id, { url: e.target.value })} />
                 </div>
             </div>
         );
         case 'image': return (
-            <div className="relative rounded-[32px] overflow-hidden border border-white/5 bg-white/[0.01] p-4 min-h-[300px] flex flex-col items-center justify-center transition-all">
+            <div style={{ padding: '20px 24px' }} className="relative rounded-[32px] overflow-hidden border border-white/5 bg-white/[0.01] min-h-[300px] flex flex-col items-center justify-center transition-all">
                 <AnimatePresence>
                     {isUploading && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 z-10 bg-[#030014]/90 backdrop-blur-xl flex flex-col items-center justify-center gap-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ gap: '16px' }} className="absolute inset-0 z-10 bg-[#030014]/90 backdrop-blur-xl flex flex-col items-center justify-center">
                             <Loader2 className="animate-spin text-purple-500" size={32} />
                             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-400 text-center px-4">Relaying to Cloudinary...</span>
                         </motion.div>
                     )}
                 </AnimatePresence>
                 {block.data.url ? (
-                    <div className="w-full space-y-4">
+                    <div className="w-full" style={{ gap: '16px' }} className="flex flex-col">
                         <img src={block.data.url} className="w-full rounded-2xl shadow-2xl border border-white/5" alt="" />
-                        <input className="w-full bg-transparent border-none outline-none text-center text-sm text-slate-600 font-bold uppercase tracking-widest" placeholder="Add Caption..." value={block.data.caption || ""} onChange={(e) => update(block.id, { caption: e.target.value })} />
-                        <button onClick={() => update(block.id, { url: '' })} className="absolute top-8 right-8 p-2 bg-red-500 rounded-full text-white border-none cursor-pointer"><Trash2 size={16} /></button>
+                        <input style={{ padding: '10px 12px' }} className="w-full bg-transparent border-none outline-none text-center text-sm text-slate-600 font-bold uppercase tracking-widest" placeholder="Add Caption..." value={block.data.caption || ""} onChange={(e) => update(block.id, { caption: e.target.value })} />
+                        <button style={{ padding: '10px 12px' }} onClick={() => update(block.id, { url: '' })} className="absolute top-8 right-8 bg-red-500 rounded-full text-white border-none cursor-pointer"><Trash2 size={16} /></button>
                     </div>
                 ) : (
-                    <label className="flex flex-col items-center gap-6 cursor-pointer group/upload">
+                    <label style={{ gap: '16px' }} className="flex flex-col items-center cursor-pointer group/upload">
                         <Upload size={28} className="text-slate-600 group-hover:text-purple-400" />
                         <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Select Image</p>
                         <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
@@ -343,27 +347,27 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
             </div>
         );
         case 'code': return (
-            <div className="p-10 rounded-[40px] bg-[#020202] border border-white/5 shadow-2xl relative overflow-hidden">
-                <div className="flex justify-between items-center mb-10">
-                    <div className="flex bg-white/5 p-1 rounded-xl">
+            <div style={{ padding: '32px 40px' }} className="rounded-[40px] bg-[#020202] border border-white/5 shadow-2xl relative overflow-hidden">
+                <div style={{ marginBottom: '24px', justifyContent: 'space-between' }} className="flex items-center">
+                    <div style={{ padding: '4px', gap: '4px' }} className="flex bg-white/5 rounded-xl">
                         {['playground', 'challenge'].map(m => (
-                            <button key={m} onClick={() => update(block.id, { mode: m })} className={`px-5 py-2 rounded-lg text-[10px] font-black uppercase transition-all border-none cursor-pointer ${block.data.mode === m ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' : 'text-slate-600 hover:text-slate-400'}`}>{m}</button>
+                            <button key={m} onClick={() => update(block.id, { mode: m })} style={{ padding: '8px 12px' }} className={`rounded-lg text-[10px] font-black uppercase transition-all border-none cursor-pointer ${block.data.mode === m ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' : 'text-slate-600 hover:text-slate-400'}`}>{m}</button>
                         ))}
                     </div>
-                    <button 
+                    <button
                         onClick={() => update(block.id, { code: 'public class Main {\n    public static void main(String[] args) {\n        // Code here\n    }\n}' })}
                         className="text-[9px] font-bold text-purple-400 bg-transparent border-none cursor-pointer"
                     >
                         + Java Template
                     </button>
                 </div>
-                <div className="rounded-2xl border border-white/5 overflow-hidden mb-6">
+                <div className="rounded-2xl border border-white/5 overflow-hidden" style={{ marginBottom: '24px' }}>
                     <CodeMirror value={block.data.code || ""} height="300px" theme="dark" extensions={[java()]} onChange={(val) => update(block.id, { code: val })} />
                 </div>
                 {block.data.mode === 'challenge' && (
-                    <div className="mt-8 pt-8 border-t border-white/5 text-cyan-500 flex flex-col gap-2">
+                    <div style={{ marginTop: '24px', paddingTop: '24px', gap: '12px' }} className="border-t border-white/5 text-cyan-500 flex flex-col">
                         <label className="text-[10px] font-black uppercase tracking-widest">Required Output</label>
-                        <input className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-sm font-mono text-cyan-400" value={block.data.expected || ""} onChange={(e) => update(block.id, { expected: e.target.value })} />
+                        <input style={{ padding: '10px 12px' }} className="w-full bg-white/5 border border-white/10 rounded-2xl text-sm font-mono text-cyan-400" value={block.data.expected || ""} onChange={(e) => update(block.id, { expected: e.target.value })} />
                     </div>
                 )}
             </div>
@@ -403,29 +407,29 @@ function RichTextEditor({ content, onChange }) {
         <div className="relative group/editor">
             {/* MANUAL BUBBLE MENU UI (FIX FOR VITE ERROR) */}
             {isTextSelected && (
-                <div className="absolute -top-14 left-0 flex items-center gap-1 bg-slate-900 border border-white/10 p-1 rounded-2xl shadow-2xl z-50">
-                    <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-2.5 rounded-xl border-none cursor-pointer ${editor.isActive('bold') ? 'text-purple-400 bg-white/5 shadow-lg' : 'text-slate-500 bg-transparent'}`}><Bold size={16}/></button>
-                    <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-2.5 rounded-xl border-none cursor-pointer ${editor.isActive('italic') ? 'text-purple-400 bg-white/5 shadow-lg' : 'text-slate-500 bg-transparent'}`}><Italic size={16}/></button>
-                    <button type="button" onClick={() => editor.chain().focus().toggleUnderline().run()} className={`p-2.5 rounded-xl border-none cursor-pointer ${editor.isActive('underline') ? 'text-purple-400 bg-white/5 shadow-lg' : 'text-slate-500 bg-transparent'}`}><Underline size={16}/></button>
-                    
+                <div style={{ gap: '4px', padding: '4px' }} className="absolute -top-14 left-0 flex items-center bg-slate-900 border border-white/10 rounded-2xl shadow-2xl z-50">
+                    <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} style={{ padding: '10px 12px' }} className={`rounded-xl border-none cursor-pointer ${editor.isActive('bold') ? 'text-purple-400 bg-white/5 shadow-lg' : 'text-slate-500 bg-transparent'}`}><Bold size={16}/></button>
+                    <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} style={{ padding: '10px 12px' }} className={`rounded-xl border-none cursor-pointer ${editor.isActive('italic') ? 'text-purple-400 bg-white/5 shadow-lg' : 'text-slate-500 bg-transparent'}`}><Italic size={16}/></button>
+                    <button type="button" onClick={() => editor.chain().focus().toggleUnderline().run()} style={{ padding: '10px 12px' }} className={`rounded-xl border-none cursor-pointer ${editor.isActive('underline') ? 'text-purple-400 bg-white/5 shadow-lg' : 'text-slate-500 bg-transparent'}`}><Underline size={16}/></button>
+
                     <div className="w-[1px] h-4 bg-white/10 mx-1" />
-                    
+
                     {!showLinkInput ? (
-                        <button type="button" onClick={() => { setLinkUrl(editor.getAttributes('link').href || ''); setShowLinkInput(true); }} className={`p-2.5 rounded-xl border-none cursor-pointer ${editor.isActive('link') ? 'text-purple-400' : 'text-slate-500 bg-transparent'}`}><LinkIcon size={16}/></button>
+                        <button type="button" onClick={() => { setLinkUrl(editor.getAttributes('link').href || ''); setShowLinkInput(true); }} style={{ padding: '10px 12px' }} className={`rounded-xl border-none cursor-pointer ${editor.isActive('link') ? 'text-purple-400' : 'text-slate-500 bg-transparent'}`}><LinkIcon size={16}/></button>
                     ) : (
-                        <div className="flex items-center gap-2 bg-black rounded-xl px-2 py-1 ml-1 border border-purple-500/30">
+                        <div style={{ gap: '8px', padding: '6px 8px' }} className="flex items-center bg-black rounded-xl ml-1 border border-purple-500/30">
                             <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} className="bg-transparent border-none outline-none text-[10px] text-white w-32 font-mono" placeholder="URL..." onKeyDown={(e) => e.key === 'Enter' && setLink()} />
-                            <button onClick={setLink} className="text-purple-400 p-1 border-none bg-transparent cursor-pointer"><Check size={14}/></button>
-                            <button onClick={() => setShowLinkInput(false)} className="text-slate-600 p-1 border-none bg-transparent cursor-pointer"><X size={14}/></button>
+                            <button onClick={setLink} style={{ padding: '4px 6px' }} className="text-purple-400 border-none bg-transparent cursor-pointer"><Check size={14}/></button>
+                            <button onClick={() => setShowLinkInput(false)} style={{ padding: '4px 6px' }} className="text-slate-600 border-none bg-transparent cursor-pointer"><X size={14}/></button>
                         </div>
                     )}
                 </div>
             )}
 
             {/* SIDEBAR BLOCK ACTIONS (VISIBLE ON HOVER) */}
-            <div className="flex gap-2 mb-4 opacity-0 group-hover/editor:opacity-100 transition-opacity">
-                <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-2 px-3 rounded-lg border-none cursor-pointer flex items-center gap-2 transition-all ${editor.isActive('bulletList') ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-white/5 text-slate-500 hover:text-slate-300'}`}><List size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">Bullets</span></button>
-                <button onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()} className="p-2 px-3 rounded-lg border-none bg-white/5 text-slate-500 hover:text-red-400 cursor-pointer flex items-center gap-2 transition-all"><Eraser size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">Clear Formatting</span></button>
+            <div style={{ gap: '8px', marginBottom: '12px' }} className="flex opacity-0 group-hover/editor:opacity-100 transition-opacity">
+                <button onClick={() => editor.chain().focus().toggleBulletList().run()} style={{ padding: '10px 12px', gap: '8px' }} className={`rounded-lg border-none cursor-pointer flex items-center transition-all ${editor.isActive('bulletList') ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-white/5 text-slate-500 hover:text-slate-300'}`}><List size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">Bullets</span></button>
+                <button onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()} style={{ padding: '10px 12px', gap: '8px' }} className="rounded-lg border-none bg-white/5 text-slate-500 hover:text-red-400 cursor-pointer flex items-center transition-all"><Eraser size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">Clear Formatting</span></button>
             </div>
             
             <EditorContent editor={editor} className="prose prose-invert max-w-none text-xl text-slate-300 leading-relaxed min-h-[40px]" />
@@ -435,7 +439,7 @@ function RichTextEditor({ content, onChange }) {
 
 function AddBlockBtn({ icon: Icon, label, onClick }) {
     return (
-        <button onClick={onClick} className="flex flex-col items-center gap-4 p-8 rounded-[32px] bg-white/[0.01] border border-white/5 hover:border-purple-500/30 hover:bg-purple-500/5 transition-all border-none cursor-pointer group shadow-sm">
+        <button onClick={onClick} style={{ padding: '24px 28px', gap: '12px' }} className="flex flex-col items-center rounded-[32px] bg-white/[0.01] border border-white/5 hover:border-purple-500/30 hover:bg-purple-500/5 transition-all border-none cursor-pointer group shadow-sm">
             <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-slate-600 group-hover:text-purple-400 group-hover:scale-110 transition-all shadow-lg"><Icon size={24} /></div>
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-700 group-hover:text-slate-300 transition-colors">{label}</span>
         </button>

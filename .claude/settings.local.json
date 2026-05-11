@@ -65,7 +65,13 @@
       "WebFetch(domain:www.pixon.me)",
       "WebFetch(domain:docs.pixon.me)",
       "Bash(curl *)",
-      "Bash(php -l app/Http/Controllers/ChatController.php)"
+      "Bash(php -l app/Http/Controllers/ChatController.php)",
+      "Bash(bash /tmp/find_ghost_classes.sh)",
+      "Bash(git diff-tree *)",
+      "Bash(grep \"\\\\.css$\")",
+      "Bash(grep \"^A.*\\\\.css$\")",
+      "Bash(grep \"^M.*\\\\.css$\")",
+      "Bash(grep \"^D.*\\\\.css$\")"
     ]
   }
 }

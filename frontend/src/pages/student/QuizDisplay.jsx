@@ -151,10 +151,10 @@ try {
     );
 
     if (result) return (
-        <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in duration-700 pb-32">
-            <div className="text-center p-16 bg-[#050505] border border-white/5 rounded-[50px] shadow-2xl relative overflow-hidden">
+        <div style={{ gap: '32px' }} className="max-w-4xl mx-auto flex flex-col animate-in fade-in duration-700 pb-32">
+            <div style={{ padding: '50px 40px', textAlign: 'center' }} className="bg-[#050505] border border-white/5 rounded-[50px] shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-20" />
-                <div className="mb-8">
+                <div style={{ marginBottom: '24px' }}>
                     {result.score >= quizData.passing_score ? 
                         <div className="w-24 h-24 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20 shadow-[0_0_50px_rgba(16,185,129,0.1)]">
                             <CheckCircle2 className="text-emerald-500" size={48} />
@@ -164,31 +164,31 @@ try {
                         </div>
                     }
                 </div>
-                <h2 className="text-5xl font-black text-white mb-4 tracking-tighter">{result.score >= quizData.passing_score ? "Validation Successful" : "Threshold Not Met"}</h2>
-                <div className="inline-flex items-center gap-4 bg-white/5 px-8 py-3 rounded-2xl border border-white/5">
+                <h2 style={{ marginBottom: '16px' }} className="text-5xl font-black text-white tracking-tighter">{result.score >= quizData.passing_score ? "Validation Successful" : "Threshold Not Met"}</h2>
+                <div style={{ gap: '16px', padding: '12px 24px' }} className="inline-flex items-center bg-white/5 rounded-2xl border border-white/5">
                     <span className="text-slate-500 font-black uppercase text-[10px] tracking-widest">Efficiency Rating:</span>
                     <span className="text-2xl font-mono font-black text-cyan-400">{result.score} / {result.max_score}</span>
                 </div>
-                <div className="mt-12 flex justify-center gap-4">
-                    <button onClick={handleRestart} className="px-10 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-white text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3 border-none cursor-pointer">
+                <div style={{ marginTop: '24px', gap: '12px' }} className="flex justify-center">
+                    <button onClick={handleRestart} style={{ padding: '14px 24px', gap: '8px' }} className="bg-white/5 hover:bg-white/10 rounded-2xl text-white text-[10px] font-black uppercase tracking-widest transition-all flex items-center border-none cursor-pointer">
                         <RotateCcw size={16} /> Return to Hub
                     </button>
                 </div>
             </div>
 
-            <div className="space-y-6">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-600 px-6">Curriculum Feedback</h3>
+            <div style={{ gap: '16px' }} className="flex flex-col">
+                <h3 style={{ paddingLeft: '12px' }} className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-600">Curriculum Feedback</h3>
                 {result.details?.map((detail, i) => (
-                    <div key={i} className={`p-8 rounded-[32px] border transition-all ${detail.is_correct ? 'bg-emerald-500/[0.02] border-emerald-500/10' : 'bg-red-500/[0.02] border-red-500/10'}`}>
-                        <div className="flex justify-between items-start gap-6">
-                            <div className="flex gap-6">
-                                <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black border ${detail.is_correct ? 'border-emerald-500/20 text-emerald-500' : 'border-red-500/20 text-red-500'}`}>{i + 1}</span>
-                                <div className="space-y-2">
+                    <div key={i} style={{ padding: '24px 28px' }} className={`rounded-[32px] border transition-all ${detail.is_correct ? 'bg-emerald-500/[0.02] border-emerald-500/10' : 'bg-red-500/[0.02] border-red-500/10'}`}>
+                        <div style={{ gap: '24px', justifyContent: 'space-between' }} className="flex items-start">
+                            <div style={{ gap: '16px' }} className="flex">
+                                <span style={{ padding: '8px 10px' }} className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black border flex-shrink-0 ${detail.is_correct ? 'border-emerald-500/20 text-emerald-500' : 'border-red-500/20 text-red-500'}`}>{i + 1}</span>
+                                <div style={{ gap: '12px' }} className="flex flex-col">
                                     <p className="text-lg font-bold text-white leading-snug">{detail.question_text}</p>
                                     {!detail.is_correct && (
-                                        <div className="pt-2">
-                                            <p className="text-[9px] font-black uppercase text-slate-500 mb-2">Expected Reference:</p>
-                                            <div className="p-4 bg-black/40 rounded-xl border border-white/5 font-mono text-xs text-slate-400">{detail.correct_answer}</div>
+                                        <div style={{ paddingTop: '12px', gap: '8px' }} className="flex flex-col">
+                                            <p className="text-[9px] font-black uppercase text-slate-500">Expected Reference:</p>
+                                            <div style={{ padding: '12px 16px' }} className="bg-black/40 rounded-xl border border-white/5 font-mono text-xs text-slate-400">{detail.correct_answer}</div>
                                         </div>
                                     )}
                                 </div>
@@ -202,31 +202,31 @@ try {
     );
 
     if (currentIdx === -1) return (
-        <div className="max-w-2xl mx-auto py-20 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-            <div className="text-center space-y-8">
+        <div style={{ paddingTop: '48px', paddingBottom: '48px' }} className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000">
+            <div style={{ gap: '32px', textAlign: 'center' }} className="flex flex-col">
                 <div className="w-24 h-24 bg-cyan-500/10 rounded-[32px] flex items-center justify-center mx-auto border border-cyan-500/20 shadow-2xl">
                     <ShieldCheck className="text-cyan-500" size={48} />
                 </div>
-                <div className="space-y-2">
+                <div style={{ gap: '8px' }} className="flex flex-col">
                     <h2 className="text-6xl font-black text-white tracking-tighter leading-none">{quizData.title}</h2>
                     <p className="text-slate-500 text-sm font-medium uppercase tracking-widest">Assessment Initiation</p>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 py-8">
-                    <div className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl">
-                        <ListOrdered className="text-slate-700 mx-auto mb-3" size={20} />
+                <div className="grid grid-cols-3 gap-6 py-12">
+                    <div style={{ padding: '20px 24px', gap: '12px' }} className="bg-white/[0.02] border border-white/5 rounded-3xl flex flex-col items-center">
+                        <ListOrdered className="text-slate-700" size={20} />
                         <p className="text-2xl font-black text-white">{quizData.questions.length}</p>
                         <span className="text-[9px] font-bold uppercase text-slate-600">Modules</span>
                     </div>
-                    <div className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl">
-                        <Target className="text-emerald-500/50 mx-auto mb-3" size={20} />
+                    <div style={{ padding: '20px 24px', gap: '12px' }} className="bg-white/[0.02] border border-white/5 rounded-3xl flex flex-col items-center">
+                        <Target className="text-emerald-500/50" size={20} />
                         <p className="text-2xl font-black text-white">{quizData.passing_score}</p>
                         <span className="text-[9px] font-bold uppercase text-slate-600">Threshold</span>
                     </div>
-                    <div className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl flex flex-col justify-center">
-                        <div className="flex items-center justify-center gap-2 mb-2">
+                    <div style={{ padding: '20px 24px', gap: '8px' }} className="bg-white/[0.02] border border-white/5 rounded-3xl flex flex-col items-center justify-center">
+                        <div style={{ gap: '6px', marginBottom: '8px' }} className="flex items-center justify-center">
                             <Clock className="text-amber-500/50" size={20} />
-                            <span className="text-[8px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded font-black uppercase whitespace-nowrap">{quizData.timer_mode?.replace('_', ' ')}</span>
+                            <span style={{ padding: '4px 8px' }} className="text-[8px] bg-amber-500/10 text-amber-500 rounded font-black uppercase whitespace-nowrap">{quizData.timer_mode?.replace('_', ' ')}</span>
                         </div>
                         <p className="text-2xl font-black text-white">{formatTime(Math.floor(quizData.time_limit_minutes * 60))}</p>
                         <span className="text-[9px] font-bold uppercase text-slate-600">Allocated</span>
@@ -234,18 +234,18 @@ try {
                 </div>
 
                 {previousResult && (
-                    <div className="p-6 rounded-3xl border border-white/5 bg-white/[0.01] flex items-center justify-between px-10">
-                        <div className="text-left">
+                    <div style={{ padding: '20px 24px', gap: '24px', justifyContent: 'space-between' }} className="rounded-3xl border border-white/5 bg-white/[0.01] flex items-center">
+                        <div style={{ textAlign: 'left' }}>
                             <p className="text-[10px] font-black text-slate-600 uppercase">Legacy Performance</p>
                             <p className="text-xl font-black text-white">{previousResult.score} / {previousResult.max_score}</p>
                         </div>
-                        <div className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase ${previousResult.score >= quizData.passing_score ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                        <div style={{ padding: '8px 16px' }} className={`rounded-full text-[9px] font-black uppercase ${previousResult.score >= quizData.passing_score ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
                             {previousResult.score >= quizData.passing_score ? 'Passed' : 'Not Cleared'}
                         </div>
                     </div>
                 )}
 
-                <button onClick={startQuiz} className="w-full py-6 bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase tracking-[0.3em] rounded-[24px] transition-all shadow-[0_20px_40px_rgba(34,211,238,0.2)] border-none cursor-pointer">Initiate Assessment</button>
+                <button onClick={startQuiz} style={{ padding: '20px 24px' }} className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase tracking-[0.3em] rounded-[24px] transition-all shadow-[0_20px_40px_rgba(34,211,238,0.2)] border-none cursor-pointer">Initiate Assessment</button>
             </div>
         </div>
     );
@@ -253,32 +253,32 @@ try {
     const q = questions[currentIdx];
 
     return (
-        <div className="max-w-3xl mx-auto space-y-12 pb-40 relative">
-            <div className="flex items-center justify-between bg-[#050505] p-5 rounded-3xl border border-white/5">
-                <div className="flex gap-2">
+        <div style={{ gap: '32px' }} className="max-w-3xl mx-auto pb-40 relative flex flex-col">
+            <div style={{ padding: '16px 20px', gap: '16px', justifyContent: 'space-between' }} className="flex items-center bg-[#050505] rounded-3xl border border-white/5">
+                <div style={{ gap: '8px' }} className="flex">
                     {questions.map((_, i) => (
                         <div key={i} className={`h-1.5 rounded-full transition-all duration-500 ${i === currentIdx ? 'w-10 bg-cyan-500' : i < currentIdx ? 'w-4 bg-cyan-900' : 'w-4 bg-white/5'}`} />
                     ))}
                 </div>
                 {timeLeft !== null && (
-                    <div className={`flex items-center gap-3 px-5 py-2 rounded-2xl font-mono font-black text-lg border transition-all ${timeLeft < 20 ? 'bg-red-500 text-white border-red-500 animate-pulse' : 'bg-white/5 border-white/10 text-cyan-400'}`}>
+                    <div style={{ gap: '8px', padding: '10px 16px' }} className={`flex items-center rounded-2xl font-mono font-black text-lg border transition-all ${timeLeft < 20 ? 'bg-red-500 text-white border-red-500 animate-pulse' : 'bg-white/5 border-white/10 text-cyan-400'}`}>
                         <Clock size={18} /> {formatTime(timeLeft)}
                     </div>
                 )}
             </div>
 
-            <div className="min-h-[500px] space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="space-y-4">
+            <div style={{ minHeight: '500px', gap: '32px' }} className="flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div style={{ gap: '16px' }} className="flex flex-col">
                     <span className="text-[11px] font-black uppercase tracking-[0.5em] text-cyan-600">Module Task {currentIdx + 1}</span>
                     <h3 className="text-4xl font-bold text-white tracking-tight leading-tight">{q.question_text}</h3>
                 </div>
 
-                <div className="space-y-4">
+                <div style={{ gap: '16px' }} className="flex flex-col">
                     {q.type === 'multiple_choice' && (
-                        <div className="grid gap-3">
+                        <div className="grid gap-6">
                             {q.options?.map((opt, i) => (
-                                <button key={i} onClick={() => saveAnswer(q.id, String(i))} className={`w-full p-6 rounded-3xl border text-left flex items-center gap-5 transition-all group ${answers[q.id] === String(i) ? 'border-cyan-500 bg-cyan-500/10 text-white shadow-2xl' : 'border-white/5 bg-white/[0.02] text-slate-400 hover:border-white/20'}`}>
-                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${answers[q.id] === String(i) ? 'border-cyan-500 bg-cyan-500' : 'border-slate-800'}`}>{answers[q.id] === String(i) && <Check size={14} className="text-black font-black" />}</div>
+                                <button key={i} onClick={() => saveAnswer(q.id, String(i))} style={{ padding: '16px 20px', gap: '12px' }} className={`w-full rounded-3xl border text-left flex items-center transition-all group ${answers[q.id] === String(i) ? 'border-cyan-500 bg-cyan-500/10 text-white shadow-2xl' : 'border-white/5 bg-white/[0.02] text-slate-400 hover:border-white/20'}`}>
+                                    <div style={{ padding: '8px' }} className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${answers[q.id] === String(i) ? 'border-cyan-500 bg-cyan-500' : 'border-slate-800'}`}>{answers[q.id] === String(i) && <Check size={14} className="text-black font-black" />}</div>
                                     <span className="font-bold text-lg">{opt}</span>
                                 </button>
                             ))}

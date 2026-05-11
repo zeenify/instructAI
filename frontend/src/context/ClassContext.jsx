@@ -13,7 +13,7 @@ export const ClassProvider = ({ children }) => {
         if (!user || user.role !== 'teacher') return;
         setLoading(true);
         try {
-            const res = await api.get('/teacher/classes');
+            const res = await api.get('/teacher/classes', { bypassCache: true });
             setClasses(res.data);
         } catch (err) {
             console.error("Failed to fetch classes", err);

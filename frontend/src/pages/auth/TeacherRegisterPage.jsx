@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-// eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
 import { User, Mail, Lock, Building2, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
@@ -8,7 +7,7 @@ import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import '../LandingPage.css';
+import './TeacherRegisterPage.css';
 
 export default function TeacherRegisterPage() {
     const [loading, setLoading] = useState(false);
@@ -31,51 +30,91 @@ export default function TeacherRegisterPage() {
     };
 
     return (
-        <div className="landing-wrapper min-h-screen flex items-center justify-center p-6 bg-[#030014]">
+        <div className="register-container" style={{ background: '#030014' }}>
             <Toaster position="top-center" theme="dark" richColors />
-            <div className="mouse-glow" id="global-mouse-glow" />
 
-            <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="relative z-10 w-full max-w-[500px]">
-                <div className="spotlight-card p-[1px] bg-gradient-to-b from-purple-500/20 to-transparent rounded-[32px]">
-                    <div className="bg-[#030014]/95 backdrop-blur-3xl rounded-[31px] p-8 md:p-12">
-                        
-                        <div className="text-center mb-10">
-                            <motion.div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[10px] font-bold uppercase tracking-widest mb-6">
-                                <ShieldCheck size={12} /> Instructor Onboarding
-                            </motion.div>
-                            <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Teacher Workspace</h1>
-                            <p className="text-slate-400 text-sm">Deploy intelligent curriculum in seconds.</p>
-                        </div>
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="register-card"
+            >
+                {loading && (
+                    <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: 2, ease: "easeInOut" }}
+                        className="absolute top-0 left-0 h-1 bg-gradient-to-r from-transparent via-purple-500 to-transparent"
+                        style={{ borderRadius: '32px 0 0 0' }}
+                    />
+                )}
 
-                        <div style={{ position: 'relative', zIndex: 20 }}>
-                            <form onSubmit={handleSubmit} className="space-y-5">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <Input label="First Name" icon={User} placeholder="First Name" onChange={e => setForm({...form, first_name: e.target.value})} required />
-                                    <Input label="Last Name" placeholder="Last Name" onChange={e => setForm({...form, last_name: e.target.value})} required />
-                                </div>
-                                
-                                <Input label="Email" icon={Mail} type="email" placeholder="name@gmail.com" onChange={e => setForm({...form, email: e.target.value})} required />
-                                <Input label="Password" icon={Lock} type="password" placeholder="••••••••" onChange={e => setForm({...form, password: e.target.value})} required />
-                                
-                                <Input 
-                                    label="School or Organization" 
-                                    icon={Building2} 
-                                    placeholder="National High School (Optional)" 
-                                    onChange={e => setForm({...form, organization: e.target.value})} 
-                                />
-
-                                <Button loading={loading} className="w-full py-4 mt-4 font-bold uppercase tracking-widest">
-                                    Create Workspace <ArrowRight className="ml-2 w-4 h-4" />
-                                </Button>
-                            </form>
-                        </div>
-
-                        <div className="mt-10 pt-8 border-t border-white/5 text-center">
-                            <p className="text-slate-500 text-xs uppercase tracking-widest">
-                                Already have a workspace? <a href="/login" className="text-purple-400 font-bold ml-2">Sign In</a>
-                            </p>
-                        </div>
+                <div className="register-header">
+                    <div className="register-badge" style={{ background: 'rgba(168, 85, 247, 0.12)', border: '1px solid rgba(168, 85, 247, 0.35)', color: '#d8b4fe' }}>
+                        <ShieldCheck size={12} /> Instructor Onboarding
                     </div>
+                    <h1>Teacher Workspace</h1>
+                    <p>Deploy intelligent curriculum in seconds.</p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="register-form">
+                    <div className="register-form-row">
+                        <Input
+                            label="First Name"
+                            icon={User}
+                            placeholder="First Name"
+                            onChange={e => setForm({...form, first_name: e.target.value})}
+                            required
+                            disabled={loading}
+                        />
+                        <Input
+                            label="Last Name"
+                            icon={User}
+                            placeholder="Last Name"
+                            onChange={e => setForm({...form, last_name: e.target.value})}
+                            required
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <Input
+                        label="Email"
+                        icon={Mail}
+                        type="email"
+                        placeholder="name@gmail.com"
+                        onChange={e => setForm({...form, email: e.target.value})}
+                        required
+                        disabled={loading}
+                    />
+                    <Input
+                        label="Password"
+                        icon={Lock}
+                        type="password"
+                        placeholder="••••••••"
+                        onChange={e => setForm({...form, password: e.target.value})}
+                        required
+                        disabled={loading}
+                    />
+                    <Input
+                        label="School or Organization"
+                        icon={Building2}
+                        placeholder="National High School (Optional)"
+                        onChange={e => setForm({...form, organization: e.target.value})}
+                        disabled={loading}
+                    />
+
+                    <motion.div
+                        animate={loading ? { opacity: [1, 0.7, 1] } : {}}
+                        transition={{ repeat: Infinity, duration: 1.5 }}
+                    >
+                        <Button loading={loading} loadingText="Creating..." className="w-full">
+                            Create Workspace <ArrowRight className="ml-2 w-4 h-4" />
+                        </Button>
+                    </motion.div>
+                </form>
+
+                <div className="register-footer">
+                    <p>Already have a workspace? <a href="/login">Sign In</a></p>
                 </div>
             </motion.div>
         </div>

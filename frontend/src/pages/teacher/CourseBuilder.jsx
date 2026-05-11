@@ -847,10 +847,10 @@ export default function CourseBuilder() {
 
     if (loading || !course) return (
         <div className="builder-container">
-            <header className="mb-10">
-                <div className="mb-8 h-6 w-32 bg-white/5 rounded-lg animate-pulse" />
+            <header style={{ marginBottom: '40px' }}>
+                <div style={{ marginBottom: '24px', height: '24px' }} className="w-32 bg-white/5 rounded-lg animate-pulse" />
 
-                <div className="mb-8 p-5 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between gap-4">
+                <div style={{ padding: '24px 28px', marginBottom: '32px' }} className="rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="h-8 w-20 bg-white/5 rounded-lg animate-pulse" />
                         <div className="h-8 w-24 bg-white/5 rounded-lg animate-pulse" />
@@ -858,9 +858,9 @@ export default function CourseBuilder() {
                     <div className="h-8 w-32 bg-white/5 rounded-lg animate-pulse ml-auto" />
                 </div>
 
-                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+                <div style={{ marginBottom: '32px', gap: '24px' }} className="flex flex-col md:flex-row md:items-end md:justify-between">
                     <div className="flex-1">
-                        <div className="h-12 w-48 bg-white/5 rounded-lg animate-pulse mb-4" />
+                        <div style={{ marginBottom: '12px' }} className="h-12 w-48 bg-white/5 rounded-lg animate-pulse" />
                         <div className="h-6 w-full bg-white/5 rounded-lg animate-pulse" />
                     </div>
                     <div className="flex gap-3">
@@ -871,8 +871,8 @@ export default function CourseBuilder() {
                 </div>
             </header>
 
-            <div className="space-y-6">
-                <div className="flex gap-3 p-5 rounded-2xl border border-white/5 bg-white/[0.02]">
+            <div style={{ marginBottom: '32px' }}>
+                <div style={{ padding: '20px 28px', marginBottom: '32px' }} className="flex gap-3 rounded-2xl border border-white/5 bg-white/[0.02]">
                     <div className="h-10 w-32 bg-white/5 rounded-xl animate-pulse" />
                     <div className="ml-auto flex gap-2">
                         <div className="h-10 w-24 bg-white/5 rounded-xl animate-pulse" />
@@ -882,12 +882,12 @@ export default function CourseBuilder() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {[1, 2, 3, 4, 5, 6].map((i) => (
-                        <div key={i} className="rounded-3xl border border-white/10 bg-white/[0.02] overflow-hidden">
-                            <div className="h-32 bg-white/5 animate-pulse" />
-                            <div className="p-6 space-y-4">
+                        <div key={i} style={{ padding: '24px' }} className="rounded-3xl border border-white/10 bg-white/[0.02] overflow-hidden">
+                            <div style={{ marginBottom: '16px', height: '120px' }} className="bg-white/5 animate-pulse rounded-lg" />
+                            <div className="space-y-4">
                                 <div className="h-6 w-full bg-white/5 rounded-lg animate-pulse" />
                                 <div className="h-4 w-3/4 bg-white/5 rounded-lg animate-pulse" />
-                                <div className="flex gap-3 mt-auto pt-4 border-t border-white/5">
+                                <div style={{ marginTop: '16px', paddingTop: '16px' }} className="flex gap-3 border-t border-white/5">
                                     <div className="h-6 w-24 bg-white/5 rounded-lg animate-pulse" />
                                     <div className="h-6 w-16 bg-white/5 rounded-lg animate-pulse ml-auto" />
                                 </div>
@@ -903,17 +903,17 @@ export default function CourseBuilder() {
 
     return (
         <div className="builder-container">
-            <header className="mb-10">
-                <button onClick={() => activeModuleId ? setActiveModuleId(null) : navigate(-1)} className="back-btn border-none bg-transparent cursor-pointer mb-8 text-slate-400 hover:text-white transition-colors flex items-center gap-2">
+            <header style={{ marginBottom: '40px' }} className="mb-10">
+                <button onClick={() => activeModuleId ? setActiveModuleId(null) : navigate(-1)} style={{ marginBottom: '24px', padding: '12px 0' }} className="border-none bg-transparent cursor-pointer text-slate-400 hover:text-white transition-colors flex items-center gap-2">
                     <ChevronLeft size={18} />
                     <span className="text-xs font-bold uppercase tracking-[0.1em]">{activeModuleId ? 'Return to Modules' : 'Exit to Classroom'}</span>
                 </button>
 
                 {/* Top Control Bar - Enhanced */}
                 {!activeModuleId && (
-                    <div className="mb-8 p-5 rounded-2xl bg-gradient-to-r from-purple-900/30 to-transparent border border-purple-500/20 flex flex-wrap items-center justify-between gap-4">
+                    <div style={{ padding: '24px 28px', marginBottom: '32px' }} className="rounded-2xl bg-gradient-to-r from-purple-900/30 to-transparent border border-purple-500/20 flex flex-wrap items-center justify-between gap-6">
                         <div className="flex items-center gap-3 flex-wrap">
-                            <span className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider ${
+                            <span style={{ padding: '10px 16px' }} className={`rounded-lg text-xs font-bold uppercase tracking-wider ${
                                 isPublished
                                     ? 'bg-green-500/20 text-green-400 border border-green-500/30'
                                     : 'bg-slate-600/20 text-slate-300 border border-slate-500/30'
@@ -921,7 +921,7 @@ export default function CourseBuilder() {
                                 {isPublished ? '✓ Live' : '◊ Draft'}
                             </span>
                             {course.curriculum_file_url && (
-                                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-xs font-bold uppercase">
+                                <div style={{ padding: '10px 16px' }} className="flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-xs font-bold uppercase">
                                     <FileText size={14} />
                                     <span className="text-[11px]">{course.curriculum_file_url.split('/').pop()?.slice(0, 30) || 'Curriculum'}</span>
                                 </div>
@@ -931,7 +931,8 @@ export default function CourseBuilder() {
                             <button
                                 disabled={isUpdatingStatus}
                                 onClick={publishAllItems}
-                                className="text-xs font-bold text-purple-300 hover:text-purple-200 uppercase tracking-wider border-none bg-transparent cursor-pointer px-3 py-1.5 hover:bg-purple-500/10 rounded-lg transition-all disabled:opacity-50 flex items-center gap-2"
+                                style={{ padding: '10px 16px' }}
+                                className="text-xs font-bold text-purple-300 hover:text-purple-200 uppercase tracking-wider border-none bg-transparent cursor-pointer hover:bg-purple-500/10 rounded-lg transition-all disabled:opacity-50 flex items-center gap-2"
                             >
                                 {isUpdatingStatus ? <Loader2 size={14} className="animate-spin" /> : 'Publish All'}
                             </button>
@@ -940,12 +941,12 @@ export default function CourseBuilder() {
                 )}
 
                 {/* Header Title and Action Buttons */}
-                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-8">
+                <div style={{ marginBottom: '32px', gap: '24px' }} className="flex flex-col md:flex-row md:items-end md:justify-between">
                     <div className="flex-1">
                         {!activeModuleId ? (
                             <>
                                 <span className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">Course</span>
-                                <div className="flex items-center gap-3 mt-2 group">
+                                <div style={{ marginTop: '12px', gap: '12px' }} className="flex items-center group">
                                     {isTitleEditing ? (
                                         <div className="flex items-center gap-2 bg-white/5 border border-purple-500/50 rounded-xl p-2 flex-1">
                                             <input
@@ -990,7 +991,7 @@ export default function CourseBuilder() {
                         ) : (
                             <>
                                 <span className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">Module</span>
-                                <h1 className="text-5xl font-black text-white tracking-tight mt-2">
+                                <h1 style={{ marginTop: '12px' }} className="text-5xl font-black text-white tracking-tight">
                                     {activeModuleData?.title}
                                 </h1>
                             </>
@@ -999,17 +1000,19 @@ export default function CourseBuilder() {
 
                     {/* Action Buttons - Redesigned */}
                     {!activeModuleId && (
-                        <div className="flex flex-wrap gap-3 md:flex-nowrap md:justify-end">
+                        <div className="flex flex-wrap gap-4 md:flex-nowrap md:justify-end">
                             <button
                                 onClick={() => setShowCurriculumModal(true)}
-                                className="px-5 py-3 bg-white/10 hover:bg-white/15 text-slate-300 hover:text-white rounded-xl text-xs font-bold uppercase border border-white/10 hover:border-white/20 flex items-center gap-2 transition-all"
+                                style={{ padding: '14px 22px' }}
+                                className="bg-white/10 hover:bg-white/15 text-slate-300 hover:text-white rounded-xl text-xs font-bold uppercase border border-white/10 hover:border-white/20 flex items-center gap-2 transition-all cursor-pointer"
                             >
                                 <FileText size={16} />
                                 {course.curriculum_file_url ? 'Manage' : 'Upload'}
                             </button>
                             <button
                                 onClick={toggleCourseStatus}
-                                className={`px-5 py-3 rounded-xl text-xs font-bold uppercase transition-all border flex items-center gap-2 ${
+                                style={{ padding: '14px 22px' }}
+                                className={`rounded-xl text-xs font-bold uppercase transition-all border flex items-center gap-2 cursor-pointer ${
                                     isPublished
                                         ? 'bg-slate-800/40 text-slate-400 border-slate-700/40 hover:bg-slate-700/40'
                                         : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white border-purple-600/50 shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-purple-600'
@@ -1019,7 +1022,8 @@ export default function CourseBuilder() {
                             </button>
                             <button
                                 onClick={() => setIsAiModalOpen(true)}
-                                className="px-5 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl text-xs font-bold uppercase border-none cursor-pointer flex items-center gap-2 hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/20"
+                                style={{ padding: '14px 22px' }}
+                                className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl text-xs font-bold uppercase border-none cursor-pointer flex items-center gap-2 hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/20"
                             >
                                 <Sparkles size={16} /> AI
                             </button>
@@ -1032,10 +1036,11 @@ export default function CourseBuilder() {
                 {!activeModuleId ? (
                     <motion.div key="grid" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
                         {/* Control Toolbar */}
-                        <div className="flex flex-wrap justify-between items-center gap-4 p-5 rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.03] to-transparent">
+                        <div style={{ padding: '20px 28px', marginBottom: '32px' }} className="flex flex-wrap justify-between items-center gap-4 rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.03] to-transparent">
                             <button
                                 onClick={() => setModuleModal({ isOpen: true, mode: 'create', id: null, title: '' })}
-                                className="px-5 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider border-none cursor-pointer flex items-center gap-2 transition-all shadow-lg shadow-purple-500/20"
+                                style={{ padding: '14px 22px' }}
+                                className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider border-none cursor-pointer flex items-center gap-2 transition-all shadow-lg shadow-purple-500/20"
                             >
                                 <Plus size={16} /> New Module
                             </button>
@@ -1043,7 +1048,8 @@ export default function CourseBuilder() {
                             <div className="flex gap-2 ml-auto">
                                 <button
                                     onClick={() => setIsReorderMode(!isReorderMode)}
-                                    className={`px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all flex items-center gap-2 ${
+                                    style={{ padding: '12px 18px' }}
+                                    className={`rounded-xl text-xs font-bold uppercase tracking-wider border transition-all flex items-center gap-2 cursor-pointer ${
                                         isReorderMode
                                             ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
                                             : 'bg-transparent text-slate-500 border-white/10 hover:text-slate-300 hover:border-white/20'
@@ -1058,7 +1064,8 @@ export default function CourseBuilder() {
                                         setIsBulkDeleteMode(!isBulkDeleteMode);
                                         setSelectedModuleIds(new Set());
                                     }}
-                                    className={`px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all flex items-center gap-2 ${
+                                    style={{ padding: '12px 18px' }}
+                                    className={`rounded-xl text-xs font-bold uppercase tracking-wider border transition-all flex items-center gap-2 cursor-pointer ${
                                         isBulkDeleteMode
                                             ? 'bg-red-500/20 text-red-400 border-red-500/40'
                                             : 'bg-transparent text-slate-500 border-white/10 hover:text-slate-300 hover:border-white/20'
@@ -1072,7 +1079,8 @@ export default function CourseBuilder() {
                                     <button
                                         onClick={handleBulkDelete}
                                         disabled={isDeleting}
-                                        className="px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider border-none cursor-pointer transition-all bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-red-500/20"
+                                        style={{ padding: '12px 18px' }}
+                                        className="rounded-xl text-xs font-bold uppercase tracking-wider border-none cursor-pointer transition-all bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-red-500/20"
                                     >
                                         {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                                         Delete {selectedModuleIds.size}
@@ -1128,7 +1136,7 @@ export default function CourseBuilder() {
                                             }
                                         }}
                                     >
-                                        <div className={`h-full min-h-[280px] rounded-3xl border transition-all flex flex-col overflow-hidden ${
+                                        <div style={{ padding: '24px' }} className={`h-full min-h-[280px] rounded-3xl border transition-all flex flex-col overflow-hidden ${
                                             isBulkDeleteMode && selectedModuleIds.has(module.id)
                                                 ? 'border-red-500/60 bg-red-500/10'
                                                 : isReorderMode
@@ -1136,7 +1144,7 @@ export default function CourseBuilder() {
                                                 : 'border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent group-hover:shadow-xl group-hover:shadow-purple-500/10 hover:border-purple-500/40 hover:from-purple-900/20'
                                         }`}>
                                             {/* Header Section */}
-                                            <div className="h-32 bg-gradient-to-br from-purple-900/50 to-purple-900/20 p-6 flex justify-between items-start border-b border-white/5 relative group/header">
+                                            <div style={{ margin: '-24px -24px 20px -24px', padding: '20px 24px' }} className="bg-gradient-to-br from-purple-900/50 to-purple-900/20 flex justify-between items-start border-b border-white/5 relative group/header">
                                                 {isReorderMode && (
                                                     <div className="absolute top-1/2 left-3 -translate-y-1/2 w-8 h-10 rounded-lg bg-purple-500/40 border-2 border-purple-500/70 flex items-center justify-center text-purple-200 text-lg font-bold opacity-100 transition-all group-hover/header:bg-purple-500/60 group-hover/header:border-purple-400 cursor-grab active:cursor-grabbing shadow-lg shadow-purple-500/30">
                                                         ⋮⋮
@@ -1160,13 +1168,14 @@ export default function CourseBuilder() {
                                                             <Layers size={24} />
                                                         </div>
                                                         {!isReorderMode && !isBulkDeleteMode && (
-                                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 backdrop-blur-xl rounded-xl p-2 border border-white/10 shadow-xl">
+                                                            <div style={{ padding: '8px 10px', gap: '6px' }} className="flex opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 backdrop-blur-xl rounded-xl border border-white/10 shadow-xl">
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         setModuleModal({ isOpen: true, mode: 'edit', id: module.id, title: module.title });
                                                                     }}
-                                                                    className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg border-none bg-transparent cursor-pointer transition-colors"
+                                                                    style={{ padding: '8px 10px' }}
+                                                                    className="text-slate-400 hover:text-white hover:bg-white/10 rounded-lg border-none bg-transparent cursor-pointer transition-colors"
                                                                     title="Edit module"
                                                                 >
                                                                     <Edit3 size={16} />
@@ -1176,7 +1185,8 @@ export default function CourseBuilder() {
                                                                         e.stopPropagation();
                                                                         setDeleteModal({ isOpen: true, type: 'module', id: module.id });
                                                                     }}
-                                                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg border-none bg-transparent cursor-pointer transition-colors"
+                                                                    style={{ padding: '8px 10px' }}
+                                                                    className="text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg border-none bg-transparent cursor-pointer transition-colors"
                                                                     title="Delete module"
                                                                 >
                                                                     <Trash2 size={16} />
@@ -1188,7 +1198,7 @@ export default function CourseBuilder() {
                                             </div>
 
                                             {/* Content Section */}
-                                            <div className="p-6 flex-grow flex flex-col justify-between">
+                                            <div className="flex-grow flex flex-col justify-between">
                                                 <div>
                                                     <h3 className="text-xl font-bold text-white mb-4 line-clamp-2 leading-snug">{module.title}</h3>
                                                     <div className="flex gap-4 text-sm text-slate-400 mb-6">
@@ -1204,7 +1214,7 @@ export default function CourseBuilder() {
                                                 </div>
 
                                                 {/* Footer with Status */}
-                                                <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between">
+                                                <div style={{ marginTop: '20px', paddingTop: '16px' }} className="border-t border-white/5 flex items-center justify-between">
                                                     <span className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider inline-block bg-${statusColor}-500/20 text-${statusColor}-400 border border-${statusColor}-500/30`}>
                                                         {statusText}
                                                     </span>
@@ -1218,8 +1228,8 @@ export default function CourseBuilder() {
                         </div>
                     </motion.div>
                 ) : (
-                    <motion.div key="timeline" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="bg-[#050505] border border-white/5 rounded-[45px] p-10 shadow-2xl">
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-12 pb-8 border-b border-white/10">
+                    <motion.div key="timeline" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} style={{ padding: '40px 48px' }} className="bg-[#050505] border border-white/5 rounded-[45px] shadow-2xl">
+                        <div style={{ marginBottom: '32px', paddingBottom: '24px' }} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 border-b border-white/10">
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
                                     <BookOpen size={24}/>
@@ -1244,27 +1254,28 @@ export default function CourseBuilder() {
                                             toast.success(allPublished ? 'All unpublished' : 'All published');
                                         }).catch(() => toast.error('Failed to update')).finally(() => setIsUpdatingStatus(false));
                                     }}
-                                    className="text-xs font-bold px-4 py-2 rounded-lg border transition-all disabled:opacity-50 flex items-center gap-2 bg-white/10 hover:bg-white/15 text-slate-300 border-white/20"
+                                    style={{ padding: '12px 18px' }}
+                                    className="text-xs font-bold rounded-lg border transition-all disabled:opacity-50 flex items-center gap-2 bg-white/10 hover:bg-white/15 text-slate-300 border-white/20 cursor-pointer"
                                 >
                                     {isUpdatingStatus ? <Loader2 size={14} className="animate-spin" /> : 'Toggle All'}
                                 </button>
-                                <button onClick={() => setDeleteModal({ isOpen: true, type: 'module', id: activeModuleId })} className="p-3 bg-white/5 hover:bg-red-500/10 hover:text-red-400 text-slate-400 rounded-xl border-none cursor-pointer transition-all shadow-sm"><Trash2 size={18}/></button>
+                                <button onClick={() => setDeleteModal({ isOpen: true, type: 'module', id: activeModuleId })} style={{ padding: '12px 14px' }} className="bg-white/5 hover:bg-red-500/10 hover:text-red-400 text-slate-400 rounded-xl border-none cursor-pointer transition-all shadow-sm"><Trash2 size={18}/></button>
                             </div>
                         </div>
 
                         {/* Creation UI At Top */}
-                        <div className="mb-10 pb-10 border-b border-white/5">
+                        <div style={{ marginBottom: '32px', paddingBottom: '32px' }} className="border-b border-white/5">
                             <AnimatePresence mode="wait">
                                 {activeInput.type ? (
-                                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center gap-3 bg-black p-3 rounded-2xl border border-white/10 shadow-xl">
-                                        <input autoFocus placeholder={`Name your new ${activeInput.type}...`} value={activeInput.value} onChange={(e) => setActiveInput({ ...activeInput, value: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && handleCreateItem()} className="flex-grow bg-transparent border-none outline-none text-white font-bold p-2" />
-                                        <button onClick={() => setActiveInput({ type: null, value: '' })} className="p-2 text-slate-500 border-none bg-transparent cursor-pointer"><X size={20}/></button>
-                                        <button disabled={isSubmittingItem || !activeInput.value.trim()} onClick={handleCreateItem} className="w-10 h-10 bg-purple-600 text-white rounded-xl flex items-center justify-center border-none cursor-pointer">{isSubmittingItem ? <Loader2 className="animate-spin" size={18}/> : <Check size={18}/>}</button>
+                                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ padding: '16px 20px', gap: '12px' }} className="flex items-center bg-black rounded-2xl border border-white/10 shadow-xl">
+                                        <input autoFocus placeholder={`Name your new ${activeInput.type}...`} value={activeInput.value} onChange={(e) => setActiveInput({ ...activeInput, value: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && handleCreateItem()} className="flex-grow bg-transparent border-none outline-none text-white font-bold" />
+                                        <button onClick={() => setActiveInput({ type: null, value: '' })} style={{ padding: '8px 10px' }} className="text-slate-500 border-none bg-transparent cursor-pointer"><X size={20}/></button>
+                                        <button disabled={isSubmittingItem || !activeInput.value.trim()} onClick={handleCreateItem} style={{ padding: '12px 14px', minWidth: '44px' }} className="bg-purple-600 text-white rounded-xl flex items-center justify-center border-none cursor-pointer hover:bg-purple-500 transition-all">{isSubmittingItem ? <Loader2 className="animate-spin" size={18}/> : <Check size={18}/>}</button>
                                     </motion.div>
                                 ) : (
                                     <div className="grid grid-cols-2 gap-4">
-                                        <button onClick={() => setActiveInput({ type: 'lesson', value: '' })} className="py-4 rounded-2xl bg-white/[0.02] border border-dashed border-white/10 hover:border-purple-500/50 text-slate-500 hover:text-white transition-all border-none cursor-pointer flex items-center justify-center gap-3 group"><Plus size={18}/><span className="text-[10px] font-black uppercase tracking-widest">New Lesson</span></button>
-                                        <button onClick={() => setActiveInput({ type: 'quiz', value: '' })} className="py-4 rounded-2xl bg-white/[0.02] border border-dashed border-white/10 hover:border-cyan-500/50 text-slate-500 hover:text-white transition-all border-none cursor-pointer flex items-center justify-center gap-3 group"><Plus size={18}/><span className="text-[10px] font-black uppercase tracking-widest">New Quiz</span></button>
+                                        <button onClick={() => setActiveInput({ type: 'lesson', value: '' })} style={{ padding: '20px 16px' }} className="rounded-2xl bg-white/[0.02] border border-dashed border-white/10 hover:border-purple-500/50 text-slate-500 hover:text-white transition-all cursor-pointer flex items-center justify-center gap-3"><Plus size={18}/><span className="text-[10px] font-black uppercase tracking-widest">New Lesson</span></button>
+                                        <button onClick={() => setActiveInput({ type: 'quiz', value: '' })} style={{ padding: '20px 16px' }} className="rounded-2xl bg-white/[0.02] border border-dashed border-white/10 hover:border-cyan-500/50 text-slate-500 hover:text-white transition-all cursor-pointer flex items-center justify-center gap-3"><Plus size={18}/><span className="text-[10px] font-black uppercase tracking-widest">New Quiz</span></button>
                                     </div>
                                 )}
                             </AnimatePresence>
@@ -1288,12 +1299,12 @@ export default function CourseBuilder() {
                                             <span className="text-[9px] font-black uppercase text-slate-600 tracking-widest">{item.itemType}</span>
                                         </div>
                                         {!isDragging && (
-                                            <div className="flex items-center gap-3">
-                                                <button onClick={() => toggleItemStatus(item)} className={`p-2 rounded-lg bg-white/5 border-none cursor-pointer transition-all ${item.is_published ? 'text-emerald-500' : 'text-slate-600'}`}>
+                                            <div style={{ gap: '12px' }} className="flex items-center">
+                                                <button onClick={() => toggleItemStatus(item)} className={`action-icon-btn ${item.is_published ? 'active' : ''}`} title={item.is_published ? 'Hide' : 'Show'}>
                                                     {item.is_published ? <Eye size={18} /> : <EyeOff size={18} />}
                                                 </button>
-                                                <button onClick={() => navigate(`/dashboard/teacher/class/${course.class_id}/${item.itemType}/${item.id}`)} className="px-4 py-2 bg-white text-black text-[9px] font-black uppercase rounded-lg hover:bg-purple-500 hover:text-white transition-all border-none cursor-pointer">Open</button>
-                                                <button onClick={() => setDeleteModal({ isOpen: true, type: item.itemType, id: item.id })} className="p-2 text-slate-600 hover:text-red-500 border-none bg-transparent cursor-pointer"><Trash2 size={18}/></button>
+                                                <button onClick={() => navigate(`/dashboard/teacher/class/${course.class_id}/${item.itemType}/${item.id}`)} style={{ padding: '10px 16px' }} className="bg-white text-black text-[9px] font-black uppercase rounded-lg hover:bg-purple-500 hover:text-white transition-all border-none cursor-pointer">Open</button>
+                                                <button onClick={() => setDeleteModal({ isOpen: true, type: item.itemType, id: item.id })} className="action-icon-btn hover:text-red-500 hover:border-red-500/30" title="Delete"><Trash2 size={18}/></button>
                                             </div>
                                         )}
                                     </div>
@@ -1309,13 +1320,13 @@ export default function CourseBuilder() {
                 {moduleModal.isOpen && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setModuleModal({ ...moduleModal, isOpen: false })} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
-                        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative z-10 w-full max-w-md bg-[#05011d] border border-white/10 rounded-[40px] p-10 shadow-2xl">
-                            <h2 className="text-2xl font-black text-white mb-8">{moduleModal.mode === 'create' ? 'New Module' : 'Rename Module'}</h2>
+                        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} style={{ padding: '50px 40px' }} className="relative z-10 w-full max-w-md bg-[#05011d] border border-white/10 rounded-[40px] shadow-2xl">
+                            <h2 style={{ marginBottom: '32px', fontSize: '1.75rem' }} className="font-black text-white">{moduleModal.mode === 'create' ? 'New Module' : 'Rename Module'}</h2>
                             <form onSubmit={handleModuleSubmit} className="space-y-6">
-                                <input autoFocus value={moduleModal.title} onChange={(e) => setModuleModal({ ...moduleModal, title: e.target.value })} placeholder="Chapter Name..." className="w-full bg-black border border-white/10 rounded-2xl p-6 text-white font-bold outline-none focus:border-purple-500/50" />
+                                <input autoFocus value={moduleModal.title} onChange={(e) => setModuleModal({ ...moduleModal, title: e.target.value })} placeholder="Chapter Name..." style={{ padding: '16px 20px' }} className="w-full bg-black border border-white/10 rounded-2xl text-white font-bold outline-none focus:border-purple-500/50" />
                                 <div className="flex gap-4">
-                                    <button type="button" onClick={() => setModuleModal({ ...moduleModal, isOpen: false })} className="flex-1 py-4 bg-white/5 rounded-2xl text-slate-400 font-black text-[10px] uppercase border-none cursor-pointer">Cancel</button>
-                                    <button disabled={isSubmittingItem || !moduleModal.title.trim()} type="submit" className="flex-1 py-4 bg-purple-600 text-white font-black text-[10px] uppercase rounded-2xl border-none cursor-pointer shadow-lg shadow-purple-500/20">{isSubmittingItem ? <Loader2 className="animate-spin mx-auto" size={16}/> : 'Confirm'}</button>
+                                    <button type="button" onClick={() => setModuleModal({ ...moduleModal, isOpen: false })} style={{ padding: '16px 24px' }} className="flex-1 bg-white/5 rounded-2xl text-slate-400 font-black text-[10px] uppercase border-none cursor-pointer hover:bg-white/10 transition-all">Cancel</button>
+                                    <button disabled={isSubmittingItem || !moduleModal.title.trim()} type="submit" style={{ padding: '16px 24px' }} className="flex-1 bg-purple-600 text-white font-black text-[10px] uppercase rounded-2xl border-none cursor-pointer hover:bg-purple-500 transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50">{isSubmittingItem ? <Loader2 className="animate-spin mx-auto" size={16}/> : 'Confirm'}</button>
                                 </div>
                             </form>
                         </motion.div>
@@ -1369,13 +1380,15 @@ export default function CourseBuilder() {
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
+                            style={{ padding: '50px 40px' }}
                             className="relative z-10 w-full max-w-lg bg-[#030014] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl"
                         >
                             {uploadSuccess && (
                                 <motion.div
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: 'auto', opacity: 1 }}
-                                    className={`${uploadSuccess.error ? 'bg-red-500/10 border-b border-red-500/30' : 'bg-green-500/10 border-b border-green-500/30'} px-6 py-4`}
+                                    style={{ marginBottom: '24px', padding: '16px 20px' }}
+                                    className={`${uploadSuccess.error ? 'bg-red-500/10 border-b border-red-500/30' : 'bg-green-500/10 border-b border-green-500/30'}`}
                                 >
                                     <div className="flex items-center gap-3">
                                         {uploadSuccess.error ? (
@@ -1397,9 +1410,9 @@ export default function CourseBuilder() {
                                     </div>
                                 </motion.div>
                             )}
-                            <div className="p-8">
-                                <div className="flex justify-between items-center mb-8">
-                                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                            <div>
+                                <div style={{ marginBottom: '32px' }} className="flex justify-between items-center">
+                                    <h2 style={{ fontSize: '1.75rem', marginBottom: 0 }} className="font-bold text-white flex items-center gap-2">
                                         <FileText className="text-purple-400" /> Curriculum Document
                                     </h2>
                                     <button
@@ -1411,9 +1424,9 @@ export default function CourseBuilder() {
                                 </div>
 
                                 {course.curriculum_file_url ? (
-                                    <div className="space-y-6">
-                                        <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-6">
-                                            <div className="flex items-center gap-3 mb-3">
+                                    <div style={{ gap: '24px' }} className="flex flex-col">
+                                        <div style={{ padding: '20px 24px' }} className="bg-green-500/10 border border-green-500/30 rounded-2xl">
+                                            <div style={{ marginBottom: '12px' }} className="flex items-center gap-3">
                                                 <CheckCircle size={20} className="text-green-400" />
                                                 <span className="text-white font-bold">Current File</span>
                                             </div>
@@ -1425,10 +1438,11 @@ export default function CourseBuilder() {
                                             >
                                                 {course.curriculum_file_url.split('/').pop()}
                                             </a>
-                                            <div className="mt-4 pt-4 border-t border-green-500/20">
+                                            <div style={{ marginTop: '16px', paddingTop: '16px' }} className="border-t border-green-500/20">
                                                 <button
                                                     onClick={() => setCourse(prev => ({ ...prev, is_coding: !prev.is_coding }))}
-                                                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold uppercase tracking-widest transition-all cursor-pointer text-slate-400 hover:text-white"
+                                                    style={{ padding: '12px 16px' }}
+                                                    className="flex items-center gap-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold uppercase tracking-widest transition-all cursor-pointer text-slate-400 hover:text-white"
                                                 >
                                                     {course.is_coding ? (
                                                         <>
@@ -1446,7 +1460,7 @@ export default function CourseBuilder() {
                                         </div>
 
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
+                                            <label style={{ marginBottom: '12px', display: 'block' }} className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                                                 Replace with new file
                                             </label>
                                             <input
@@ -1459,7 +1473,8 @@ export default function CourseBuilder() {
                                             />
                                             <label
                                                 htmlFor="curriculum-replace"
-                                                className="flex items-center justify-center gap-2 w-full bg-white/[0.03] border border-white/10 hover:border-purple-500/50 rounded-xl py-4 px-4 text-slate-400 hover:text-purple-400 cursor-pointer transition-all"
+                                                style={{ padding: '18px 16px' }}
+                                                className="flex items-center justify-center gap-2 w-full bg-white/[0.03] border border-white/10 hover:border-purple-500/50 rounded-xl text-slate-400 hover:text-purple-400 cursor-pointer transition-all"
                                             >
                                                 {uploadingCurriculum ? (
                                                     <Loader2 size={18} className="animate-spin" />
@@ -1474,7 +1489,7 @@ export default function CourseBuilder() {
                                     </div>
                                 ) : (
                                     <div>
-                                        <p className="text-slate-400 text-sm mb-6">
+                                        <p style={{ marginBottom: '24px' }} className="text-slate-400 text-sm">
                                             Upload your syllabus, DLL, or course guide. This will be used by the AI to generate curriculum aligned with your document.
                                         </p>
                                         <input
@@ -1487,7 +1502,8 @@ export default function CourseBuilder() {
                                         />
                                         <label
                                             htmlFor="curriculum-upload-first"
-                                            className="flex items-center justify-center gap-2 w-full bg-white/[0.03] border border-white/10 hover:border-purple-500/50 rounded-xl py-6 px-4 text-slate-400 hover:text-purple-400 cursor-pointer transition-all"
+                                            style={{ padding: '24px 16px' }}
+                                            className="flex items-center justify-center gap-2 w-full bg-white/[0.03] border border-white/10 hover:border-purple-500/50 rounded-xl text-slate-400 hover:text-purple-400 cursor-pointer transition-all"
                                         >
                                             {uploadingCurriculum ? (
                                                 <Loader2 size={18} className="animate-spin" />
@@ -1521,13 +1537,13 @@ export default function CourseBuilder() {
                             <div className="relative z-10">
                                 {/* Header */}
                                 <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
-                                    <div className="flex items-center gap-4">
+                                    <div style={{ gap: '12px' }} className="flex items-center">
                                         <div className="relative">
                                             <div className="w-3 h-3 rounded-full bg-purple-500 animate-ping absolute" />
                                             <div className="w-3 h-3 rounded-full bg-purple-500" />
                                         </div>
                                         <div>
-                                            <span className="text-xs font-black uppercase tracking-[0.3em] text-purple-300 block">AI Curriculum Architect</span>
+                                            <span style={{ marginBottom: '4px', display: 'block' }} className="text-xs font-black uppercase tracking-[0.3em] text-purple-300">AI Curriculum Architect</span>
                                             <span className="text-[10px] text-slate-500">Generating in real-time...</span>
                                         </div>
                                     </div>
@@ -1536,20 +1552,21 @@ export default function CourseBuilder() {
 
                                 {/* Module Preview with Animations */}
                                 {aiResult?.new_modules && aiResult.new_modules.length > 0 && (
-                                    <div className="mb-6 space-y-3 max-h-64 overflow-y-auto custom-scrollbar">
+                                    <div style={{ marginBottom: '24px', gap: '12px' }} className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar">
                                         {aiResult.new_modules.map((module, idx) => (
                                             <motion.div
                                                 key={idx}
                                                 initial={{ opacity: 0, x: -20, scale: 0.95 }}
                                                 animate={{ opacity: 1, x: 0, scale: 1 }}
                                                 transition={{ delay: idx * 0.2 }}
-                                                className="bg-white/5 border border-purple-500/20 rounded-2xl p-4"
+                                                style={{ padding: '16px 20px', gap: '12px' }}
+                                                className="bg-white/5 border border-purple-500/20 rounded-2xl"
                                             >
-                                                <div className="flex items-center gap-2 mb-2">
+                                                <div style={{ marginBottom: '12px', gap: '8px' }} className="flex items-center">
                                                     <Sparkles size={14} className="text-purple-400" />
                                                     <span className="font-bold text-white">{module.title}</span>
                                                 </div>
-                                                <div className="pl-6 space-y-1">
+                                                <div style={{ paddingLeft: '24px', gap: '4px' }} className="space-y-1">
                                                     {module.items?.map((item, itemIdx) => (
                                                         <motion.div
                                                             key={itemIdx}
@@ -1569,13 +1586,14 @@ export default function CourseBuilder() {
                                 )}
 
                                 {/* Log Feed */}
-                                <div className="bg-black/40 rounded-2xl p-4 max-h-40 overflow-y-auto font-mono text-xs space-y-2 custom-scrollbar border border-white/5">
+                                <div style={{ padding: '16px 20px', gap: '8px' }} className="bg-black/40 rounded-2xl max-h-40 overflow-y-auto font-mono text-xs space-y-2 custom-scrollbar border border-white/5">
                                     {aiLogs.map((log, i) => (
                                         <motion.div
                                             key={i}
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
-                                            className="text-slate-300 flex items-start gap-3"
+                                            style={{ gap: '8px' }}
+                                            className="text-slate-300 flex items-start"
                                         >
                                             <span className="text-purple-500 font-bold shrink-0 text-[10px]">
                                                 {new Date().toLocaleTimeString()}

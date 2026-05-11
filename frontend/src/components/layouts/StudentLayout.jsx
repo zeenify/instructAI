@@ -74,12 +74,12 @@ export default function StudentLayout() {
                     </div>
                 </div>
 
-                <div className="pt-6 border-t border-white/5">
-                    <div className="flex items-center gap-3 mb-6 px-2">
-                        <img src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.student_profile?.first_name}`} className="w-10 h-10 rounded-full border border-white/10 shadow-lg" alt="" />
-                        <div className="min-w-0">
-                            <p className="text-sm font-bold text-white truncate m-0">{user?.student_profile?.first_name}</p>
-                            <p className="text-[10px] text-slate-500 truncate m-0">Student Account</p>
+                <div style={{ paddingTop: '20px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', padding: '12px' }}>
+                        <img src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.student_profile?.first_name}`} className="w-10 h-10 rounded-full border border-white/10 shadow-lg flex-shrink-0" alt="" />
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                            <p style={{ fontSize: '14px', fontWeight: 700, color: 'white', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.student_profile?.first_name}</p>
+                            <p style={{ fontSize: '10px', color: '#64748b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Student Account</p>
                         </div>
                     </div>
                     <button onClick={() => { logout(); navigate('/login'); }} className="nav-item w-full border-none bg-transparent cursor-pointer hover:text-cyan-400" style={{ border: 'none', background: 'none' }}>

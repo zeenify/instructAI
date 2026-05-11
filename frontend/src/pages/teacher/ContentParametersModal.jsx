@@ -82,34 +82,35 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
                     exit={{ scale: 0.9, y: 20, opacity: 0 }}
                     className="relative z-10 w-full max-w-2xl bg-[#05011d] border border-cyan-500/20 rounded-[32px] overflow-hidden shadow-2xl"
                 >
-                    <div className="p-8">
-                        <div className="flex justify-between items-center mb-6">
-                            <div className="flex items-center gap-3 text-left">
-                                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 border border-cyan-500/20">
+                    <div style={{ padding: '50px 40px' }}>
+                        <div style={{ marginBottom: '32px', gap: '12px' }} className="flex justify-between items-center">
+                            <div style={{ gap: '12px' }} className="flex items-center text-left">
+                                <div style={{ padding: '10px 12px' }} className="rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 border border-cyan-500/20">
                                     <Sparkles size={22} />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold text-white tracking-tight">Content Generation Settings</h2>
+                                    <h2 style={{ marginBottom: '4px' }} className="text-xl font-bold text-white tracking-tight">Content Generation Settings</h2>
                                     <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest leading-none">Fine-tune lesson & quiz content</p>
                                 </div>
                             </div>
-                            <button onClick={onClose} className="p-2 text-slate-500 hover:text-white transition-all bg-transparent border-none cursor-pointer"><X size={20} /></button>
+                            <button onClick={onClose} style={{ padding: '8px 10px' }} className="text-slate-500 hover:text-white transition-all bg-transparent border-none cursor-pointer"><X size={20} /></button>
                         </div>
 
-                        <form onSubmit={(e) => { e.preventDefault(); handleGenerate(); }} className="space-y-6">
+                        <form onSubmit={(e) => { e.preventDefault(); handleGenerate(); }} style={{ gap: '24px' }} className="space-y-6">
                             {/* Content Parameters */}
-                            <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5">
-                                <div className="flex items-center gap-2 mb-4 text-cyan-400 text-[10px] font-bold uppercase tracking-widest">
+                            <div style={{ padding: '20px 24px' }} className="bg-white/[0.02] border border-white/5 rounded-2xl">
+                                <div style={{ marginBottom: '16px', gap: '8px' }} className="flex items-center text-cyan-400 text-[10px] font-bold uppercase tracking-widest">
                                     <Settings size={14} /> Lesson Content
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div style={{ gap: '16px' }} className="grid grid-cols-2">
                                     {/* Content Depth */}
                                     <div>
-                                        <label className="text-xs text-slate-500 mb-2 block">Content Depth</label>
+                                        <label style={{ marginBottom: '8px', display: 'block' }} className="text-xs text-slate-500">Content Depth</label>
                                         <select
                                             value={contentParams.contentDepth}
                                             onChange={(e) => setContentParams({...contentParams, contentDepth: e.target.value})}
-                                            className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-cyan-500/40 transition-all cursor-pointer [&>option]:bg-gray-900 [&>option]:text-white"
+                                            style={{ padding: '10px 12px' }}
+                                            className="w-full bg-white/[0.05] border border-white/10 rounded-lg text-white text-sm outline-none focus:border-cyan-500/40 transition-all cursor-pointer [&>option]:bg-gray-900 [&>option]:text-white"
                                         >
                                             <option value="concise">Concise</option>
                                             <option value="standard">Standard</option>
@@ -119,11 +120,12 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
 
                                     {/* Writing Style */}
                                     <div>
-                                        <label className="text-xs text-slate-500 mb-2 block">Writing Style</label>
+                                        <label style={{ marginBottom: '8px', display: 'block' }} className="text-xs text-slate-500">Writing Style</label>
                                         <select
                                             value={contentParams.writingStyle}
                                             onChange={(e) => setContentParams({...contentParams, writingStyle: e.target.value})}
-                                            className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-cyan-500/40 transition-all cursor-pointer [&>option]:bg-gray-900 [&>option]:text-white"
+                                            style={{ padding: '10px 12px' }}
+                                            className="w-full bg-white/[0.05] border border-white/10 rounded-lg text-white text-sm outline-none focus:border-cyan-500/40 transition-all cursor-pointer [&>option]:bg-gray-900 [&>option]:text-white"
                                         >
                                             <option value="simple">Simple</option>
                                             <option value="conversational">Conversational</option>
@@ -134,7 +136,7 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
 
                                     {/* Question Type Distribution */}
                                     <div className="col-span-2">
-                                        <label className="text-xs text-slate-500 mb-2 block">Question Type Distribution</label>
+                                        <label style={{ marginBottom: '8px', display: 'block' }} className="text-xs text-slate-500">Question Type Distribution</label>
                                         <select
                                             value={getDisplayPreset()}
                                             onChange={(e) => {
@@ -144,7 +146,8 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
                                                 }
                                                 setContentParams({...contentParams, questionTypeDistribution: e.target.value});
                                             }}
-                                            className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-cyan-500/40 transition-all cursor-pointer [&>option]:bg-gray-900 [&>option]:text-white"
+                                            style={{ padding: '10px 12px' }}
+                                            className="w-full bg-white/[0.05] border border-white/10 rounded-lg text-white text-sm outline-none focus:border-cyan-500/40 transition-all cursor-pointer [&>option]:bg-gray-900 [&>option]:text-white"
                                         >
                                             {!hasProgrammingContent ? (
                                                 <>
@@ -168,7 +171,8 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
                                             <motion.div
                                                 initial={{ opacity: 0, y: -10 }}
                                                 animate={{ opacity: 1, y: 0 }}
-                                                className="mt-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg flex gap-3 items-start"
+                                                style={{ marginTop: '12px', padding: '12px 16px', gap: '12px' }}
+                                                className="bg-blue-500/10 border border-blue-500/30 rounded-lg flex items-start"
                                             >
                                                 <AlertCircle size={16} className="text-blue-400 mt-0.5 flex-shrink-0" />
                                                 <p className="text-xs text-blue-400/90">
@@ -180,24 +184,26 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
 
                                     {/* Quiz Timer */}
                                     <div>
-                                        <label className="text-xs text-slate-500 mb-2 block">Quiz Timer (minutes)</label>
+                                        <label style={{ marginBottom: '8px', display: 'block' }} className="text-xs text-slate-500">Quiz Timer (minutes)</label>
                                         <input
                                             type="number"
                                             min="1"
                                             max="180"
                                             value={contentParams.quizTimeLimit}
                                             onChange={(e) => setContentParams({...contentParams, quizTimeLimit: Number(e.target.value)})}
-                                            className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-cyan-500/40 transition-all"
+                                            style={{ padding: '10px 12px' }}
+                                            className="w-full bg-white/[0.05] border border-white/10 rounded-lg text-white text-sm outline-none focus:border-cyan-500/40 transition-all"
                                         />
                                     </div>
 
                                     {/* Passing Percentage */}
                                     <div>
-                                        <label className="text-xs text-slate-500 mb-2 block">Passing Score</label>
+                                        <label style={{ marginBottom: '8px', display: 'block' }} className="text-xs text-slate-500">Passing Score</label>
                                         <select
                                             value={contentParams.passingPercentage}
                                             onChange={(e) => setContentParams({...contentParams, passingPercentage: Number(e.target.value)})}
-                                            className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-cyan-500/40 transition-all cursor-pointer [&>option]:bg-gray-900 [&>option]:text-white"
+                                            style={{ padding: '10px 12px' }}
+                                            className="w-full bg-white/[0.05] border border-white/10 rounded-lg text-white text-sm outline-none focus:border-cyan-500/40 transition-all cursor-pointer [&>option]:bg-gray-900 [&>option]:text-white"
                                         >
                                             <option value="60">60%</option>
                                             <option value="70">70%</option>
@@ -208,8 +214,8 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
                                 </div>
 
                                 {/* Content Toggles */}
-                                <div className="flex gap-4 mt-4 flex-wrap">
-                                    <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                                <div style={{ gap: '16px', marginTop: '16px' }} className="flex flex-wrap">
+                                    <label style={{ gap: '8px' }} className="flex items-center text-sm text-slate-300 cursor-pointer">
                                         <input
                                             type="checkbox"
                                             checked={contentParams.includeImages}
@@ -218,7 +224,7 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
                                         />
                                         Include images
                                     </label>
-                                    <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                                    <label style={{ gap: '8px' }} className="flex items-center text-sm text-slate-300 cursor-pointer">
                                         <input
                                             type="checkbox"
                                             checked={contentParams.includeVideos}
@@ -227,7 +233,7 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
                                         />
                                         Include videos
                                     </label>
-                                    <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                                    <label style={{ gap: '8px' }} className="flex items-center text-sm text-slate-300 cursor-pointer">
                                         <input
                                             type="checkbox"
                                             checked={contentParams.allowAIAssistance}
@@ -240,8 +246,8 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
 
                                 {/* Custom Distribution Adjusters - Conditional Render */}
                                 {contentParams.questionTypeDistribution === 'custom' && (
-                                    <div className="col-span-2 mt-4 bg-white/[0.03] border border-cyan-500/20 rounded-xl p-4 space-y-3">
-                                        <p className="text-xs text-cyan-400 font-bold uppercase tracking-wider mb-3">Custom Distribution</p>
+                                    <div style={{ marginTop: '16px', padding: '16px 20px', gap: '12px' }} className="col-span-2 bg-white/[0.03] border border-cyan-500/20 rounded-xl space-y-3">
+                                        <p style={{ marginBottom: '12px' }} className="text-xs text-cyan-400 font-bold uppercase tracking-wider">Custom Distribution</p>
                                         {[
                                             {key: 'mc', label: 'Multiple Choice'},
                                             {key: 'tf', label: 'True/False'},
@@ -253,12 +259,12 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
                                             const isLocked = !hasProgrammingContent && isCodeSlider;
 
                                             return (
-                                                <div key={key} className={`flex items-center justify-between gap-4 ${isLocked ? 'opacity-50' : ''}`}>
+                                                <div key={key} style={{ gap: '16px' }} className={`flex items-center justify-between ${isLocked ? 'opacity-50' : ''}`}>
                                                     <span className={`text-sm flex-shrink-0 w-32 ${isLocked ? 'text-slate-500' : 'text-slate-300'}`}>
                                                         {label}
-                                                        {isLocked && <span className="ml-1 text-xs text-slate-600">(locked)</span>}
+                                                        {isLocked && <span style={{ marginLeft: '4px' }} className="text-xs text-slate-600">(locked)</span>}
                                                     </span>
-                                                    <div className="flex items-center gap-2">
+                                                    <div style={{ gap: '8px' }} className="flex items-center">
                                                         <button
                                                             type="button"
                                                             disabled={isLocked}
@@ -266,7 +272,8 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
                                                                 const newVal = Math.max(0, customDistribution[key] - 5);
                                                                 setCustomDistribution({...customDistribution, [key]: newVal});
                                                             }}
-                                                            className={`w-8 h-8 rounded-lg text-slate-400 transition-all border border-white/10 flex items-center justify-center font-bold ${
+                                                            style={{ padding: '6px 8px' }}
+                                                            className={`rounded-lg text-slate-400 transition-all border border-white/10 flex items-center justify-center font-bold text-sm ${
                                                                 isLocked
                                                                     ? 'bg-white/5 cursor-not-allowed text-slate-600'
                                                                     : 'bg-white/5 hover:bg-white/10 hover:text-white cursor-pointer'
@@ -282,7 +289,8 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
                                                                 const newVal = Math.min(100, customDistribution[key] + 5);
                                                                 setCustomDistribution({...customDistribution, [key]: newVal});
                                                             }}
-                                                            className={`w-8 h-8 rounded-lg text-slate-400 transition-all border border-white/10 flex items-center justify-center font-bold ${
+                                                            style={{ padding: '6px 8px' }}
+                                                            className={`rounded-lg text-slate-400 transition-all border border-white/10 flex items-center justify-center font-bold text-sm ${
                                                                 isLocked
                                                                     ? 'bg-white/5 cursor-not-allowed text-slate-600'
                                                                     : 'bg-white/5 hover:bg-white/10 hover:text-white cursor-pointer'
@@ -298,7 +306,7 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
                                                 </div>
                                             );
                                         })}
-                                        <div className="pt-2 border-t border-white/5 flex justify-between items-center">
+                                        <div style={{ paddingTop: '8px', marginTop: '8px' }} className="border-t border-white/5 flex justify-between items-center">
                                             <span className="text-xs text-slate-500">Total:</span>
                                             <span className={`text-sm font-bold ${
                                                 Object.values(customDistribution).reduce((a,b) => a+b, 0) === 100
@@ -312,14 +320,15 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
                                 )}
                             </div>
 
-                            <div className="flex items-center justify-between gap-4">
+                            <div style={{ gap: '16px', marginTop: '24px' }} className="flex items-center justify-between">
                                 <p className="text-xs text-slate-500">
                                     {isSavingStructure ? 'Saving curriculum structure...' : 'Lesson content and quiz questions will be generated based on these settings'}
                                 </p>
                                 <button
                                     type="submit"
                                     disabled={isSavingStructure}
-                                    className={`px-8 py-3 rounded-xl flex items-center gap-2 text-xs uppercase font-black tracking-widest border-none transition-all shadow-lg ${
+                                    style={{ padding: '14px 24px', gap: '8px' }}
+                                    className={`rounded-xl flex items-center text-xs uppercase font-black tracking-widest border-none transition-all shadow-lg ${
                                         isSavingStructure
                                             ? 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-50'
                                             : 'bg-gradient-to-r from-cyan-400 to-blue-500 text-black cursor-pointer hover:scale-105 shadow-cyan-500/20'

@@ -135,33 +135,34 @@ export default function CurriculumReviewModal({ isOpen, data, expectedParams, on
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative z-10 w-full max-w-4xl bg-[#030014] border border-white/10 rounded-[40px] shadow-2xl flex flex-col max-h-[90vh]">
-                
-                <div className="p-8 border-b border-white/5">
-                    <div className="flex justify-between items-center mb-4">
+
+                <div style={{ padding: '50px 40px', marginBottom: '0' }} className="border-b border-white/5">
+                    <div style={{ marginBottom: '24px', gap: '12px' }} className="flex justify-between items-center">
                         <div>
-                            <h2 className="text-2xl font-black text-white uppercase tracking-tight">Review AI Blueprint</h2>
-                            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Fine-tune the generated structure before saving</p>
+                            <h2 style={{ marginBottom: '4px' }} className="text-2xl font-black text-white uppercase tracking-tight">Review AI Blueprint</h2>
+                            <p style={{ marginBottom: '0' }} className="text-slate-500 text-xs font-bold uppercase tracking-widest">Fine-tune the generated structure before saving</p>
                         </div>
-                        <button onClick={onCancel} className="p-2 hover:bg-white/5 rounded-full border-none bg-transparent cursor-pointer text-slate-500"><X /></button>
+                        <button onClick={onCancel} style={{ padding: '8px 10px' }} className="hover:bg-white/5 rounded-full border-none bg-transparent cursor-pointer text-slate-500"><X /></button>
                     </div>
 
                     {parameterMismatch && (
-                        <div className="flex items-start gap-3 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl mb-4">
+                        <div style={{ padding: '16px 20px', gap: '12px', marginBottom: '16px' }} className="flex items-start bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
                             <AlertCircle size={20} className="text-yellow-500 flex-shrink-0 mt-0.5" />
                             <div className="flex-1">
-                                <p className="text-yellow-500 text-sm font-bold mb-2">{parameterMismatch.message}</p>
-                                <ul className="text-yellow-400 text-xs space-y-1 mb-3">
+                                <p style={{ marginBottom: '8px' }} className="text-yellow-500 text-sm font-bold">{parameterMismatch.message}</p>
+                                <ul style={{ gap: '4px', marginBottom: '12px' }} className="text-yellow-400 text-xs space-y-1">
                                     {parameterMismatch.details.map((detail, idx) => (
                                         <li key={idx}>• {detail}</li>
                                     ))}
                                 </ul>
                                 {parameterMismatch.regenerateOption && (
                                     <>
-                                        <p className="text-yellow-400/70 text-xs mb-3">The generated content doesn't match your parameters. You can regenerate to get better results.</p>
+                                        <p style={{ marginBottom: '12px' }} className="text-yellow-400/70 text-xs">The generated content doesn't match your parameters. You can regenerate to get better results.</p>
                                         {onRegenerate && (
                                             <button
                                                 onClick={onRegenerate}
-                                                className="flex items-center gap-2 px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 rounded-lg text-xs font-bold transition-all border-none cursor-pointer"
+                                                style={{ padding: '10px 16px', gap: '8px' }}
+                                                className="flex items-center bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 rounded-lg text-xs font-bold transition-all border-none cursor-pointer"
                                             >
                                                 <RotateCcw size={14} />
                                                 Regenerate Structure
@@ -174,23 +175,24 @@ export default function CurriculumReviewModal({ isOpen, data, expectedParams, on
                     )}
 
                     {validationWarning && (
-                        <div className="flex items-start gap-3 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                        <div style={{ padding: '16px 20px', gap: '12px' }} className="flex items-start bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
                             <AlertCircle size={20} className="text-yellow-500 flex-shrink-0 mt-0.5" />
                             <div>
-                                <p className="text-yellow-500 text-sm font-bold mb-1">Exceeds Recommended Limits</p>
+                                <p style={{ marginBottom: '4px' }} className="text-yellow-500 text-sm font-bold">Exceeds Recommended Limits</p>
                                 <p className="text-yellow-400 text-xs">{validationWarning}</p>
-                                <p className="text-yellow-400/70 text-xs mt-2">Remove some modules/lessons below to avoid rate limiting during content generation.</p>
+                                <p style={{ marginTop: '8px' }} className="text-yellow-400/70 text-xs">Remove some modules/lessons below to avoid rate limiting during content generation.</p>
                             </div>
                         </div>
                     )}
                 </div>
 
-                <div className="flex-grow overflow-y-auto p-8 space-y-6 custom-scrollbar">
+                <div style={{ padding: '40px', gap: '24px' }} className="flex-grow overflow-y-auto space-y-6 custom-scrollbar">
                     {pendingData.new_modules.map((module, mIdx) => (
-                        <div key={mIdx} className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl">
-                            <div className="flex items-center gap-3 mb-4">
-                                <span className="text-[10px] font-black text-purple-500 bg-purple-500/10 px-2 py-1 rounded">Module {mIdx + 1}</span>
-                                <input 
+                        <div key={mIdx} style={{ padding: '24px 28px' }} className="bg-white/[0.02] border border-white/5 rounded-3xl">
+                            <div style={{ marginBottom: '24px', gap: '12px' }} className="flex items-center">
+                                <span style={{ padding: '6px 12px' }} className="text-[10px] font-black text-purple-500 bg-purple-500/10 rounded">Module {mIdx + 1}</span>
+                                <input
+                                    style={{ marginBottom: '0' }}
                                     className="bg-transparent border-none outline-none text-xl font-bold text-white w-full focus:text-purple-400 transition-colors"
                                     value={module.title}
                                     onChange={(e) => updateModuleTitle(mIdx, e.target.value)}
@@ -198,17 +200,17 @@ export default function CurriculumReviewModal({ isOpen, data, expectedParams, on
                             </div>
 
                             {/* Replace the current items.map block with this */}
-                            <div className="space-y-2">
+                            <div style={{ gap: '12px' }} className="space-y-2">
                                 {/* Map through the unified items list */}
                                 {(module.items || []).map((item, iIdx) => (
-                                    <div key={iIdx} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5 group">
+                                    <div key={iIdx} style={{ padding: '16px 20px', gap: '12px', marginBottom: '8px' }} className="flex items-center bg-white/5 rounded-xl border border-white/5 group">
                                         {/* Visual Icon based on type */}
                                         {item.type === 'lesson' ? 
                                             <BookOpen size={16} className="text-purple-500" /> : 
                                             <HelpCircle size={16} className="text-cyan-500" />
                                         }
                                         
-                                        <input 
+                                        <input
                                             className="flex-grow bg-transparent border-none outline-none text-sm text-white"
                                             value={item.title}
                                             onChange={(e) => {
@@ -223,7 +225,7 @@ export default function CurriculumReviewModal({ isOpen, data, expectedParams, on
                                             const newData = JSON.parse(JSON.stringify(pendingData));
                                             newData.new_modules[mIdx].items.splice(iIdx, 1);
                                             setPendingData(newData);
-                                        }} className="p-2 text-slate-600 hover:text-red-500 transition-colors border-none bg-transparent cursor-pointer opacity-0 group-hover:opacity-100">
+                                        }} style={{ padding: '8px 10px' }} className="text-slate-600 hover:text-red-500 transition-colors border-none bg-transparent cursor-pointer opacity-0 group-hover:opacity-100">
                                             <Trash2 size={16}/>
                                         </button>
                                     </div>
@@ -231,16 +233,16 @@ export default function CurriculumReviewModal({ isOpen, data, expectedParams, on
 
                                 {/* Empty State check */}
                                 {(!module.items || module.items.length === 0) && (
-                                    <p className="text-[10px] text-center text-slate-600 font-bold uppercase py-2">No items in this module</p>
+                                    <p style={{ padding: '12px 16px', marginBottom: '0' }} className="text-[10px] text-center text-slate-600 font-bold uppercase">No items in this module</p>
                                 )}
                             </div>
                                                     </div>
                     ))}
                 </div>
 
-                <div className="p-8 border-t border-white/5 flex gap-4">
-                    <button onClick={onCancel} className="flex-1 py-4 rounded-2xl bg-white/5 text-slate-400 font-bold uppercase text-xs border-none cursor-pointer hover:bg-white/10 transition-all">Discard Changes</button>
-                    <button onClick={() => onConfirm(pendingData)} className="flex-[2] px-12 py-4 rounded-2xl bg-purple-600 text-white font-black uppercase text-xs border-none cursor-pointer shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-95 transition-all">Commit to Course Timeline</button>
+                <div style={{ padding: '40px', gap: '16px' }} className="border-t border-white/5 flex">
+                    <button onClick={onCancel} style={{ padding: '14px 22px' }} className="flex-1 rounded-2xl bg-white/5 text-slate-400 font-bold uppercase text-xs border-none cursor-pointer hover:bg-white/10 transition-all">Discard Changes</button>
+                    <button onClick={() => onConfirm(pendingData)} style={{ padding: '14px 22px' }} className="flex-[2] rounded-2xl bg-purple-600 text-white font-black uppercase text-xs border-none cursor-pointer shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-95 transition-all">Commit to Course Timeline</button>
                 </div>
             </motion.div>
         </div>

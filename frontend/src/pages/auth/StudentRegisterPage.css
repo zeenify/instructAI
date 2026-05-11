@@ -1,0 +1,156 @@
+.register-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.register-card {
+  width: 100%;
+  max-width: 500px;
+  background: rgba(3, 0, 20, 0.8);
+  border: 1px solid rgba(34, 211, 238, 0.15);
+  border-radius: 32px;
+  backdrop-filter: blur(2xl);
+  padding: 50px 45px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 20px 60px -10px rgba(34, 211, 238, 0.1);
+}
+
+.register-header {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.register-header h1 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: white;
+}
+
+.register-header p {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.register-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  color: #22d3ee;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 14px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(34, 211, 238, 0.08);
+  transition: all 0.3s ease;
+}
+
+.register-badge:hover {
+  background: rgba(34, 211, 238, 0.15);
+  border-color: rgba(34, 211, 238, 0.5);
+  box-shadow: 0 6px 16px rgba(34, 211, 238, 0.12);
+}
+
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.register-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.register-form input {
+  padding: 14px 16px 14px 45px !important;
+  font-size: 0.95rem !important;
+  height: auto !important;
+  min-height: 52px !important;
+  background: rgba(34, 211, 238, 0.03) !important;
+  border-color: rgba(34, 211, 238, 0.2) !important;
+  transition: all 0.3s ease !important;
+}
+
+.register-form input:focus {
+  background: rgba(34, 211, 238, 0.08) !important;
+  border-color: rgba(34, 211, 238, 0.4) !important;
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.15) !important;
+}
+
+.register-form button {
+  margin-top: 10px;
+  padding: 16px 24px;
+  font-size: 0.95rem;
+}
+
+.register-footer {
+  text-align: center;
+  padding-top: 20px;
+  border-top: 1px solid rgba(34, 211, 238, 0.1);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.register-footer p {
+  color: #94a3b8;
+  margin: 0;
+}
+
+.register-footer a {
+  color: #22d3ee;
+  text-decoration: none;
+  font-weight: 700;
+  transition: color 0.3s;
+}
+
+.register-footer a:hover {
+  color: #06b6d4;
+}
+
+.btn-student {
+  padding: 14px 28px !important;
+  border-radius: 12px !important;
+  text-decoration: none !important;
+  font-weight: 700 !important;
+  font-size: 0.95rem !important;
+  color: white !important;
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.25) 0%, rgba(34, 211, 238, 0.15) 100%) !important;
+  border: 1.5px solid rgba(34, 211, 238, 0.4) !important;
+  transition: all 0.3s !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  box-shadow: 0 4px 15px rgba(34, 211, 238, 0.1) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.btn-student:hover {
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.35) 0%, rgba(34, 211, 238, 0.25) 100%) !important;
+  border-color: rgba(34, 211, 238, 0.6) !important;
+  box-shadow: 0 6px 20px rgba(34, 211, 238, 0.2) !important;
+}
+
+.btn-student:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+}

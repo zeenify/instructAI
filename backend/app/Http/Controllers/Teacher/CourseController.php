@@ -507,6 +507,16 @@ class CourseController extends Controller
         ]);
     }
 
+    public function destroy($id)
+    {
+        $course = Course::where('id', $id)
+            ->where('teacher_id', auth()->id())
+            ->firstOrFail();
+
+        $course->delete();
+        return response()->json(['success' => true]);
+    }
+
     public function generateContent(Request $request, $id)
     {
         // Increase timeout for 3-stage AI pipeline (outline + content + formatting)

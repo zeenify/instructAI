@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, BookPlus, AlignLeft, Upload, FileText, CheckCircle } from 'lucide-react';
 import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
 import api from '../../services/api';
 import { toast } from 'sonner';
+import './CreateCourseModal.css';
 
 export default function CreateCourseModal({ isOpen, onClose, classId, onCourseCreated }) {
     const [title, setTitle] = useState('');
@@ -66,51 +66,58 @@ export default function CreateCourseModal({ isOpen, onClose, classId, onCourseCr
                         onClick={onClose}
                         className="absolute inset-0 bg-black/80 backdrop-blur-md"
                     />
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
                         className="relative z-10 w-full max-w-lg bg-[#030014] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl"
                     >
-                        <div className="p-8">
-                            <div className="flex justify-between items-center mb-8">
-                                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                                    <BookPlus className="text-purple-400" /> New Course
+                        <div className="create-course-modal">
+                            <div className="create-course-header">
+                                <h2 className="create-course-title">
+                                    <BookPlus size={20} /> New Course
                                 </h2>
-                                <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors bg-transparent border-none cursor-pointer">
+                                <button onClick={onClose} className="create-course-close-btn" type="button">
                                     <X size={20} />
                                 </button>
                             </div>
 
-                            <form onSubmit={handleSubmit} className="space-y-6">
-                                <Input 
-                                    label="Course Title" 
-                                    placeholder="e.g. Introduction to Java" 
-                                    value={title} 
-                                    onChange={e => setTitle(e.target.value)} 
-                                    required 
-                                />
-                                
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-2">
+                            <form onSubmit={handleSubmit} className="create-course-form">
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        <BookPlus size={14} /> Course Title
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="e.g. Introduction to Java"
+                                        value={title}
+                                        onChange={e => setTitle(e.target.value)}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label className="form-label">
                                         <AlignLeft size={14} /> Description
                                     </label>
                                     <textarea
-                                        className="student-link w-full bg-white/[0.03] border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-purple-500/50 transition-all h-24"
+                                        className="form-textarea"
                                         placeholder="What will students learn?"
                                         value={description}
                                         onChange={e => setDescription(e.target.value)}
                                     />
                                 </div>
 
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-2">
+
+                                <div className="form-group">
+                                    <label className="form-label">
                                         <FileText size={14} /> Curriculum Document (Optional)
                                     </label>
-                                    <p className="text-xs text-slate-500 ml-1 mb-2">
+                                    <p className="form-helper-text">
                                         Upload your syllabus, DLL, or course guide for AI-powered generation
                                     </p>
-                                    <div className="relative">
+                                    <div>
                                         <input
                                             type="file"
                                             accept=".pdf,.doc,.docx,.txt"
@@ -120,12 +127,12 @@ export default function CreateCourseModal({ isOpen, onClose, classId, onCourseCr
                                         />
                                         <label
                                             htmlFor="curriculum-upload"
-                                            className="flex items-center justify-center gap-2 w-full bg-white/[0.03] border border-white/10 hover:border-purple-500/50 rounded-xl py-4 px-4 text-slate-400 hover:text-purple-400 cursor-pointer transition-all"
+                                            className="file-upload-area"
                                         >
                                             {curriculumFile ? (
                                                 <>
                                                     <CheckCircle size={18} className="text-green-400" />
-                                                    <span className="text-sm text-white">{curriculumFile.name}</span>
+                                                    <span className="file-upload-name">{curriculumFile.name}</span>
                                                     <button
                                                         type="button"
                                                         onClick={(e) => {
@@ -133,7 +140,7 @@ export default function CreateCourseModal({ isOpen, onClose, classId, onCourseCr
                                                             e.stopPropagation();
                                                             setCurriculumFile(null);
                                                         }}
-                                                        className="ml-auto text-red-400 hover:text-red-300"
+                                                        className="file-upload-remove"
                                                     >
                                                         <X size={16} />
                                                     </button>
@@ -141,14 +148,15 @@ export default function CreateCourseModal({ isOpen, onClose, classId, onCourseCr
                                             ) : (
                                                 <>
                                                     <Upload size={18} />
-                                                    <span className="text-sm">Choose file (PDF, DOC, DOCX, TXT)</span>
+                                                    <span>Choose file (PDF, DOC, DOCX, TXT)</span>
                                                 </>
                                             )}
                                         </label>
                                     </div>
                                 </div>
 
-                                <Button loading={loading} className="w-full py-4 uppercase font-bold tracking-widest">
+
+                                <Button loading={loading} className="create-course-submit w-full">
                                     Create Course
                                 </Button>
                             </form>

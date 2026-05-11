@@ -2,6 +2,7 @@
 .builder-container {
     max-width: 1100px;
     margin: 0 auto;
+    padding: 40px 50px;
 }
 
 .back-btn {
@@ -43,17 +44,18 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 24px;
 }
 
 .timeline-item {
     background: #020202;
     border: 1px solid rgba(255, 255, 255, 0.05);
-    padding: 20px;
+    padding: 20px 28px;
     border-radius: 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 16px;
     transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
     user-select: none;
     position: relative;
@@ -71,26 +73,52 @@
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
 }
 
-.item-drag-handle { cursor: grab; color: #1e293b; padding: 4px; pointer-events: auto !important; }
-.item-drag-handle:hover { color: white; }
+.item-drag-handle {
+    cursor: grab;
+    color: #64748b;
+    padding: 10px 12px;
+    pointer-events: auto !important;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+.item-drag-handle:hover {
+    color: white;
+    background: rgba(168, 85, 247, 0.15);
+}
 
 .timeline-item.is-draft { opacity: 0.6; }
 
 .item-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     min-width: 160px;
     justify-content: flex-end;
+    flex-shrink: 0;
 }
 
 .action-icon-btn {
-    background: transparent; border: none; cursor: pointer;
-    color: #475569; padding: 10px; border-radius: 12px;
-    transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 10px 12px;
+    border-radius: 8px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-.action-icon-btn:hover { color: white; background: rgba(255,255,255,0.05); }
-.action-icon-btn.active { color: #10b981; }
+.action-icon-btn:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+.action-icon-btn.active {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.3);
+}
 
 .edit-pill-btn {
     padding: 10px 16px; border-radius: 12px;

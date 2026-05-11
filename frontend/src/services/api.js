@@ -17,7 +17,13 @@ api.interceptors.request.use((config) => {
     }
 
     // Check cache for GET requests only
-    if (config.method === 'get' && !config.bypassCache) {
+    // Don't cache specific endpoints that change frequently
+    const noCachePatterns = [
+        /\/teacher\/classes\/\d+/,  // Don't cache individual class details
+    ];
+    const shouldNotCache = noCachePatterns.some(pattern => pattern.test(config.url));
+
+    if (config.method === 'get' && !config.bypassCache && !shouldNotCache) {
         const cacheKey = `${config.method}:${config.url}`;
         const cachedData = cache.get(cacheKey);
 
@@ -43,8 +49,14 @@ api.interceptors.request.use((config) => {
 // Cache successful GET responses
 api.interceptors.response.use(
     (response) => {
-        // Only cache GET requests
-        if (response.config.method === 'get' && !response.config.bypassCache) {
+        // Don't cache specific endpoints that change frequently
+        const noCachePatterns = [
+            /\/teacher\/classes\/\d+/,  // Don't cache individual class details
+        ];
+        const shouldNotCache = noCachePatterns.some(pattern => pattern.test(response.config.url));
+
+        // Only cache GET requests that aren't in the no-cache list
+        if (response.config.method === 'get' && !response.config.bypassCache && !shouldNotCache) {
             const cacheKey = `${response.config.method}:${response.config.url}`;
             cache.set(cacheKey, response.data);
         }

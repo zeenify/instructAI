@@ -38,13 +38,14 @@ class ClassroomController extends Controller
     public function show($id)
     {
         // This query says: "Find a class with this ID, BUT only if the teacher_id matches the logged-in user"
-        $classroom = Classroom::where('teacher_id', auth()->id())
+        $classroom = Classroom::where('id', $id)
+            ->where('teacher_id', auth()->id())
             ->with([
-                'courses' => fn($q) => $q->orderBy('order_index', 'asc'), 
+                'courses' => fn($q) => $q->orderBy('order_index', 'asc'),
                 'students.studentProfile'
             ])
             ->withCount(['students', 'courses'])
-            ->first(); // Use first() instead of findOrFail to handle the logic manually or use firstOrFail
+            ->first();
 
         if (!$classroom) {
             return response()->json(['message' => 'Class not found or unauthorized'], 403);

@@ -1,0 +1,185 @@
+.role-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.role-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+}
+
+.role-modal-container {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 600px;
+  background: rgba(3, 0, 20, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 32px;
+  overflow: hidden;
+  box-shadow: 0 25px 80px -15px rgba(0, 0, 0, 0.5);
+}
+
+.role-modal-header {
+  padding: 50px 45px 0;
+  text-align: center;
+}
+
+.role-modal-title {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 12px;
+}
+
+.role-modal-subtitle {
+  font-size: 0.95rem;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin-bottom: 40px;
+}
+
+.role-modal-content {
+  padding: 0 45px 50px;
+}
+
+.role-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.role-card {
+  display: flex;
+  flex-direction: column;
+  padding: 32px 24px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+  min-height: 220px;
+}
+
+.role-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(167, 139, 250, 0.1), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.role-card.teacher {
+  border-color: rgba(167, 139, 250, 0.2);
+}
+
+.role-card.teacher:hover {
+  background: rgba(167, 139, 250, 0.08);
+  border-color: rgba(167, 139, 250, 0.4);
+  box-shadow: 0 12px 32px rgba(167, 139, 250, 0.15);
+}
+
+.role-card.teacher.selected {
+  background: rgba(167, 139, 250, 0.12);
+  border-color: rgba(167, 139, 250, 0.5);
+  box-shadow: 0 12px 40px rgba(167, 139, 250, 0.2);
+}
+
+.role-card.student {
+  border-color: rgba(34, 211, 238, 0.2);
+}
+
+.role-card.student:hover {
+  background: rgba(34, 211, 238, 0.08);
+  border-color: rgba(34, 211, 238, 0.4);
+  box-shadow: 0 12px 32px rgba(34, 211, 238, 0.15);
+}
+
+.role-card.student.selected {
+  background: rgba(34, 211, 238, 0.12);
+  border-color: rgba(34, 211, 238, 0.5);
+  box-shadow: 0 12px 40px rgba(34, 211, 238, 0.2);
+}
+
+.role-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  font-size: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.role-card.teacher .role-card-icon {
+  background: rgba(167, 139, 250, 0.15);
+  color: #d8b4fe;
+}
+
+.role-card.student .role-card-icon {
+  background: rgba(34, 211, 238, 0.15);
+  color: #06b6d4;
+}
+
+.role-card-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.role-card-description {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  line-height: 1.5;
+  position: relative;
+  z-index: 1;
+}
+
+.role-card-loading {
+  font-size: 0.85rem;
+  color: #d8b4fe;
+  font-weight: 600;
+}
+
+.role-card.student .role-card-loading {
+  color: #06b6d4;
+}
+
+@media (max-width: 640px) {
+  .role-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .role-modal-header {
+    padding: 40px 30px 0;
+  }
+
+  .role-modal-content {
+    padding: 0 30px 40px;
+  }
+
+  .role-modal-title {
+    font-size: 1.8rem;
+  }
+
+  .role-card {
+    padding: 24px 20px;
+  }
+}

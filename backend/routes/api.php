@@ -76,6 +76,7 @@ Route::post('/teacher/courses/{courseId}/modules', [ModuleController::class, 'st
     Route::delete('/teacher/quizzes/{id}', [QuizController::class, 'destroy']);
     //ai
     Route::post('/teacher/courses/{id}/ai-commit', [CourseController::class, 'aiCommit']);
+    Route::delete('/teacher/courses/{id}', [CourseController::class, 'destroy']);
 
 
     // Stats for Overview

@@ -69,7 +69,7 @@ export default function LessonRenderer({ lessonId, onProgressUpdate, isCompleted
     if (loading) return <LessonSkeleton />;
 
     return (
-        <div className="max-w-4xl mx-auto space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-1000 pb-20">
+        <div style={{ gap: '32px' }} className="max-w-4xl mx-auto flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-1000 pb-20">
             {/* Global styles for Rich Text (Bullets, etc) */}
             <style>{`
                 .prose ul { list-style-type: disc !important; padding-left: 1.5rem !important; margin: 1rem 0 !important; }
@@ -79,26 +79,26 @@ export default function LessonRenderer({ lessonId, onProgressUpdate, isCompleted
             `}</style>
 
             <header>
-                <div className="flex items-center gap-4 mb-4">
+                <div style={{ gap: '12px', marginBottom: '16px' }} className="flex items-center">
                     <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-500">Learning Module</span>
                     {isCompleted && (
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500 text-[9px] font-bold uppercase">
+                        <div style={{ gap: '6px', padding: '6px 12px' }} className="flex items-center rounded-md bg-emerald-500/10 text-emerald-500 text-[9px] font-bold uppercase">
                             <CheckCircle2 size={10}/> Completed
                         </div>
                     )}
                 </div>
-                <h1 className="text-6xl font-black text-white tracking-tighter mb-8 leading-[0.9]">{lesson.title}</h1>
+                <h1 style={{ marginBottom: '16px' }} className="text-6xl font-black text-white tracking-tighter leading-[0.9]">{lesson.title}</h1>
                 <div className="h-1 w-24 bg-gradient-to-r from-cyan-500 to-transparent rounded-full" />
             </header>
 
-            <div className="space-y-20">
+            <div style={{ gap: '32px' }} className="flex flex-col">
                 {lesson.content?.map((block) => (
                     <div key={block.id}>
                         {block.type === 'code' ? (
-                            <CodeIDE 
-                                block={block} 
-                                lessonId={lessonId} 
-                                onSolve={() => handleBlockSolved(block.id)} 
+                            <CodeIDE
+                                block={block}
+                                lessonId={lessonId}
+                                onSolve={() => handleBlockSolved(block.id)}
                             />
                         ) : (
                             renderStandardBlock(block)
@@ -121,11 +121,11 @@ function renderStandardBlock(block) {
 
     switch (type) {
         case 'h1':
-            return <h2 className="text-4xl font-black text-white mt-24 mb-8 tracking-tight">{data.text}</h2>;
+            return <h2 style={{ marginTop: '32px', marginBottom: '16px' }} className="text-4xl font-black text-white tracking-tight">{data.text}</h2>;
 
         case 'text':
             return (
-                <div 
+                <div
                     className="prose prose-invert max-w-none text-xl text-slate-400 leading-relaxed font-medium"
                     dangerouslySetInnerHTML={{ __html: data.text }}
                 />
@@ -133,12 +133,12 @@ function renderStandardBlock(block) {
 
         case 'image':
             return (
-                <figure className="my-16 group">
+                <figure style={{ margin: '32px 0' }} className="group">
                     <div className="rounded-[40px] overflow-hidden border border-white/5 shadow-2xl transition-transform duration-500 group-hover:scale-[1.01]">
                         <img src={data.url} className="w-full" alt={data.caption} />
                     </div>
                     {data.caption && (
-                        <figcaption className="text-center text-slate-500 mt-6 text-xs font-black uppercase tracking-[0.2em]">
+                        <figcaption style={{ marginTop: '16px' }} className="text-center text-slate-500 text-xs font-black uppercase tracking-[0.2em]">
                             {data.caption}
                         </figcaption>
                     )}
@@ -148,8 +148,8 @@ function renderStandardBlock(block) {
         case 'video':
             const ytId = getYoutubeId(data.url);
             return (
-                <div className="my-16 space-y-6">
-                    <div className="flex items-center gap-3 text-red-500/80">
+                <div style={{ margin: '32px 0', gap: '16px' }} className="flex flex-col">
+                    <div style={{ gap: '8px' }} className="flex items-center text-red-500/80">
                         <Play size={14} fill="currentColor" />
                         <span className="text-[10px] font-black uppercase tracking-widest">Video Demonstration</span>
                     </div>
@@ -164,10 +164,10 @@ function renderStandardBlock(block) {
                             />
                         </div>
                     ) : (
-                        <div className="p-8 bg-gradient-to-br from-red-500/5 to-orange-500/5 rounded-[40px] border border-dashed border-red-500/20 text-center space-y-3">
+                        <div style={{ padding: '32px 40px', gap: '12px' }} className="bg-gradient-to-br from-red-500/5 to-orange-500/5 rounded-[40px] border border-dashed border-red-500/20 text-center flex flex-col">
                             <VideoIcon size={32} className="mx-auto text-red-400/50" />
                             <div>
-                                <p className="text-sm font-bold text-white mb-2">{data.title || "Video Suggestion"}</p>
+                                <p style={{ marginBottom: '8px' }} className="text-sm font-bold text-white">{data.title || "Video Suggestion"}</p>
                                 <p className="text-xs text-slate-400">{data.description || "Teacher will add video link"}</p>
                             </div>
                         </div>
@@ -177,17 +177,18 @@ function renderStandardBlock(block) {
 
         case 'link':
             return (
-                <a 
-                    href={data.url} 
-                    target="_blank" 
+                <a
+                    href={data.url}
+                    target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-6 p-8 rounded-[32px] bg-white/[0.02] border border-white/5 hover:border-purple-500/30 hover:bg-purple-500/5 transition-all group no-underline decoration-transparent"
+                    style={{ padding: '24px 28px', gap: '16px' }}
+                    className="flex items-center rounded-[32px] bg-white/[0.02] border border-white/5 hover:border-purple-500/30 hover:bg-purple-500/5 transition-all group no-underline decoration-transparent"
                 >
-                    <div className="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+                    <div className="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform flex-shrink-0">
                         <ExternalLink size={24} />
                     </div>
                     <div className="flex-grow">
-                        <h4 className="text-lg font-black text-white mb-1">{data.title || 'View Resource'}</h4>
+                        <h4 style={{ marginBottom: '4px' }} className="text-lg font-black text-white">{data.title || 'View Resource'}</h4>
                         <p className="text-xs text-slate-500 font-mono tracking-tighter truncate max-w-md">{data.url}</p>
                     </div>
                 </a>

@@ -159,13 +159,13 @@ export default function GenerationConsole({
             className="fixed inset-0 z-[200] bg-[#0a0a0f] text-slate-300 flex flex-col"
           >
             {/* Header */}
-            <div className="border-b border-slate-800 px-10 py-7 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-6">
-                <div className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg flex items-center justify-center">
+            <div style={{ padding: '32px 40px', gap: '24px' }} className="border-b border-slate-800 flex items-center justify-between flex-shrink-0">
+              <div style={{ gap: '16px' }} className="flex items-center">
+                <div style={{ padding: '10px 12px' }} className="bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg flex items-center justify-center">
                   <span className="text-white font-bold text-sm">AI</span>
                 </div>
                 <div>
-                  <h1 className="font-semibold text-white text-2xl">
+                  <h1 style={{ marginBottom: '4px' }} className="font-semibold text-white text-2xl">
                     AI Content Generator
                   </h1>
                   <p className="text-sm text-slate-500 font-mono">
@@ -175,7 +175,8 @@ export default function GenerationConsole({
               </div>
               <button
                 onClick={handleFinish}
-                className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all ${
+                style={{ padding: '12px 24px', gap: '8px' }}
+                className={`rounded-lg font-semibold flex items-center transition-all ${
                   isGenerating
                     ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
                     : 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:shadow-lg hover:shadow-cyan-500/25'
@@ -187,9 +188,9 @@ export default function GenerationConsole({
             </div>
 
             {/* Global Progress */}
-            <div className="border-b border-slate-800 px-10 py-6 flex-shrink-0">
+            <div style={{ padding: '32px 40px', marginBottom: '0' }} className="border-b border-slate-800 flex-shrink-0">
               <ProgressBar value={overallProgress} label="Overall Progress" />
-              <div className="flex items-center gap-8 text-sm text-slate-400 mt-5 font-mono">
+              <div style={{ gap: '16px', marginTop: '20px' }} className="flex items-center text-sm text-slate-400 font-mono">
                 <span>{completedLessons}/{totalItems} items generated</span>
                 <span>•</span>
                 <span>{overallProgress}% complete</span>
@@ -205,8 +206,8 @@ export default function GenerationConsole({
             {/* Main Content Area */}
             <div className="flex flex-1 overflow-hidden">
               {/* Left: Terminal Log (50%) */}
-              <div className="w-1/2 overflow-hidden flex flex-col px-10 py-8 border-r border-slate-800">
-                <div className="flex-1 overflow-y-auto mb-8 pr-2">
+              <div style={{ padding: '32px 40px' }} className="w-1/2 overflow-hidden flex flex-col border-r border-slate-800">
+                <div style={{ marginBottom: '32px' }} className="flex-1 overflow-y-auto pr-2">
                   <TerminalLog logs={logs} />
                 </div>
 
@@ -215,9 +216,10 @@ export default function GenerationConsole({
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="px-5 py-4 bg-slate-900/50 border border-slate-800 rounded-lg flex-shrink-0"
+                    style={{ padding: '16px 20px', gap: '12px' }}
+                    className="bg-slate-900/50 border border-slate-800 rounded-lg flex-shrink-0"
                   >
-                    <div className="flex items-center gap-3">
+                    <div style={{ gap: '12px' }} className="flex items-center">
                       <motion.div
                         animate={{ scale: [1, 1.2, 1] }}
                         transition={{ duration: 1.5, repeat: Infinity }}
@@ -234,8 +236,8 @@ export default function GenerationConsole({
               {/* Right: Lesson Preview (50%) */}
               <div className="w-1/2 border-l border-slate-800 overflow-hidden flex flex-col">
                 {/* Lesson Tabs */}
-                <div className="border-b border-slate-800 px-8 py-4 overflow-x-auto flex-shrink-0">
-                  <div className="flex gap-2">
+                <div style={{ padding: '24px 32px' }} className="border-b border-slate-800 overflow-x-auto flex-shrink-0">
+                  <div style={{ gap: '8px' }} className="flex">
                     {completedLessonsList.map((lesson) => {
                       const isLesson = lesson.type === 'lesson';
                       const isQuiz = lesson.type === 'quiz';
@@ -245,7 +247,8 @@ export default function GenerationConsole({
                         <button
                           key={lesson.id}
                           onClick={() => setSelectedLessonId(lesson.id)}
-                          className={`px-4 py-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center gap-2 border ${
+                          style={{ padding: '12px 16px', gap: '8px' }}
+                          className={`rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center border ${
                             isSelected
                               ? isLesson
                                 ? 'bg-blue-500/20 text-blue-300 border-blue-500/50'
@@ -266,22 +269,22 @@ export default function GenerationConsole({
                 </div>
 
                 {/* Content Area - Lessons or Quizzes */}
-                <div ref={lessonContentRef} className="flex-1 overflow-y-auto px-10 py-8">
+                <div ref={lessonContentRef} style={{ padding: '32px 40px' }} className="flex-1 overflow-y-auto">
                   {selectedLesson ? (
-                    <div className="space-y-6">
+                    <div style={{ gap: '24px' }} className="space-y-6">
                       <div>
-                        <h3 className="text-xs text-slate-500 uppercase tracking-widest mb-2 font-bold flex items-center gap-2">
+                        <h3 style={{ marginBottom: '8px', gap: '8px' }} className="text-xs text-slate-500 uppercase tracking-widest font-bold flex items-center">
                           {selectedLesson.moduleTitle}
                           {selectedLesson.type === 'quiz' && <span className="text-cyan-400 text-xs">QUIZ</span>}
                         </h3>
-                        <h2 className="text-3xl font-bold text-white mb-6">
+                        <h2 style={{ marginBottom: '24px' }} className="text-3xl font-bold text-white">
                           {selectedLesson.title}
                         </h2>
                       </div>
 
                       {/* Lesson Content */}
                       {selectedLesson.type === 'lesson' && (
-                      <div className="space-y-6 text-slate-300 text-base leading-relaxed">
+                      <div style={{ gap: '24px' }} className="space-y-6 text-slate-300 text-base leading-relaxed">
                         {selectedLesson.blocks?.map((block, idx) => {
                           // Only show blocks up to the revealed count
                           if (idx >= visibleBlockCount) return null;
@@ -303,7 +306,7 @@ export default function GenerationConsole({
                               )}
                               {block.type === 'code' && (
                                 <div className="rounded-lg overflow-hidden">
-                                  <div className="bg-slate-900 border border-slate-800 rounded-lg p-5">
+                                  <div style={{ padding: '16px 20px' }} className="bg-slate-900 border border-slate-800 rounded-lg">
                                     <pre className="overflow-x-auto text-sm font-mono">
                                       <code className="text-cyan-300">
                                         {block.data?.code || ''}
@@ -348,46 +351,48 @@ export default function GenerationConsole({
 
                       {/* Quiz Content */}
                       {selectedLesson.type === 'quiz' && (
-                      <div className="space-y-6">
+                      <div style={{ gap: '24px' }} className="space-y-6">
                         {selectedLesson.questions?.map((question, idx) => (
                           <motion.div
                             key={idx}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3, delay: idx * 0.1 }}
-                            className="bg-slate-900/50 border border-slate-800 rounded-xl p-6"
+                            style={{ padding: '20px 24px' }}
+                            className="bg-slate-900/50 border border-slate-800 rounded-xl"
                           >
                             {/* Question Number and Text */}
-                            <div className="mb-4">
+                            <div style={{ marginBottom: '16px' }}>
                               <span className="text-cyan-400 text-sm font-semibold">Question {idx + 1}</span>
-                              <p className="text-white font-semibold mt-2 text-lg">
+                              <p style={{ marginTop: '8px' }} className="text-white font-semibold text-lg">
                                 {question.question_text || question.question}
                               </p>
                             </div>
 
                             {/* Options */}
                             {question.options && question.options.length > 0 && (
-                              <div className="space-y-2 mb-4">
+                              <div style={{ gap: '8px', marginBottom: '16px' }} className="space-y-2">
                                 {question.options.map((option, optIdx) => {
                                   const expectedOutput = question.expected_output ?? question.answer;
                                   const isCorrect = String(optIdx) === String(expectedOutput) || option === expectedOutput;
                                   return (
                                     <div
                                       key={optIdx}
-                                      className={`p-3 rounded-lg border ${
+                                      style={{ padding: '14px 16px', marginBottom: '8px' }}
+                                      className={`rounded-lg border ${
                                         isCorrect
                                           ? 'bg-green-900/30 border-green-500/50 text-green-300'
                                           : 'bg-slate-800/50 border-slate-700 text-slate-300'
                                       }`}
                                     >
-                                      <div className="flex items-start gap-3">
+                                      <div style={{ gap: '12px' }} className="flex items-start">
                                         <span className={`font-bold mt-0.5 ${isCorrect ? 'text-green-400' : 'text-slate-400'}`}>
                                           {String.fromCharCode(65 + optIdx)}.
                                         </span>
                                         <div className="flex-1">
                                           <p>{option}</p>
                                           {isCorrect && (
-                                            <span className="text-xs text-green-400 font-semibold mt-1 block">✓ Correct Answer</span>
+                                            <span style={{ marginTop: '4px' }} className="text-xs text-green-400 font-semibold block">✓ Correct Answer</span>
                                           )}
                                         </div>
                                       </div>
@@ -399,8 +404,8 @@ export default function GenerationConsole({
 
                             {/* Short Answer / Identification */}
                             {(!question.options || question.options.length === 0) && (
-                              <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 mb-4">
-                                <p className="text-sm text-slate-400 mb-2">Expected Answer:</p>
+                              <div style={{ padding: '16px 20px', marginBottom: '16px' }} className="bg-slate-800/50 border border-slate-700 rounded-lg">
+                                <p style={{ marginBottom: '8px' }} className="text-sm text-slate-400">Expected Answer:</p>
                                 <p className="text-green-400 font-semibold">
                                   {question.expected_output || question.answer || 'N/A'}
                                 </p>
@@ -408,8 +413,8 @@ export default function GenerationConsole({
                             )}
 
                             {/* Points and Type */}
-                            <div className="flex items-center gap-3 text-xs text-slate-400 pt-3 border-t border-slate-800">
-                              <span className="bg-slate-800 px-2 py-1 rounded">
+                            <div style={{ gap: '12px', paddingTop: '12px', marginTop: '12px' }} className="flex items-center text-xs text-slate-400 border-t border-slate-800">
+                              <span style={{ padding: '6px 12px' }} className="bg-slate-800 rounded">
                                 {question.type || 'multiple_choice'}
                               </span>
                               <span>{question.points || 1} pts</span>

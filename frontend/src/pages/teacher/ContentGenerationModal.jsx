@@ -87,18 +87,19 @@ export default function ContentGenerationModal({
                 className="relative z-10 w-full max-w-4xl bg-[#030014] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
             >
                 {/* Header */}
-                <div className="p-8 border-b border-white/5">
-                    <div className="flex justify-between items-start mb-4">
+                <div style={{ padding: '50px 40px', marginBottom: '0' }} className="border-b border-white/5">
+                    <div style={{ marginBottom: '24px' }} className="flex justify-between items-start">
                         <div>
-                            <h2 className="text-2xl font-bold text-white flex items-center gap-2 mb-2">
+                            <h2 style={{ marginBottom: '8px' }} className="text-2xl font-bold text-white flex items-center gap-2">
                                 <Sparkles className="text-purple-400" /> Generated Content Review
                             </h2>
-                            <p className="text-sm text-slate-500">
+                            <p style={{ marginBottom: '0' }} className="text-sm text-slate-500">
                                 Review generated lessons, adjust quiz sizes, then generate questions
                             </p>
                         </div>
                         <button
                             onClick={onClose}
+                            style={{ padding: '8px 10px' }}
                             className="text-slate-500 hover:text-white transition-colors bg-transparent border-none cursor-pointer"
                         >
                             <X size={20} />
@@ -107,29 +108,29 @@ export default function ContentGenerationModal({
 
 
                     {/* Summary Stats */}
-                    <div className="flex gap-4 mt-6">
-                        <div className="flex-1 bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
-                            <div className="text-xs text-purple-400 font-bold uppercase tracking-wider mb-1">Lessons</div>
+                    <div style={{ marginTop: '32px', gap: '16px' }} className="flex">
+                        <div style={{ padding: '16px 20px' }} className="flex-1 bg-purple-500/10 border border-purple-500/30 rounded-xl">
+                            <div style={{ marginBottom: '8px' }} className="text-xs text-purple-400 font-bold uppercase tracking-wider">Lessons</div>
                             <div className="text-2xl font-black text-white">{counts.lessons}</div>
                         </div>
-                        <div className="flex-1 bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-4">
-                            <div className="text-xs text-cyan-400 font-bold uppercase tracking-wider mb-1">Quizzes</div>
+                        <div style={{ padding: '16px 20px' }} className="flex-1 bg-cyan-500/10 border border-cyan-500/30 rounded-xl">
+                            <div style={{ marginBottom: '8px' }} className="text-xs text-cyan-400 font-bold uppercase tracking-wider">Quizzes</div>
                             <div className="text-2xl font-black text-white">{counts.quizzes}</div>
                         </div>
-                        <div className="flex-1 bg-green-500/10 border border-green-500/30 rounded-xl p-4">
-                            <div className="text-xs text-green-400 font-bold uppercase tracking-wider mb-1">Total Questions</div>
+                        <div style={{ padding: '16px 20px' }} className="flex-1 bg-green-500/10 border border-green-500/30 rounded-xl">
+                            <div style={{ marginBottom: '8px' }} className="text-xs text-green-400 font-bold uppercase tracking-wider">Total Questions</div>
                             <div className="text-2xl font-black text-white">{counts.questions ?? 'AI decides'}</div>
                         </div>
                     </div>
                 </div>
 
                 {/* Content Area */}
-                <div className="flex-1 overflow-y-auto p-8 space-y-4">
+                <div style={{ padding: '40px', gap: '24px' }} className="flex-1 overflow-y-auto space-y-4">
                     {isGeneratingContent ? (
-                        <div className="space-y-6">
+                        <div style={{ gap: '24px' }} className="space-y-6">
                             {/* Animated Generation Progress */}
-                            <div className="bg-gradient-to-br from-purple-900/20 to-pink-900/20 border border-purple-500/30 rounded-2xl p-6">
-                                <div className="flex items-center gap-3 mb-6">
+                            <div style={{ padding: '24px 28px', marginBottom: '24px' }} className="bg-gradient-to-br from-purple-900/20 to-pink-900/20 border border-purple-500/30 rounded-2xl">
+                                <div style={{ marginBottom: '24px', gap: '12px' }} className="flex items-center">
                                     <div className="relative">
                                         <div className="w-3 h-3 rounded-full bg-purple-500 animate-ping absolute" />
                                         <div className="w-3 h-3 rounded-full bg-purple-500" />
@@ -138,20 +139,21 @@ export default function ContentGenerationModal({
                                 </div>
 
                                 {/* Real-time lesson generation feed */}
-                                <div className="space-y-3 max-h-96 overflow-y-auto">
+                                <div style={{ gap: '12px' }} className="space-y-3 max-h-96 overflow-y-auto">
                                     {generatedContent?.modules?.map((module, idx) => (
                                         <motion.div
                                             key={idx}
                                             initial={{ opacity: 0, x: -20 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             transition={{ delay: idx * 0.1 }}
-                                            className="bg-white/5 border border-purple-500/20 rounded-xl p-4"
+                                            style={{ padding: '16px 20px' }}
+                                            className="bg-white/5 border border-purple-500/20 rounded-xl"
                                         >
-                                            <div className="flex items-center gap-2 mb-3">
+                                            <div style={{ marginBottom: '12px', gap: '8px' }} className="flex items-center">
                                                 <Sparkles size={14} className="text-purple-400" />
                                                 <span className="font-bold text-white text-sm">{module.title}</span>
                                             </div>
-                                            <div className="pl-6 space-y-2">
+                                            <div style={{ paddingLeft: '24px', gap: '4px' }} className="space-y-2">
                                                 {/* Lessons */}
                                                 {module.lessons?.map((lesson, lessonIdx) => (
                                                     <motion.div
@@ -159,7 +161,8 @@ export default function ContentGenerationModal({
                                                         initial={{ opacity: 0, x: -10 }}
                                                         animate={{ opacity: 1, x: 0 }}
                                                         transition={{ delay: lessonIdx * 0.1 }}
-                                                        className={`text-xs flex items-center gap-2 ${lesson.generated ? 'text-green-400' : 'text-slate-500'}`}
+                                                        style={{ gap: '8px', marginBottom: '4px' }}
+                                                        className={`text-xs flex items-center ${lesson.generated ? 'text-green-400' : 'text-slate-500'}`}
                                                     >
                                                         {lesson.generated ? (
                                                             <>
@@ -184,7 +187,8 @@ export default function ContentGenerationModal({
                                                         initial={{ opacity: 0, x: -10 }}
                                                         animate={{ opacity: 1, x: 0 }}
                                                         transition={{ delay: (module.lessons?.length || 0) * 0.1 + quizIdx * 0.1 }}
-                                                        className={`text-xs flex items-center gap-2 ${quiz.generated ? 'text-cyan-400' : 'text-slate-500'}`}
+                                                        style={{ gap: '8px', marginBottom: '4px' }}
+                                                        className={`text-xs flex items-center ${quiz.generated ? 'text-cyan-400' : 'text-slate-500'}`}
                                                     >
                                                         {quiz.generated ? (
                                                             <>
@@ -209,13 +213,14 @@ export default function ContentGenerationModal({
                         </div>
                     ) : (
                         generatedContent?.modules?.map((module, moduleIdx) => (
-                            <div key={moduleIdx} className="bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden">
+                            <div key={moduleIdx} style={{ marginBottom: '24px' }} className="bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden">
                                 {/* Module Header */}
                                 <button
                                     onClick={() => toggleModule(moduleIdx)}
-                                    className="w-full px-6 py-4 flex items-center justify-between hover:bg-white/[0.02] transition-colors border-none bg-transparent cursor-pointer text-left"
+                                    style={{ padding: '16px 24px', gap: '12px' }}
+                                    className="w-full flex items-center justify-between hover:bg-white/[0.02] transition-colors border-none bg-transparent cursor-pointer text-left"
                                 >
-                                    <div className="flex items-center gap-3">
+                                    <div style={{ gap: '12px' }} className="flex items-center">
                                         {expandedModules.includes(moduleIdx) ? (
                                             <ChevronDown size={20} className="text-purple-400" />
                                         ) : (
@@ -223,7 +228,7 @@ export default function ContentGenerationModal({
                                         )}
                                         <span className="text-lg font-bold text-white">{module.title}</span>
                                     </div>
-                                    <div className="flex gap-4 text-xs text-slate-500">
+                                    <div style={{ gap: '16px' }} className="flex text-xs text-slate-500">
                                         <span>{module.lessons?.length || 0} lessons</span>
                                         <span>{module.quizzes?.length || 0} quizzes</span>
                                     </div>
@@ -238,16 +243,16 @@ export default function ContentGenerationModal({
                                             exit={{ height: 0, opacity: 0 }}
                                             className="border-t border-white/5"
                                         >
-                                            <div className="p-6 space-y-4">
+                                            <div style={{ padding: '24px', gap: '16px' }} className="space-y-4">
                                                 {/* Lessons */}
                                                 {module.lessons?.map((lesson, lessonIdx) => (
-                                                    <div key={lessonIdx} className="flex items-start justify-between p-4 bg-white/[0.02] rounded-xl border border-white/5 group hover:border-purple-500/30 transition-colors">
+                                                    <div key={lessonIdx} style={{ padding: '16px 20px', gap: '12px', marginBottom: '12px' }} className="flex items-start justify-between bg-white/[0.02] rounded-xl border border-white/5 group hover:border-purple-500/30 transition-colors">
                                                         <div className="flex-1">
-                                                            <div className="flex items-center gap-2 mb-2">
+                                                            <div style={{ marginBottom: '8px', gap: '8px' }} className="flex items-center">
                                                                 <FileText size={16} className="text-purple-400" />
                                                                 <span className="font-semibold text-white">{lesson.title}</span>
                                                             </div>
-                                                            <div className="text-xs text-slate-500 space-x-3">
+                                                            <div style={{ gap: '12px', marginBottom: '0' }} className="text-xs text-slate-500 space-x-3">
                                                                 <span>{lesson.blockCount || 0} blocks</span>
                                                                 {lesson.codeCount > 0 && <span>{lesson.codeCount} code examples</span>}
                                                                 {lesson.hasImage && <span>• 1 image</span>}
@@ -256,7 +261,8 @@ export default function ContentGenerationModal({
                                                         </div>
                                                         <button
                                                             onClick={() => setDeleteConfirm({ type: 'lesson', id: lesson.id, title: lesson.title })}
-                                                            className="opacity-0 group-hover:opacity-100 p-2 text-slate-500 hover:text-red-400 transition-all bg-transparent border-none cursor-pointer"
+                                                            style={{ padding: '8px 10px' }}
+                                                            className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-all bg-transparent border-none cursor-pointer"
                                                         >
                                                             <Trash2 size={16} />
                                                         </button>
@@ -265,19 +271,20 @@ export default function ContentGenerationModal({
 
                                                 {/* Quizzes */}
                                                 {module.quizzes?.map((quiz, quizIdx) => (
-                                                    <div key={quizIdx} className="flex items-start justify-between p-4 bg-cyan-500/5 rounded-xl border border-cyan-500/20 group hover:border-cyan-500/40 transition-colors">
+                                                    <div key={quizIdx} style={{ padding: '16px 20px', gap: '12px', marginBottom: '12px' }} className="flex items-start justify-between bg-cyan-500/5 rounded-xl border border-cyan-500/20 group hover:border-cyan-500/40 transition-colors">
                                                         <div className="flex-1">
-                                                            <div className="flex items-center gap-2 mb-3">
+                                                            <div style={{ marginBottom: '12px', gap: '8px' }} className="flex items-center">
                                                                 <HelpCircle size={16} className="text-cyan-400" />
                                                                 <span className="font-semibold text-white">{quiz.title}</span>
                                                             </div>
-                                                            <div className="flex items-center gap-3">
+                                                            <div style={{ gap: '12px', marginBottom: '0' }} className="flex items-center">
                                                                 <span className="text-xs text-slate-500 italic">AI determines question count</span>
                                                             </div>
                                                         </div>
                                                         <button
                                                             onClick={() => setDeleteConfirm({ type: 'quiz', id: quiz.id, title: quiz.title })}
-                                                            className="opacity-0 group-hover:opacity-100 p-2 text-slate-500 hover:text-red-400 transition-all bg-transparent border-none cursor-pointer"
+                                                            style={{ padding: '8px 10px' }}
+                                                            className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-all bg-transparent border-none cursor-pointer"
                                                         >
                                                             <Trash2 size={16} />
                                                         </button>
@@ -293,17 +300,19 @@ export default function ContentGenerationModal({
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-white/5 flex justify-between items-center">
+                <div style={{ padding: '40px', gap: '16px' }} className="border-t border-white/5 flex justify-between items-center">
                     <button
                         onClick={onClose}
-                        className="px-6 py-3 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl text-sm font-bold uppercase tracking-wider transition-all border-none cursor-pointer"
+                        style={{ padding: '14px 24px' }}
+                        className="bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl text-sm font-bold uppercase tracking-wider transition-all border-none cursor-pointer"
                     >
                         Discard All
                     </button>
                     <button
                         onClick={() => onGenerateQuizzes(editingQuizzes)}
                         disabled={isGeneratingContent}
-                        className="px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-black rounded-xl text-sm font-black uppercase tracking-wider transition-all border-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        style={{ padding: '14px 24px', gap: '8px' }}
+                        className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-black rounded-xl text-sm font-black uppercase tracking-wider transition-all border-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                     >
                         <Sparkles size={16} />
                         Generate Quizzes & Save
@@ -326,26 +335,29 @@ export default function ContentGenerationModal({
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
-                            className="relative z-10 w-full max-w-md bg-[#030014] border border-red-500/30 rounded-2xl p-8"
+                            style={{ padding: '40px 32px' }}
+                            className="relative z-10 w-full max-w-md bg-[#030014] border border-red-500/30 rounded-2xl"
                         >
-                            <div className="flex items-center gap-3 mb-4">
+                            <div style={{ marginBottom: '16px', gap: '12px' }} className="flex items-center">
                                 <AlertTriangle size={24} className="text-red-400" />
                                 <h3 className="text-xl font-bold text-white">Delete {deleteConfirm.type === 'lesson' ? 'Lesson' : 'Quiz'}?</h3>
                             </div>
-                            <p className="text-slate-400 mb-2">"{deleteConfirm.title}"</p>
-                            <p className="text-sm text-slate-500 mb-6">
+                            <p style={{ marginBottom: '8px' }} className="text-slate-400">"{deleteConfirm.title}"</p>
+                            <p style={{ marginBottom: '24px' }} className="text-sm text-slate-500">
                                 This will permanently remove the generated content. This action cannot be undone.
                             </p>
-                            <div className="flex gap-3">
+                            <div style={{ gap: '12px' }} className="flex">
                                 <button
                                     onClick={() => setDeleteConfirm(null)}
-                                    className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold text-sm transition-all border-none cursor-pointer"
+                                    style={{ padding: '12px 18px' }}
+                                    className="flex-1 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold text-sm transition-all border-none cursor-pointer"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={handleDelete}
-                                    className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold text-sm transition-all border-none cursor-pointer"
+                                    style={{ padding: '12px 18px' }}
+                                    className="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold text-sm transition-all border-none cursor-pointer"
                                 >
                                     Delete Forever
                                 </button>

@@ -132,46 +132,48 @@ useEffect(() => {
         <div className="flex h-screen bg-[#02010a] text-white overflow-hidden student-theme">
             {/* LEFT: PERSISTENT TIMELINE */}
             <aside className={`fixed lg:relative z-50 w-80 h-full flex flex-col border-r border-white/5 bg-[#05011d]/95 backdrop-blur-2xl transition-transform duration-300 ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-                <div className="p-6 border-b border-white/5 bg-[#05011d]/50">
-                    <Link 
-                        to={`/dashboard/student/class/${course.class_id}`} // FIX: Returns to specific class
-                        className="flex items-center gap-2 text-slate-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest no-underline mb-6"
+                <div style={{ padding: '24px 28px', paddingBottom: '20px' }} className="border-b border-white/5 bg-[#05011d]/50">
+                    <Link
+                        to={`/dashboard/student/class/${course.class_id}`}
+                        style={{ gap: '8px', marginBottom: '16px' }}
+                        className="flex items-center text-slate-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest no-underline"
                     >
                         <ChevronLeft size={14} /> Exit Course
                     </Link>
-                    <h2 className="font-bold text-lg leading-tight mb-4 line-clamp-2">{course.title}</h2>
-                    
-                    <div className="space-y-2">
+                    <h2 style={{ marginBottom: '16px' }} className="font-bold text-lg leading-tight line-clamp-2">{course.title}</h2>
+
+                    <div style={{ gap: '12px' }} className="flex flex-col">
                         <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-cyan-500">
                             <span>Your Progress</span>
                             <span>{stats}%</span>
                         </div>
                         <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                            <motion.div 
+                            <motion.div
                                 initial={{ width: 0 }} animate={{ width: `${stats}%` }}
-                                className="h-full bg-gradient-to-r from-cyan-600 to-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.3)]" 
+                                className="h-full bg-gradient-to-r from-cyan-600 to-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.3)]"
                             />
                         </div>
                     </div>
                 </div>
 
-                <div className="flex-grow overflow-y-auto p-4 pb-12 space-y-8 custom-scrollbar">
+                <div style={{ gap: '24px' }} className="flex-grow overflow-y-auto p-6 pb-12 flex flex-col custom-scrollbar">
                     {course.modules.map(module => (
                         <div key={module.id}>
-                            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 mb-4 px-3">{module.title}</h3>
-                            <div className="space-y-1">
+                            <h3 style={{ marginBottom: '12px' }} className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 px-2">{module.title}</h3>
+                            <div style={{ gap: '4px' }} className="flex flex-col">
                                 {getTimeline(module).map(item => {
                                     const timelineItem = flattenedTimeline.find(t => t.id === item.id && t.itemType === item.itemType);
                                     const isLocked = timelineItem?.isLocked;
                                     const isDone = item.itemType === 'lesson' ? progress.lessons.includes(item.id) : progress.quizzes.includes(item.id);
                                     const isActive = String(itemId) === String(item.id) && itemType === item.itemType;
-                                    
+
                                     return (
-                                        <button 
+                                        <button
                                             key={`${item.itemType}-${item.id}`}
                                             disabled={isLocked}
                                             onClick={() => { navigate(`/dashboard/student/course/${courseId}/${item.itemType}/${item.id}`); setShowMobileSidebar(false); }}
-                                            className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all border-none text-left cursor-pointer group
+                                            style={{ padding: '12px 14px', gap: '12px' }}
+                                            className={`w-full flex items-center rounded-xl transition-all border-none text-left cursor-pointer group
                                                 ${isActive ? 'bg-cyan-500/10 text-cyan-400' : isLocked ? 'opacity-30' : 'text-slate-400 hover:bg-white/5'}`}
                                         >
                                             <div className="flex-shrink-0">
@@ -192,12 +194,12 @@ useEffect(() => {
             {/* RIGHT: CONTENT AREA */}
             <main className="flex-grow flex flex-col relative bg-[#02010a]">
                 {/* Mobile Header Toggle */}
-                <div className="lg:hidden p-4 border-b border-white/5 flex items-center gap-4 bg-[#05011d]">
-                    <button onClick={() => setShowMobileSidebar(true)} className="p-2 text-cyan-500 bg-transparent border-none"><Menu /></button>
+                <div style={{ padding: '16px 20px', gap: '12px' }} className="lg:hidden border-b border-white/5 flex items-center bg-[#05011d]">
+                    <button style={{ padding: '10px 12px' }} onClick={() => setShowMobileSidebar(true)} className="text-cyan-500 bg-transparent border-none rounded-lg hover:bg-white/5 transition-all"><Menu /></button>
                     <span className="text-xs font-bold text-slate-400 truncate">{itemType === 'lesson' ? 'Lesson' : 'Quiz'}</span>
                 </div>
 
-                <div className="flex-grow overflow-y-auto custom-scrollbar pt-12 md:pt-16 px-6 md:px-20 pb-48">
+                <div style={{ padding: '32px 24px 180px', gap: '24px' }} className="flex-grow overflow-y-auto custom-scrollbar md:px-20 flex flex-col">
                     <div className="max-w-4xl mx-auto">
                         <AnimatePresence mode="wait">
                             <motion.div 
@@ -233,24 +235,26 @@ useEffect(() => {
                 </div>
 
                 {/* NAVIGATION FOOTER */}
-                <footer className="fixed bottom-0 right-0 left-0 lg:left-80 p-6 bg-[#02010a]/80 backdrop-blur-xl border-t border-white/5 flex justify-between items-center z-40">
-                    <button 
+                <footer style={{ padding: '20px 28px', gap: '24px' }} className="fixed bottom-0 right-0 left-0 lg:left-80 bg-[#02010a]/80 backdrop-blur-xl border-t border-white/5 flex justify-between items-center z-40">
+                    <button
                         onClick={() => navigate(-1)}
-                        className="flex items-center gap-2 text-slate-500 font-bold text-[10px] uppercase tracking-widest hover:text-white transition-all bg-transparent border-none cursor-pointer"
+                        style={{ gap: '8px' }}
+                        className="flex items-center text-slate-500 font-bold text-[10px] uppercase tracking-widest hover:text-white transition-all bg-transparent border-none cursor-pointer"
                     >
                         <ArrowLeft size={16} /> Back
                     </button>
-                    
-                    <button 
+
+                    <button
                         disabled={!canProceed || isNavigating}
                         onClick={handleNext}
-                        className={`px-10 py-4 font-black rounded-2xl text-[10px] uppercase tracking-[0.2em] shadow-lg transition-all border-none flex items-center gap-3
-                            ${canProceed && !isNavigating 
-                                ? 'bg-cyan-500 text-[#02010a] shadow-cyan-500/20 cursor-pointer hover:scale-105 active:scale-95' 
+                        style={{ padding: '14px 28px', gap: '12px' }}
+                        className={`font-black rounded-2xl text-[10px] uppercase tracking-[0.2em] shadow-lg transition-all border-none flex items-center
+                            ${canProceed && !isNavigating
+                                ? 'bg-cyan-500 text-[#02010a] shadow-cyan-500/20 cursor-pointer hover:scale-105 active:scale-95'
                                 : 'bg-white/5 text-slate-600 cursor-not-allowed'
                             }`}
                     >
-                        {isNavigating ? <Loader2 className="animate-spin" size={16}/> : 
+                        {isNavigating ? <Loader2 className="animate-spin" size={16}/> :
                          canProceed ? (
                              <>Next Chapter <ArrowRight size={16} /></>
                          ) : (
