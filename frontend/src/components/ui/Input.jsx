@@ -14,9 +14,10 @@ export default function Input({ icon: Icon, label, ...props }) {
         )}
         <input
           {...props}
-          className={`w-full bg-white/[0.03] border border-white/10 rounded-xl py-3.5 ${
+          className={`w-full bg-white/[0.03] border border-white/10 rounded-xl ${
             Icon ? "pl-12" : "pl-4"
           } pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500/50 focus:bg-white/[0.06] transition-all duration-300 shadow-inner`}
+          style={{ padding: '12px 16px', paddingLeft: Icon ? '48px' : '16px' }}
         />
       </div>
     </div>

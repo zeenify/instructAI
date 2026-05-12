@@ -90,49 +90,59 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
         }
     };
 
+    const getModeColor = () => {
+        if (isCorrect) return { bg: 'rgba(16, 185, 129, 0.1)', border: '#10b981', text: '#10b981' };
+        if (isWrong) return { bg: 'rgba(239, 68, 68, 0.1)', border: '#ef4444', text: '#ef4444' };
+        if (mode === 'challenge') return { bg: 'rgba(34, 211, 238, 0.08)', border: '#22d3ee', text: '#22d3ee' };
+        return { bg: 'rgba(168, 85, 247, 0.08)', border: '#a855f7', text: '#a855f7' };
+    };
+
+    const colors = getModeColor();
+
     return (
-        <motion.div 
+        <motion.div
             animate={isWrong ? { x: [-4, 4, -4, 4, 0] } : {}}
             transition={{ duration: 0.4 }}
-            className={`my-8 rounded-[32px] border overflow-hidden transition-all duration-500 
-                ${isCorrect ? 'border-emerald-500 shadow-[0_0_40px_rgba(16,185,129,0.1)]' : 
-                    isWrong ? 'border-red-500 shadow-[0_0_40px_rgba(239,68,68,0.15)]' : 
-                    'border-white/10 bg-[#010101]'}`}
+            style={{
+                margin: '32px 0',
+                borderRadius: '24px',
+                border: `1.5px solid ${colors.border}`,
+                overflow: 'hidden',
+                background: 'rgba(5, 1, 29, 0.5)',
+                boxShadow: `0 0 30px ${colors.border}20`,
+                transition: 'all 0.5s ease'
+            }}
         >
             {/* Header */}
-            <div className="px-6 py-4 bg-white/5 border-b border-white/5 flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg transition-colors duration-500 ${
-                        isCorrect ? 'bg-emerald-500/20 text-emerald-400' : 
-                        isWrong ? 'bg-red-500/20 text-red-400' : 
-                        mode === 'challenge' ? 'bg-cyan-500/10 text-cyan-400' : 'bg-purple-500/10 text-purple-400'
-                    }`}>
+            <div style={{ padding: '20px 24px', background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ padding: '8px 10px', borderRadius: '10px', background: `${colors.bg}`, color: colors.text, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.5s' }}>
                         <Play size={14} />
                     </div>
-                    <span className={`text-[10px] font-black uppercase tracking-widest transition-colors duration-500 ${isWrong ? 'text-red-400' : ''}`}>
-                        {isWrong ? 'Logic Error' : `${mode} Mode`}
+                    <span style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: colors.text, transition: 'all 0.5s' }}>
+                        {isWrong ? 'Logic Error' : `${mode.toUpperCase()} Mode`}
                     </span>
                 </div>
-                
+
                 <AnimatePresence mode="wait">
                     {isCorrect ? (
-                        <motion.div key="success" initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-2 text-emerald-500 font-bold text-[10px] uppercase tracking-widest">
+                        <motion.div key="success" initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                             <CheckCircle size={14} /> Challenge Solved
                         </motion.div>
                     ) : isWrong ? (
-                        <motion.div key="error" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="flex items-center gap-2 text-red-500 font-bold text-[10px] uppercase tracking-widest">
+                        <motion.div key="error" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                             <AlertCircle size={14} /> Incorrect Output
                         </motion.div>
                     ) : null}
                 </AnimatePresence>
             </div>
 
-            {/* Editor Area */}
-            <div className="grid grid-cols-1 lg:grid-cols-2">
-                <div className="border-r border-white/5">
+            {/* Editor & Terminal Area */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', minHeight: '400px' }}>
+                <div style={{ borderRight: '1px solid rgba(255, 255, 255, 0.05)' }}>
                     <CodeMirror
                         value={code}
-                        height="350px"
+                        height="400px"
                         theme="dark"
                         extensions={[java()]}
                         onChange={(value) => setCode(value)}
@@ -141,45 +151,73 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                 </div>
 
                 {/* Terminal Area */}
-                <div className="bg-black p-6 font-mono text-xs flex flex-col h-full min-h-[350px]">
-                    <div className="flex justify-between items-center mb-4 text-slate-600 uppercase tracking-widest font-bold">
+                <div style={{ background: 'rgba(0, 0, 0, 0.3)', padding: '20px', fontFamily: 'Courier New, monospace', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '12px', minHeight: '400px', overflowY: 'auto' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', paddingBottom: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
                         <span>Console Output</span>
-                        {isRunning && <Loader2 size={12} className="animate-spin text-cyan-500" />}
-                    </div>
-                    
-                    <div className={`flex-grow overflow-y-auto text-sm transition-colors duration-500 ${isWrong ? 'text-red-400' : 'text-slate-300'} whitespace-pre-wrap`}>
-                        {output || "> Ready to execute..."}
+                        {isRunning && <Loader2 size={12} className="animate-spin" style={{ color: '#22d3ee' }} />}
                     </div>
 
-                    {/* Comparison UI (Show only on wrong challenge) */}
-                    {mode === 'challenge' && isWrong && (
-                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-4 pt-4 border-t border-white/10">
-                            <p className="text-[10px] text-cyan-500 font-bold uppercase mb-2">Required Output:</p>
-                            <div className="bg-cyan-500/5 border border-cyan-500/20 p-3 rounded-xl text-cyan-200">
-                                {block.data.expected}
-                            </div>
-                        </motion.div>
-                    )}
+                    <div style={{ flex: 1, overflowY: 'auto', fontSize: '13px', color: isWrong ? '#ef4444' : '#cbd5e1', whiteSpace: 'pre-wrap', wordBreak: 'break-word', transition: 'color 0.5s' }}>
+                        {output || "> Ready to execute..."}
+                    </div>
                 </div>
             </div>
 
+            {/* Expected Output - Separate section below */}
+            {mode === 'challenge' && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ padding: '20px 24px', borderTop: '1px solid rgba(34, 211, 238, 0.2)', background: 'rgba(34, 211, 238, 0.02)' }}>
+                    <p style={{ fontSize: '10px', color: '#22d3ee', fontWeight: 900, textTransform: 'uppercase', marginBottom: '12px', margin: '0 0 12px 0' }}>Expected Output:</p>
+                    <div style={{ background: 'rgba(34, 211, 238, 0.08)', border: '1px solid rgba(34, 211, 238, 0.2)', padding: '16px', borderRadius: '12px', color: '#a5f3fc', fontSize: '13px', fontFamily: 'Courier New, monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        {block.data.expected}
+                    </div>
+                </motion.div>
+            )}
+
             {/* Footer Actions */}
-            <div className="p-4 bg-white/5 border-t border-white/5 flex justify-between items-center">
-                <button 
-                    onClick={() => setCode(initialCode)} 
-                    className="p-3 text-slate-500 hover:text-white transition-all bg-transparent border-none cursor-pointer rounded-xl hover:bg-white/5"
+            <div style={{ padding: '16px 24px', background: 'rgba(255, 255, 255, 0.02)', borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                <button
+                    onClick={() => setCode(initialCode)}
+                    style={{ padding: '10px 12px', background: 'transparent', border: 'none', borderRadius: '10px', color: '#64748b', cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    onMouseEnter={(e) => { e.currentTarget.background = 'rgba(255, 255, 255, 0.05)'; e.currentTarget.color = 'white'; }}
+                    onMouseLeave={(e) => { e.currentTarget.background = 'transparent'; e.currentTarget.color = '#64748b'; }}
                     title="Reset Code"
                 >
                     <RefreshCw size={18} />
                 </button>
-                
-                <button 
+
+                <button
                     disabled={isRunning || isCorrect}
                     onClick={handleRun}
-                    className={`px-10 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all border-none cursor-pointer flex items-center gap-3 
-                        ${isCorrect ? 'bg-emerald-500/20 text-emerald-500 cursor-default' : 
-                            mode === 'challenge' ? 'bg-cyan-500 text-black hover:scale-105 shadow-lg shadow-cyan-500/20' : 
-                            'bg-purple-600 text-white hover:scale-105 shadow-lg shadow-purple-500/20'}`}
+                    style={{
+                        padding: '12px 28px',
+                        borderRadius: '14px',
+                        fontWeight: 900,
+                        fontSize: '10px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.2em',
+                        border: 'none',
+                        cursor: isRunning || isCorrect ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        transition: 'all 0.3s',
+                        background: isCorrect ? 'rgba(16, 185, 129, 0.15)' : colors.bg,
+                        color: isCorrect ? '#10b981' : colors.text,
+                        boxShadow: isCorrect ? 'none' : `0 10px 30px ${colors.text}20`,
+                        opacity: isCorrect ? 0.7 : 1
+                    }}
+                    onMouseEnter={(e) => {
+                        if (!isRunning && !isCorrect) {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = `0 15px 40px ${colors.text}30`;
+                        }
+                    }}
+                    onMouseLeave={(e) => {
+                        if (!isRunning && !isCorrect) {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = `0 10px 30px ${colors.text}20`;
+                        }
+                    }}
                 >
                     {isRunning ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />}
                     {isCorrect ? 'Completed' : (mode === 'challenge' ? 'Verify Logic' : 'Run Program')}

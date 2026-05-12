@@ -90,12 +90,23 @@ public function showCourse(Request $request, $id)
 
     $studentId = $request->user()->id;
 
-    // 4. Fetch completions (Using namespaced models to be safe)
-    $doneLessons = \App\Models\LessonCompletion::where('student_id', $studentId)->pluck('lesson_id')->toArray();
-    
-    // We check for successful attempts (Passing score)
+    // 4. Fetch completions (Only from THIS course's modules)
+    $doneLessons = \App\Models\LessonCompletion::where('student_id', $studentId)
+        ->whereIn('lesson_id', function($q) use ($course) {
+            $q->select('id')->from('lessons')->whereIn('module_id', function($sq) use ($course) {
+                $sq->select('id')->from('modules')->where('course_id', $course->id);
+            });
+        })
+        ->pluck('lesson_id')->toArray();
+
+    // We check for successful attempts (Passing score) - Only from THIS course's modules
     $doneQuizzes = \App\Models\QuizAttempt::where('student_id', $studentId)
         ->where('status', 'completed')
+        ->whereIn('quiz_id', function($q) use ($course) {
+            $q->select('id')->from('quizzes')->whereIn('module_id', function($sq) use ($course) {
+                $sq->select('id')->from('modules')->where('course_id', $course->id);
+            });
+        })
         ->whereExists(function ($query) {
             $query->select(DB::raw(1))
                   ->from('quizzes')

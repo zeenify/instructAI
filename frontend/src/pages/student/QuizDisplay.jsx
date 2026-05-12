@@ -136,22 +136,63 @@ try {
     if (loading) return <QuizSkeleton />;
 
     if (submitting) return (
-        <div className="flex flex-col items-center justify-center py-40 space-y-8 animate-in fade-in zoom-in-95">
-            <div className="relative w-32 h-32 flex items-center justify-center">
-                <Cpu className="text-cyan-500 absolute animate-pulse" size={56} />
-                <div className="absolute inset-0 border-4 border-cyan-500/10 border-t-cyan-500 rounded-full animate-spin" />
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', gap: '48px', padding: '40px 24px' }}>
+            <style>{`
+                @keyframes spin-smooth {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                @keyframes pulse-glow {
+                    0%, 100% { box-shadow: 0 0 30px rgba(34, 211, 238, 0.3), 0 0 60px rgba(34, 211, 238, 0.1); }
+                    50% { box-shadow: 0 0 50px rgba(34, 211, 238, 0.5), 0 0 80px rgba(34, 211, 238, 0.2); }
+                }
+                .grade-spinner {
+                    animation: spin-smooth 2s linear infinite;
+                }
+                .grade-glow {
+                    animation: pulse-glow 2s ease-in-out infinite;
+                }
+            `}</style>
+
+            {/* ICON CONTAINER */}
+            <div style={{ position: 'relative', width: '100px', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="grade-spinner" style={{ position: 'absolute', width: '100px', height: '100px', borderRadius: '50%', border: '3px solid rgba(34, 211, 238, 0.1)', borderTopColor: '#22d3ee', borderRightColor: '#22d3ee' }} />
+                <div className="grade-glow" style={{ position: 'absolute', width: '100px', height: '100px', borderRadius: '50%', background: 'rgba(34, 211, 238, 0.05)', backdropFilter: 'blur(10px)' }} />
+                <Cpu style={{ color: '#22d3ee', position: 'relative', zIndex: 10 }} size={56} />
             </div>
-            <div className="text-center space-y-4">
-                <h2 className="text-2xl font-black uppercase tracking-[0.4em] text-white">Grading Protocol</h2>
-                <div className="w-72 h-2 bg-white/5 rounded-full overflow-hidden border border-white/10 mx-auto">
-                    <motion.div className="h-full bg-cyan-500 shadow-[0_0_20px_#22d3ee]" initial={{ width: 0 }} animate={{ width: `${gradingProgress}%` }} />
+
+            {/* TEXT & PROGRESS */}
+            <div style={{ textAlign: 'center', gap: '32px', display: 'flex', flexDirection: 'column', maxWidth: '500px' }}>
+                <div style={{ gap: '12px', display: 'flex', flexDirection: 'column' }}>
+                    <h2 style={{ fontSize: '32px', fontWeight: 900, color: 'white', margin: '0', textTransform: 'uppercase', letterSpacing: '-0.02em' }}>Evaluating Responses</h2>
+                    <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0', fontWeight: 600 }}>Processing your answers...</p>
+                </div>
+
+                {/* PROGRESS BAR */}
+                <div style={{ gap: '16px', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ height: '8px', width: '100%', background: 'rgba(34, 211, 238, 0.08)', borderRadius: '999px', overflow: 'hidden', border: '1px solid rgba(34, 211, 238, 0.15)', boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)' }}>
+                        <motion.div
+                            className="h-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${gradingProgress}%` }}
+                            transition={{ duration: 0.3, ease: 'easeOut' }}
+                            style={{
+                                background: 'linear-gradient(90deg, #22d3ee, #06b6d4)',
+                                boxShadow: '0 0 20px rgba(34, 211, 238, 0.4)'
+                            }}
+                        />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Progress</span>
+                        <span style={{ fontSize: '13px', color: '#22d3ee', fontWeight: 900, fontFamily: 'monospace' }}>{Math.round(gradingProgress)}%</span>
+                    </div>
                 </div>
             </div>
         </div>
     );
 
     if (result) return (
-        <div style={{ gap: '32px' }} className="max-w-4xl mx-auto flex flex-col animate-in fade-in duration-700 pb-32">
+        <div style={{ gap: '32px', maxWidth: '1300px', margin: '0 auto', width: '100%' }} className="flex flex-col animate-in fade-in duration-700 pb-32">
             <div style={{ padding: '50px 40px', textAlign: 'center' }} className="bg-[#050505] border border-white/5 rounded-[50px] shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-20" />
                 <div style={{ marginBottom: '24px' }}>
@@ -170,82 +211,207 @@ try {
                     <span className="text-2xl font-mono font-black text-cyan-400">{result.score} / {result.max_score}</span>
                 </div>
                 <div style={{ marginTop: '24px', gap: '12px' }} className="flex justify-center">
-                    <button onClick={handleRestart} style={{ padding: '14px 24px', gap: '8px' }} className="bg-white/5 hover:bg-white/10 rounded-2xl text-white text-[10px] font-black uppercase tracking-widest transition-all flex items-center border-none cursor-pointer">
-                        <RotateCcw size={16} /> Return to Hub
+                    <button onClick={handleRestart} disabled={result.score >= quizData.passing_score} style={{ padding: '14px 24px', gap: '8px', opacity: result.score >= quizData.passing_score ? 0.5 : 1, cursor: result.score >= quizData.passing_score ? 'not-allowed' : 'pointer' }} className="bg-white/5 hover:bg-white/10 rounded-2xl text-white text-[10px] font-black uppercase tracking-widest transition-all flex items-center border-none">
+                        <RotateCcw size={16} /> {result.score >= quizData.passing_score ? 'Quiz Completed' : 'Return to Hub'}
                     </button>
                 </div>
             </div>
 
             <div style={{ gap: '16px' }} className="flex flex-col">
                 <h3 style={{ paddingLeft: '12px' }} className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-600">Curriculum Feedback</h3>
-                {result.details?.map((detail, i) => (
-                    <div key={i} style={{ padding: '24px 28px' }} className={`rounded-[32px] border transition-all ${detail.is_correct ? 'bg-emerald-500/[0.02] border-emerald-500/10' : 'bg-red-500/[0.02] border-red-500/10'}`}>
-                        <div style={{ gap: '24px', justifyContent: 'space-between' }} className="flex items-start">
-                            <div style={{ gap: '16px' }} className="flex">
-                                <span style={{ padding: '8px 10px' }} className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black border flex-shrink-0 ${detail.is_correct ? 'border-emerald-500/20 text-emerald-500' : 'border-red-500/20 text-red-500'}`}>{i + 1}</span>
-                                <div style={{ gap: '12px' }} className="flex flex-col">
-                                    <p className="text-lg font-bold text-white leading-snug">{detail.question_text}</p>
-                                    {!detail.is_correct && (
-                                        <div style={{ paddingTop: '12px', gap: '8px' }} className="flex flex-col">
-                                            <p className="text-[9px] font-black uppercase text-slate-500">Expected Reference:</p>
-                                            <div style={{ padding: '12px 16px' }} className="bg-black/40 rounded-xl border border-white/5 font-mono text-xs text-slate-400">{detail.correct_answer}</div>
+                {result.details?.map((detail, i) => {
+                    const studentAnswer = answers[detail.question_id];
+                    const hasAnswered = studentAnswer !== null && studentAnswer !== undefined && (Array.isArray(studentAnswer) ? studentAnswer.some(a => a) : studentAnswer !== '');
+
+                    // Parse enumeration/list answers into arrays
+                    const studentAnswerArray = detail.type === 'enumeration'
+                        ? (Array.isArray(studentAnswer) ? studentAnswer.filter(a => a) : [])
+                        : null;
+
+                    let correctAnswerArray = null;
+                    if (detail.type === 'enumeration') {
+                        try {
+                            // correct_answer is a JSON string array
+                            correctAnswerArray = JSON.parse(detail.correct_answer);
+                        } catch (e) {
+                            // Fallback if not valid JSON
+                            correctAnswerArray = detail.correct_answer.split(',').map(a => a.trim()).filter(a => a);
+                        }
+                    }
+
+                    // Convert index to letter for multiple choice
+                    const indexToLetter = (idx) => String.fromCharCode(65 + parseInt(idx));
+
+                    return (
+                        <div key={i} style={{ padding: '28px 32px' }} className={`rounded-[32px] border transition-all ${detail.is_correct ? 'bg-emerald-500/[0.05] border-emerald-500/20' : 'bg-red-500/[0.05] border-red-500/20'}`}>
+                            <div style={{ gap: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <div style={{ gap: '16px', display: 'flex', flex: 1 }}>
+                                    <span style={{ padding: '10px 12px', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 900, border: `1.5px solid ${detail.is_correct ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`, color: detail.is_correct ? '#10b981' : '#ef4444', background: detail.is_correct ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', flexShrink: 0 }}>{i + 1}</span>
+                                    <div style={{ gap: '16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                                        <p style={{ fontSize: '16px', fontWeight: 700, color: 'white', margin: '0', lineHeight: '1.5' }}>{detail.question_text}</p>
+
+                                        {/* STUDENT ANSWER */}
+                                        <div style={{ gap: '8px', display: 'flex', flexDirection: 'column', paddingTop: '8px' }}>
+                                            <p style={{ fontSize: '11px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0' }}>Your Answer:</p>
+                                            {!hasAnswered ? (
+                                                <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.08)', borderRadius: '12px', border: '1px dashed rgba(239, 68, 68, 0.3)', fontSize: '13px', color: '#ef4444', fontWeight: 600, fontStyle: 'italic' }}>
+                                                    Not answered
+                                                </div>
+                                            ) : studentAnswerArray ? (
+                                                <div style={{ gap: '8px', display: 'flex', flexDirection: 'column' }}>
+                                                    {studentAnswerArray.map((ans, idx) => (
+                                                        <div key={idx} style={{ padding: '10px 14px', background: 'rgba(34, 211, 238, 0.08)', borderRadius: '10px', border: '1px solid rgba(34, 211, 238, 0.15)', fontFamily: 'monospace', fontSize: '13px', color: '#22d3ee' }}>
+                                                            {ans}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : detail.type === 'multiple_choice' ? (
+                                                <div style={{ padding: '12px 16px', background: 'rgba(34, 211, 238, 0.08)', borderRadius: '12px', border: '1px solid rgba(34, 211, 238, 0.15)', fontSize: '13px', color: '#22d3ee' }}>
+                                                    {detail.student_answer_text}
+                                                </div>
+                                            ) : (
+                                                <div style={{ padding: '12px 16px', background: 'rgba(34, 211, 238, 0.08)', borderRadius: '12px', border: '1px solid rgba(34, 211, 238, 0.15)', fontFamily: 'monospace', fontSize: '13px', color: '#22d3ee', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                                    {String(studentAnswer)}
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
+
+                                        {/* CORRECT ANSWER - Only show if incorrect */}
+                                        {!detail.is_correct && (
+                                            <div style={{ gap: '8px', display: 'flex', flexDirection: 'column', paddingTop: '8px' }}>
+                                                <p style={{ fontSize: '11px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0' }}>Expected Answer:</p>
+                                                {correctAnswerArray ? (
+                                                    <div style={{ gap: '8px', display: 'flex', flexDirection: 'column' }}>
+                                                        {correctAnswerArray.map((ans, idx) => (
+                                                            <div key={idx} style={{ padding: '10px 14px', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '10px', border: '1px solid rgba(16, 185, 129, 0.15)', fontFamily: 'monospace', fontSize: '13px', color: '#10b981' }}>
+                                                                {ans}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : detail.type === 'multiple_choice' ? (
+                                                    <div style={{ padding: '12px 16px', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.15)', fontSize: '13px', color: '#10b981' }}>
+                                                        {detail.correct_answer}
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ padding: '12px 16px', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.15)', fontFamily: 'monospace', fontSize: '13px', color: '#10b981', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                                        {detail.correct_answer}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
+                                {detail.is_correct ? <CheckCircle2 style={{ color: '#10b981' }} size={28} className="shrink-0 mt-1" /> : <XCircle style={{ color: '#ef4444' }} size={28} className="shrink-0 mt-1" />}
                             </div>
-                            {detail.is_correct ? <CheckCircle2 className="text-emerald-500 shrink-0" size={24} /> : <XCircle className="text-red-500 shrink-0" size={24} />}
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
 
     if (currentIdx === -1) return (
-        <div style={{ paddingTop: '48px', paddingBottom: '48px' }} className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000">
-            <div style={{ gap: '32px', textAlign: 'center' }} className="flex flex-col">
-                <div className="w-24 h-24 bg-cyan-500/10 rounded-[32px] flex items-center justify-center mx-auto border border-cyan-500/20 shadow-2xl">
-                    <ShieldCheck className="text-cyan-500" size={48} />
-                </div>
-                <div style={{ gap: '8px' }} className="flex flex-col">
-                    <h2 className="text-6xl font-black text-white tracking-tighter leading-none">{quizData.title}</h2>
-                    <p className="text-slate-500 text-sm font-medium uppercase tracking-widest">Assessment Initiation</p>
+        <div style={{
+            padding: '64px 16px',
+            maxWidth: '100%',
+            margin: '0 auto',
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center'
+        }} className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
+            <style>{`
+                @keyframes glow {
+                    0%, 100% { box-shadow: 0 0 20px rgba(34, 211, 238, 0.3), 0 0 40px rgba(34, 211, 238, 0.1); }
+                    50% { box-shadow: 0 0 30px rgba(34, 211, 238, 0.5), 0 0 60px rgba(34, 211, 238, 0.2); }
+                }
+                @keyframes float {
+                    0%, 100% { transform: translateY(0px); }
+                    50% { transform: translateY(-8px); }
+                }
+                .premium-card:hover {
+                    animation: glow 2s ease-in-out;
+                }
+                .floating-icon {
+                    animation: float 3s ease-in-out infinite;
+                }
+            `}</style>
+            <div style={{ gap: '32px', display: 'flex', flexDirection: 'column', width: '100%', maxWidth: '900px', marginLeft: 'auto', marginRight: 'auto', paddingLeft: '16px', paddingRight: '16px' }}>
+                {/* HEADER */}
+                <div style={{ gap: '24px', display: 'flex', flexDirection: 'column', textAlign: 'center' }}>
+                    <div className="floating-icon" style={{ width: '80px', height: '80px', borderRadius: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.15) 0%, rgba(79, 70, 229, 0.08) 100%)', border: '1.5px solid rgba(34, 211, 238, 0.3)', boxShadow: '0 0 30px rgba(34, 211, 238, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(10px)' }}>
+                        <ShieldCheck style={{ color: '#22d3ee', filter: 'drop-shadow(0 0 8px rgba(34, 211, 238, 0.4))' }} size={44} />
+                    </div>
+                    <div style={{ gap: '12px', display: 'flex', flexDirection: 'column' }}>
+                        <h2 style={{ fontSize: '48px', fontWeight: 900, color: 'white', margin: '0', letterSpacing: '-0.02em', lineHeight: '1.1' }}>{quizData.title}</h2>
+                        <p style={{ fontSize: '14px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.15em', margin: '0' }}>Ready to test your knowledge?</p>
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-6 py-12">
-                    <div style={{ padding: '20px 24px', gap: '12px' }} className="bg-white/[0.02] border border-white/5 rounded-3xl flex flex-col items-center">
-                        <ListOrdered className="text-slate-700" size={20} />
-                        <p className="text-2xl font-black text-white">{quizData.questions.length}</p>
-                        <span className="text-[9px] font-bold uppercase text-slate-600">Modules</span>
-                    </div>
-                    <div style={{ padding: '20px 24px', gap: '12px' }} className="bg-white/[0.02] border border-white/5 rounded-3xl flex flex-col items-center">
-                        <Target className="text-emerald-500/50" size={20} />
-                        <p className="text-2xl font-black text-white">{quizData.passing_score}</p>
-                        <span className="text-[9px] font-bold uppercase text-slate-600">Threshold</span>
-                    </div>
-                    <div style={{ padding: '20px 24px', gap: '8px' }} className="bg-white/[0.02] border border-white/5 rounded-3xl flex flex-col items-center justify-center">
-                        <div style={{ gap: '6px', marginBottom: '8px' }} className="flex items-center justify-center">
-                            <Clock className="text-amber-500/50" size={20} />
-                            <span style={{ padding: '4px 8px' }} className="text-[8px] bg-amber-500/10 text-amber-500 rounded font-black uppercase whitespace-nowrap">{quizData.timer_mode?.replace('_', ' ')}</span>
+                {/* STATS GRID */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+                    <div className="premium-card" style={{ padding: '32px 28px', gap: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: '24px', background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.12) 0%, rgba(6, 182, 212, 0.06) 100%)', border: '1.5px solid rgba(34, 211, 238, 0.2)', backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(34, 211, 238, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05)', transition: 'all 0.3s ease' }}>
+                        <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.2) 0%, rgba(34, 211, 238, 0.08) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#22d3ee', boxShadow: '0 0 20px rgba(34, 211, 238, 0.15)' }}>
+                            <ListOrdered size={28} />
                         </div>
-                        <p className="text-2xl font-black text-white">{formatTime(Math.floor(quizData.time_limit_minutes * 60))}</p>
-                        <span className="text-[9px] font-bold uppercase text-slate-600">Allocated</span>
+                        <p style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', margin: '0 0 8px 0' }}>Questions</p>
+                        <p style={{ fontSize: '36px', fontWeight: 900, color: 'white', margin: '0', textShadow: '0 0 20px rgba(34, 211, 238, 0.2)' }}>{quizData.questions.length}</p>
+                    </div>
+
+                    <div className="premium-card" style={{ padding: '32px 28px', gap: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: '24px', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.06) 100%)', border: '1.5px solid rgba(16, 185, 129, 0.2)', backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(16, 185, 129, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05)', transition: 'all 0.3s ease' }}>
+                        <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.08) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981', boxShadow: '0 0 20px rgba(16, 185, 129, 0.15)' }}>
+                            <Target size={28} />
+                        </div>
+                        <p style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', margin: '0 0 8px 0' }}>Passing Score</p>
+                        <p style={{ fontSize: '36px', fontWeight: 900, color: 'white', margin: '0', textShadow: '0 0 20px rgba(16, 185, 129, 0.2)' }}>{quizData.passing_score}</p>
+                    </div>
+
+                    <div className="premium-card" style={{ padding: '32px 28px', gap: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: '24px', background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.12) 0%, rgba(194, 65, 12, 0.06) 100%)', border: '1.5px solid rgba(249, 115, 22, 0.2)', backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(249, 115, 22, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05)', transition: 'all 0.3s ease' }}>
+                        <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.2) 0%, rgba(249, 115, 22, 0.08) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f97316', boxShadow: '0 0 20px rgba(249, 115, 22, 0.15)' }}>
+                            <Clock size={28} />
+                        </div>
+                        <p style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', margin: '0 0 8px 0' }}>Time Limit</p>
+                        <p style={{ fontSize: '36px', fontWeight: 900, color: 'white', margin: '0', textShadow: '0 0 20px rgba(249, 115, 22, 0.2)' }}>{formatTime(Math.floor(quizData.time_limit_minutes * 60))}</p>
                     </div>
                 </div>
 
+                {/* PREVIOUS RESULT */}
                 {previousResult && (
-                    <div style={{ padding: '20px 24px', gap: '24px', justifyContent: 'space-between' }} className="rounded-3xl border border-white/5 bg-white/[0.01] flex items-center">
-                        <div style={{ textAlign: 'left' }}>
-                            <p className="text-[10px] font-black text-slate-600 uppercase">Legacy Performance</p>
-                            <p className="text-xl font-black text-white">{previousResult.score} / {previousResult.max_score}</p>
+                    <div style={{ padding: '28px 32px', gap: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '24px', border: '1.5px solid rgba(255, 255, 255, 0.1)', background: 'linear-gradient(135deg, rgba(148, 163, 184, 0.08) 0%, rgba(71, 85, 105, 0.04) 100%)', backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05)' }}>
+                        <div>
+                            <p style={{ fontSize: '10px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 8px 0' }}>Your Previous Attempt</p>
+                            <p style={{ fontSize: '28px', fontWeight: 900, color: 'white', margin: '0' }}>{previousResult.score} <span style={{ fontSize: '18px', color: '#94a3b8' }}>/ {previousResult.max_score}</span></p>
                         </div>
-                        <div style={{ padding: '8px 16px' }} className={`rounded-full text-[9px] font-black uppercase ${previousResult.score >= quizData.passing_score ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-                            {previousResult.score >= quizData.passing_score ? 'Passed' : 'Not Cleared'}
+                        <div style={{ padding: '12px 24px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', background: previousResult.score >= quizData.passing_score ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.1) 100%)' : 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%)', color: previousResult.score >= quizData.passing_score ? '#10b981' : '#ef4444', border: previousResult.score >= quizData.passing_score ? '1.5px solid rgba(16, 185, 129, 0.3)' : '1.5px solid rgba(239, 68, 68, 0.3)', boxShadow: previousResult.score >= quizData.passing_score ? '0 0 15px rgba(16, 185, 129, 0.15)' : '0 0 15px rgba(239, 68, 68, 0.15)' }}>
+                            {previousResult.score >= quizData.passing_score ? '✓ Passed' : '✗ Not Passed'}
                         </div>
                     </div>
                 )}
 
-                <button onClick={startQuiz} style={{ padding: '20px 24px' }} className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase tracking-[0.3em] rounded-[24px] transition-all shadow-[0_20px_40px_rgba(34,211,238,0.2)] border-none cursor-pointer">Initiate Assessment</button>
+                {/* CTA BUTTON */}
+                {isAlreadyPassed ? (
+                    <div style={{ padding: '20px 32px', borderRadius: '20px', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.08) 100%)', border: '1.5px solid rgba(16, 185, 129, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                        <CheckCircle2 size={24} style={{ color: '#10b981' }} />
+                        <div style={{ textAlign: 'left' }}>
+                            <p style={{ fontSize: '10px', fontWeight: 900, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 4px 0' }}>Quiz Completed</p>
+                            <p style={{ fontSize: '12px', color: '#94a3b8', margin: '0' }}>You've already passed this assessment</p>
+                        </div>
+                    </div>
+                ) : (
+                    <button onClick={startQuiz} style={{ padding: '18px 56px', borderRadius: '20px', background: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)', color: '#02010a', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', fontSize: '13px', border: 'none', cursor: 'pointer', transition: 'all 0.3s', boxShadow: '0 20px 50px rgba(34, 211, 238, 0.25)', display: 'inline-block', margin: '0 auto', width: 'auto' }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 30px 60px rgba(34, 211, 238, 0.35)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 20px 50px rgba(34, 211, 238, 0.25)';
+                        }}
+                    >
+                        Start Assessment
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -253,27 +419,57 @@ try {
     const q = questions[currentIdx];
 
     return (
-        <div style={{ gap: '32px' }} className="max-w-3xl mx-auto pb-40 relative flex flex-col">
-            <div style={{ padding: '16px 20px', gap: '16px', justifyContent: 'space-between' }} className="flex items-center bg-[#050505] rounded-3xl border border-white/5">
-                <div style={{ gap: '8px' }} className="flex">
-                    {questions.map((_, i) => (
-                        <div key={i} className={`h-1.5 rounded-full transition-all duration-500 ${i === currentIdx ? 'w-10 bg-cyan-500' : i < currentIdx ? 'w-4 bg-cyan-900' : 'w-4 bg-white/5'}`} />
-                    ))}
+        <div style={{ gap: '32px', maxWidth: '1300px', margin: '0 auto', width: '100%' }} className="pb-40 relative flex flex-col">
+            <div style={{ padding: '20px 24px', gap: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: '28px', background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.08) 0%, rgba(79, 70, 229, 0.04) 100%)', border: '1.5px solid rgba(34, 211, 238, 0.15)', backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(34, 211, 238, 0.08)' }}>
+                {/* LEFT: PROGRESS INDICATOR */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
+                    {/* Question Counter */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'rgba(34, 211, 238, 0.1)', borderRadius: '12px', border: '1px solid rgba(34, 211, 238, 0.2)' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Progress</span>
+                        <span style={{ fontSize: '13px', fontWeight: 900, color: '#22d3ee' }}>{currentIdx + 1}/{questions.length}</span>
+                    </div>
+
+                    {/* Continuous Progress Bar */}
+                    <div style={{ flex: 1, height: '6px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '999px', overflow: 'hidden', border: '1px solid rgba(34, 211, 238, 0.1)' }}>
+                        <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${((currentIdx + 1) / questions.length) * 100}%` }}
+                            transition={{ duration: 0.5, ease: 'easeOut' }}
+                            style={{
+                                height: '100%',
+                                background: 'linear-gradient(90deg, #22d3ee, #06b6d4)',
+                                boxShadow: '0 0 15px rgba(34, 211, 238, 0.4)'
+                            }}
+                        />
+                    </div>
+
+                    {/* Percentage */}
+                    <span style={{ fontSize: '12px', fontWeight: 900, color: '#22d3ee', minWidth: '40px', textAlign: 'right' }}>{Math.round(((currentIdx + 1) / questions.length) * 100)}%</span>
                 </div>
+
+                {/* RIGHT: TIMER */}
                 {timeLeft !== null && (
-                    <div style={{ gap: '8px', padding: '10px 16px' }} className={`flex items-center rounded-2xl font-mono font-black text-lg border transition-all ${timeLeft < 20 ? 'bg-red-500 text-white border-red-500 animate-pulse' : 'bg-white/5 border-white/10 text-cyan-400'}`}>
+                    <div style={{ gap: '8px', padding: '10px 16px', display: 'flex', alignItems: 'center', borderRadius: '16px', fontFamily: 'monospace', fontWeight: 900, fontSize: '14px', border: '1.5px solid', background: timeLeft < 20 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 211, 238, 0.1)', borderColor: timeLeft < 20 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 211, 238, 0.3)', color: timeLeft < 20 ? '#ef4444' : '#22d3ee', transition: 'all 0.3s', boxShadow: timeLeft < 20 ? '0 0 15px rgba(239, 68, 68, 0.15)' : '0 0 15px rgba(34, 211, 238, 0.1)' }}>
                         <Clock size={18} /> {formatTime(timeLeft)}
                     </div>
                 )}
             </div>
 
-            <div style={{ minHeight: '500px', gap: '32px' }} className="flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div style={{ gap: '16px' }} className="flex flex-col">
-                    <span className="text-[11px] font-black uppercase tracking-[0.5em] text-cyan-600">Module Task {currentIdx + 1}</span>
-                    <h3 className="text-4xl font-bold text-white tracking-tight leading-tight">{q.question_text}</h3>
-                </div>
+            <AnimatePresence mode="wait">
+                <motion.div
+                    key={currentIdx}
+                    initial={{ opacity: 0, x: 40, y: 10 }}
+                    animate={{ opacity: 1, x: 0, y: 0 }}
+                    exit={{ opacity: 0, x: -40, y: -10 }}
+                    transition={{ duration: 0.4, ease: 'easeOut' }}
+                    style={{ minHeight: '500px', gap: '32px', display: 'flex', flexDirection: 'column' }}
+                >
+                    <div style={{ gap: '16px' }} className="flex flex-col">
+                        <span className="text-[11px] font-black uppercase tracking-[0.5em] text-cyan-600">Module Task {currentIdx + 1}</span>
+                        <h3 className="text-4xl font-bold text-white tracking-tight leading-tight">{q.question_text}</h3>
+                    </div>
 
-                <div style={{ gap: '16px' }} className="flex flex-col">
+                    <div style={{ gap: '16px' }} className="flex flex-col">
                     {q.type === 'multiple_choice' && (
                         <div className="grid gap-6">
                             {q.options?.map((opt, i) => (
@@ -286,24 +482,168 @@ try {
                     )}
 
                     {q.type === 'true_false' && (
-                        <div className="grid grid-cols-2 gap-6">
-                            {['True', 'False'].map(val => <button key={val} onClick={() => saveAnswer(q.id, val)} className={`py-16 rounded-[40px] border text-3xl font-black transition-all ${answers[q.id] === val ? 'bg-cyan-500 border-cyan-400 text-black shadow-2xl scale-[1.02]' : 'bg-white/5 border-white/10 text-slate-500 hover:text-white'}`}>{val}</button>)}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px' }}>
+                            {['True', 'False'].map(val => (
+                                <button
+                                    key={val}
+                                    onClick={() => saveAnswer(q.id, val)}
+                                    style={{
+                                        padding: '32px 24px',
+                                        borderRadius: '32px',
+                                        border: answers[q.id] === val ? '2px solid #06b6d4' : '2px solid rgba(255, 255, 255, 0.1)',
+                                        fontSize: '28px',
+                                        fontWeight: 900,
+                                        backgroundColor: answers[q.id] === val ? '#22d3ee' : 'rgba(255, 255, 255, 0.03)',
+                                        color: answers[q.id] === val ? '#02010a' : '#94a3b8',
+                                        transition: 'all 0.3s',
+                                        cursor: 'pointer',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.1em',
+                                        boxShadow: answers[q.id] === val ? '0 12px 32px rgba(34, 211, 238, 0.3)' : '0 4px 12px rgba(0, 0, 0, 0.2)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (answers[q.id] !== val) {
+                                            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
+                                            e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.3)';
+                                            e.currentTarget.style.color = 'white';
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (answers[q.id] !== val) {
+                                            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
+                                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                            e.currentTarget.style.color = '#94a3b8';
+                                        }
+                                    }}
+                                >
+                                    {val}
+                                </button>
+                            ))}
                         </div>
                     )}
 
-                    {q.type === 'identification' && <input value={answers[q.id] || ""} onChange={(e) => saveAnswer(q.id, e.target.value)} className="w-full bg-white/[0.02] border border-white/5 rounded-[32px] p-10 text-4xl font-black text-cyan-400 outline-none focus:border-cyan-500 shadow-inner" placeholder="Respond here..." />}
+                    {q.type === 'identification' && (
+                        <input
+                            value={answers[q.id] || ""}
+                            onChange={(e) => saveAnswer(q.id, e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '28px 32px',
+                                background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.08) 0%, rgba(79, 70, 229, 0.04) 100%)',
+                                border: '1.5px solid rgba(34, 211, 238, 0.2)',
+                                borderRadius: '28px',
+                                fontSize: '18px',
+                                fontWeight: 600,
+                                color: '#22d3ee',
+                                outline: 'none',
+                                backdropFilter: 'blur(10px)',
+                                boxShadow: '0 8px 32px rgba(34, 211, 238, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+                                transition: 'all 0.3s',
+                                caretColor: '#22d3ee'
+                            }}
+                            placeholder="Type your answer here..."
+                            onFocus={(e) => {
+                                e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.4)';
+                                e.currentTarget.style.boxShadow = '0 12px 40px rgba(34, 211, 238, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)';
+                            }}
+                            onBlur={(e) => {
+                                e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.2)';
+                                e.currentTarget.style.boxShadow = '0 8px 32px rgba(34, 211, 238, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05)';
+                            }}
+                        />
+                    )}
 
                     {q.type === 'enumeration' && (
-                        <div className="space-y-4">
+                        <div style={{ gap: '16px', display: 'flex', flexDirection: 'column' }}>
                             {(answers[q.id] || ['']).map((val, i) => (
-                                <div key={i} className="flex gap-3">
-                                    <input value={val} onChange={(e) => { const n = [...(answers[q.id] || [''])]; n[i] = e.target.value; saveAnswer(q.id, n); }} className="flex-grow bg-white/[0.02] border border-white/5 rounded-2xl p-6 text-white font-black outline-none focus:border-cyan-500" placeholder={`Entry ${i+1}...`} />
-                                    <button onClick={() => { const n = (answers[q.id] || ['']).filter((_, idx) => idx !== i); saveAnswer(q.id, n); }} className="p-6 text-slate-700 hover:text-red-500 rounded-2xl transition-all border-none bg-transparent cursor-pointer"><Trash2 size={24}/></button>
+                                <div key={i} style={{ gap: '12px', display: 'flex', alignItems: 'center' }}>
+                                    <input
+                                        value={val}
+                                        onChange={(e) => { const n = [...(answers[q.id] || [''])]; n[i] = e.target.value; saveAnswer(q.id, n); }}
+                                        style={{
+                                            flex: 1,
+                                            padding: '18px 24px',
+                                            background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.08) 0%, rgba(79, 70, 229, 0.04) 100%)',
+                                            border: '1.5px solid rgba(34, 211, 238, 0.2)',
+                                            borderRadius: '20px',
+                                            fontSize: '15px',
+                                            fontWeight: 600,
+                                            color: '#cbd5e1',
+                                            outline: 'none',
+                                            backdropFilter: 'blur(10px)',
+                                            boxShadow: '0 4px 16px rgba(34, 211, 238, 0.06)',
+                                            transition: 'all 0.3s',
+                                            caretColor: '#22d3ee'
+                                        }}
+                                        placeholder={`Entry ${i+1}...`}
+                                        onFocus={(e) => {
+                                            e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.4)';
+                                            e.currentTarget.style.boxShadow = '0 8px 24px rgba(34, 211, 238, 0.12)';
+                                            e.currentTarget.style.color = '#22d3ee';
+                                        }}
+                                        onBlur={(e) => {
+                                            e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.2)';
+                                            e.currentTarget.style.boxShadow = '0 4px 16px rgba(34, 211, 238, 0.06)';
+                                            e.currentTarget.style.color = '#cbd5e1';
+                                        }}
+                                    />
+                                    <button
+                                        onClick={() => { const n = (answers[q.id] || ['']).filter((_, idx) => idx !== i); saveAnswer(q.id, n); }}
+                                        style={{
+                                            padding: '12px 16px',
+                                            borderRadius: '12px',
+                                            border: '1.5px solid rgba(239, 68, 68, 0.2)',
+                                            background: 'rgba(239, 68, 68, 0.05)',
+                                            color: '#ef4444',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.3s',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexShrink: 0
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+                                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)';
+                                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                                        }}
+                                    >
+                                        <Trash2 size={20} />
+                                    </button>
                                 </div>
                             ))}
                             {/* Enumeration Constraint: Limit based on Teacher's defined items count */}
                             {(answers[q.id] || ['']).length < (q.options?.length || 1) && (
-                                <button onClick={() => saveAnswer(q.id, [...(answers[q.id] || []), ''])} className="px-8 py-4 rounded-2xl bg-white/5 text-cyan-500 font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all border-none cursor-pointer mt-4">+ Append Entry ({(answers[q.id] || ['']).length} / {q.options?.length})</button>
+                                <button
+                                    onClick={() => saveAnswer(q.id, [...(answers[q.id] || []), ''])}
+                                    style={{
+                                        padding: '14px 24px',
+                                        borderRadius: '16px',
+                                        background: 'rgba(34, 211, 238, 0.1)',
+                                        border: '1.5px solid rgba(34, 211, 238, 0.2)',
+                                        color: '#22d3ee',
+                                        fontWeight: 900,
+                                        fontSize: '11px',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.1em',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s',
+                                        marginTop: '8px'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = 'rgba(34, 211, 238, 0.2)';
+                                        e.currentTarget.style.boxShadow = '0 8px 20px rgba(34, 211, 238, 0.15)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'rgba(34, 211, 238, 0.1)';
+                                        e.currentTarget.style.boxShadow = 'none';
+                                    }}
+                                >
+                                    + Add Entry ({(answers[q.id] || ['']).length} / {q.options?.length})
+                                </button>
                             )}
                         </div>
                     )}
@@ -319,38 +659,182 @@ try {
                         </div>
                     )}
                 </div>
-            </div>
+                </motion.div>
+            </AnimatePresence>
 
-            <div className="mt-24 flex justify-between items-center bg-[#050505] p-8 rounded-[32px] border border-white/5">
+            <div style={{ marginTop: '32px', padding: '24px 32px', gap: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '28px', background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.08) 0%, rgba(79, 70, 229, 0.04) 100%)', border: '1px solid rgba(34, 211, 238, 0.15)', backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(34, 211, 238, 0.08)' }}>
                 {/* Robust Navigation: Disable Prev if in Per-Question mode to prevent timer resetting abuse */}
-                <button 
-                    disabled={currentIdx === 0 || quizData.timer_mode === 'per_question'} 
-                    onClick={() => setCurrentIdx(currentIdx - 1)} 
-                    className="flex items-center gap-3 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-widest disabled:opacity-0 transition-all border-none bg-transparent cursor-pointer"
+                <button
+                    disabled={currentIdx === 0 || quizData.timer_mode === 'per_question'}
+                    onClick={() => setCurrentIdx(currentIdx - 1)}
+                    style={{ gap: '8px', display: 'flex', alignItems: 'center', color: currentIdx === 0 || quizData.timer_mode === 'per_question' ? '#475569' : '#94a3b8', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', border: 'none', background: 'transparent', cursor: currentIdx === 0 || quizData.timer_mode === 'per_question' ? 'not-allowed' : 'pointer', opacity: currentIdx === 0 || quizData.timer_mode === 'per_question' ? 0.4 : 1, transition: 'all 0.3s' }}
+                    onMouseEnter={(e) => {
+                        if (currentIdx !== 0 && quizData.timer_mode !== 'per_question') {
+                            e.currentTarget.style.color = 'white';
+                        }
+                    }}
+                    onMouseLeave={(e) => {
+                        if (currentIdx !== 0 && quizData.timer_mode !== 'per_question') {
+                            e.currentTarget.style.color = '#94a3b8';
+                        }
+                    }}
                 >
-                    <ChevronLeft size={20} /> Previous Task
+                    <ChevronLeft size={18} /> Previous
                 </button>
                 {currentIdx === questions.length - 1 ? (
-                    <button onClick={() => setShowReview(true)} className="px-12 py-5 bg-white text-black font-black rounded-2xl text-[10px] uppercase tracking-[0.3em] hover:bg-cyan-500 transition-all border-none cursor-pointer">Verify & Finish</button>
+                    <button onClick={() => setShowReview(true)} style={{ padding: '16px 40px', background: 'linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%)', color: '#02010a', fontWeight: 900, borderRadius: '20px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.15em', border: 'none', cursor: 'pointer', transition: 'all 0.3s', boxShadow: '0 8px 24px rgba(255, 255, 255, 0.1)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 12px 32px rgba(255, 255, 255, 0.15)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 8px 24px rgba(255, 255, 255, 0.1)';
+                        }}
+                    >
+                        Verify & Finish
+                    </button>
                 ) : (
-                    <button onClick={() => setCurrentIdx(currentIdx + 1)} className="px-12 py-5 bg-cyan-500 text-black font-black rounded-2xl text-[10px] uppercase tracking-[0.3em] hover:scale-105 transition-all border-none cursor-pointer">Continue <ChevronRight size={20} /></button>
+                    <button onClick={() => setCurrentIdx(currentIdx + 1)} style={{ padding: '16px 40px', background: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)', color: '#02010a', fontWeight: 900, borderRadius: '20px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.15em', border: 'none', cursor: 'pointer', transition: 'all 0.3s', boxShadow: '0 8px 24px rgba(34, 211, 238, 0.2)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 12px 32px rgba(34, 211, 238, 0.3)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 8px 24px rgba(34, 211, 238, 0.2)';
+                        }}
+                    >
+                        Continue <ChevronRight size={18} />
+                    </button>
                 )}
             </div>
 
             <AnimatePresence>
                 {showReview && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowReview(false)} className="absolute inset-0 bg-black/95 backdrop-blur-xl" />
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative z-10 w-full max-w-lg bg-[#05011d] border border-white/10 rounded-[48px] p-12 shadow-2xl">
-                            <div className="text-center mb-10"><ClipboardList className="mx-auto mb-4 text-cyan-400" size={48} /><h2 className="text-3xl font-black text-white uppercase tracking-tighter">Submit?</h2><p className="text-slate-500 text-[11px] font-bold uppercase tracking-widest mt-3">Verified logic items: {Object.keys(answers).length} / {questions.length}</p></div>
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowReview(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0, 0, 0, 0.95)', backdropFilter: 'blur(20px)' }} />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            style={{
+                                position: 'relative',
+                                zIndex: 10,
+                                width: '100%',
+                                maxWidth: '480px',
+                                background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.08) 0%, rgba(79, 70, 229, 0.04) 100%)',
+                                border: '1.5px solid rgba(34, 211, 238, 0.2)',
+                                borderRadius: '40px',
+                                padding: '40px',
+                                boxShadow: '0 20px 60px rgba(34, 211, 238, 0.15), 0 0 40px rgba(34, 211, 238, 0.1)',
+                                backdropFilter: 'blur(12px)'
+                            }}
+                        >
+                            {/* HEADER */}
+                            <div style={{ textAlign: 'center', marginBottom: '32px', gap: '16px', display: 'flex', flexDirection: 'column' }}>
+                                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                    <ClipboardList style={{ color: '#22d3ee' }} size={48} />
+                                </div>
+                                <h2 style={{ fontSize: '32px', fontWeight: 900, color: 'white', margin: '0', textTransform: 'uppercase', letterSpacing: '-0.02em' }}>Review Answers</h2>
+                                <p style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0' }}>Answered: {Object.keys(answers).length} / {questions.length}</p>
+                            </div>
+
+                            {/* QUESTION GRID */}
                             {quizData.timer_mode !== 'per_question' && (
-                                <div className="grid grid-cols-6 gap-3 mb-12">
-                                    {questions.map((question, i) => <button key={question.id} onClick={() => { setCurrentIdx(i); setShowReview(false); }} className={`h-12 rounded-xl flex items-center justify-center text-xs font-black border transition-all cursor-pointer ${answers[question.id] ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400' : 'bg-red-500/10 border-red-500/30 text-red-500 hover:border-red-500'}`}>{i + 1}</button>)}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px', marginBottom: '32px' }}>
+                                    {questions.map((question, i) => (
+                                        <button
+                                            key={question.id}
+                                            onClick={() => { setCurrentIdx(i); setShowReview(false); }}
+                                            style={{
+                                                height: '40px',
+                                                borderRadius: '12px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                fontSize: '12px',
+                                                fontWeight: 900,
+                                                border: answers[question.id] ? '1.5px solid rgba(34, 211, 238, 0.3)' : '1.5px solid rgba(239, 68, 68, 0.3)',
+                                                background: answers[question.id] ? 'rgba(34, 211, 238, 0.15)' : 'rgba(239, 68, 68, 0.1)',
+                                                color: answers[question.id] ? '#22d3ee' : '#ef4444',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.3s'
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.transform = 'scale(1.05)';
+                                                e.currentTarget.style.boxShadow = `0 0 15px ${answers[question.id] ? 'rgba(34, 211, 238, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`;
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.transform = 'scale(1)';
+                                                e.currentTarget.style.boxShadow = 'none';
+                                            }}
+                                        >
+                                            {i + 1}
+                                        </button>
+                                    ))}
                                 </div>
                             )}
-                            <div className="flex gap-4">
-                                {quizData.timer_mode !== 'per_question' && <button onClick={() => setShowReview(false)} className="flex-1 py-5 rounded-2xl bg-white/5 text-slate-500 font-bold uppercase text-[10px] tracking-widest border-none cursor-pointer">Modify</button>}
-                                <button onClick={submitQuiz} className="flex-1 py-5 rounded-2xl bg-cyan-500 text-black font-black uppercase text-[10px] tracking-widest border-none cursor-pointer hover:scale-105 shadow-2xl">Transmit</button>
+
+                            {/* ACTION BUTTONS */}
+                            <div style={{ display: 'flex', gap: '12px', flexDirection: quizData.timer_mode === 'per_question' ? 'column' : 'row' }}>
+                                {quizData.timer_mode !== 'per_question' && (
+                                    <button
+                                        onClick={() => setShowReview(false)}
+                                        style={{
+                                            flex: 1,
+                                            padding: '16px 24px',
+                                            borderRadius: '16px',
+                                            background: 'rgba(255, 255, 255, 0.05)',
+                                            color: '#94a3b8',
+                                            fontWeight: 900,
+                                            textTransform: 'uppercase',
+                                            fontSize: '12px',
+                                            letterSpacing: '0.15em',
+                                            border: '1.5px solid rgba(255, 255, 255, 0.1)',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.3s'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                                            e.currentTarget.style.color = 'white';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                                            e.currentTarget.style.color = '#94a3b8';
+                                        }}
+                                    >
+                                        Modify
+                                    </button>
+                                )}
+                                <button
+                                    onClick={submitQuiz}
+                                    style={{
+                                        flex: 1,
+                                        padding: '16px 24px',
+                                        borderRadius: '16px',
+                                        background: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)',
+                                        color: '#02010a',
+                                        fontWeight: 900,
+                                        textTransform: 'uppercase',
+                                        fontSize: '12px',
+                                        letterSpacing: '0.15em',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s',
+                                        boxShadow: '0 8px 24px rgba(34, 211, 238, 0.25)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                        e.currentTarget.style.boxShadow = '0 12px 32px rgba(34, 211, 238, 0.35)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = '0 8px 24px rgba(34, 211, 238, 0.25)';
+                                    }}
+                                >
+                                    Submit Quiz
+                                </button>
                             </div>
                         </motion.div>
                     </div>
@@ -361,5 +845,49 @@ try {
 }
 
 function QuizSkeleton() {
-    return <div className="animate-pulse space-y-12 py-10 max-w-2xl mx-auto text-center"><div className="h-20 w-20 bg-white/5 rounded-[32px] mx-auto" /><div className="h-16 w-3/4 bg-white/5 rounded-3xl mx-auto" /><div className="grid grid-cols-3 gap-4">{[1,2,3].map(i => <div key={i} className="h-24 bg-white/5 rounded-3xl" />)}</div><div className="h-16 w-full bg-white/5 rounded-[24px]" /></div>;
+    return (
+        <div style={{ padding: '60px 40px', maxWidth: '900px', margin: '0 auto' }}>
+            <style>{`
+                @keyframes shimmer {
+                    0% { background-position: -1000px 0; }
+                    100% { background-position: 1000px 0; }
+                }
+                .shimmer {
+                    background-image: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%);
+                    background-size: 200px 100%;
+                    animation: shimmer 2s infinite;
+                }
+            `}</style>
+
+            {/* Header Icon */}
+            <div style={{ height: '80px', width: '80px', borderRadius: '24px', background: 'rgba(34, 211, 238, 0.05)', margin: '0 auto 32px', border: '1px solid rgba(34, 211, 238, 0.1)' }} className="shimmer" />
+
+            {/* Title */}
+            <div style={{ height: '48px', width: '70%', borderRadius: '16px', background: 'rgba(34, 211, 238, 0.05)', margin: '0 auto 40px', border: '1px solid rgba(34, 211, 238, 0.1)' }} className="shimmer" />
+
+            {/* Stats Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '60px' }}>
+                {[1, 2, 3].map(i => (
+                    <div key={i} style={{ padding: '24px', borderRadius: '16px', background: 'rgba(34, 211, 238, 0.05)', border: '1px solid rgba(34, 211, 238, 0.1)', display: 'flex', flexDirection: 'column', gap: '12px' }} className="shimmer">
+                        <div style={{ height: '16px', width: '60%', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.05)' }} />
+                        <div style={{ height: '28px', width: '80%', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.05)' }} />
+                    </div>
+                ))}
+            </div>
+
+            {/* Quiz Content Area */}
+            <div style={{ padding: '40px', borderRadius: '24px', background: 'rgba(34, 211, 238, 0.03)', border: '1px solid rgba(34, 211, 238, 0.1)', display: 'flex', flexDirection: 'column', gap: '24px' }} className="shimmer">
+                <div style={{ height: '20px', width: '40%', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.05)' }} />
+                <div style={{ height: '100px', width: '100%', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.05)' }} />
+                <div style={{ display: 'flex', gap: '12px' }}>
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} style={{ height: '44px', flex: 1, borderRadius: '12px', background: 'rgba(255, 255, 255, 0.05)' }} />
+                    ))}
+                </div>
+            </div>
+
+            {/* Button */}
+            <div style={{ height: '48px', width: '200px', borderRadius: '12px', background: 'rgba(34, 211, 238, 0.1)', margin: '40px auto 0', border: '1px solid rgba(34, 211, 238, 0.2)' }} className="shimmer" />
+        </div>
+    );
 }

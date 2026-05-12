@@ -9,7 +9,7 @@
   margin-bottom: 50px;
   margin-left: -40px;
   margin-right: -40px;
-  padding: 24px 50px;
+  padding: 40px 50px;
   border-radius: 12px;
   background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(109, 40, 217, 0.1) 100%);
   border: 1px solid rgba(167, 139, 250, 0.2);
@@ -226,12 +226,13 @@
   font-size: 1.875rem;
   font-weight: 700;
   color: white;
-  margin-bottom: 8px;
+  margin: 0 0 8px 0;
 }
 
 .class-curriculum-subtitle {
   font-size: 0.875rem;
   color: #64748b;
+  margin: 0;
 }
 
 .class-courses-grid {
@@ -241,7 +242,7 @@
 }
 
 .course-card {
-  padding: 0;
+  padding: 32px;
   border-radius: 28px;
   border: 1px solid rgba(167, 139, 250, 0.2);
   background: linear-gradient(135deg, rgba(15, 7, 36, 0.8) 0%, rgba(30, 10, 60, 0.6) 100%);
@@ -294,8 +295,7 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
-  padding: 32px 32px 0 32px;
-  margin-bottom: 12px;
+  padding: 0 0 16px 0;
   position: relative;
   z-index: 2;
 }
@@ -304,6 +304,7 @@
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+  paddingRight: 0;
 }
 
 .course-card-title {
@@ -317,10 +318,11 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  margin-bottom: 12px;
 }
 
 .course-card-action-btn {
-  padding: 12px;
+  padding: 14px 16px;
   background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%);
   border: 1.5px solid rgba(167, 139, 250, 0.3);
   border-radius: 14px;
@@ -368,7 +370,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  margin: 0 32px 16px 32px;
+  margin: 0 0 16px 0;
   position: relative;
   z-index: 2;
   backdrop-filter: blur(4px);
@@ -390,7 +392,7 @@
 
 .course-card-content {
   flex: 1;
-  padding: 0 32px;
+  padding: 0;
   position: relative;
   z-index: 2;
 }
@@ -404,6 +406,7 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   font-weight: 400;
+  margin-bottom: 0;
 }
 
 .course-card-footer {

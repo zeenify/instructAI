@@ -8,7 +8,8 @@ use App\Models\QuizAttempt;
 use App\Models\StudentAnswer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\DB; 
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log; 
 
 class QuizController extends Controller
 {
@@ -50,12 +51,32 @@ if ($completedAttempt) {
                 // Map details so the student can review their previous answers
                 'details' => $quiz->questions->map(function($q) use ($completedAttempt) {
                     $ans = $completedAttempt->answers()->where('question_id', $q->id)->first();
-                    return [
-                        'question_text' => $q->question_text,
-                        'is_correct' => $ans ? $ans->is_correct : false,
-                        'correct_answer' => $q->type === 'multiple_choice' 
-                            ? ($q->options[$q->expected_output] ?? 'N/A') 
+                    $correctAnswer = $q->type === 'multiple_choice'
+                        ? ($q->options[$q->expected_output] ?? 'N/A')
+                        : ($q->type === 'enumeration'
+                            ? json_encode($q->options)
                             : $q->expected_output
+                        );
+
+                    // For multiple choice, get the student's answer text
+                    $studentAnswerText = null;
+                    if ($q->type === 'multiple_choice' && $ans) {
+                        $submittedAnswer = json_decode($ans->submitted_answer, true);
+                        if (is_array($submittedAnswer)) {
+                            $submittedAnswer = $submittedAnswer[0] ?? null;
+                        }
+                        if ($submittedAnswer !== null) {
+                            $studentAnswerText = $q->options[$submittedAnswer] ?? 'N/A';
+                        }
+                    }
+
+                    return [
+                        'question_id' => $q->id,
+                        'question_text' => $q->question_text,
+                        'type' => $q->type,
+                        'is_correct' => $ans ? $ans->is_correct : false,
+                        'correct_answer' => $correctAnswer,
+                        'student_answer_text' => $studentAnswerText
                     ];
                 })->values() // <-- Ensures previous results are also flat arrays
             ];
@@ -129,6 +150,90 @@ if ($completedAttempt) {
             ]);
 
             $totalScore = 0;
+            $detailedResults = [];
+
+            // Batch AI checking for enumeration and identification
+            $questionsForAI = [];
+            $aiQuestionMap = []; // Map question number to question ID
+            Log::info('QuizController: Starting batch AI check', ['total_questions' => count($activeQuestions)]);
+            foreach ($activeQuestions as $question) {
+                if (in_array($question->type, ['enumeration', 'identification'])) {
+                    $rawAnswer = $submittedAnswers[$question->id] ?? null;
+                    if ($question->type === 'enumeration') {
+                        if ($rawAnswer && is_array($rawAnswer)) {
+                            $studentItems = array_filter((array)$rawAnswer);
+                            $correctItems = array_map(fn($item) => strtolower(trim((string)$item)), $question->options);
+                            $studentItems = array_map(fn($item) => strtolower(trim((string)$item)), $studentItems);
+                            sort($correctItems);
+                            sort($studentItems);
+
+                            // Only add to AI if exact match fails
+                            if ($correctItems !== $studentItems || count($studentItems) === 0) {
+                                $questionsForAI[] = [
+                                    'question_num' => count($questionsForAI) + 1,
+                                    'question_id' => $question->id,
+                                    'question_text' => $question->question_text,
+                                    'type' => 'enumeration',
+                                    'correct_answer' => $question->options,
+                                    'student_answer' => $studentItems
+                                ];
+                                $aiQuestionMap[count($questionsForAI)] = $question->id;
+                            }
+                        }
+                    } else {
+                        // identification
+                        if ($rawAnswer && strtolower(trim((string)$rawAnswer)) !== strtolower(trim((string)$question->expected_output))) {
+                            $questionsForAI[] = [
+                                'question_num' => count($questionsForAI) + 1,
+                                'question_id' => $question->id,
+                                'question_text' => $question->question_text,
+                                'type' => 'identification',
+                                'correct_answer' => $question->expected_output,
+                                'student_answer' => (string)$rawAnswer
+                            ];
+                            $aiQuestionMap[count($questionsForAI)] = $question->id;
+                        }
+                    }
+                }
+            }
+
+            // Call AI batch endpoint if there are questions to check
+            $aiResults = [];
+            if (!empty($questionsForAI)) {
+                Log::info('QuizController: Sending questions to AI', ['count' => count($questionsForAI), 'questions' => $questionsForAI]);
+                try {
+                    $aiUrl = env('AI_SERVICE_URL', 'http://localhost:8001');
+                    Log::info('QuizController: AI Service URL', ['url' => $aiUrl]);
+                    $aiResponse = Http::timeout(10)->post("{$aiUrl}/ai/check-answers-batch", [
+                        'questions' => $questionsForAI
+                    ]);
+
+                    Log::info('QuizController: AI response received', ['status' => $aiResponse->status(), 'body' => $aiResponse->body()]);
+
+                    if ($aiResponse->successful()) {
+                        $responseData = $aiResponse->json();
+                        Log::info('QuizController: AI results parsed', ['results' => $responseData]);
+                        foreach ($responseData['results'] ?? [] as $result) {
+                            $aiResults[$result['question_num']] = $result['is_correct'];
+                        }
+                    } else {
+                        Log::warning('QuizController: AI response not successful', ['status' => $aiResponse->status()]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('QuizController: AI check failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+                }
+            } else {
+                Log::info('QuizController: No questions needed AI checking (all exact matches passed)');
+            }
+
+            // Map AI results back to questions
+            $aiCheckedQuestions = [];
+            foreach ($aiResults as $questionNum => $isCorrect) {
+                if (isset($aiQuestionMap[$questionNum])) {
+                    $aiCheckedQuestions[$aiQuestionMap[$questionNum]] = $isCorrect;
+                    Log::info('QuizController: AI result mapped', ['question_id' => $aiQuestionMap[$questionNum], 'is_correct' => $isCorrect]);
+                }
+            }
 
             foreach ($activeQuestions as $question) {
                 $rawAnswer = $submittedAnswers[$question->id] ?? null;
@@ -158,13 +263,44 @@ if ($completedAttempt) {
                     $isCorrect = (string)$rawAnswer === (string)$question->expected_output;
                 } 
                 elseif ($question->type === 'enumeration') {
-                    // $rawAnswer is an array from the new UI
-                    $correctItems = array_map('trim', explode(',', strtolower($question->expected_output)));
-                    $studentItems = array_map('trim', array_map('strtolower', (array)$rawAnswer));
-                    $isCorrect = count(array_intersect($correctItems, $studentItems)) === count($correctItems);
+                    if (!$rawAnswer || (is_array($rawAnswer) && empty(array_filter($rawAnswer)))) {
+                        $isCorrect = false;
+                    } else {
+                        $correctItems = $question->options;
+                        $studentItems = array_filter((array)$rawAnswer);
+
+                        $correctItems = array_map(function($item) {
+                            return strtolower(trim((string)$item));
+                        }, $correctItems);
+                        $studentItems = array_map(function($item) {
+                            return strtolower(trim((string)$item));
+                        }, $studentItems);
+
+                        sort($correctItems);
+                        sort($studentItems);
+
+                        $isCorrect = $correctItems === $studentItems && count($studentItems) > 0;
+
+                        // If exact match failed, check AI results
+                        if (!$isCorrect && isset($aiCheckedQuestions[$question->id])) {
+                            $oldCorrect = $isCorrect;
+                            $isCorrect = $aiCheckedQuestions[$question->id];
+                            Log::info('QuizController: Enumeration - AI override', ['question_id' => $question->id, 'before' => $oldCorrect, 'after' => $isCorrect]);
+                        }
+                    }
+                }
+                elseif ($question->type === 'identification') {
+                    $isCorrect = strtolower(trim((string)$rawAnswer)) === strtolower(trim((string)$question->expected_output));
+
+                    // If exact match failed, check AI results
+                    if (!$isCorrect && isset($aiCheckedQuestions[$question->id])) {
+                        $oldCorrect = $isCorrect;
+                        $isCorrect = $aiCheckedQuestions[$question->id];
+                        Log::info('QuizController: Identification - AI override', ['question_id' => $question->id, 'expected' => $question->expected_output, 'student' => $rawAnswer, 'before' => $oldCorrect, 'after' => $isCorrect]);
+                    }
                 }
                 else {
-                    // Identification and True/False
+                    // True/False and any other types
                     $isCorrect = strtolower(trim((string)$rawAnswer)) === strtolower(trim((string)$question->expected_output));
                 }
 
@@ -177,6 +313,27 @@ if ($completedAttempt) {
                     'answered_at' => now()
                 ]);
 
+                // Store detail for response
+                $correctAnswer = $question->type === 'multiple_choice'
+                    ? ($question->options[$question->expected_output] ?? 'N/A')
+                    : ($question->type === 'enumeration'
+                        ? json_encode($question->options) // Return options array as JSON string for enumeration
+                        : $question->expected_output
+                    );
+
+                $studentAnswerText = $question->type === 'multiple_choice' && $rawAnswer !== null
+                    ? ($question->options[$rawAnswer] ?? 'N/A')
+                    : null;
+
+                $detailedResults[] = [
+                    'question_id' => $question->id,
+                    'question_text' => $question->question_text,
+                    'type' => $question->type,
+                    'is_correct' => $isCorrect,
+                    'correct_answer' => $correctAnswer,
+                    'student_answer_text' => $studentAnswerText // For multiple choice display
+                ];
+
                 if ($isCorrect) $totalScore += $question->points;
             }
 
@@ -185,20 +342,7 @@ $attempt->update(['total_score' => $totalScore]);
 return response()->json([
                 'score' => $totalScore,
                 'max_score' => $attemptMaxScore,
-                'details' => $activeQuestions->map(function($q) use ($submittedAnswers, $attempt) {
-                    // Find the specific answer record we just created in this transaction
-                    $ansRecord = \App\Models\StudentAnswer::where('attempt_id', $attempt->id)
-                        ->where('question_id', $q->id)
-                        ->first();
-
-                    return [
-                        'question_text' => $q->question_text,
-                        'is_correct' => $ansRecord ? $ansRecord->is_correct : false,
-                        'correct_answer' => $q->type === 'multiple_choice' 
-                            ? ($q->options[$q->expected_output] ?? 'N/A') 
-                            : $q->expected_output
-                    ];
-                })->values() // <-- THIS FIXES IT: Forces it to be a flat array for React
+                'details' => $detailedResults
             ]);
         });
     }

@@ -1,15 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api, { invalidateCache } from '../../services/api';
+import api from '../../services/api';
 import cache from '../../utils/cache';
 import CreateCourseModal from './CreateCourseModal';
 import DeleteModal from '../../components/ui/DeleteModal';
-import {
-    Copy, Users, BookOpen, Plus,
-    Trash2, ExternalLink, Loader2
-} from 'lucide-react';
+import { Copy, Users, BookOpen, Plus, Trash2, ExternalLink, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import './ClassDetails.css';
+import { motion } from 'framer-motion';
 
 export default function ClassDetails() {
     const { id } = useParams();
@@ -26,12 +23,8 @@ export default function ClassDetails() {
         let isMounted = true;
 
         const fetchDetails = async () => {
-            // Speed Trick: Reset state instantly so the user sees the Skeleton
-            // of the NEW class immediately instead of the data of the OLD class.
             setLoading(true);
             setClassroom(null);
-
-            // Clear cache for this specific class
             cache.invalidate(`get:/teacher/classes/${id}`);
 
             try {
@@ -47,7 +40,7 @@ export default function ClassDetails() {
                 }
                 if (err.response?.status === 403) {
                     toast.error("Security Alert: Unauthorized access attempt.");
-                    navigate('/dashboard/teacher'); // Kick them back to safety
+                    navigate('/dashboard/teacher');
                 }
             }
         };
@@ -87,142 +80,159 @@ export default function ClassDetails() {
         }
     };
 
-    // --- MILLION DOLLAR SKELETON UI ---
-    if (loading) return (
-        <div className="class-details-container">
-            <div className="skeleton-container">
-                {/* Header Skeleton */}
-                <div className="skeleton-header">
-                    <div className="skeleton-header-line" />
-                    <div className="skeleton-header-line" />
-                </div>
-                {/* Tabs Skeleton */}
-                <div className="skeleton-tabs">
-                    <div className="skeleton-tab" />
-                    <div className="skeleton-tab" />
-                </div>
-                {/* Grid Skeleton */}
-                <div className="skeleton-grid">
-                    <div className="skeleton-card" />
-                    <div className="skeleton-card" />
-                    <div className="skeleton-card" />
+    if (loading) {
+        return (
+            <div style={{ padding: '40px 50px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                    <div style={{ height: '200px', background: 'rgba(167, 139, 250, 0.08)', borderRadius: '12px', padding: '24px', animation: 'pulse 2s infinite' }} />
+                    <div style={{ height: '40px', background: 'rgba(167, 139, 250, 0.08)', borderRadius: '8px', width: '120px', animation: 'pulse 2s infinite' }} />
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px' }}>
+                        {[1, 2, 3].map(i => <div key={i} style={{ height: '240px', background: 'rgba(167, 139, 250, 0.08)', borderRadius: '16px', animation: 'pulse 2s infinite' }} />)}
+                    </div>
                 </div>
             </div>
-        </div>
-    );
+        );
+    }
 
     if (!classroom) return null;
 
     return (
-        <div className="class-details-container">
-            {/* Header / Hero Area - Enhanced */}
-            <div className="class-header">
-                {/* Decorative gradient orb */}
-                <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl -z-0" style={{ pointerEvents: 'none' }} />
-
-                <div className="class-header-content">
-                    <div className="class-header-left">
-                        <div className="class-header-label">
-                            <div className="w-1.5 h-6 bg-gradient-to-b from-purple-400 to-purple-600 rounded-full" />
+        <div style={{ maxWidth: '100%', padding: '40px 50px', background: '#02010a', color: 'white', minHeight: '100vh' }}>
+            {/* HEADER */}
+            <div style={{ marginBottom: '48px', padding: '40px', borderRadius: '28px', background: 'linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(109, 40, 217, 0.1) 100%)', border: '1px solid rgba(167, 139, 250, 0.2)' }}>
+                <div style={{ display: 'flex', gap: '40px', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', fontSize: '12px', fontWeight: 700, color: '#d8b4fe', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+                            <div style={{ width: '6px', height: '24px', background: 'linear-gradient(to bottom, #a78bfa, #9333ea)', borderRadius: '999px' }} />
                             Classroom
                         </div>
-                        <h1 className="class-header-title">{classroom.name}</h1>
-                        <p className="class-header-description">{classroom.description || "No description provided."}</p>
-                        <div className="class-header-stats">
-                            <div className="class-header-stat">
-                                <BookOpen size={16} className="text-purple-400" />
+                        <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'white', margin: '0 0 12px 0' }}>{classroom.name}</h1>
+                        <p style={{ fontSize: '14px', color: '#94a3b8', lineHeight: '1.5', margin: '0 0 16px 0' }}>{classroom.description || "No description provided."}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '30px', fontSize: '14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#94a3b8' }}>
+                                <BookOpen size={16} />
                                 <span>{classroom.courses_count || 0} course{(classroom.courses_count || 0) !== 1 ? 's' : ''}</span>
                             </div>
-                            <div className="class-header-stat">
-                                <Users size={16} className="text-cyan-400" />
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#94a3b8' }}>
+                                <Users size={16} />
                                 <span>{classroom.students_count || 0} student{(classroom.students_count || 0) !== 1 ? 's' : ''}</span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="class-code-box">
-                        <span className="class-code-label">Share with Students</span>
-                        <div className="class-code-display">
-                            <span className="class-code-text">{classroom.class_code}</span>
+                    <div style={{ background: 'rgba(109, 40, 217, 0.1)', border: '1px solid rgba(167, 139, 250, 0.3)', borderRadius: '16px', padding: '28px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', minWidth: '200px', textAlign: 'center' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#d8b4fe', textTransform: 'uppercase', letterSpacing: '0.15em', margin: '0' }}>Share with Students</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center' }}>
+                            <span style={{ fontSize: '30px', fontWeight: 700, color: '#d8b4fe', fontFamily: 'Courier New, monospace', letterSpacing: '0.1em', margin: '0' }}>{classroom.class_code}</span>
                             <button
                                 onClick={copyCode}
-                                className="class-code-copy-btn"
-                                title="Copy class code"
+                                style={{ padding: '10px 12px', background: 'rgba(167, 139, 250, 0.1)', border: '1px solid rgba(167, 139, 250, 0.3)', borderRadius: '10px', color: '#d8b4fe', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.3s' }}
                                 type="button"
-                                style={{ pointerEvents: 'auto' }}
                             >
                                 <Copy size={18} />
                             </button>
                         </div>
-                        <p className="class-code-hint">Students use this to join</p>
+                        <p style={{ fontSize: '12px', color: '#64748b', margin: '0' }}>Students use this to join</p>
                     </div>
                 </div>
             </div>
 
-            {/* Tabs Navigation - Enhanced */}
-            <div className="class-tabs">
+            {/* TABS */}
+            <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', marginBottom: '40px' }}>
                 <button
                     onClick={() => setActiveTab('courses')}
-                    className={`class-tab-btn ${activeTab === 'courses' ? 'active' : ''}`}
+                    style={{
+                        padding: '16px 24px',
+                        background: 'transparent',
+                        border: 'none',
+                        color: activeTab === 'courses' ? '#d8b4fe' : '#64748b',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s',
+                        borderBottom: activeTab === 'courses' ? '2px solid #d8b4fe' : 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginBottom: '-1px'
+                    }}
                 >
                     <BookOpen size={16} />
                     <span>Courses</span>
                 </button>
                 <button
                     onClick={() => setActiveTab('students')}
-                    className={`class-tab-btn ${activeTab === 'students' ? 'active' : ''}`}
+                    style={{
+                        padding: '16px 24px',
+                        background: 'transparent',
+                        border: 'none',
+                        color: activeTab === 'students' ? '#d8b4fe' : '#64748b',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s',
+                        borderBottom: activeTab === 'students' ? '2px solid #d8b4fe' : 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginBottom: '-1px'
+                    }}
                 >
                     <Users size={16} />
                     <span>Students</span>
                 </button>
             </div>
 
-            {/* TAB CONTENT: COURSES - Enhanced */}
+            {/* COURSES TAB */}
             {activeTab === 'courses' && (
-                <div className="class-content">
-                    <div className="class-curriculum-header">
+                <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', marginBottom: '32px' }}>
                         <div>
-                            <h3 className="class-curriculum-title">Class Curriculum</h3>
-                            <p className="class-curriculum-subtitle">{classroom.courses_count || 0} course{(classroom.courses_count || 0) !== 1 ? 's' : ''} created</p>
+                            <h3 style={{ fontSize: '30px', fontWeight: 700, color: 'white', margin: '0 0 8px 0' }}>Curriculum</h3>
+                            <p style={{ fontSize: '14px', color: '#64748b', margin: '0' }}>{classroom.courses_count || 0} course{(classroom.courses_count || 0) !== 1 ? 's' : ''}</p>
                         </div>
                         <button
                             onClick={() => setIsModalOpen(true)}
-                            className="btn-primary py-3 px-6 text-sm flex items-center gap-2 border-none cursor-pointer bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 transition-all rounded-lg font-bold shadow-lg hover:shadow-purple-500/30"
+                            style={{ padding: '14px 24px', display: 'flex', alignItems: 'center', gap: '8px', border: 'none', cursor: 'pointer', background: 'linear-gradient(to right, #9333ea, #7e22ce)', color: 'white', borderRadius: '8px', fontWeight: 700, fontSize: '14px', textTransform: 'uppercase', transition: 'all 0.3s' }}
                         >
                             <Plus size={18} /> Create Course
                         </button>
                     </div>
 
                     {!classroom.courses || classroom.courses.length === 0 ? (
-                        <div className="empty-state">
-                            <div className="empty-icon">
+                        <div style={{ border: '2px dashed rgba(255, 255, 255, 0.1)', borderRadius: '24px', padding: '80px 40px', textAlign: 'center', background: 'rgba(255, 255, 255, 0.01)' }}>
+                            <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(167, 139, 250, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', color: 'rgba(167, 139, 250, 0.5)' }}>
                                 <BookOpen size={40} />
                             </div>
-                            <p className="empty-title">No courses yet</p>
-                            <p className="empty-subtitle">Get started by creating your first course</p>
+                            <p style={{ fontSize: '20px', fontWeight: 600, color: '#94a3b8', margin: '0 0 12px 0' }}>No courses yet</p>
+                            <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 24px 0' }}>Get started by creating your first course</p>
                             <button
                                 onClick={() => setIsModalOpen(true)}
-                                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-purple-200 hover:border-purple-400/50 transition-all font-semibold"
+                                style={{ padding: '14px 24px', display: 'inline-flex', alignItems: 'center', gap: '8px', borderRadius: '8px', background: 'rgba(168, 85, 247, 0.2)', border: '1px solid rgba(167, 139, 250, 0.3)', color: '#d8b4fe', cursor: 'pointer', fontWeight: 600, transition: 'all 0.3s' }}
                             >
                                 <Plus size={16} /> Create First Course
                             </button>
                         </div>
                     ) : (
-                        <div className="class-courses-grid">
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
                             {classroom.courses.map(course => (
                                 <div
                                     key={course.id}
-                                    className="course-card"
+                                    style={{ padding: '24px', borderRadius: '20px', border: '1px solid rgba(167, 139, 250, 0.2)', background: 'linear-gradient(135deg, rgba(15, 7, 36, 0.8) 0%, rgba(30, 10, 60, 0.6) 100%)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '300px', position: 'relative', overflow: 'hidden', transition: 'all 0.3s' }}
                                 >
                                     <div>
-                                        <div className="course-card-header">
-                                            <h4 className="course-card-title">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
+                                            <h4 style={{ fontSize: '18px', fontWeight: 800, color: 'white', flex: 1, wordBreak: 'break-word', margin: '0', lineHeight: '1.3' }}>
                                                 {course.title}
                                             </h4>
-                                            <div className="course-card-actions">
+                                            <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
                                                 <button
                                                     onClick={() => navigate(`/dashboard/teacher/class/${classroom.id}/course/${course.id}`)}
-                                                    className="course-card-action-btn"
+                                                    style={{ padding: '12px 14px', background: 'rgba(168, 85, 247, 0.2)', border: '1px solid rgba(167, 139, 250, 0.3)', borderRadius: '10px', color: '#e9d5ff', cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                                     type="button"
                                                     title="Open course"
                                                 >
@@ -230,7 +240,7 @@ export default function ClassDetails() {
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteCourse(course.id, course.title)}
-                                                    className="course-card-action-btn course-card-delete-btn"
+                                                    style={{ padding: '12px 14px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '10px', color: '#f87171', cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                                     type="button"
                                                     title="Delete course"
                                                 >
@@ -238,26 +248,32 @@ export default function ClassDetails() {
                                                 </button>
                                             </div>
                                         </div>
-                                        <span className={`course-card-badge ${course.is_published ? 'published' : 'draft'}`}>
-                                            {course.is_published ? (
-                                                <>
-                                                    <span>✓</span>
-                                                    <span>Published</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <span>◊</span>
-                                                    <span>Draft</span>
-                                                </>
-                                            )}
-                                        </span>
-                                        <div className="course-card-content">
-                                            {course.description && (
-                                                <p className="course-card-description">{course.description}</p>
-                                            )}
+
+                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '16px', background: course.is_published ? 'rgba(34, 197, 94, 0.2)' : 'rgba(168, 85, 247, 0.15)', color: course.is_published ? '#4ade80' : '#d8b4fe', border: course.is_published ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(167, 139, 250, 0.4)' }}>
+                                            <span>{course.is_published ? '✓ Published' : '◊ Draft'}</span>
+                                        </div>
+
+                                        {course.description && (
+                                            <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                                {course.description}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* PROGRESS BAR */}
+                                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0' }}>Progress</span>
+                                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#22d3ee', margin: '0' }}>0%</span>
+                                        </div>
+                                        <div style={{ height: '4px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: '0%' }}
+                                                style={{ height: '100%', background: 'linear-gradient(to right, #06b6d4, #22d3ee)', boxShadow: '0 0 10px rgba(34, 211, 238, 0.3)' }}
+                                            />
                                         </div>
                                     </div>
-                                    <div className="course-card-footer"></div>
                                 </div>
                             ))}
                         </div>
@@ -265,49 +281,49 @@ export default function ClassDetails() {
                 </div>
             )}
 
-            {/* TAB CONTENT: STUDENTS - Enhanced */}
+            {/* STUDENTS TAB */}
             {activeTab === 'students' && (
-                <div className="students-section">
-                    <div className="students-header">
-                        <h3 className="students-header-title">Enrolled Students</h3>
-                        <p className="students-header-subtitle">{classroom.students_count || 0} student{(classroom.students_count || 0) !== 1 ? 's' : ''} learning</p>
+                <div>
+                    <div style={{ paddingBottom: '24px', borderBottom: '1px solid rgba(167, 139, 250, 0.1)', marginBottom: '32px' }}>
+                        <h3 style={{ fontSize: '30px', fontWeight: 700, color: 'white', margin: '0 0 8px 0' }}>Enrolled Students</h3>
+                        <p style={{ fontSize: '14px', color: '#64748b', margin: '0' }}>{classroom.students_count || 0} student{(classroom.students_count || 0) !== 1 ? 's' : ''} learning</p>
                     </div>
 
                     {!classroom.students || classroom.students.length === 0 ? (
-                        <div className="students-empty">
-                            <div className="students-empty-icon">
-                                <Users size={40} className="text-cyan-400" />
+                        <div style={{ borderRadius: '20px', border: '2px dashed rgba(167, 139, 250, 0.25)', padding: '80px 40px', textAlign: 'center', background: 'linear-gradient(135deg, rgba(167, 139, 250, 0.05) 0%, rgba(109, 40, 217, 0.02) 100%)' }}>
+                            <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.15) 0%, rgba(99, 102, 241, 0.1) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', border: '2px solid rgba(34, 211, 238, 0.2)', color: '#22d3ee' }}>
+                                <Users size={40} />
                             </div>
-                            <p className="students-empty-title">No students yet</p>
-                            <p className="students-empty-subtitle">
+                            <p style={{ fontSize: '22px', fontWeight: 700, color: '#94a3b8', margin: '0 0 12px 0' }}>No students yet</p>
+                            <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.6', margin: '0' }}>
                                 Students will appear here once they join using the class code:
-                                <div className="students-empty-code">{classroom.class_code}</div>
+                                <div style={{ display: 'inline-block', marginTop: '8px', padding: '8px 16px', background: 'rgba(168, 85, 247, 0.1)', border: '1px solid rgba(167, 139, 250, 0.3)', borderRadius: '8px', fontFamily: 'Courier New, monospace', fontWeight: 700, color: '#d8b4fe', fontSize: '18px' }}>{classroom.class_code}</div>
                             </p>
                         </div>
                     ) : (
-                        <div className="students-table-container">
-                            <table className="students-table">
-                                <thead className="students-table-head">
+                        <div style={{ borderRadius: '20px', border: '1px solid rgba(167, 139, 250, 0.2)', background: 'linear-gradient(135deg, rgba(15, 7, 36, 0.5) 0%, rgba(30, 10, 60, 0.3) 100%)', overflow: 'hidden' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', background: 'transparent' }}>
+                                <thead style={{ background: 'linear-gradient(90deg, rgba(167, 139, 250, 0.08) 0%, rgba(109, 40, 217, 0.04) 100%)', borderBottom: '1px solid rgba(167, 139, 250, 0.2)' }}>
                                     <tr>
-                                        <th className="students-table-header">Name</th>
-                                        <th className="students-table-header">Email</th>
-                                        <th className="students-table-header">Joined</th>
-                                        <th className="students-table-header">Actions</th>
+                                        <th style={{ padding: '18px 24px', textAlign: 'left', fontSize: '12px', fontWeight: 700, color: '#d8b4fe', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Name</th>
+                                        <th style={{ padding: '18px 24px', textAlign: 'left', fontSize: '12px', fontWeight: 700, color: '#d8b4fe', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Email</th>
+                                        <th style={{ padding: '18px 24px', textAlign: 'left', fontSize: '12px', fontWeight: 700, color: '#d8b4fe', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Joined</th>
+                                        <th style={{ padding: '18px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: '#d8b4fe', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="students-table-body">
+                                <tbody>
                                     {classroom.students?.map(student => (
-                                        <tr key={student.id} className="students-table-row">
-                                            <td className="students-table-cell">
-                                                <div className="student-name-cell">
-                                                    <div className="student-avatar">
+                                        <tr key={student.id} style={{ borderBottom: '1px solid rgba(167, 139, 250, 0.1)', transition: 'all 0.3s' }}>
+                                            <td style={{ padding: '18px 24px', color: '#cbd5e1', fontSize: '14px', verticalAlign: 'middle' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(34, 211, 238, 0.2) 100%)', border: '1.5px solid rgba(167, 139, 250, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700, color: '#d8b4fe', flexShrink: 0 }}>
                                                         {(student.student_profile?.first_name?.[0] || 'S').toUpperCase()}
                                                     </div>
-                                                    <span>{student.student_profile?.first_name} {student.student_profile?.last_name}</span>
+                                                    <span style={{ color: 'white', fontWeight: 600 }}>{student.student_profile?.first_name} {student.student_profile?.last_name}</span>
                                                 </div>
                                             </td>
-                                            <td className="students-table-cell student-email">{student.email}</td>
-                                            <td className="students-table-cell student-joined">
+                                            <td style={{ padding: '18px 24px', color: '#94a3b8', fontSize: '14px', verticalAlign: 'middle' }}>{student.email}</td>
+                                            <td style={{ padding: '18px 24px', color: '#64748b', fontSize: '14px', verticalAlign: 'middle' }}>
                                                 {student.pivot?.enrolled_at
                                                     ? new Date(student.pivot.enrolled_at).toLocaleDateString(undefined, {
                                                           month: 'short',
@@ -316,8 +332,8 @@ export default function ClassDetails() {
                                                       })
                                                     : 'Recently'}
                                             </td>
-                                            <td className="students-table-cell">
-                                                <button className="student-action-btn" type="button" title="Remove student">
+                                            <td style={{ padding: '18px 24px', textAlign: 'right', verticalAlign: 'middle' }}>
+                                                <button style={{ padding: '10px 12px', background: 'transparent', border: '1.5px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', color: '#f87171', cursor: 'pointer', transition: 'all 0.3s', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} type="button" title="Remove student">
                                                     <Trash2 size={16} />
                                                 </button>
                                             </td>
