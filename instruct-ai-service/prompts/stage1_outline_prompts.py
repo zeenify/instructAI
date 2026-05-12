@@ -143,18 +143,51 @@ For each section, specify:
 
 GUIDELINES:
 - Tutorial lessons (setup, installation): Combine related steps into ONE tutorial section
-- For coding courses: Include at least ONE "example" section with code AND ONE "practice" section with challenges
+- For coding courses: Include "example" or "tutorial" sections when helpful, but not required every lesson
 - For non-coding: Use "concept" + "example" + "summary" structure
 - Balance theory with clear explanations and examples
 - Each section should take 4-6 minutes
 - MERGE overlapping topics into single sections
 
+**WHEN TO INCLUDE EXAMPLE/DEMO CODE**:
+- Include if the concept is abstract and needs visual demonstration (how inheritance works, method chaining)
+- Include if students need to see syntax in action before they practice (loops, string methods)
+- Skip if the concept is straightforward (variable declaration, basic syntax)
+- Skip if the lesson is purely theoretical (OOP principles, design patterns explanation)
+- Think: Does this concept NEED a code example, or can explanation alone suffice?
+
+**WHEN TO INCLUDE PRACTICE CHALLENGES**:
+- Include if the lesson teaches a skill that needs hands-on practice (loops, conditionals, methods)
+- Skip if the lesson is conceptual/theoretical (explaining Java syntax, understanding OOP principles)
+- Skip if the lesson is introductory/setup (installing JDK, environment setup, understanding IDEs)
+- Think: Does this lesson teach something students need to TRY, or just UNDERSTAND?
+
+**SECTION ORDERING** - Build complexity step by step:
+- Section 1 (Introduction): Set context, don't teach yet
+- Section 2 (Concept): Teach new idea/syntax ONLY
+- Section 3 (Example/Tutorial): Show how to use what was just taught
+- Section 4 (Practice): Challenge using sections 2-3 material ONLY, no new concepts
+- Section 5 (Summary): Review what was learned
+
 CODING COURSE SECTION STRUCTURE (when is_coding=true):
 1. Introduction - Hook + learning objectives (needs_code: false)
 2. Concept - Explain the theory/idea (needs_code: false)
-3. Example OR Tutorial - Show code/demo with explanation (needs_code: true)
-4. Practice - Challenge/exercise for students (needs_code: true)
+3. Example OR Tutorial - Show code/demo with explanation (needs_code: true) - **OPTIONAL: only include if concept needs visual demo**
+4. Practice - Challenge/exercise for students (needs_code: true) - **OPTIONAL: only include if lesson is practical/skill-based**
 5. Summary - Key takeaways (needs_code: false)
+
+TYPICAL LESSON STRUCTURES:
+- Skill-focused with demo (loops, conditionals, methods): Intro → Concept → Example → Practice → Summary (5 sections)
+- Skill-focused without demo (simple syntax): Intro → Concept → Practice → Summary (4 sections, no example)
+- Conceptual with demo (abstract ideas): Intro → Concept → Example → Summary (4 sections, no practice)
+- Conceptual without demo (straightforward): Intro → Concept → Summary (3 sections, no example/practice)
+- Setup/Tutorial (environment, tooling): Intro → Tutorial → Summary (3 sections, no example/practice)
+
+**CRITICAL**: If you include a Practice section, it MUST only use concepts from Concept or Example sections.
+- If the lesson teaches "variables", practice should be about variables
+- If the lesson teaches "for loops", practice should use for loops
+- Do NOT create a challenge about arrays if arrays weren't introduced
+- Each practice challenge should be achievable using ONLY what was just taught
 
 Output ONLY valid JSON:
 {{

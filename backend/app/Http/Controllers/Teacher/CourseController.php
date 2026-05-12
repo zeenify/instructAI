@@ -206,6 +206,26 @@ class CourseController extends Controller
         return response()->json($course);
     }
 
+    public function update(Request $request, $id)
+    {
+        $course = Course::where('id', $id)
+            ->where('teacher_id', auth()->id())
+            ->firstOrFail();
+
+        $request->validate([
+            'title' => 'sometimes|string|max:255',
+            'description' => 'sometimes|string',
+            'is_coding' => 'sometimes|boolean',
+        ]);
+
+        $course->update($request->only(['title', 'description', 'is_coding']));
+
+        return response()->json([
+            'success' => true,
+            'course' => $course
+        ]);
+    }
+
     public function togglePublish(Request $request, $id)
     {
         $course = Course::findOrFail($id);

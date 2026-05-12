@@ -289,18 +289,6 @@ def format_section_to_blocks(
                 "data": {"text": f"<p><strong>Expected Outcome:</strong> {section_content['expected_outcome']}</p>"}
             })
 
-        # Hints
-        if section_content.get("hints"):
-            hints = section_content["hints"]
-            # Ensure it's a list
-            if isinstance(hints, str):
-                hints = [hints]
-            items = "".join([f"<li>{str(hint)}</li>" for hint in hints])
-            blocks.append({
-                "id": str(uuid.uuid4()),
-                "type": "text",
-                "data": {"text": f"<p><strong>💡 Hints:</strong></p><ul>{items}</ul>"}
-            })
 
     elif content_type == "summary":
         # Key takeaways

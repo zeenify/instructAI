@@ -1440,7 +1440,16 @@ export default function CourseBuilder() {
                                             </a>
                                             <div style={{ marginTop: '16px', paddingTop: '16px' }} className="border-t border-green-500/20">
                                                 <button
-                                                    onClick={() => setCourse(prev => ({ ...prev, is_coding: !prev.is_coding }))}
+                                                    onClick={async () => {
+                                                        const newValue = !course.is_coding;
+                                                        setCourse(prev => ({ ...prev, is_coding: newValue }));
+                                                        try {
+                                                            await api.put(`/teacher/courses/${course.id}`, { is_coding: newValue });
+                                                        } catch (err) {
+                                                            toast.error('Failed to update course setting');
+                                                            setCourse(prev => ({ ...prev, is_coding: !newValue }));
+                                                        }
+                                                    }}
                                                     style={{ padding: '12px 16px' }}
                                                     className="flex items-center gap-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold uppercase tracking-widest transition-all cursor-pointer text-slate-400 hover:text-white"
                                                 >

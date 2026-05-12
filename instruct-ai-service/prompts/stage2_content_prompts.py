@@ -101,21 +101,22 @@ Your job is to EXPLAIN a concept clearly and concisely.
 
 RULES:
 1. Start with simple definition (1 sentence)
-2. Explain WHY it matters
-3. Use analogies when helpful
-4. Break down complex ideas into simple parts
-5. Connect to real-world examples
+2. Use a fresh analogy or comparison (avoid generic "like a..." phrases)
+3. Explain WHY it matters and when students will use it
+4. Break down complex ideas - use examples, not just abstract talk
+5. Connect to real-world scenarios (brief, specific, relevant)
 6. No code in concept sections (that's for 'example' sections)
+7. VARY your approach: Some concepts benefit from history, some from problems they solve, some from misconception-busting
 
-STYLE: Conversational but precise. Teach like you're explaining to a friend.
+STYLE: Conversational but precise. Teach like you're explaining to a friend. Add personality.
 
 Output format:
 {
   "content_type": "concept",
   "definition": "One sentence definition",
-  "explanation": "2-3 paragraphs explaining the concept",
-  "why_it_matters": "Why this concept is important",
-  "real_world_example": "How this applies in practice",
+  "explanation": "2-3 paragraphs (NOT just definition restated - add depth, examples, or a unique angle)",
+  "why_it_matters": "Why this concept is important (be specific to what students will build)",
+  "real_world_example": "How this applies in practice (concrete, not generic)",
   "key_points": ["Point 1", "Point 2", "Point 3"]
 }
 """
@@ -133,22 +134,23 @@ Your job is to provide CODE EXAMPLES with clear explanations.
 
 RULES:
 1. Show complete, runnable code (students will run it in the online editor)
-2. Explain WHAT the code does
-3. Explain WHY it's written this way
-4. Point out important lines
-5. Show expected output
+2. Explain WHAT the code does (what happens when you run it)
+3. Explain WHY it's written this way (design choices, not obvious things)
+4. Point out the KEY lines that matter most
+5. Show exact expected output
 6. Code must be syntactically correct and runnable immediately
 7. Do NOT mention javac, compilation steps, or terminal commands
 8. Assume students will click "Run" in the editor to test the code
+9. VARY examples: Some should be minimal (show one concept), some should be realistic (show patterns)
 
-STYLE: Code-first, then explain. Like showing AND telling.
+STYLE: Code-first, then explain. Like showing AND telling. Make students curious.
 
 Output format:
 {
   "content_type": "example",
-  "intro": "Brief intro to what we're demonstrating",
-  "code": "Complete, properly formatted code with:\n  - ACTUAL line breaks between statements (not \\n escape sequences)\n  - Clear indentation (4 spaces per level)\n  - Comments explaining key lines\n  - Blank lines between logical sections\n  - Readable structure (never cramped into one line)",
-  "explanation": "Line-by-line or block-by-block explanation",
+  "intro": "Brief, engaging intro to what we're demonstrating (1-2 sentences)",
+  "code": "Complete, properly formatted code with:\n  - ACTUAL line breaks between statements (not \\n escape sequences)\n  - Clear indentation (4 spaces per level)\n  - Comments only on tricky lines (not obvious things)\n  - Blank lines between logical sections\n  - Readable structure (never cramped into one line)",
+  "explanation": "Explain the code: WHAT it does + WHY it's structured this way (focus on insights)",
   "output": "What you should see when you run this (use actual line breaks, not \\n)",
   "key_concepts": ["Concept 1 shown in code", "Concept 2 shown in code"]
 }
@@ -189,15 +191,20 @@ Output format:
             return base + """
 Your job is to create CODING PRACTICE EXERCISES.
 
+**CRITICAL CONSTRAINT**: This challenge MUST practice ONLY the concepts taught in THIS specific section.
+Do NOT introduce concepts students haven't learned yet.
+If the section is about variables, make a challenge about variables - NOT loops.
+If it's about syntax, don't require algorithms. Stay focused.
+
 RULES:
-1. State the challenge clearly - MUST be related to THIS lesson's topic only
+1. State the challenge clearly - MUST be related to THIS section's focus only (see "Focus:" below)
 2. Provide DETAILED starter code with structure already in place - students fill in missing parts
 3. Use COMMENTS showing EXACTLY where code goes and what to do (not vague placeholders)
-4. Give detailed hints that guide without solving - show patterns, not answers
-5. Describe expected output - **CRITICAL: Put the EXACT literal output, not a description**
-6. Make it achievable in 5-10 minutes of focused work, not trivial but not overwhelming
-7. **CRITICAL**: The exercise must practice ONLY what was taught in this lesson, not unrelated topics
-8. Students run code in the ONLINE EDITOR by clicking "Run" - do NOT mention javac, terminal, or compilation
+4. Describe expected output - **CRITICAL: Put the EXACT literal output, not a description**
+5. Make it achievable in 5-10 minutes of focused work, not trivial but not overwhelming
+6. **CRITICAL**: The exercise must practice ONLY what was taught in THIS SECTION, not other topics
+7. Students run code in the ONLINE EDITOR by clicking "Run" - do NOT mention javac, terminal, or compilation
+8. **DO NOT assume knowledge of concepts from later sections** - even if "loops" are mentioned in the lesson title, if THIS section hasn't covered loops yet, don't use them
 
 STARTER CODE REQUIREMENTS:
 - Include the entire structure (imports, class definition, method signatures)
@@ -209,16 +216,6 @@ STARTER CODE REQUIREMENTS:
 - Properly formatted with good indentation and ACTUAL newlines (not \n escape sequences)
 - When writing JSON, use actual line breaks between logical sections
 - Code must be immediately runnable in the online editor (no setup needed)
-
-HINT REQUIREMENTS:
-- 3-5 specific hints that guide WITHOUT solving
-- Hint 1: Broad direction ("You'll need a loop to repeat this 5 times")
-- Hint 2: What keyword/approach ("Use a 'for' loop, not a 'while' loop")
-- Hint 3: Structure guidance ("Your loop should go inside the main method, after the variable declaration")
-- Hint 4: One small detail ("The loop counter should start at 1")
-- Hint 5: Last resort ("Count from 1 to 5, then stop")
-- NEVER show actual code snippets in hints - describe only
-- Direct students to use the online editor's "Run" button, not terminal commands
 
 EXPECTED_OUTPUT REQUIREMENTS:
 - **MUST be the EXACT literal output** - Every character, line, space
@@ -239,6 +236,13 @@ ANTI-PATTERNS TO AVOID:
 - Writing algorithms when the lesson is about syntax (WRONG)
 - Building features not mentioned in the lesson (WRONG)
 
+VARY THE TYPE OF CHALLENGE:
+- Some should be "build from scratch" (implement a feature)
+- Some should be "debug this code" (fix broken code)
+- Some should be "refactor this code" (improve existing code)
+- Some should be "predict the output" (understand what code does)
+- PICK THE ONE THAT BEST FITS THIS LESSON'S TOPIC
+
 STYLE: Encouraging but challenging. Build confidence through doing.
 
 Output format:
@@ -246,7 +250,6 @@ Output format:
   "content_type": "practice",
   "challenge": "Clear statement of what to build/do (1-2 sentences, directly related to this lesson)",
   "starter_code": "Fully structured code with:\n  - All imports and class setup\n  - Method signatures ready\n  - VAGUE TODO comments (show WHERE, not WHAT)\n  - NO example code in comments\n  - Proper formatting with actual line breaks (not \\n)",
-  "hints": ["Hint 1: Broad direction", "Hint 2: What approach/keyword", "Hint 3: Where/when to use it", "Hint 4: One small detail", "Hint 5: Last resort"],
   "expected_output": "The EXACT literal output (actual line breaks, not \\n)",
   "success_criteria": "How to verify it works - be specific about what to check"
 }
@@ -427,7 +430,11 @@ CONTEXT:
 
 {previous_context}{previous_lesson_context}
 
-CRITICAL: Stay laser-focused on "{section_focus}" only. Don't create off-topic content.
+**CRITICAL FOCUS REQUIREMENT**: Your content MUST be about "{section_focus}" and ONLY that.
+- If this is a practice challenge, students must solve it using ONLY what the focus describes
+- Do NOT introduce new concepts, keywords, or techniques not in the focus
+- Do NOT assume students know concepts from later sections
+- Example: If focus is "Print a message to console", challenge should be about System.out.println, NOT loops or arrays
 
 {code_constraint}
 
