@@ -1,19 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { java } from '@codemirror/lang-java';
 import { Play, CheckCircle, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import api from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import InteractiveTerminal from '../../components/student/InteractiveTerminal';
 
 
 export default function CodeIDE({ block, onSolve, lessonId  }) {
     const { mode, code: initialCode, expected } = block.data;
     const [code, setCode] = useState(initialCode || "");
     const [output, setOutput] = useState("");
+    const [input, setInput] = useState("");
     const [isRunning, setIsRunning] = useState(false);
     const [isCorrect, setIsCorrect] = useState(false);
-    const [isWrong, setIsWrong] = useState(false); 
+    const [isWrong, setIsWrong] = useState(false);
+    const [activeTab, setActiveTab] = useState('editor');
+    const terminalRef = useRef(null); 
 
     useEffect(() => {
         if (block.data.is_solved) {
@@ -30,7 +34,8 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
         try {
             const res = await api.post('/student/execute', {
                 code: code,
-                language: 'java'
+                language: 'java',
+                input: input || undefined
             });
 
             const data = res.data;
@@ -137,33 +142,150 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                 </AnimatePresence>
             </div>
 
-            {/* Editor & Terminal Area */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', minHeight: '400px' }}>
-                <div style={{ borderRight: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                    <CodeMirror
-                        value={code}
-                        height="400px"
-                        theme="dark"
-                        extensions={[java()]}
-                        onChange={(value) => setCode(value)}
-                        className="text-sm"
-                    />
-                </div>
-
-                {/* Terminal Area */}
-                <div style={{ background: 'rgba(0, 0, 0, 0.3)', padding: '20px', fontFamily: 'Courier New, monospace', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '12px', minHeight: '400px', overflowY: 'auto' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', paddingBottom: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                        <span>Console Output</span>
-                        {isRunning && <Loader2 size={12} className="animate-spin" style={{ color: '#22d3ee' }} />}
-                    </div>
-
-                    <div style={{ flex: 1, overflowY: 'auto', fontSize: '13px', color: isWrong ? '#ef4444' : '#cbd5e1', whiteSpace: 'pre-wrap', wordBreak: 'break-word', transition: 'color 0.5s' }}>
-                        {output || "> Ready to execute..."}
-                    </div>
-                </div>
+            {/* Tab Switcher */}
+            <div style={{
+                display: 'flex',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                background: 'rgba(255, 255, 255, 0.01)',
+                gap: '0'
+            }}>
+                <button
+                    onClick={() => setActiveTab('editor')}
+                    style={{
+                        flex: 1,
+                        padding: '16px 24px',
+                        fontSize: '10px',
+                        fontWeight: 900,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em',
+                        border: 'none',
+                        background: activeTab === 'editor' ? 'rgba(168, 85, 247, 0.1)' : 'transparent',
+                        color: activeTab === 'editor' ? '#a855f7' : '#64748b',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s',
+                        borderBottom: activeTab === 'editor' ? '2px solid #a855f7' : 'none'
+                    }}
+                >
+                    Code Editor
+                </button>
+                <button
+                    onClick={() => setActiveTab('terminal')}
+                    style={{
+                        flex: 1,
+                        padding: '16px 24px',
+                        fontSize: '10px',
+                        fontWeight: 900,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em',
+                        border: 'none',
+                        background: activeTab === 'terminal' ? 'rgba(168, 85, 247, 0.1)' : 'transparent',
+                        color: activeTab === 'terminal' ? '#a855f7' : '#64748b',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s',
+                        borderBottom: activeTab === 'terminal' ? '2px solid #a855f7' : 'none'
+                    }}
+                >
+                    Terminal Output
+                </button>
             </div>
 
-            {/* Expected Output - Separate section below */}
+            {/* Tab Content */}
+            <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '350px'
+            }}>
+                {/* Code Editor Tab */}
+                {activeTab === 'editor' && (
+                    <div style={{ flex: 1, overflow: 'auto' }}>
+                        <CodeMirror
+                            value={code}
+                            height="100%"
+                            theme="dark"
+                            extensions={[java()]}
+                            onChange={(value) => setCode(value)}
+                            className="text-sm"
+                        />
+                    </div>
+                )}
+
+                {/* Terminal Tab */}
+                {activeTab === 'terminal' && (
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <InteractiveTerminal
+                            ref={terminalRef}
+                            code={code}
+                            mode={mode}
+                            expected={expected}
+                            lessonId={lessonId}
+                            blockId={block.id}
+                            compact={true}
+                            onRun={() => setActiveTab('terminal')}
+                            onComplete={async () => {
+                                setIsCorrect(true);
+                                toast.success("Challenge Solved!");
+                                if (mode === 'challenge') {
+                                    await api.post(`/student/lessons/${lessonId}/submit-code`, {
+                                        block_id: block.id,
+                                        code: code
+                                    });
+                                    onSolve();
+                                }
+                            }}
+                        />
+                    </div>
+                )}
+            </div>
+
+            {/* Run Button Footer */}
+            <div style={{
+                padding: '16px 24px',
+                background: 'rgba(255, 255, 255, 0.02)',
+                borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '12px'
+            }}>
+                <button
+                    onClick={() => {
+                        setActiveTab('terminal');
+                        setTimeout(() => {
+                            terminalRef.current?.triggerRun?.();
+                        }, 0);
+                    }}
+                    style={{
+                        padding: '12px 28px',
+                        borderRadius: '14px',
+                        fontWeight: 900,
+                        fontSize: '10px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.2em',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        background: 'rgba(168, 85, 247, 0.15)',
+                        color: '#a855f7',
+                        boxShadow: '0 10px 30px rgba(168, 85, 247, 0.2)',
+                        transition: 'all 0.3s'
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 15px 40px rgba(168, 85, 247, 0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 10px 30px rgba(168, 85, 247, 0.2)';
+                    }}
+                >
+                    <Play size={16} fill="currentColor" />
+                    Run Program
+                </button>
+            </div>
+
+
+            {/* Expected Output - For Challenge Mode */}
             {mode === 'challenge' && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ padding: '20px 24px', borderTop: '1px solid rgba(34, 211, 238, 0.2)', background: 'rgba(34, 211, 238, 0.02)' }}>
                     <p style={{ fontSize: '10px', color: '#22d3ee', fontWeight: 900, textTransform: 'uppercase', marginBottom: '12px', margin: '0 0 12px 0' }}>Expected Output:</p>
@@ -173,54 +295,17 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                 </motion.div>
             )}
 
-            {/* Footer Actions */}
-            <div style={{ padding: '16px 24px', background: 'rgba(255, 255, 255, 0.02)', borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+            {/* Reset Button */}
+            <div style={{ padding: '16px 24px', background: 'rgba(255, 255, 255, 0.02)', borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', justifyContent: 'flex-end' }}>
                 <button
                     onClick={() => setCode(initialCode)}
-                    style={{ padding: '10px 12px', background: 'transparent', border: 'none', borderRadius: '10px', color: '#64748b', cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    onMouseEnter={(e) => { e.currentTarget.background = 'rgba(255, 255, 255, 0.05)'; e.currentTarget.color = 'white'; }}
-                    onMouseLeave={(e) => { e.currentTarget.background = 'transparent'; e.currentTarget.color = '#64748b'; }}
+                    style={{ padding: '10px 16px', background: 'transparent', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '10px', color: '#64748b', cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '10px', fontWeight: 900 }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'; e.currentTarget.style.color = 'white'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'; e.currentTarget.style.color = '#64748b'; }}
                     title="Reset Code"
                 >
-                    <RefreshCw size={18} />
-                </button>
-
-                <button
-                    disabled={isRunning || isCorrect}
-                    onClick={handleRun}
-                    style={{
-                        padding: '12px 28px',
-                        borderRadius: '14px',
-                        fontWeight: 900,
-                        fontSize: '10px',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.2em',
-                        border: 'none',
-                        cursor: isRunning || isCorrect ? 'not-allowed' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        transition: 'all 0.3s',
-                        background: isCorrect ? 'rgba(16, 185, 129, 0.15)' : colors.bg,
-                        color: isCorrect ? '#10b981' : colors.text,
-                        boxShadow: isCorrect ? 'none' : `0 10px 30px ${colors.text}20`,
-                        opacity: isCorrect ? 0.7 : 1
-                    }}
-                    onMouseEnter={(e) => {
-                        if (!isRunning && !isCorrect) {
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = `0 15px 40px ${colors.text}30`;
-                        }
-                    }}
-                    onMouseLeave={(e) => {
-                        if (!isRunning && !isCorrect) {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = `0 10px 30px ${colors.text}20`;
-                        }
-                    }}
-                >
-                    {isRunning ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />}
-                    {isCorrect ? 'Completed' : (mode === 'challenge' ? 'Verify Logic' : 'Run Program')}
+                    <RefreshCw size={14} />
+                    Reset Code
                 </button>
             </div>
         </motion.div>

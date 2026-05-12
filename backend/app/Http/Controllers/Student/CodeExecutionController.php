@@ -9,33 +9,63 @@ class CodeExecutionController extends Controller
     {
         $request->validate([
             'code' => 'required|string',
-            'language' => 'sometimes|string'
+            'language' => 'sometimes|string',
+            'input' => 'nullable|string'
         ]);
 
         // Use 'java' as default if not provided
         $language = $request->input('language', 'java');
+        $input = $request->input('input');
 
+        // Try local first, then fallback to deployment
+        $localUrl = 'http://localhost:3000/execute';
+        $deployedUrl = env('EXECUTION_ENGINE_URL');
+
+        $payload = [
+            'language' => $language,
+            'code' => $request->code,
+        ];
+
+        if ($input) {
+            $payload['input'] = $input;
+        }
+
+        // Try localhost first
         try {
-            // REPLACE THIS with your actual Railway URL
-            $engineUrl = env('EXECUTION_ENGINE_URL');
+            \Log::info('CodeExecution: Trying local engine', ['url' => $localUrl]);
+            $response = Http::timeout(20)->post($localUrl, $payload);
 
-            $response = Http::timeout(20)->post($engineUrl, [
-                'language' => $language,
-                'code' => $request->code,
-            ]);
+            if ($response->successful()) {
+                \Log::info('CodeExecution: Local engine succeeded');
+                return response()->json($response->json());
+            }
+        } catch (\Exception $localError) {
+            \Log::warning('CodeExecution: Local engine failed', ['error' => $localError->getMessage()]);
+        }
 
-            if ($response->failed()) {
-                return response()->json([
-                    'stderr' => 'The execution engine is temporarily unavailable.',
-                    'stdout' => ''
-                ], 503);
+        // Fallback to deployed engine
+        try {
+            \Log::info('CodeExecution: Falling back to deployed engine', ['url' => $deployedUrl]);
+            $response = Http::timeout(20)->post($deployedUrl, $payload);
+
+            if ($response->successful()) {
+                \Log::info('CodeExecution: Deployed engine succeeded');
+                return response()->json($response->json());
             }
 
-            return response()->json($response->json());
-
-        } catch (\Exception $e) {
             return response()->json([
-                'stderr' => 'Engine Connection Error: ' . $e->getMessage(),
+                'stderr' => 'The execution engine is temporarily unavailable.',
+                'stdout' => ''
+            ], 503);
+
+        } catch (\Exception $deployedError) {
+            \Log::error('CodeExecution: Both engines failed', [
+                'local_error' => $localError->getMessage() ?? 'Not attempted',
+                'deployed_error' => $deployedError->getMessage()
+            ]);
+
+            return response()->json([
+                'stderr' => 'Engine Connection Error: No available execution engine.',
                 'stdout' => ''
             ], 500);
         }
