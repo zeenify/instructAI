@@ -137,16 +137,24 @@ For each section, specify:
 - title: Clear, descriptive title (must be DISTINCT - no overlap with other sections)
 - type: {allowed_types}
 - focus: What this section teaches (1 sentence)
-- needs_code: Always set to false (no coding support in this course)
+- needs_code: true if section has code/challenges, false otherwise
 
 {coding_constraint}
 
 GUIDELINES:
 - Tutorial lessons (setup, installation): Combine related steps into ONE tutorial section
+- For coding courses: Include at least ONE "example" section with code AND ONE "practice" section with challenges
 - For non-coding: Use "concept" + "example" + "summary" structure
 - Balance theory with clear explanations and examples
 - Each section should take 4-6 minutes
 - MERGE overlapping topics into single sections
+
+CODING COURSE SECTION STRUCTURE (when is_coding=true):
+1. Introduction - Hook + learning objectives (needs_code: false)
+2. Concept - Explain the theory/idea (needs_code: false)
+3. Example OR Tutorial - Show code/demo with explanation (needs_code: true)
+4. Practice - Challenge/exercise for students (needs_code: true)
+5. Summary - Key takeaways (needs_code: false)
 
 Output ONLY valid JSON:
 {{

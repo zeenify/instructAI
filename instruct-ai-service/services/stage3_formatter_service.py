@@ -104,7 +104,11 @@ def format_section_to_blocks(
 
         # What you'll learn (bullet list)
         if section_content.get("what_youll_learn"):
-            items = "".join([f"<li>{convert_markdown_to_html(item)}</li>" for item in section_content["what_youll_learn"]])
+            what_youll_learn = section_content["what_youll_learn"]
+            # Ensure it's a list
+            if isinstance(what_youll_learn, str):
+                what_youll_learn = [what_youll_learn]
+            items = "".join([f"<li>{convert_markdown_to_html(str(item))}</li>" for item in what_youll_learn])
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "text",
@@ -114,7 +118,11 @@ def format_section_to_blocks(
     elif content_type == "tutorial":
         # Steps as numbered list
         if section_content.get("steps"):
-            items = "".join([f"<li>{convert_markdown_to_html(step)}</li>" for step in section_content["steps"]])
+            steps = section_content["steps"]
+            # Ensure it's a list
+            if isinstance(steps, str):
+                steps = [steps]
+            items = "".join([f"<li>{convert_markdown_to_html(str(step))}</li>" for step in steps])
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "text",
@@ -123,7 +131,11 @@ def format_section_to_blocks(
 
         # Commands as code block
         if section_content.get("commands"):
-            commands = "\n".join(section_content["commands"])
+            commands = section_content["commands"]
+            # Ensure it's a list
+            if isinstance(commands, str):
+                commands = [commands]
+            commands = "\n".join([str(c) for c in commands])
             # Format the commands
             formatted_commands = format_code_block(commands)
 
@@ -139,7 +151,11 @@ def format_section_to_blocks(
 
         # Warnings
         if section_content.get("warnings"):
-            items = "".join([f"<li>{convert_markdown_to_html(warning)}</li>" for warning in section_content["warnings"]])
+            warnings = section_content["warnings"]
+            # Ensure it's a list
+            if isinstance(warnings, str):
+                warnings = [warnings]
+            items = "".join([f"<li>{convert_markdown_to_html(str(warning))}</li>" for warning in warnings])
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "text",
@@ -165,7 +181,11 @@ def format_section_to_blocks(
 
         # Key points
         if section_content.get("key_points"):
-            items = "".join([f"<li>{convert_markdown_to_html(point)}</li>" for point in section_content["key_points"]])
+            key_points = section_content["key_points"]
+            # Ensure it's a list (sometimes AI returns string)
+            if isinstance(key_points, str):
+                key_points = [key_points]
+            items = "".join([f"<li>{convert_markdown_to_html(str(point))}</li>" for point in key_points])
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "text",
@@ -208,7 +228,11 @@ def format_section_to_blocks(
 
         # Key elements (non-programming)
         if section_content.get("key_elements"):
-            items = "".join([f"<li>{convert_markdown_to_html(elem)}</li>" for elem in section_content["key_elements"]])
+            key_elements = section_content["key_elements"]
+            # Ensure it's a list
+            if isinstance(key_elements, str):
+                key_elements = [key_elements]
+            items = "".join([f"<li>{convert_markdown_to_html(str(elem))}</li>" for elem in key_elements])
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "text",
@@ -267,7 +291,11 @@ def format_section_to_blocks(
 
         # Hints
         if section_content.get("hints"):
-            items = "".join([f"<li>{hint}</li>" for hint in section_content["hints"]])
+            hints = section_content["hints"]
+            # Ensure it's a list
+            if isinstance(hints, str):
+                hints = [hints]
+            items = "".join([f"<li>{str(hint)}</li>" for hint in hints])
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "text",
@@ -277,7 +305,11 @@ def format_section_to_blocks(
     elif content_type == "summary":
         # Key takeaways
         if section_content.get("key_takeaways"):
-            items = "".join([f"<li>{convert_markdown_to_html(takeaway)}</li>" for takeaway in section_content["key_takeaways"]])
+            key_takeaways = section_content["key_takeaways"]
+            # Ensure it's a list
+            if isinstance(key_takeaways, str):
+                key_takeaways = [key_takeaways]
+            items = "".join([f"<li>{convert_markdown_to_html(str(takeaway))}</li>" for takeaway in key_takeaways])
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "text",
