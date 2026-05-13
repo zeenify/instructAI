@@ -152,13 +152,14 @@ if ($completedAttempt) {
             $totalScore = 0;
             $detailedResults = [];
 
-            // Batch AI checking for enumeration and identification
+            // Batch AI checking for enumeration, identification, and coding (stage 2 only)
             $questionsForAI = [];
             $aiQuestionMap = []; // Map question number to question ID
             Log::info('QuizController: Starting batch AI check', ['total_questions' => count($activeQuestions)]);
             foreach ($activeQuestions as $question) {
-                if (in_array($question->type, ['enumeration', 'identification'])) {
+                if (in_array($question->type, ['enumeration', 'identification', 'coding'])) {
                     $rawAnswer = $submittedAnswers[$question->id] ?? null;
+
                     if ($question->type === 'enumeration') {
                         if ($rawAnswer && is_array($rawAnswer)) {
                             $studentItems = array_filter((array)$rawAnswer);
@@ -180,8 +181,7 @@ if ($completedAttempt) {
                                 $aiQuestionMap[count($questionsForAI)] = $question->id;
                             }
                         }
-                    } else {
-                        // identification
+                    } elseif ($question->type === 'identification') {
                         if ($rawAnswer && strtolower(trim((string)$rawAnswer)) !== strtolower(trim((string)$question->expected_output))) {
                             $questionsForAI[] = [
                                 'question_num' => count($questionsForAI) + 1,
@@ -192,6 +192,39 @@ if ($completedAttempt) {
                                 'student_answer' => (string)$rawAnswer
                             ];
                             $aiQuestionMap[count($questionsForAI)] = $question->id;
+                        }
+                    } elseif ($question->type === 'coding') {
+                        // Coding: stage 1 check (output match), only forward to AI for stage 2 if passed
+                        if ($rawAnswer) {
+                            try {
+                                $engineUrl = env('EXECUTION_ENGINE_URL');
+                                $response = Http::timeout(20)->post($engineUrl, [
+                                    'language' => 'java',
+                                    'code' => $rawAnswer,
+                                ]);
+
+                                $output = trim($response->json()['stdout'] ?? '');
+                                // Normalize line endings: convert \r\n to \n
+                                $output = str_replace("\r\n", "\n", $output);
+                                $expected = trim($question->expected_output);
+                                $expected = str_replace("\r\n", "\n", $expected);
+
+                                // Only forward to AI if output matches (stage 2 verification)
+                                if ($output === $expected && $expected !== "") {
+                                    $questionsForAI[] = [
+                                        'question_num' => count($questionsForAI) + 1,
+                                        'question_id' => $question->id,
+                                        'question_text' => $question->question_text,
+                                        'type' => 'coding',
+                                        'code' => $rawAnswer,
+                                        'expected_output' => $expected,
+                                        'output_matched' => true
+                                    ];
+                                    $aiQuestionMap[count($questionsForAI)] = $question->id;
+                                }
+                            } catch (\Exception $e) {
+                                Log::warning('QuizController: Code execution failed', ['error' => $e->getMessage()]);
+                            }
                         }
                     }
                 }
@@ -240,23 +273,15 @@ if ($completedAttempt) {
                 $isCorrect = false;
 
                 if ($question->type === 'coding') {
-                    // --- PRO MOVE: RE-RUN CODE ON BACKEND ---
-                    try {
-                        $engineUrl = env('EXECUTION_ENGINE_URL');
-                        
-                        $response = Http::timeout(20)->post($engineUrl, [
-                            'language' => 'java',
-                            'code' => $rawAnswer,
-                        ]);
-
-                        $output = trim($response->json()['stdout'] ?? '');
-                        $expected = trim($question->expected_output);
-
-                        if ($output === $expected && $expected !== "") {
-                            $isCorrect = true;
-                        }
-                    } catch (\Exception $e) {
-                        $isCorrect = false; // Fail safe if engine is down
+                    // Stage 1: Output comparison (already done in batch section above)
+                    // Check if this question went to AI for stage 2 verification
+                    if (isset($aiCheckedQuestions[$question->id])) {
+                        // AI verified legitimacy (not hardcoded)
+                        $isCorrect = $aiCheckedQuestions[$question->id];
+                        Log::info('QuizController: Coding - AI verified', ['question_id' => $question->id, 'is_correct' => $isCorrect]);
+                    } else {
+                        // Output didn't match, so it's wrong (won't reach here if it did match)
+                        $isCorrect = false;
                     }
                 } 
                 elseif ($question->type === 'multiple_choice') {

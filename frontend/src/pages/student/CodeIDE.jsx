@@ -17,6 +17,7 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
     const [isCorrect, setIsCorrect] = useState(false);
     const [isWrong, setIsWrong] = useState(false);
     const [activeTab, setActiveTab] = useState('editor');
+    const [errorType, setErrorType] = useState(null); // 'compile', 'runtime', 'verification', null
     const terminalRef = useRef(null); 
 
     useEffect(() => {
@@ -42,29 +43,37 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
 
             // 1. Check for COMPILE errors (Syntax mistakes)
             if (data.compile_output) {
-                setOutput(`COMPILE ERROR:\n${data.compile_output}`);
+                setErrorType('compile');
+                setOutput(data.compile_output);
                 setIsCorrect(false);
                 return;
             }
 
             // 2. Check for RUNTIME errors (Crashes like NullPointerException)
             if (data.stderr) {
-                setOutput(`RUNTIME ERROR:\n${data.stderr}`);
+                setErrorType('runtime');
+                setOutput(data.stderr);
                 setIsCorrect(false);
                 return;
             }
 
             // 3. Process SUCCESSFUL output
-            const cleanOutput = (data.stdout || "").trim();
-            
+            const rawOutput = (data.stdout || "").trim();
+            // Normalize line endings: convert \r\n to \n for comparison
+            const cleanOutput = rawOutput.replace(/\r\n/g, '\n');
+
             // Show the output to the student REGARDLESS of whether it's correct
+            setErrorType(null); // Clear error state
             setOutput(cleanOutput || "> Program executed successfully (No output).");
 
             // 4. Verification logic for Challenge Mode
             if (block.data.mode === 'challenge') {
-                const expected = block.data.expected?.trim();
-                
+                const expected = (block.data.expected || "").trim().replace(/\r\n/g, '\n');
+
+                console.log('Output comparison:', { cleanOutput, expected, match: cleanOutput === expected });
+
                 if (cleanOutput === expected) {
+                    // Output matched - lesson challenges use output matching only (no AI verification needed)
                     setIsCorrect(true);
                     setIsWrong(false);
 
@@ -73,16 +82,13 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                         code: code
                     });
 
-
-                    onSolve(); // Unlock the Next button
+                    onSolve();
                     toast.success("Challenge Solved!");
                 } else {
                     setIsCorrect(false);
-                    setIsWrong(true); 
-                    // We DON'T change the output here, we just show a toast
+                    setIsWrong(true);
                     toast.error("Incorrect. Look closely at the expected output.");
-                    setTimeout(() => setIsWrong(false), 8000); 
-
+                    setTimeout(() => setIsWrong(false), 8000);
                 }
             }
 
@@ -193,7 +199,7 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
             <div style={{
                 display: 'flex',
                 flexDirection: 'column',
-                height: '350px'
+                height: '500px'
             }}>
                 {/* Code Editor Tab */}
                 {activeTab === 'editor' && (
@@ -211,28 +217,50 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
 
                 {/* Terminal Tab */}
                 {activeTab === 'terminal' && (
-                    <div style={{ flex: 1, overflow: 'hidden' }}>
-                        <InteractiveTerminal
-                            ref={terminalRef}
-                            code={code}
-                            mode={mode}
-                            expected={expected}
-                            lessonId={lessonId}
-                            blockId={block.id}
-                            compact={true}
-                            onRun={() => setActiveTab('terminal')}
-                            onComplete={async () => {
-                                setIsCorrect(true);
-                                toast.success("Challenge Solved!");
-                                if (mode === 'challenge') {
-                                    await api.post(`/student/lessons/${lessonId}/submit-code`, {
-                                        block_id: block.id,
-                                        code: code
-                                    });
-                                    onSolve();
-                                }
-                            }}
-                        />
+                    <div style={{
+                        flex: 1,
+                        overflow: 'auto',
+                        padding: '20px 24px',
+                        fontFamily: 'monospace',
+                        fontSize: '13px',
+                        lineHeight: '1.6',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        background: 'rgba(0, 0, 0, 0.4)'
+                    }}>
+                        {output ? (
+                            <>
+                                {/* Error Header */}
+                                {errorType && (
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '12px',
+                                        marginBottom: '16px',
+                                        padding: '12px 16px',
+                                        borderRadius: '12px',
+                                        background: errorType === 'compile' ? 'rgba(239, 68, 68, 0.1)' : errorType === 'runtime' ? 'rgba(249, 115, 22, 0.1)' : 'rgba(168, 85, 247, 0.1)',
+                                        border: `1px solid ${errorType === 'compile' ? 'rgba(239, 68, 68, 0.3)' : errorType === 'runtime' ? 'rgba(249, 115, 22, 0.3)' : 'rgba(168, 85, 247, 0.3)'}`,
+                                        color: errorType === 'compile' ? '#ef4444' : errorType === 'runtime' ? '#f97316' : '#a855f7'
+                                    }}>
+                                        <AlertCircle size={18} />
+                                        <span style={{ fontWeight: 900, textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.1em' }}>
+                                            {errorType === 'compile' ? '⚠️ COMPILATION ERROR' : errorType === 'runtime' ? '⚠️ RUNTIME ERROR' : '⚠️ VERIFICATION ERROR'}
+                                        </span>
+                                    </div>
+                                )}
+                                {/* Output */}
+                                <div style={{
+                                    color: errorType === 'compile' ? '#fca5a5' : errorType === 'runtime' ? '#fdba74' : errorType === 'verification' ? '#d8b4fe' : '#22d3ee'
+                                }}>
+                                    {output}
+                                </div>
+                            </>
+                        ) : (
+                            <div style={{ color: '#64748b', fontStyle: 'italic' }}>
+                                Click "Run Program" to see output...
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -250,8 +278,8 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                     onClick={() => {
                         setActiveTab('terminal');
                         setTimeout(() => {
-                            terminalRef.current?.triggerRun?.();
-                        }, 0);
+                            handleRun();
+                        }, 100);
                     }}
                     style={{
                         padding: '12px 28px',

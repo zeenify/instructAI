@@ -116,5 +116,6 @@ Route::post('/teacher/courses/{courseId}/modules', [ModuleController::class, 'st
 
     // Remote Code Execution Proxy
     Route::post('/student/execute', [CodeExecutionController::class, 'execute']);
+    Route::post('/ai/verify-code-challenge', [CodeExecutionController::class, 'verifyCodeChallenge']);
 
 });

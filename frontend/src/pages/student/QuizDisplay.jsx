@@ -649,13 +649,105 @@ try {
                     )}
 
                     {q.type === 'coding' && (
-                        <div className="space-y-6">
-                            <div className="rounded-[32px] border border-white/10 bg-black overflow-hidden shadow-2xl">
-                                <div className="p-4 bg-white/5 flex justify-between items-center border-b border-white/5"><div className="flex items-center gap-3"><CodeIcon size={16} className="text-cyan-500" /><span className="text-[10px] font-black uppercase text-slate-500">Source Environment</span></div></div>
-                                <CodeMirror value={answers[q.id] || q.boilerplate || ""} height="400px" theme="dark" extensions={[java()]} onChange={(val) => saveAnswer(q.id, val)} />
+                        <div style={{ gap: '24px', display: 'flex', flexDirection: 'column' }}>
+                            {/* Code Editor */}
+                            <div style={{ borderRadius: '28px', border: '1.5px solid rgba(34, 211, 238, 0.2)', background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(15, 23, 42, 0.6) 100%)', overflow: 'hidden', boxShadow: '0 20px 50px rgba(34, 211, 238, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(10px)' }}>
+                                {/* Header */}
+                                <div style={{ padding: '16px 24px', background: 'rgba(34, 211, 238, 0.08)', borderBottom: '1.5px solid rgba(34, 211, 238, 0.15)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.2) 0%, rgba(34, 211, 238, 0.08) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#22d3ee', boxShadow: '0 0 20px rgba(34, 211, 238, 0.15)' }}>
+                                        <CodeIcon size={18} />
+                                    </div>
+                                    <div>
+                                        <p style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#64748b', margin: '0' }}>Java Source Code</p>
+                                        <p style={{ fontSize: '11px', color: '#94a3b8', margin: '2px 0 0 0' }}>Write and test your solution</p>
+                                    </div>
+                                </div>
+                                {/* Editor */}
+                                <div style={{ position: 'relative' }}>
+                                    <CodeMirror
+                                        value={answers[q.id] || q.boilerplate || ""}
+                                        height="450px"
+                                        theme="dark"
+                                        extensions={[java()]}
+                                        onChange={(val) => saveAnswer(q.id, val)}
+                                        className="rounded-none"
+                                    />
+                                </div>
                             </div>
-                            <button onClick={() => runCodeTest(answers[q.id] || q.boilerplate)} className="w-full py-5 bg-white/5 border border-white/10 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-white/10 transition-all text-white border-none cursor-pointer">{isRunning ? <Loader2 className="animate-spin" size={18}/> : <Play size={18} fill="currentColor"/>} Test Logic</button>
-                            {codeOutput && <div className="p-8 bg-black rounded-3xl border border-white/5 font-mono text-xs text-cyan-400 whitespace-pre-wrap shadow-inner max-h-60 overflow-y-auto">{codeOutput}</div>}
+
+                            {/* Test Button */}
+                            <button
+                                onClick={() => runCodeTest(answers[q.id] || q.boilerplate)}
+                                disabled={isRunning}
+                                style={{
+                                    padding: '18px 32px',
+                                    background: isRunning ? 'linear-gradient(135deg, rgba(34, 211, 238, 0.15) 0%, rgba(6, 182, 212, 0.08) 100%)' : 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)',
+                                    border: '1.5px solid' + (isRunning ? ' rgba(34, 211, 238, 0.3)' : ' rgba(34, 211, 238, 0.4)'),
+                                    borderRadius: '24px',
+                                    fontWeight: 900,
+                                    fontSize: '12px',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.15em',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '12px',
+                                    cursor: isRunning ? 'not-allowed' : 'pointer',
+                                    color: isRunning ? '#64748b' : '#02010a',
+                                    transition: 'all 0.3s',
+                                    boxShadow: isRunning ? '0 8px 20px rgba(34, 211, 238, 0.1)' : '0 12px 32px rgba(34, 211, 238, 0.25)',
+                                    opacity: isRunning ? 0.7 : 1
+                                }}
+                                onMouseEnter={(e) => {
+                                    if (!isRunning) {
+                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                        e.currentTarget.style.boxShadow = '0 16px 40px rgba(34, 211, 238, 0.35)';
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (!isRunning) {
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = '0 12px 32px rgba(34, 211, 238, 0.25)';
+                                    }
+                                }}
+                            >
+                                {isRunning ? (
+                                    <>
+                                        <Loader2 size={18} className="animate-spin" />
+                                        <span>Executing...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Play size={18} fill="currentColor" />
+                                        <span>Test Logic</span>
+                                    </>
+                                )}
+                            </button>
+
+                            {/* Output Console */}
+                            {codeOutput && (
+                                <div style={{
+                                    borderRadius: '24px',
+                                    border: '1.5px solid rgba(34, 211, 238, 0.2)',
+                                    background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(15, 23, 42, 0.7) 100%)',
+                                    padding: '20px 24px',
+                                    fontFamily: 'monospace',
+                                    fontSize: '13px',
+                                    color: '#22d3ee',
+                                    whiteSpace: 'pre-wrap',
+                                    wordBreak: 'break-word',
+                                    maxHeight: '280px',
+                                    overflowY: 'auto',
+                                    boxShadow: '0 12px 32px rgba(34, 211, 238, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+                                    backdropFilter: 'blur(10px)'
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(34, 211, 238, 0.15)' }}>
+                                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22d3ee', boxShadow: '0 0 10px #22d3ee' }} />
+                                        <span style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b' }}>Output</span>
+                                    </div>
+                                    {codeOutput}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

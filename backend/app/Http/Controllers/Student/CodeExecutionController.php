@@ -71,4 +71,36 @@ class CodeExecutionController extends Controller
         }
     }
 
+    public function verifyCodeChallenge(Request $request)
+    {
+        $request->validate([
+            'question_text' => 'required|string',
+            'code' => 'required|string',
+            'expected_output' => 'required|string'
+        ]);
+
+        try {
+            $aiUrl = env('AI_SERVICE_URL', 'http://localhost:8001');
+            \Log::info('CodeExecution: Verifying code challenge', ['url' => $aiUrl]);
+
+            $response = Http::timeout(20)->post("{$aiUrl}/ai/verify-code-challenge", [
+                'question_text' => $request->question_text,
+                'code' => $request->code,
+                'expected_output' => $request->expected_output
+            ]);
+
+            if ($response->successful()) {
+                \Log::info('CodeExecution: Verification succeeded');
+                return response()->json($response->json());
+            }
+
+            \Log::warning('CodeExecution: Verification failed', ['status' => $response->status()]);
+            return response()->json(['passed' => false, 'reason' => 'Verification service error'], 500);
+
+        } catch (\Exception $e) {
+            \Log::error('CodeExecution: Verification error', ['error' => $e->getMessage()]);
+            return response()->json(['passed' => false, 'reason' => 'Could not verify solution'], 500);
+        }
+    }
+
 }

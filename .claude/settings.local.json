@@ -72,7 +72,8 @@
       "Bash(grep \"^A.*\\\\.css$\")",
       "Bash(grep \"^M.*\\\\.css$\")",
       "Bash(grep \"^D.*\\\\.css$\")",
-      "Bash(grep -E \"\\\\.\\(jsx|tsx\\)$\")"
+      "Bash(grep -E \"\\\\.\\(jsx|tsx\\)$\")",
+      "Bash(php -l app/Http/Controllers/Student/CodeExecutionController.php)"
     ]
   }
 }
