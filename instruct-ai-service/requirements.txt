@@ -7,3 +7,12 @@ pydantic
 python-dotenv
 requests
 google-api-python-client
+numpy<2
+sentence-transformers==2.7.0
+torch==2.2.0
+torchvision==0.17.0
+transformers==4.40.0
+huggingface-hub>=0.16.0,<1.0.0
+psycopg2-binary==2.9.9
+pgvector==0.2.4
+tiktoken==0.5.1

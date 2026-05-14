@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import api from '../../services/api';
-import { 
-    Loader2, CheckCircle2, XCircle, Send, Play, 
-    Code as CodeIcon, ChevronLeft, ChevronRight, 
-    Plus, Trash2, RotateCcw, Check, ClipboardList, 
+import {
+    Loader2, CheckCircle2, XCircle, Send, Play,
+    Code as CodeIcon, ChevronLeft, ChevronRight,
+    Plus, Trash2, RotateCcw, Check, ClipboardList,
     Clock, ShieldCheck, Cpu, AlertCircle, ListOrdered,
     Bot, Lock, Target, Timer
 } from 'lucide-react';
@@ -11,18 +11,21 @@ import { toast } from 'sonner';
 import CodeMirror from '@uiw/react-codemirror';
 import { java } from '@codemirror/lang-java';
 import { motion, AnimatePresence } from 'framer-motion';
+import AITutor from '../../components/student/AITutor';
 
-export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPassed, classId }) {
+export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPassed }) {
     const [quizData, setQuizData] = useState(null);
     const [questions, setQuestions] = useState([]);
     const [currentIdx, setCurrentIdx] = useState(-1);
-    const [answers, setAnswers] = useState({}); 
+    const [answers, setAnswers] = useState({});
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    const [gradingProgress, setGradingProgress] = useState(0); 
-    const [result, setResult] = useState(null); 
+    const [gradingProgress, setGradingProgress] = useState(0);
+    const [result, setResult] = useState(null);
     const [previousResult, setPreviousResult] = useState(null);
     const [showReview, setShowReview] = useState(false);
+    const [aiEnabled, setAiEnabled] = useState(false);
+    const [classId, setClassId] = useState(null);
 
     const [timeLeft, setTimeLeft] = useState(null);
     const timerRef = useRef(null);
@@ -35,8 +38,10 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
             setLoading(true);
             try {
                 const res = await api.get(`/student/quizzes/${quizId}`);
-setQuizData(res.data.quiz);
-                if (onAiToggle) onAiToggle(res.data.quiz.allow_ai_assistance);
+                setQuizData(res.data.quiz);
+                setClassId(res.data.class_id);
+                setAiEnabled(res.data.quiz.ai_enabled || res.data.quiz.allow_ai_assistance || false);
+                if (onAiToggle) onAiToggle(res.data.quiz.ai_enabled || res.data.quiz.allow_ai_assistance);
                 if (res.data.existing_result) setPreviousResult(res.data.existing_result);
             } catch (err) {
                 toast.error("Failed to load curriculum data.");
@@ -932,6 +937,24 @@ try {
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* AI Tutor */}
+            {quizData && classId && (
+                <AITutor
+                    classId={classId}
+                    quizId={quizId}
+                    aiEnabled={aiEnabled}
+                    contextItem={quizData}
+                    quizContent={questions[currentIdx] ? JSON.stringify({
+                        quizTitle: quizData?.title,
+                        questionNumber: currentIdx + 1,
+                        totalQuestions: questions.length,
+                        question: questions[currentIdx].question,
+                        type: questions[currentIdx].type,
+                        options: questions[currentIdx].options,
+                    }) : null}
+                />
+            )}
         </div>
     );
 }

@@ -16,6 +16,17 @@ class CodeExecutionController extends Controller
         // Use 'java' as default if not provided
         $language = $request->input('language', 'java');
         $input = $request->input('input');
+        $code = $request->code;
+
+        // For Java: preprocess to work with execution engine
+        if ($language === 'java') {
+            // 1. Remove 'public' from class declarations
+            $code = preg_replace('/\bpublic\s+class\b/', 'class', $code);
+
+            // 2. Rename first class to 'Main' so execution engine can find it
+            // Match: class ClassName { and replace with class Main {
+            $code = preg_replace('/\bclass\s+\w+\s*\{/', 'class Main {', $code, 1);
+        }
 
         // Try local first, then fallback to deployment
         $localUrl = 'http://localhost:3000/execute';
@@ -23,7 +34,7 @@ class CodeExecutionController extends Controller
 
         $payload = [
             'language' => $language,
-            'code' => $request->code,
+            'code' => $code,
         ];
 
         if ($input) {

@@ -14,10 +14,10 @@ use Illuminate\Support\Facades\Log;
 class QuizController extends Controller
 {
     // Fetch Quiz but HIDE expected_output so students can't cheat via Network Tab
-public function show(Request $request, $id)
+    public function show(Request $request, $id)
     {
         $user = $request->user();
-        $quiz = Quiz::findOrFail($id);
+        $quiz = Quiz::with('module.course')->findOrFail($id);
 
         $query = $quiz->questions()->select('id', 'quiz_id', 'question_text', 'type', 'options', 'points', 'boilerplate');
 
@@ -84,6 +84,7 @@ if ($completedAttempt) {
 
         return response()->json([
             'quiz' => $quiz,
+            'class_id' => $quiz->module->course->class_id,
             'existing_result' => $existingResult,
             // We still send saved_answers if we want them to resume (only if status is in_progress)
             'attempt_id' => $completedAttempt ? $completedAttempt->id : null,

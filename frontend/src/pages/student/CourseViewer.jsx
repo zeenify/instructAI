@@ -231,7 +231,14 @@ const [showMobileSidebar, setShowMobileSidebar] = useState(false);
                 </div>
             </aside>
 
-<AITutor contextItem={activeItem} isLocked={isAiLocked} />
+<AITutor
+    classId={course?.class_id}
+    lessonId={itemType === 'lesson' ? itemId : null}
+    quizId={itemType === 'quiz' ? itemId : null}
+    aiEnabled={true}
+    contextItem={activeItem}
+    lessonContent={itemType === 'lesson' && activeItem?.content ? JSON.stringify(activeItem.content) : null}
+/>
 
             {/* RIGHT: CONTENT AREA */}
             <main className="flex-grow flex flex-col relative" style={{ background: 'linear-gradient(135deg, #050a15 0%, #0f1420 50%, #050a15 100%)' }}>

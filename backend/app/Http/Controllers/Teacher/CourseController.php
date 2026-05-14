@@ -741,7 +741,7 @@ class CourseController extends Controller
                                         // Update quiz settings
                                         $quiz->update([
                                             'passing_score' => $passingScore,
-                                            'allow_ai_assistance' => $request->input('content_params.allowAIAssistance', false),
+                                            'ai_enabled' => $request->input('content_params.allowAIAssistance', false),
                                         ]);
                                     }
                                 }

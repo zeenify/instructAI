@@ -7,13 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 class Quiz extends Model
 {
     protected $fillable = [
-        'module_id', 
-        'title', 
-        'is_randomized', 
-        'allow_ai_assistance', 
+        'module_id',
+        'title',
+        'is_randomized',
+        'ai_enabled',
         'time_limit_minutes',
         'order_index',
-'passing_score',
+        'passing_score',
         'is_published',
         'timer_mode',
         'question_limit'
@@ -22,6 +22,7 @@ class Quiz extends Model
     protected $casts = [
         'is_published' => 'boolean',
         'is_randomized' => 'boolean',
+        'ai_enabled' => 'boolean',
     ];
 
 

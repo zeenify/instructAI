@@ -13,6 +13,7 @@ import AiArchitectModal from './AiArchitectModal';
 import CurriculumReviewModal from './CurriculumReviewModal.jsx';
 import ContentParametersModal from './ContentParametersModal.jsx';
 import GenerationConsole from './GenerationConsole.jsx';
+import IndexingStatsModal from '../../components/teacher/IndexingStatsModal';
 import './CourseBuilder.css';
 
 export default function CourseBuilder() {
@@ -69,6 +70,9 @@ export default function CourseBuilder() {
     const [uploadingCurriculum, setUploadingCurriculum] = useState(false);
     const [uploadSuccess, setUploadSuccess] = useState(null);
 
+    // Indexing Stats Modal State
+    const [showIndexingStats, setShowIndexingStats] = useState(false);
+
     useEffect(() => { fetchCourse(); }, [id]);
 
     const fetchCourse = async () => {
@@ -108,6 +112,33 @@ export default function CourseBuilder() {
             fetchCourse();
         } catch (err) { toast.error("Publishing failed", { id: toastId }); }
         finally { setIsUpdatingStatus(false); }
+    };
+
+    const handleIndexCourse = async () => {
+        // Check if already indexed by looking for stats
+        // If stats exist, just open the modal without re-indexing
+        try {
+            const statsRes = await api.get(`/teacher/courses/${id}/indexing-stats`);
+            if (statsRes.data.total_chunks > 0) {
+                // Already indexed, just open modal
+                setShowIndexingStats(true);
+                return;
+            }
+        } catch (err) {
+            // Not indexed yet, proceed with indexing
+        }
+
+        // Index the course
+        setIsUpdatingStatus(true);
+        try {
+            const response = await api.post(`/teacher/courses/${id}/index`);
+            // Indexing succeeded, open modal to show results
+            setShowIndexingStats(true);
+        } catch (err) {
+            toast.error("Indexing failed: " + (err.response?.data?.error || "Please try again"));
+        } finally {
+            setIsUpdatingStatus(false);
+        }
     };
 
     const handleModuleSubmit = async (e) => {
@@ -1027,6 +1058,15 @@ export default function CourseBuilder() {
                             >
                                 <Sparkles size={16} /> AI
                             </button>
+                            <button
+                                onClick={handleIndexCourse}
+                                disabled={isUpdatingStatus}
+                                style={{ padding: '14px 22px' }}
+                                className="bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl text-xs font-bold uppercase border-none cursor-pointer flex items-center gap-2 hover:from-violet-500 hover:to-purple-500 transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <BookOpen size={16} />}
+                                Index for AI
+                            </button>
                         </div>
                     )}
                 </div>
@@ -1342,6 +1382,9 @@ export default function CourseBuilder() {
                 curriculumFile={course?.curriculum_file_url ? course.curriculum_file_url.split('/').pop() : null}
             />
             <CurriculumReviewModal isOpen={isReviewOpen} data={aiResult} expectedParams={structureParams} onCancel={() => setIsReviewOpen(false)} onConfirm={handleConfirmAI} />
+
+            {/* Indexing Stats Modal */}
+            <IndexingStatsModal courseId={id} isOpen={showIndexingStats} onClose={() => setShowIndexingStats(false)} />
 
             {/* Content Parameters Modal (Stage 2: Configure content details) */}
             <ContentParametersModal

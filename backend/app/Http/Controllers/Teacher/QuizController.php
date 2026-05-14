@@ -67,7 +67,7 @@ class QuizController extends Controller
                 'title' => 'sometimes|string|max:255',
                 'is_published' => 'sometimes|boolean',
                 'is_randomized' => 'sometimes|boolean',
-                'allow_ai_assistance' => 'sometimes|boolean',
+                'ai_enabled' => 'sometimes|boolean',
 'time_limit_minutes' => 'sometimes|nullable|numeric|min:0|max:300',
 'passing_score' => 'sometimes|integer|min:0',
                 'timer_mode' => 'sometimes|string|in:entire_quiz,per_question',

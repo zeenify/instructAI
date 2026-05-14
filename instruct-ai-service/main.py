@@ -4,11 +4,16 @@ Refactored modular architecture with debug logging
 """
 import os
 import json
-from fastapi import FastAPI, UploadFile, File, Form
+from dotenv import load_dotenv
+
+# Load environment variables FIRST, before any service imports
+load_dotenv()
+
+from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from groq import Groq
-from dotenv import load_dotenv
+from pydantic import BaseModel
 
 # Import modular components
 from schemas import CurriculumResponse
@@ -20,9 +25,11 @@ from services.content_service import generate_content_stream
 from services.stage1_outline_service import generate_lesson_outline
 from services.stage2_content_service import generate_all_section_contents
 from services.stage3_formatter_service import format_all_sections_to_lesson
-
-# Load environment variables
-load_dotenv()
+from services.embedding_service import embedding_service
+from services.indexing_service import indexing_service
+from services.retrieval_service import retrieval_service
+from services.rag_tutor_service import rag_tutor_service
+from config.characters import CHARACTERS
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -451,6 +458,189 @@ Respond with ONLY a JSON array: {{"results": [{{"question_num": 1, "is_correct":
         fallback = {"results": [{"question_num": i+1, "is_correct": False} for i in range(len(questions))]}
         print(f"[AI] Fallback: {fallback}")
         return fallback
+
+
+# ===== AI TUTOR - RAG INFRASTRUCTURE =====
+
+# ===== TEST SEARCH ENDPOINT =====
+class TestSearchRequest(BaseModel):
+    class_id: int
+    query: str
+
+
+@app.post("/ai/test-search")
+async def test_search(data: TestSearchRequest):
+    """Test search for teacher to verify indexing worked"""
+    try:
+        print(f"[TEST SEARCH] Starting search")
+        print(f"  class_id: {data.class_id} (type: {type(data.class_id)})")
+        print(f"  query: '{data.query}' (len: {len(data.query)})")
+
+        # Embed the query
+        print(f"[TEST SEARCH] Embedding query...")
+        query_embedding = embedding_service.embed_text(data.query)
+        print(f"[TEST SEARCH] Query embedded successfully, dimension: {len(query_embedding)}")
+
+        # Search without lesson_id to get broader results
+        print(f"[TEST SEARCH] Searching database...")
+        results = retrieval_service.search(data.class_id, query_embedding, top_k=5, lesson_id=None)
+        print(f"[TEST SEARCH] Found {len(results)} results")
+
+        # Format results with lesson names
+        formatted_results = []
+        for result in results:
+            formatted_results.append({
+                'text': result['text'][:200] + ('...' if len(result['text']) > 200 else ''),
+                'similarity': round(result['similarity'], 3),
+                'metadata': result.get('metadata', {})
+            })
+
+        print(f"[TEST SEARCH] Returning {len(formatted_results)} formatted results")
+        return {"results": formatted_results, "total": len(formatted_results)}
+    except Exception as e:
+        print(f"[TEST SEARCH ERROR] {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e), "results": [], "total": 0}
+
+
+# ===== CHARACTERS ENDPOINT =====
+@app.get("/ai/characters")
+def get_characters():
+    """Return available tutor characters"""
+    return {"characters": list(CHARACTERS.values())}
+
+
+class IndexLessonRequest(BaseModel):
+    class_id: int
+    course_id: int
+    lesson_id: int
+    content: str
+
+
+@app.post("/ai/index-lesson")
+async def index_lesson(data: IndexLessonRequest):
+    """Index lesson content for RAG"""
+    try:
+        print(f"[INDEX LESSON] Starting indexing for lesson {data.lesson_id}, class {data.class_id}")
+        print(f"[INDEX LESSON] Content length: {len(data.content)} chars")
+        indexing_service.index_lesson(
+            class_id=data.class_id,
+            course_id=data.course_id,
+            lesson_id=data.lesson_id,
+            content=data.content,
+            embedding_service=embedding_service
+        )
+        print(f"[INDEX LESSON] Successfully indexed lesson {data.lesson_id}")
+        return {"status": "indexed", "lesson_id": data.lesson_id}
+    except Exception as e:
+        print(f"[INDEX LESSON ERROR] {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "message": str(e)}
+
+
+class IndexCurriculumRequest(BaseModel):
+    class_id: int
+    course_id: int
+    curriculum_text: str
+
+
+@app.post("/ai/index-curriculum")
+async def index_curriculum(data: IndexCurriculumRequest):
+    """Index curriculum document for RAG"""
+    try:
+        print(f"[INDEX CURRICULUM] Starting indexing for course {data.course_id}, class {data.class_id}")
+        print(f"[INDEX CURRICULUM] Curriculum text length: {len(data.curriculum_text)} chars")
+        indexing_service.index_curriculum(
+            class_id=data.class_id,
+            course_id=data.course_id,
+            curriculum_text=data.curriculum_text,
+            embedding_service=embedding_service
+        )
+        print(f"[INDEX CURRICULUM] Successfully indexed course {data.course_id}")
+        return {"status": "indexed", "course_id": data.course_id}
+    except Exception as e:
+        print(f"[INDEX CURRICULUM ERROR] {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "message": str(e)}
+
+
+class IndexCourseCombinedRequest(BaseModel):
+    class_id: int
+    course_id: int
+    combined_content: str
+
+
+@app.post("/ai/index-course-combined")
+async def index_course_combined(data: IndexCourseCombinedRequest):
+    """Index entire course (curriculum + all lessons) as unified content"""
+    try:
+        print(f"[INDEX COURSE COMBINED] Starting unified indexing for course {data.course_id}, class {data.class_id}")
+        print(f"[INDEX COURSE COMBINED] Combined content length: {len(data.combined_content)} chars")
+
+        indexing_service.index_course_combined(
+            class_id=data.class_id,
+            course_id=data.course_id,
+            combined_content=data.combined_content,
+            embedding_service=embedding_service
+        )
+        print(f"[INDEX COURSE COMBINED] Successfully indexed course {data.course_id}")
+        return {"status": "indexed", "course_id": data.course_id}
+    except Exception as e:
+        print(f"[INDEX COURSE COMBINED ERROR] {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "message": str(e)}
+
+
+class TutorChatRequest(BaseModel):
+    class_id: int
+    question: str
+    character_name: str
+    mode: str
+    current_lesson_content: str
+    chat_history: list
+    lesson_id: int | None = None
+    lesson_content: str | None = None
+    quiz_content: str | None = None
+
+
+@app.post("/ai/tutor-chat")
+async def tutor_chat(request: Request):
+    """RAG-powered AI tutor chat"""
+    try:
+        body = await request.json()
+        print(f"[Tutor Chat] Received request body:")
+        print(f"  Keys: {list(body.keys())}")
+        print(f"  class_id: {body.get('class_id')} (type: {type(body.get('class_id'))})")
+        print(f"  question: {body.get('question', '')[:30]}...")
+        print(f"  character_name: {body.get('character_name')}")
+        print(f"  mode: {body.get('mode')}")
+        print(f"  lesson_id: {body.get('lesson_id')}")
+        print(f"  chat_history length: {len(body.get('chat_history', []))}")
+
+        # Manually parse since validation is failing
+        data = TutorChatRequest(**body)
+
+        answer = rag_tutor_service.chat(
+            class_id=data.class_id,
+            question=data.question,
+            character_name=data.character_name,
+            mode=data.mode,
+            current_lesson_content=data.current_lesson_content,
+            lesson_content=data.lesson_content,
+            quiz_content=data.quiz_content,
+            chat_history=data.chat_history,
+            lesson_id=data.lesson_id
+        )
+        return {"answer": answer}
+    except Exception as e:
+        print(f"[Tutor Chat Error] {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e), "answer": "I'm having trouble accessing the tutoring system right now. Please try again."}
 
 
 # ===== RUN SERVER =====

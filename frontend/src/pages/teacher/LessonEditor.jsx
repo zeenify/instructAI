@@ -51,6 +51,7 @@ export default function LessonEditor() {
     const [blocks, setBlocks] = useState([]);
     const [title, setTitle] = useState('');
     const [isPublished, setIsPublished] = useState(false);
+    const [aiEnabled, setAiEnabled] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     
@@ -69,6 +70,7 @@ export default function LessonEditor() {
                     setTitle(res.data.title);
                     setBlocks(res.data.content || []);
                     setIsPublished(res.data.is_published);
+                    setAiEnabled(res.data.ai_enabled || true);
                 }
             } catch (err) {
                 if (isMounted) {
@@ -112,7 +114,8 @@ export default function LessonEditor() {
             await api.put(`/teacher/lessons/${id}`, {
                 title,
                 content: blocks,
-                is_published: publishStatus
+                is_published: publishStatus,
+                ai_enabled: aiEnabled
             });
             setIsPublished(publishStatus);
 
@@ -172,7 +175,16 @@ export default function LessonEditor() {
                         />
                     </div>
                 </div>
-                <div style={{ gap: '12px' }} className="flex">
+                <div style={{ gap: '12px' }} className="flex items-center">
+                    <label className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-800/50 hover:bg-slate-800 transition-colors cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={aiEnabled}
+                            onChange={(e) => setAiEnabled(e.target.checked)}
+                            className="w-4 h-4 cursor-pointer"
+                        />
+                        <span>AI Tutor</span>
+                    </label>
                     <Button loading={saving} onClick={() => handleSave()} style={{ padding: '14px 24px' }} className="text-xs uppercase tracking-widest font-black" variant="primary">
                         Sync Changes
                     </Button>

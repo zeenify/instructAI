@@ -162,6 +162,167 @@ box-shadow: none;
     border-bottom-left-radius: 4px;
 }
 
+/* Typing Indicator */
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 14px 18px !important;
+}
+
+.typing-indicator span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #64748b;
+    animation: typing 1.4s infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing {
+    0%, 60%, 100% {
+        opacity: 0.5;
+        transform: translateY(0);
+    }
+    30% {
+        opacity: 1;
+        transform: translateY(-10px);
+    }
+}
+
+/* Markdown Content */
+.markdown-content {
+    font-size: 14px;
+    line-height: 1.6;
+    color: inherit;
+}
+
+.markdown-content p {
+    margin: 8px 0;
+    line-height: 1.6;
+}
+
+.markdown-content code {
+    background: rgba(0,0,0,0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    color: #22d3ee;
+}
+
+.code-block-wrapper {
+    margin: 12px 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.4);
+}
+
+.code-block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.6);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.code-language {
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.copy-button {
+    background: rgba(34, 211, 238, 0.1);
+    border: 1px solid rgba(34, 211, 238, 0.3);
+    color: #22d3ee;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 12px;
+}
+
+.copy-button:hover {
+    background: rgba(34, 211, 238, 0.2);
+    border-color: #22d3ee;
+}
+
+.copy-button svg {
+    width: 16px;
+    height: 16px;
+}
+
+.markdown-content pre {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 12px;
+    margin: 0;
+    overflow-x: auto;
+}
+
+.markdown-content pre code {
+    background: none;
+    padding: 0;
+    color: #cbd5e1;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.markdown-content li {
+    margin: 4px 0;
+}
+
+.markdown-content strong {
+    color: #22d3ee;
+    font-weight: 700;
+}
+
+.markdown-content em {
+    font-style: italic;
+    color: #94a3b8;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+    color: #22d3ee;
+    font-weight: 700;
+    margin: 12px 0 8px 0;
+}
+
+.markdown-content blockquote {
+    border-left: 3px solid rgba(34, 211, 238, 0.3);
+    padding-left: 12px;
+    margin: 8px 0;
+    color: #94a3b8;
+    font-style: italic;
+}
+
 /* Footer */
 .ai-footer { padding: 20px; background: rgba(0,0,0,0.2); }
 
@@ -206,6 +367,45 @@ box-shadow: none;
     background: #22d3ee; color: #02010a;
     border-radius: 12px; border: none; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
+}
+
+/* Character Menu */
+.character-menu {
+    position: absolute;
+    top: 70px;
+    left: 16px;
+    background: rgba(15, 23, 42, 0.98);
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    border-radius: 12px;
+    padding: 8px;
+    z-index: 1000;
+    max-width: 300px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.character-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid transparent;
+    width: 100%;
+    text-align: left;
+    transition: all 0.2s;
+    cursor: pointer;
+    color: white;
+}
+
+.character-option:hover {
+    background: rgba(34, 211, 238, 0.1);
+    border-color: rgba(34, 211, 238, 0.3);
+}
+
+.character-option.active {
+    background: rgba(34, 211, 238, 0.15);
+    border-color: #22d3ee;
 }
 
 /* Mobile Overrides */

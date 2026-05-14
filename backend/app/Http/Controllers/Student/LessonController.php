@@ -11,9 +11,9 @@ class LessonController extends Controller
 {
     public function show(Request $request, $id)
     {
-        // 1. Get the lesson
-        $lesson = Lesson::where('is_published', true)->findOrFail($id);
-        
+        // 1. Get the lesson with module relationship
+        $lesson = Lesson::with('module.course')->where('is_published', true)->findOrFail($id);
+
         // 2. Get previous code submissions for this student in this lesson
         $submissions = \App\Models\CodeSubmission::where('student_id', auth()->id())
             ->where('lesson_id', $id)
@@ -21,6 +21,7 @@ class LessonController extends Controller
 
         return response()->json([
             'lesson' => $lesson,
+            'class_id' => $lesson->module->course->class_id,
             'previous_submissions' => $submissions
         ]);
     }

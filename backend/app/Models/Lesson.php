@@ -6,11 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Lesson extends Model
 {
-    protected $fillable = ['module_id', 'title', 'content', 'order_index', 'is_published'];
+    protected $fillable = ['module_id', 'title', 'content', 'order_index', 'is_published', 'ai_enabled'];
 
     protected $casts = [
-        'content' => 'array', // CRITICAL: This allows saving the JSON blocks
-        'is_published' => 'boolean'
+        'content' => 'array',
+        'is_published' => 'boolean',
+        'ai_enabled' => 'boolean'
     ];
 
     public function module() {

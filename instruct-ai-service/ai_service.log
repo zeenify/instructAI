@@ -1,0 +1,28 @@
+C:\Users\EDRICK\AppData\Local\Programs\Python\Python311\Lib\site-packages\huggingface_hub\file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+INFO:     Started server process [20472]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+[GROQ POOL] Initialized with 4 API keys
+  Key 1: gsk_LIpkLHniDbO...
+  Key 2: gsk_lMV8VIdHRid...
+  Key 3: gsk_KjNRDJUC89G...
+  Key 4: gsk_fGSueYq17Zu...
+[GROQ POOL] Initialized with 4 API keys
+  Key 1: gsk_LIpkLHniDbO...
+  Key 2: gsk_lMV8VIdHRid...
+  Key 3: gsk_KjNRDJUC89G...
+  Key 4: gsk_fGSueYq17Zu...
+
+============================================================
+InstructAI Service v2.0.0 - Multi-Stage Pipeline
+============================================================
+Server: http://localhost:8001
+Metrics logging: ENABLED (tokens, requests, performance)
+Test endpoints:
+  - POST /ai/test-outline (Stage 1 only)
+  - POST /ai/test-full-lesson (Stage 1+2)
+============================================================
+
+INFO:     127.0.0.1:51668 - "GET / HTTP/1.1" 200 OK

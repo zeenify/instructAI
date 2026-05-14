@@ -9,12 +9,15 @@ import {
     Video as VideoIcon
 } from 'lucide-react';
 import CodeIDE from './CodeIDE';
+import AITutor from '../../components/student/AITutor';
 import { toast } from 'sonner';
 
 export default function LessonRenderer({ lessonId, onProgressUpdate, isCompleted }) {
     const [lesson, setLesson] = useState(null);
     const [loading, setLoading] = useState(true);
     const [solvedChallenges, setSolvedChallenges] = useState([]);
+    const [aiEnabled, setAiEnabled] = useState(false);
+    const [classId, setClassId] = useState(null);
 
     useEffect(() => {
         let isMounted = true;
@@ -38,6 +41,10 @@ export default function LessonRenderer({ lessonId, onProgressUpdate, isCompleted
             });
 
             setLesson({ ...lessonData, content: hydratedContent });
+            setAiEnabled(lessonData.ai_enabled || false);
+            console.log("Lesson API response:", res.data);
+            setClassId(res.data.class_id);
+            console.log("Set classId to:", res.data.class_id);
 
             const alreadySolvedIds = saved.map(s => s.block_id);
             setSolvedChallenges(alreadySolvedIds);
@@ -101,6 +108,17 @@ export default function LessonRenderer({ lessonId, onProgressUpdate, isCompleted
                     </div>
                 ))}
             </div>
+
+            {/* AI Tutor */}
+            {lesson && classId && (
+                <AITutor
+                    classId={classId}
+                    lessonId={lessonId}
+                    aiEnabled={aiEnabled}
+                    contextItem={lesson}
+                    lessonContent={JSON.stringify(lesson.content)}
+                />
+            )}
         </div>
     );
 }
@@ -211,3 +229,6 @@ function LessonSkeleton() {
         </div>
     );
 }
+
+// Render AITutor within the main return
+LessonRenderer.AITutor = AITutor;

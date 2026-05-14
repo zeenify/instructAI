@@ -1,82 +1,216 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, X, Send, Sparkles, BrainCircuit, Lock } from 'lucide-react';
+import { Bot, X, Send, Sparkles, Loader2, Copy, Check } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import api from '../../services/api';
+import { toast } from 'sonner';
 import './AITutor.css';
 
-export default function AITutor({ contextItem, isLocked }) {
+const CodeBlock = ({ node, inline, className, children, ...props }) => {
+    const [copied, setCopied] = useState(false);
+    const code = String(children).replace(/\n$/, '');
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(code);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    if (inline) {
+        return <code className={className} {...props}>{children}</code>;
+    }
+
+    const language = className?.replace(/language-/, '') || 'code';
+
+    return (
+        <div className="code-block-wrapper">
+            <div className="code-block-header">
+                <span className="code-language">{language}</span>
+                <button
+                    className="copy-button"
+                    onClick={handleCopy}
+                    title="Copy code"
+                >
+                    {copied ? <Check size={16} /> : <Copy size={16} />}
+                </button>
+            </div>
+            <pre className={className} {...props}>
+                <code>{code}</code>
+            </pre>
+        </div>
+    );
+};
+
+export default function AITutor({
+    classId,
+    lessonId = null,
+    quizId = null,
+    aiEnabled = true,
+    contextItem,
+    lessonContent = null,
+    quizContent = null
+}) {
     const [isOpen, setIsOpen] = useState(false);
     const [input, setInput] = useState("");
-    const [messages, setMessages] = useState([
-        { role: 'ai', content: "Hello! I'm your InstructAI Tutor. I'm tuned into this lesson and ready to help you with concepts or code hints. What's on your mind?" }
-    ]);
+    const [messages, setMessages] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+    const [selectedCharacter, setSelectedCharacter] = useState('professor');
+    const [characters, setCharacters] = useState([]);
+    const [showCharacterMenu, setShowCharacterMenu] = useState(false);
     const scrollRef = useRef(null);
 
-    // Auto-scroll to bottom of chat
+    // Load characters on mount and restore selected character from localStorage
+    useEffect(() => {
+        const aiServiceUrl = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8001';
+        fetch(`${aiServiceUrl}/ai/characters`)
+            .then(res => res.json())
+            .then(data => {
+                setCharacters(data.characters);
+                // Restore selected character from localStorage
+                const saved = localStorage.getItem('selectedAiCharacter');
+                if (saved) {
+                    setSelectedCharacter(saved);
+                }
+            })
+            .catch(err => {
+                console.error('Failed to load characters:', err);
+                toast.error('Failed to load AI characters');
+            });
+    }, []);
+
+    // Load chat history only when character or class changes (continuous across lessons)
+    useEffect(() => {
+        if (classId) {
+            loadHistory();
+        }
+    }, [selectedCharacter, classId]);
+
+    // Auto-scroll to bottom
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
-    }, [messages, isOpen]);
+    }, [messages]);
 
-    // Robustness: If teacher locks AI while student has chat open, force it closed
+    // Scroll to bottom when opening chat
     useEffect(() => {
-        if (isLocked) setIsOpen(false);
-    }, [isLocked]);
+        if (isOpen && scrollRef.current) {
+            setTimeout(() => {
+                scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            }, 0);
+        }
+    }, [isOpen]);
 
-    const handleSend = (e) => {
-        e.preventDefault();
-        if (!input.trim() || isLocked) return;
+    // Close if AI disabled
+    useEffect(() => {
+        if (!aiEnabled) setIsOpen(false);
+    }, [aiEnabled]);
 
-        const newMsg = { role: 'user', content: input };
-        setMessages([...messages, newMsg]);
-        setInput("");
+    const loadHistory = async () => {
+        setLoadingHistory(true);
+        try {
+            const res = await api.post('/student/ai/history', {
+                class_id: classId,
+                character_name: selectedCharacter,
+            });
 
-        // Placeholder for future AI response logic
-        setTimeout(() => {
-            setMessages(prev => [...prev, { 
-                role: 'ai', 
-                content: "I'm currently in 'Shell Mode'. Once my brain is connected to the FastAPI server, I'll be able to help you solve " + (contextItem?.title || "this task") + "!" 
-            }]);
-        }, 1000);
+            setMessages(res.data.messages);
+
+            // Add greeting if no history
+            if (res.data.messages.length === 0) {
+                const char = characters.find(c => c.name.toLowerCase().includes(selectedCharacter));
+                if (char) {
+                    setMessages([{
+                        sender: 'ai',
+                        message: char.greeting
+                    }]);
+                }
+            }
+        } catch (err) {
+            console.error('Failed to load history', err);
+        } finally {
+            setLoadingHistory(false);
+        }
     };
+
+    const handleSend = async (e) => {
+        e.preventDefault();
+        if (!input.trim() || loading || !aiEnabled) return;
+
+        const userMessage = input.trim();
+        setInput("");
+        setMessages(prev => [...prev, { sender: 'student', message: userMessage }]);
+        setLoading(true);
+
+        try {
+            const res = await api.post('/student/ai/chat', {
+                message: userMessage,
+                class_id: classId,
+                character_name: selectedCharacter,
+                lesson_id: lessonId,
+                quiz_id: quizId,
+                lesson_content: lessonContent,
+                quiz_content: quizContent,
+            });
+
+            setMessages(prev => [...prev, {
+                sender: 'ai',
+                message: res.data.answer
+            }]);
+
+        } catch (err) {
+            console.error('AI chat error:', err);
+            toast.error('AI tutor is unavailable right now');
+            setMessages(prev => prev.slice(0, -1));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const switchCharacter = (charKey) => {
+        setSelectedCharacter(charKey);
+        localStorage.setItem('selectedAiCharacter', charKey);
+        setShowCharacterMenu(false);
+        setMessages([]);
+    };
+
+    const currentCharacter = characters.find(c =>
+        c.name.toLowerCase().includes(selectedCharacter)
+    ) || characters[0];
+
+    if (!aiEnabled) return null;
 
     return (
         <>
-            {/* --- 1. THE FLOATING BUTTON (FAB) --- */}
+            {/* Floating Button */}
             <motion.button
-                whileHover={isLocked ? {} : { scale: 1.1 }}
-                whileTap={isLocked ? {} : { scale: 0.9 }}
-                onClick={() => !isLocked && setIsOpen(true)}
-                className={`ai-fab ${isLocked ? 'locked' : ''}`}
-                title={isLocked ? "AI Assistance Restricted" : "Open AI Tutor"}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setIsOpen(true)}
+                className="ai-fab"
+                title="Open AI Tutor"
             >
-                {!isLocked && <div className="fab-glow" />}
-                
-                {isLocked ? (
-                    <Lock size={24} className="relative z-10 text-slate-500" />
-                ) : (
-                    <Bot size={28} className="relative z-10" />
-                )}
-
-                {!isLocked && (
-                    <div className="fab-badge">
-                        <Sparkles size={10} />
-                    </div>
-                )}
+                <div className="fab-glow" />
+                <Bot size={28} className="relative z-10" />
+                <div className="fab-badge">
+                    <Sparkles size={10} />
+                </div>
             </motion.button>
 
-            {/* --- 2. THE CHAT WINDOW --- */}
+            {/* Chat Window */}
             <AnimatePresence>
-                {isOpen && !isLocked && (
+                {isOpen && (
                     <div className="ai-overlay">
-                        {/* Backdrop for mobile */}
-                        <motion.div 
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
                             onClick={() => setIsOpen(false)}
                             className="ai-backdrop"
                         />
 
-                        <motion.div 
+                        <motion.div
                             initial={{ y: "100%", opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             exit={{ y: "100%", opacity: 0 }}
@@ -86,14 +220,18 @@ export default function AITutor({ contextItem, isLocked }) {
                             {/* Header */}
                             <div className="ai-header">
                                 <div className="flex items-center gap-3">
-                                    <div className="ai-icon-box">
-                                        <BrainCircuit size={20} />
-                                    </div>
+                                    <button
+                                        onClick={() => setShowCharacterMenu(!showCharacterMenu)}
+                                        className="ai-icon-box hover:scale-110 transition-transform"
+                                        title="Switch character"
+                                    >
+                                        <span className="text-2xl">{currentCharacter?.avatar || '🤖'}</span>
+                                    </button>
                                     <div>
-                                        <h3 className="ai-title">AI Tutor</h3>
+                                        <h3 className="ai-title">{currentCharacter?.name || 'AI Tutor'}</h3>
                                         <p className="ai-context">
                                             <span className="pulse-dot" />
-                                            Context: {contextItem?.title || 'General Assistance'}
+                                            {contextItem?.title || 'General Assistance'}
                                         </p>
                                     </div>
                                 </div>
@@ -102,34 +240,73 @@ export default function AITutor({ contextItem, isLocked }) {
                                 </button>
                             </div>
 
+                            {/* Character Selector */}
+                            {showCharacterMenu && (
+                                <div className="character-menu">
+                                    {characters.map((char, i) => {
+                                        const charKey = char.name.toLowerCase().split(' ')[0];
+                                        return (
+                                            <button
+                                                key={i}
+                                                onClick={() => switchCharacter(charKey)}
+                                                className={`character-option ${selectedCharacter === charKey ? 'active' : ''}`}
+                                            >
+                                                <span className="text-2xl">{char.avatar}</span>
+                                                <div>
+                                                    <div className="font-bold">{char.name}</div>
+                                                    <div className="text-xs opacity-70">
+                                                        {char.personality.split('.')[0]}
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
                             {/* Messages */}
                             <div className="ai-messages custom-scrollbar" ref={scrollRef}>
-                                {messages.map((msg, i) => (
-                                    <div key={i} className={`msg-row ${msg.role}`}>
-                                        <div className="msg-bubble">
-                                            {msg.content}
+                                {loadingHistory ? (
+                                    <div className="flex justify-center items-center h-full">
+                                        <Loader2 className="animate-spin text-cyan-400" size={32} />
+                                    </div>
+                                ) : (
+                                    messages.map((msg, i) => (
+                                        <div key={i} className={`msg-row ${msg.sender === 'ai' ? 'ai' : 'user'}`}>
+                                            <div className="msg-bubble">
+                                                {msg.sender === 'ai' ? (
+                                                    <div className="markdown-content">
+                                                        <ReactMarkdown components={{ code: CodeBlock }}>
+                                                            {msg.message}
+                                                        </ReactMarkdown>
+                                                    </div>
+                                                ) : (
+                                                    msg.message
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                                {loading && (
+                                    <div className="msg-row ai">
+                                        <div className="msg-bubble typing-indicator">
+                                            <span></span><span></span><span></span>
                                         </div>
                                     </div>
-                                ))}
+                                )}
                             </div>
 
-                            {/* Footer Area */}
+                            {/* Footer */}
                             <div className="ai-footer">
-                                {/* Quick Action Suggestions */}
-                                <div className="ai-suggestions">
-                                    <button className="chip" onClick={() => setInput("Explain this concept")}>Explain Concept</button>
-                                    <button className="chip" onClick={() => setInput("Give me a hint")}>Give me a Hint</button>
-                                    <button className="chip" onClick={() => setInput("Fix my syntax")}>Fix Syntax</button>
-                                </div>
-
                                 <form onSubmit={handleSend} className="ai-input-wrapper">
-                                    <input 
+                                    <input
                                         value={input}
                                         onChange={(e) => setInput(e.target.value)}
                                         placeholder="Ask a question..."
                                         className="ai-input"
+                                        disabled={loading}
                                     />
-                                    <button type="submit" className="ai-send-btn">
+                                    <button type="submit" className="ai-send-btn" disabled={loading}>
                                         <Send size={18} />
                                     </button>
                                 </form>

@@ -16,6 +16,8 @@ use App\Http\Controllers\Student\CourseController as StudentCourseController;
 use App\Http\Controllers\Student\LessonController as StudentLessonController;
 use App\Http\Controllers\Student\QuizController as StudentQuizController;
 use App\Http\Controllers\Student\CodeExecutionController;
+use App\Http\Controllers\Student\AIChatController;
+use App\Http\Controllers\Teacher\IndexingController;
 
 // Public Routes
 Route::post('/register/student', [AuthController::class, 'registerStudent']);
@@ -117,5 +119,15 @@ Route::post('/teacher/courses/{courseId}/modules', [ModuleController::class, 'st
     // Remote Code Execution Proxy
     Route::post('/student/execute', [CodeExecutionController::class, 'execute']);
     Route::post('/ai/verify-code-challenge', [CodeExecutionController::class, 'verifyCodeChallenge']);
+
+    // AI Chat (Student)
+    Route::post('/student/ai/chat', [AIChatController::class, 'chat']);
+    Route::post('/student/ai/history', [AIChatController::class, 'loadHistory']);
+
+    // Indexing (Teacher)
+    Route::post('/teacher/courses/{id}/index', [IndexingController::class, 'indexCourse']);
+    Route::post('/teacher/lessons/{id}/index', [IndexingController::class, 'indexLesson']);
+    Route::get('/teacher/courses/{id}/indexing-stats', [IndexingController::class, 'getIndexingStats']);
+    Route::post('/teacher/courses/{id}/test-search', [IndexingController::class, 'testSearch']);
 
 });
