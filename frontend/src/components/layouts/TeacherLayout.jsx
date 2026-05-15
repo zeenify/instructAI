@@ -61,34 +61,58 @@ export default function TeacherLayout() { // Removed { children }
                 <div className="sidebar-section-label">Management</div>
                 <nav className="flex-grow">
                     <NavLink to="/dashboard/teacher" icon={LayoutDashboard} label="Overview" />
-                    <NavLink to="/dashboard/teacher/students" icon={Users} label="Students" />
                     <NavLink to="/dashboard/teacher/analytics" icon={BarChart3} label="Analytics" />
                     <NavLink to="/dashboard/teacher/monitor" icon={Eye} label="Monitor" />
                     <NavLink to="/dashboard/teacher/settings" icon={Settings} label="Settings" />
                 </nav>
 
                 {/* Profile & Sign Out */}
-                <div className="pt-6 border-t border-white/5">
-                    <div className="flex items-center gap-3 mb-4 px-2">
-                        <img 
-                            src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.teacher_profile?.first_name}`} 
-                            className="w-10 h-10 rounded-full border border-white/10 shadow-lg" 
-                            alt="Avatar"
-                        />
-                        <div className="min-w-0">
-                            <p className="text-sm font-bold text-white truncate m-0">
-                                {user?.teacher_profile?.first_name} {user?.teacher_profile?.last_name}
-                            </p>
-                            <p className="text-[10px] text-slate-500 truncate m-0">{user?.email}</p>
+                <div style={{ paddingTop: '24px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                    <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.5)', borderRadius: '10px', border: '1px solid rgba(148, 163, 184, 0.2)', padding: '16px', marginBottom: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <img
+                                src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.teacher_profile?.first_name}`}
+                                style={{ width: '40px', height: '40px', borderRadius: '50%', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+                                alt="Avatar"
+                            />
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                                <p style={{ fontSize: '13px', fontWeight: '600', color: '#f1f5f9', margin: '0 0 4px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {user?.teacher_profile?.first_name} {user?.teacher_profile?.last_name}
+                                </p>
+                                <p style={{ fontSize: '11px', color: '#64748b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {user?.email}
+                                </p>
+                            </div>
                         </div>
                     </div>
-                    <button 
-                        onClick={handleLogout} 
-                        className="nav-item w-full border-none bg-transparent cursor-pointer hover:text-red-400" 
-                        style={{ border: 'none', background: 'none', paddingLeft: '12px' }}
+                    <button
+                        onClick={handleLogout}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            width: '100%',
+                            padding: '12px 16px',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            borderRadius: '8px',
+                            color: '#ef4444',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 200ms ease-in-out'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                        }}
                     >
-                        <LogOut size={18} />
-                        <span className="font-semibold">Sign Out</span>
+                        <LogOut size={16} />
+                        <span>Sign Out</span>
                     </button>
                 </div>
             </aside>
