@@ -18,6 +18,7 @@ use App\Http\Controllers\Student\QuizController as StudentQuizController;
 use App\Http\Controllers\Student\CodeExecutionController;
 use App\Http\Controllers\Student\AIChatController;
 use App\Http\Controllers\Teacher\IndexingController;
+use App\Http\Controllers\Teacher\StudentMonitorController;
 
 // Public Routes
 Route::post('/register/student', [AuthController::class, 'registerStudent']);
@@ -129,5 +130,10 @@ Route::post('/teacher/courses/{courseId}/modules', [ModuleController::class, 'st
     Route::post('/teacher/lessons/{id}/index', [IndexingController::class, 'indexLesson']);
     Route::get('/teacher/courses/{id}/indexing-stats', [IndexingController::class, 'getIndexingStats']);
     Route::post('/teacher/courses/{id}/test-search', [IndexingController::class, 'testSearch']);
+
+    // Student Monitoring (Teacher)
+    Route::get('/teacher/classes/{classId}/courses/{courseId}/monitor/stats', [StudentMonitorController::class, 'getMonitorStats']);
+    Route::get('/teacher/classes/{classId}/courses/{courseId}/monitor/students', [StudentMonitorController::class, 'getMonitorStudents']);
+    Route::get('/teacher/classes/{classId}/courses/{courseId}/monitor/student/{studentId}', [StudentMonitorController::class, 'getStudentProfile']);
 
 });

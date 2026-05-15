@@ -74,4 +74,20 @@ export const invalidateCache = (pattern) => {
     cache.invalidatePattern(pattern);
 };
 
+// Student Monitoring Endpoints
+export const getMonitorStats = (classId, courseId) =>
+    api.get(`/teacher/classes/${classId}/courses/${courseId}/monitor/stats`, { bypassCache: true });
+
+export const getMonitorStudents = (classId, courseId, sort = 'progress', filter = 'all') =>
+    api.get(`/teacher/classes/${classId}/courses/${courseId}/monitor/students`, {
+        params: { sort, filter },
+        bypassCache: true
+    });
+
+export const getStudentProfile = (classId, courseId, studentId, signal = null) =>
+    api.get(`/teacher/classes/${classId}/courses/${courseId}/monitor/student/${studentId}`, {
+        bypassCache: true,
+        signal
+    });
+
 export default api;

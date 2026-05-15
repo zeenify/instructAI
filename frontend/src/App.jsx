@@ -16,6 +16,7 @@ import ClassDetails from './pages/teacher/ClassDetails';
 import CourseBuilder from './pages/teacher/CourseBuilder';
 import LessonEditor from './pages/teacher/LessonEditor';
 import QuizBuilder from './pages/teacher/QuizBuilder';
+import StudentMonitor from './pages/teacher/StudentMonitor';
 
 // Student Pages
 import StudentOverview from './pages/student/StudentOverview';
@@ -53,6 +54,9 @@ function App() {
             <Route path="analytics" element={<div>Analytics Page</div>} />
             <Route path="classes/new" element={<CreateClass />} />
             <Route path="class/:id" element={<ClassDetails />} />
+            <Route path="monitor" element={<StudentMonitor />} />
+            <Route path="monitor/:classId" element={<StudentMonitor />} />
+            <Route path="monitor/:classId/:courseId/:studentId" element={<StudentMonitor />} />
             {/* Added classId to these routes to keep Sidebar highlighted */}
             <Route path="class/:classId/course/:id" element={<CourseBuilder />} />
             <Route path="class/:classId/lesson/:id" element={<LessonEditor />} />

@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom'; // Added Outlet
 import { useAuth } from '../../context/AuthContext';
-import { useClasses } from '../../context/ClassContext'; 
-import { LayoutDashboard, Users, BarChart3, Settings, LogOut, Plus, Loader2 } from 'lucide-react';
+import { useClasses } from '../../context/ClassContext';
+import { LayoutDashboard, Users, BarChart3, Settings, LogOut, Plus, Loader2, Eye } from 'lucide-react';
 import '../../pages/teacher/Dashboard.css';
 
 export default function TeacherLayout() { // Removed { children }
@@ -63,6 +63,7 @@ export default function TeacherLayout() { // Removed { children }
                     <NavLink to="/dashboard/teacher" icon={LayoutDashboard} label="Overview" />
                     <NavLink to="/dashboard/teacher/students" icon={Users} label="Students" />
                     <NavLink to="/dashboard/teacher/analytics" icon={BarChart3} label="Analytics" />
+                    <NavLink to="/dashboard/teacher/monitor" icon={Eye} label="Monitor" />
                     <NavLink to="/dashboard/teacher/settings" icon={Settings} label="Settings" />
                 </nav>
 

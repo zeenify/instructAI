@@ -73,7 +73,13 @@
       "Bash(grep \"^M.*\\\\.css$\")",
       "Bash(grep \"^D.*\\\\.css$\")",
       "Bash(grep -E \"\\\\.\\(jsx|tsx\\)$\")",
-      "Bash(php -l app/Http/Controllers/Student/CodeExecutionController.php)"
+      "Bash(php -l app/Http/Controllers/Student/CodeExecutionController.php)",
+      "Bash(xargs grep -l \"export.*get.*courses\")",
+      "Bash(php *)",
+      "Skill(ui-ux-pro-max)",
+      "Bash(/c/Users/EDRICK/AppData/Local/Programs/Python/Python311/python .claude/skills/ui-ux-pro-max/scripts/search.py \"educational dashboard LMS student monitoring modern professional dark\" --design-system -p \"InstructAI Monitoring\" -f markdown)",
+      "Bash(/c/Users/EDRICK/AppData/Local/Programs/Python/Python311/python *)",
+      "Bash(./vendor/bin/sail tinker *)"
     ]
   }
 }
