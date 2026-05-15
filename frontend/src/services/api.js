@@ -90,4 +90,17 @@ export const getStudentProfile = (classId, courseId, studentId, signal = null) =
         signal
     });
 
+// Analytics Endpoints
+export const getAnalyticsOverview = (classId, courseId) =>
+    api.get(`/teacher/classes/${classId}/courses/${courseId}/analytics/overview`, { bypassCache: true });
+
+export const getPerformanceTrend = (classId, courseId) =>
+    api.get(`/teacher/classes/${classId}/courses/${courseId}/analytics/performance-trend`, { bypassCache: true });
+
+export const getQuizScores = (classId, courseId) =>
+    api.get(`/teacher/classes/${classId}/courses/${courseId}/analytics/quiz-scores`, { bypassCache: true });
+
+export const getContentEngagement = (classId, courseId) =>
+    api.get(`/teacher/classes/${classId}/courses/${courseId}/analytics/content-engagement`, { bypassCache: true });
+
 export default api;

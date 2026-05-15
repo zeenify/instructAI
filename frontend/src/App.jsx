@@ -17,6 +17,7 @@ import CourseBuilder from './pages/teacher/CourseBuilder';
 import LessonEditor from './pages/teacher/LessonEditor';
 import QuizBuilder from './pages/teacher/QuizBuilder';
 import StudentMonitor from './pages/teacher/StudentMonitor';
+import Analytics from './pages/teacher/Analytics';
 
 // Student Pages
 import StudentOverview from './pages/student/StudentOverview';
@@ -51,7 +52,9 @@ function App() {
           >
             <Route index element={<TeacherOverview />} />
             <Route path="students" element={<div>Students Page</div>} />
-            <Route path="analytics" element={<div>Analytics Page</div>} />
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="analytics/:classId" element={<Analytics />} />
+            <Route path="analytics/:classId/:courseId" element={<Analytics />} />
             <Route path="classes/new" element={<CreateClass />} />
             <Route path="class/:id" element={<ClassDetails />} />
             <Route path="monitor" element={<StudentMonitor />} />

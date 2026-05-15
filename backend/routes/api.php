@@ -19,6 +19,7 @@ use App\Http\Controllers\Student\CodeExecutionController;
 use App\Http\Controllers\Student\AIChatController;
 use App\Http\Controllers\Teacher\IndexingController;
 use App\Http\Controllers\Teacher\StudentMonitorController;
+use App\Http\Controllers\Teacher\AnalyticsController;
 
 // Public Routes
 Route::post('/register/student', [AuthController::class, 'registerStudent']);
@@ -135,5 +136,11 @@ Route::post('/teacher/courses/{courseId}/modules', [ModuleController::class, 'st
     Route::get('/teacher/classes/{classId}/courses/{courseId}/monitor/stats', [StudentMonitorController::class, 'getMonitorStats']);
     Route::get('/teacher/classes/{classId}/courses/{courseId}/monitor/students', [StudentMonitorController::class, 'getMonitorStudents']);
     Route::get('/teacher/classes/{classId}/courses/{courseId}/monitor/student/{studentId}', [StudentMonitorController::class, 'getStudentProfile']);
+
+    // Analytics Routes
+    Route::get('/teacher/classes/{classId}/courses/{courseId}/analytics/overview', [AnalyticsController::class, 'getOverview']);
+    Route::get('/teacher/classes/{classId}/courses/{courseId}/analytics/performance-trend', [AnalyticsController::class, 'getPerformanceTrend']);
+    Route::get('/teacher/classes/{classId}/courses/{courseId}/analytics/quiz-scores', [AnalyticsController::class, 'getQuizScores']);
+    Route::get('/teacher/classes/{classId}/courses/{courseId}/analytics/content-engagement', [AnalyticsController::class, 'getContentEngagement']);
 
 });
