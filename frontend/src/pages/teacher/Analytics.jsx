@@ -105,7 +105,7 @@ export default function Analytics() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-100" style={{ backgroundColor: '#020617' }}>
+        <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', transition: 'all 0.3s ease' }}>
             <div className="max-w-7xl mx-auto" style={{ paddingLeft: '24px', paddingRight: '24px', paddingTop: '32px', paddingBottom: '32px' }}>
                 {/* Class Picker Modal */}
                 {showClassPicker && (
@@ -115,21 +115,23 @@ export default function Analytics() {
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        backgroundColor: 'rgba(0, 0, 0, 0.6)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        zIndex: 1000
+                        zIndex: 1000,
+                        backdropFilter: 'blur(4px)'
                     }}>
                         <div style={{
-                            backgroundColor: '#1e293b',
+                            backgroundColor: 'var(--bg-secondary)',
                             borderRadius: '12px',
                             padding: '32px',
                             maxWidth: '400px',
                             width: '90%',
-                            border: '1px solid rgb(55, 65, 81)'
+                            border: '1px solid var(--border-color)',
+                            boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)'
                         }}>
-                            <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#f1f5f9', marginBottom: '24px' }}>
+                            <h2 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '24px' }}>
                                 Select a Class
                             </h2>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '400px', overflowY: 'auto' }}>
@@ -139,10 +141,10 @@ export default function Analytics() {
                                         onClick={() => selectClass(c.id)}
                                         style={{
                                             padding: '12px 16px',
-                                            backgroundColor: selectedClass === c.id ? 'rgba(16, 185, 129, 0.2)' : 'rgba(30, 41, 59, 0.5)',
-                                            border: selectedClass === c.id ? '1px solid rgba(16, 185, 129, 0.6)' : '1px solid rgb(55, 65, 81)',
+                                            backgroundColor: selectedClass === c.id ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-primary)',
+                                            border: selectedClass === c.id ? '1px solid #10b981' : '1px solid var(--border-color)',
                                             borderRadius: '8px',
-                                            color: '#f1f5f9',
+                                            color: 'var(--text-primary)',
                                             textAlign: 'left',
                                             cursor: 'pointer',
                                             transition: 'all 200ms ease-in-out',
@@ -150,14 +152,14 @@ export default function Analytics() {
                                         }}
                                         onMouseEnter={(e) => {
                                             if (selectedClass !== c.id) {
-                                                e.currentTarget.style.backgroundColor = 'rgba(30, 41, 59, 0.7)';
-                                                e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                                                e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)';
+                                                e.currentTarget.style.borderColor = '#10b981';
                                             }
                                         }}
                                         onMouseLeave={(e) => {
                                             if (selectedClass !== c.id) {
-                                                e.currentTarget.style.backgroundColor = 'rgba(30, 41, 59, 0.5)';
-                                                e.currentTarget.style.borderColor = 'rgb(55, 65, 81)';
+                                                e.currentTarget.style.backgroundColor = 'var(--bg-primary)';
+                                                e.currentTarget.style.borderColor = 'var(--border-color)';
                                             }
                                         }}
                                     >
@@ -171,19 +173,21 @@ export default function Analytics() {
                                     marginTop: '24px',
                                     width: '100%',
                                     padding: '10px 16px',
-                                    backgroundColor: 'rgba(55, 65, 81, 0.3)',
-                                    border: '1px solid rgb(55, 65, 81)',
+                                    backgroundColor: 'transparent',
+                                    border: '1px solid var(--border-color)',
                                     borderRadius: '8px',
-                                    color: '#94a3b8',
+                                    color: 'var(--text-secondary)',
                                     cursor: 'pointer',
                                     fontWeight: '500',
                                     transition: 'all 200ms ease-in-out'
                                 }}
                                 onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = 'rgba(55, 65, 81, 0.5)';
+                                    e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)';
+                                    e.currentTarget.style.color = 'var(--text-primary)';
                                 }}
                                 onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = 'rgba(55, 65, 81, 0.3)';
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                    e.currentTarget.style.color = 'var(--text-secondary)';
                                 }}
                             >
                                 Cancel
@@ -212,19 +216,19 @@ export default function Analytics() {
                                 <AnalyticsStatsSkeleton />
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '40px' }}>
                                     <div>
-                                        <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#f1f5f9', marginBottom: '20px' }}>
+                                        <h2 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '20px' }}>
                                             Completion Trend
                                         </h2>
                                         <PerformanceTrendSkeleton />
                                     </div>
                                     <div>
-                                        <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#f1f5f9', marginBottom: '20px' }}>
+                                        <h2 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '20px' }}>
                                             Quiz Performance
                                         </h2>
                                         <QuizScoresSkeleton />
                                     </div>
                                     <div>
-                                        <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#f1f5f9', marginBottom: '20px' }}>
+                                        <h2 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '20px' }}>
                                             Content Engagement
                                         </h2>
                                         <ContentEngagementSkeleton />
@@ -245,7 +249,7 @@ export default function Analytics() {
                                     {/* Performance Trend */}
                                     {performanceTrend && (
                                         <div>
-                                            <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#f1f5f9', marginBottom: '20px' }}>
+                                            <h2 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '20px' }}>
                                                 Completion Trend
                                             </h2>
                                             <PerformanceTrendChart data={performanceTrend} />
@@ -255,7 +259,7 @@ export default function Analytics() {
                                     {/* Quiz Scores */}
                                     {quizScores && quizScores.length > 0 && (
                                         <div>
-                                            <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#f1f5f9', marginBottom: '20px' }}>
+                                            <h2 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '20px' }}>
                                                 Quiz Performance
                                             </h2>
                                             <QuizScoresChart data={quizScores} />
@@ -265,7 +269,7 @@ export default function Analytics() {
                                     {/* Content Engagement */}
                                     {contentEngagement && contentEngagement.length > 0 && (
                                         <div>
-                                            <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#f1f5f9', marginBottom: '20px' }}>
+                                            <h2 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '20px' }}>
                                                 Content Engagement
                                             </h2>
                                             <ContentEngagementTable data={contentEngagement} />
@@ -280,7 +284,7 @@ export default function Analytics() {
                         {loadingCourses ? (
                             <Loader2 className="animate-spin text-emerald-400" size={40} style={{ margin: '0 auto' }} />
                         ) : (
-                            <p style={{ color: '#94a3b8' }}>Loading analytics...</p>
+                            <p style={{ color: 'var(--text-secondary)' }}>Loading analytics...</p>
                         )}
                     </div>
                 )}

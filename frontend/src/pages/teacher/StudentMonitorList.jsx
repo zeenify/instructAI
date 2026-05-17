@@ -35,36 +35,37 @@ export default function StudentMonitorList({ students, onStudentClick, loadingPr
                 const progressColor = getProgressColor(student.completion_percentage);
 
                 return (
-                    <div
+<div
                         key={student.id}
                         onClick={() => onStudentClick(student)}
                         style={{
                             position: 'relative',
                             backgroundColor: selectedStudentId === student.id
-                                ? 'rgba(16, 185, 129, 0.2)'
-                                : 'rgba(30, 41, 59, 0.6)',
+                                ? 'rgba(16, 185, 129, 0.15)'
+                                : 'var(--bg-secondary)',
                             borderRadius: '8px',
                             padding: '16px 20px',
                             border: selectedStudentId === student.id
-                                ? '1px solid rgba(16, 185, 129, 0.8)'
-                                : '1px solid rgb(55, 65, 81)',
+                                ? '1px solid #10b981'
+                                : '1px solid var(--border-color)',
                             cursor: 'pointer',
                             transition: 'all 300ms ease-in-out',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '16px',
-                            opacity: loadingProfile && selectedStudentId === student.id ? 0.6 : 1
+                            opacity: loadingProfile && selectedStudentId === student.id ? 0.6 : 1,
+                            boxShadow: 'var(--card-shadow)'
                         }}
                         onMouseEnter={(e) => {
                             if (selectedStudentId !== student.id) {
-                                e.currentTarget.style.backgroundColor = 'rgba(30, 41, 59, 0.8)';
-                                e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+                                e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)';
+                                e.currentTarget.style.borderColor = '#10b981';
                             }
                         }}
                         onMouseLeave={(e) => {
                             if (selectedStudentId !== student.id) {
-                                e.currentTarget.style.backgroundColor = 'rgba(30, 41, 59, 0.6)';
-                                e.currentTarget.style.borderColor = 'rgb(55, 65, 81)';
+                                e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
+                                e.currentTarget.style.borderColor = 'var(--border-color)';
                             }
                         }}
                         role="button"
@@ -98,11 +99,11 @@ export default function StudentMonitorList({ students, onStudentClick, loadingPr
                             )}
                         </div>
 
-                        {/* Student Info + Progress */}
+{/* Student Info + Progress */}
                         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {/* Top row: Name and percentage */}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                                <p style={{ fontWeight: '600', color: 'white', fontSize: '16px', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                                <p style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '16px', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                                     {student.name}
                                 </p>
                                 <span style={{ fontSize: '16px', fontWeight: '700', color: progressColor.text, flexShrink: 0 }}>
@@ -112,10 +113,10 @@ export default function StudentMonitorList({ students, onStudentClick, loadingPr
 
                             {/* Bottom row: Last active and progress bar */}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                                <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>
+                                <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>
                                     Last active {formatLastActive(student.last_active)}
                                 </p>
-                                <div style={{ width: '100px', position: 'relative', height: '6px', backgroundColor: 'rgba(55, 65, 81, 0.5)', borderRadius: '999px', overflow: 'hidden', flexShrink: 0 }}>
+                                <div style={{ width: '100px', position: 'relative', height: '6px', backgroundColor: 'var(--bg-tertiary)', borderRadius: '999px', overflow: 'hidden', flexShrink: 0 }}>
                                     <div
                                         style={{
                                             height: '100%',

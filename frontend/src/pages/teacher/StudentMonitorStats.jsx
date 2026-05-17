@@ -15,7 +15,8 @@ export default function StudentMonitorStats({ stats }) {
                     cy={size / 2}
                     r={radius}
                     fill="none"
-                    stroke="rgba(55, 65, 81, 0.5)"
+                    stroke="var(--border-color)"
+                    opacity="0.3"
                     strokeWidth="6"
                 />
                 <circle
@@ -60,7 +61,8 @@ export default function StudentMonitorStats({ stats }) {
                 <path
                     d={`M 8 ${size / 2} A ${radius} ${radius} 0 0 1 ${size - 8} ${size / 2}`}
                     fill="none"
-                    stroke="rgba(55, 65, 81, 0.5)"
+                    stroke="var(--border-color)"
+                    opacity="0.3"
                     strokeWidth="8"
                     strokeLinecap="round"
                 />
@@ -96,13 +98,13 @@ export default function StudentMonitorStats({ stats }) {
             <div style={{ width: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <span style={{ fontSize: '14px', fontWeight: '600', color: color }}>{value} students</span>
-                    <span style={{ fontSize: '13px', color: '#94a3b8' }}>{Math.round(percentage)}%</span>
+                    <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{Math.round(percentage)}%</span>
                 </div>
                 <div
                     style={{
                         width: '100%',
                         height: '12px',
-                        backgroundColor: 'rgba(55, 65, 81, 0.5)',
+                        backgroundColor: 'var(--bg-tertiary)',
                         borderRadius: '999px',
                         overflow: 'hidden'
                     }}
@@ -144,8 +146,8 @@ export default function StudentMonitorStats({ stats }) {
                     </div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                    <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>
-                        out of <span style={{ fontWeight: '600', color: '#f1f5f9' }}>{total}</span>
+                    <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>
+                        out of <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{total}</span>
                     </p>
                     <p style={{ fontSize: '12px', color: color, fontWeight: '600', margin: '4px 0 0 0' }}>
                         {Math.round(percentage)}% of class
@@ -155,52 +157,46 @@ export default function StudentMonitorStats({ stats }) {
         );
     };
 
+    const cardStyle = {
+        borderRadius: '8px',
+        border: '1px solid var(--border-color)',
+        backgroundColor: 'var(--bg-secondary)',
+        padding: '24px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px',
+        boxShadow: 'var(--card-shadow)',
+        transition: 'all 0.3s ease'
+    };
+
+    const labelStyle = {
+        fontSize: '12px',
+        fontWeight: '600',
+        color: 'var(--text-tertiary)',
+        textTransform: 'uppercase',
+        marginBottom: '8px',
+        letterSpacing: '0.5px',
+        margin: 0
+    };
+
     return (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
-            {/* Class Completion - Circular Progress */}
-            <div
-                style={{
-                    borderRadius: '8px',
-                    border: '1px solid rgb(55, 65, 81)',
-                    backgroundColor: 'rgba(30, 41, 59, 0.5)',
-                    padding: '24px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '16px'
-                }}
-            >
-                <div>
-                    <p style={{ fontSize: '12px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.5px', margin: 0 }}>
-                        Class Completion
-                    </p>
-                </div>
+            {/* Class Completion */}
+            <div style={cardStyle}>
+                <div><p style={labelStyle}>Class Completion</p></div>
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
                     <CircularProgress percentage={stats.completion_percentage} color="#4ade80" />
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                    <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0 }}>
+                    <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
                         <span style={{ fontWeight: '600', color: '#4ade80' }}>{stats.completed_count}</span> of {stats.total_enrolled} students completed
                     </p>
                 </div>
             </div>
 
-            {/* Average Quiz Score - Gauge */}
-            <div
-                style={{
-                    borderRadius: '8px',
-                    border: '1px solid rgb(55, 65, 81)',
-                    backgroundColor: 'rgba(30, 41, 59, 0.5)',
-                    padding: '24px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '16px'
-                }}
-            >
-                <div>
-                    <p style={{ fontSize: '12px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.5px', margin: 0 }}>
-                        Average Quiz Score
-                    </p>
-                </div>
+            {/* Average Quiz Score */}
+            <div style={cardStyle}>
+                <div><p style={labelStyle}>Average Quiz Score</p></div>
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
                     <GaugeChart value={stats.average_quiz_score} max={100} color="#60a5fa" />
                 </div>
@@ -217,45 +213,15 @@ export default function StudentMonitorStats({ stats }) {
                 </div>
             </div>
 
-            {/* Not Started - Horizontal Bar */}
-            <div
-                style={{
-                    borderRadius: '8px',
-                    border: '1px solid rgb(55, 65, 81)',
-                    backgroundColor: 'rgba(30, 41, 59, 0.5)',
-                    padding: '24px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '16px'
-                }}
-            >
-                <div>
-                    <p style={{ fontSize: '12px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
-                        Not Started
-                    </p>
-                </div>
+            {/* Not Started */}
+            <div style={cardStyle}>
+                <div><p style={labelStyle}>Not Started</p></div>
                 <HorizontalBar value={stats.not_started_count} total={stats.total_enrolled} color="#f87171" />
             </div>
 
-            {/* Need Attention - Counter Badge */}
-            <div
-                style={{
-                    borderRadius: '8px',
-                    border: '1px solid rgb(55, 65, 81)',
-                    backgroundColor: 'rgba(30, 41, 59, 0.5)',
-                    padding: '24px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '16px',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                }}
-            >
-                <div style={{ width: '100%' }}>
-                    <p style={{ fontSize: '12px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
-                        Need Attention
-                    </p>
-                </div>
+            {/* Need Attention */}
+            <div style={{ ...cardStyle, alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '100%' }}><p style={labelStyle}>Need Attention</p></div>
                 <CounterWithBadges value={stats.stuck_count} total={stats.total_enrolled} color="#fbbf24" />
             </div>
         </div>

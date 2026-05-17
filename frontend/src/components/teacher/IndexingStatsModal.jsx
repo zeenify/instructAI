@@ -5,9 +5,9 @@ import api from '../../services/api';
 import { toast } from 'sonner';
 import './IndexingStatsModal.css';
 
-export default function IndexingStatsModal({ courseId, isOpen, onClose }) {
-    const [stats, setStats] = useState(null);
-    const [loading, setLoading] = useState(false);
+export default function IndexingStatsModal({ courseId, isOpen, onClose, initialStats }) {
+    const [stats, setStats] = useState(initialStats || null);
+    const [loading, setLoading] = useState(!initialStats);
     const [reindexing, setReindexing] = useState(false);
     const [reindexSuccess, setReindexSuccess] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -15,10 +15,10 @@ export default function IndexingStatsModal({ courseId, isOpen, onClose }) {
     const [searching, setSearching] = useState(false);
 
     useEffect(() => {
-        if (isOpen) {
+        if (isOpen && !initialStats) {
             loadStats();
         }
-    }, [isOpen, courseId]);
+    }, [isOpen, courseId, initialStats]);
 
     const loadStats = async () => {
         setLoading(true);
@@ -61,10 +61,15 @@ export default function IndexingStatsModal({ courseId, isOpen, onClose }) {
             const res = await api.post(`/teacher/courses/${courseId}/test-search`, {
                 query: searchQuery,
             });
-            setSearchResults(res.data.results);
+            // Handle both formats: res.data.results or res.data directly
+            const results = Array.isArray(res.data) ? res.data : (res.data.results || []);
+            console.log('Search results:', results, 'Full response:', res.data);
+            setSearchResults(results);
         } catch (err) {
             console.error('Search error:', err);
-            toast.error('Search failed');
+            const errorMsg = err.response?.data?.error || err.message || 'Search service is not available';
+            toast.error(errorMsg);
+            setSearchResults(null);
         } finally {
             setSearching(false);
         }

@@ -2,7 +2,7 @@ export default function StudentProfileSkeleton() {
     const SkeletonBox = ({ width = '100%', height = '20px', style = {} }) => (
         <div
             style={{
-                backgroundColor: 'rgba(55, 65, 81, 0.5)',
+                backgroundColor: 'var(--bg-tertiary)',
                 borderRadius: '4px',
                 width,
                 height,
@@ -20,10 +20,10 @@ export default function StudentProfileSkeleton() {
                     <div
                         key={i}
                         style={{
-                            backgroundColor: 'rgba(30, 41, 59, 0.5)',
+                            backgroundColor: 'var(--bg-secondary)',
                             borderRadius: '8px',
                             padding: '24px',
-                            border: '1px solid rgb(55, 65, 81)',
+                            border: '1px solid var(--border-color)',
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '12px'
@@ -40,14 +40,14 @@ export default function StudentProfileSkeleton() {
             <div>
                 <SkeletonBox width="30%" height="24px" style={{ marginBottom: '24px' }} />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    {[1, 2].map(moduleIdx => (
+{[1, 2].map(moduleIdx => (
                         <div
                             key={moduleIdx}
                             style={{
-                                backgroundColor: 'rgba(30, 41, 59, 0.5)',
+                                backgroundColor: 'var(--bg-secondary)',
                                 borderRadius: '8px',
                                 padding: '24px',
-                                border: '1px solid rgb(55, 65, 81)',
+                                border: '1px solid var(--border-color)',
                                 display: 'flex',
                                 flexDirection: 'column',
                                 gap: '20px'
@@ -59,7 +59,7 @@ export default function StudentProfileSkeleton() {
                                     <div
                                         key={itemIdx}
                                         style={{
-                                            backgroundColor: 'rgba(55, 65, 81, 0.3)',
+                                            backgroundColor: 'var(--bg-tertiary)',
                                             borderRadius: '6px',
                                             padding: '16px',
                                             display: 'flex',
@@ -79,18 +79,18 @@ export default function StudentProfileSkeleton() {
                 </div>
             </div>
 
-            {/* Quiz Summary Table Skeleton */}
+{/* Quiz Summary Table Skeleton */}
             <div>
                 <SkeletonBox width="30%" height="24px" style={{ marginBottom: '24px' }} />
-                <div style={{ borderRadius: '8px', border: '1px solid rgb(55, 65, 81)', overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', gap: '20px', padding: '16px', backgroundColor: 'rgba(30, 41, 59, 0.7)' }}>
+                <div style={{ borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', gap: '20px', padding: '16px', backgroundColor: 'var(--bg-tertiary)' }}>
                         <SkeletonBox width="30%" height="12px" />
                         <SkeletonBox width="15%" height="12px" />
                         <SkeletonBox width="15%" height="12px" />
                         <SkeletonBox width="20%" height="12px" />
                     </div>
                     {[1, 2, 3].map(i => (
-                        <div key={i} style={{ display: 'flex', gap: '20px', padding: '16px', borderTop: '1px solid rgb(55, 65, 81)' }}>
+                        <div key={i} style={{ display: 'flex', gap: '20px', padding: '16px', borderTop: '1px solid var(--border-color)' }}>
                             <SkeletonBox width="30%" height="12px" />
                             <SkeletonBox width="15%" height="12px" />
                             <SkeletonBox width="15%" height="12px" />

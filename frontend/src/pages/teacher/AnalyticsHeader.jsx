@@ -1,16 +1,16 @@
 export default function AnalyticsHeader({ classData, courseData, courses, selectedCourse, setSelectedCourse, onChangeClass, allClasses, selectedClass, setSelectedClass }) {
     return (
         <div style={{ marginBottom: '40px', paddingBottom: '24px', borderBottom: '2px solid rgba(16, 185, 129, 0.3)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <p style={{ fontSize: '12px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
+<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <p style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
                     Class
                 </p>
                 <button
                     onClick={onChangeClass}
                     style={{
                         padding: '6px 12px',
-                        backgroundColor: 'rgba(30, 41, 59, 0.4)',
-                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        backgroundColor: 'var(--bg-secondary)',
+                        border: '1px solid #10b981',
                         borderRadius: '6px',
                         color: '#10b981',
                         fontSize: '12px',
@@ -19,18 +19,16 @@ export default function AnalyticsHeader({ classData, courseData, courses, select
                         transition: 'all 200ms ease-in-out'
                     }}
                     onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'rgba(30, 41, 59, 0.6)';
-                        e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.6)';
+                        e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
                     }}
                     onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'rgba(30, 41, 59, 0.4)';
-                        e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                        e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
                     }}
                 >
                     Change Class
                 </button>
             </div>
-            <h1 style={{ fontSize: '32px', fontWeight: '700', color: '#f1f5f9', marginBottom: '16px', margin: 0 }}>
+            <h1 style={{ fontSize: '32px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '16px', margin: 0 }}>
                 {classData?.name}
             </h1>
 
@@ -42,10 +40,10 @@ export default function AnalyticsHeader({ classData, courseData, courses, select
                     onChange={(e) => setSelectedCourse(parseInt(e.target.value))}
                     style={{
                         padding: '10px 16px',
-                        backgroundColor: 'rgba(30, 41, 59, 0.3)',
-                        border: '1px solid rgba(148, 163, 184, 0.2)',
+                        backgroundColor: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
                         borderRadius: '8px',
-                        color: 'white',
+                        color: 'var(--text-primary)',
                         fontSize: '15px',
                         fontWeight: '500',
                         cursor: 'pointer',
@@ -66,9 +64,9 @@ export default function AnalyticsHeader({ classData, courseData, courses, select
                         e.target.style.borderColor = 'rgba(148, 163, 184, 0.2)';
                         e.target.style.boxShadow = 'none';
                     }}
-                >
+>
                     {courses.map(c => (
-                        <option key={c.id} value={c.id} style={{ backgroundColor: '#1e293b', color: 'white' }}>
+                        <option key={c.id} value={c.id} style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
                             {c.title}
                         </option>
                     ))}

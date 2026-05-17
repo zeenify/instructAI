@@ -55,7 +55,7 @@
 .class-header-title {
   font-size: 2rem;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
   margin-bottom: 8px;
   letter-spacing: -0.02em;
   line-height: 1.2;
@@ -63,7 +63,7 @@
 
 .class-header-description {
   font-size: 0.9rem;
-  color: #94a3b8;
+  color: var(--text-secondary);
   line-height: 1.5;
   margin-bottom: 12px;
 }
@@ -244,8 +244,8 @@
 .course-card {
   padding: 32px;
   border-radius: 28px;
-  border: 1px solid rgba(167, 139, 250, 0.2);
-  background: linear-gradient(135deg, rgba(15, 7, 36, 0.8) 0%, rgba(30, 10, 60, 0.6) 100%);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
   backdrop-filter: blur(10px);
   transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
   display: flex;
@@ -254,6 +254,7 @@
   min-height: 280px;
   position: relative;
   overflow: hidden;
+  box-shadow: var(--card-shadow);
 }
 
 .course-card::before {
@@ -435,8 +436,8 @@
 
 .skeleton-header {
   height: 200px;
-  background: rgba(167, 139, 250, 0.08);
-  border: 1px solid rgba(167, 139, 250, 0.15);
+  background: var(--skeleton-bg);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 24px;
   display: flex;
@@ -447,20 +448,26 @@
 
 .skeleton-header-line {
   height: 32px;
-  background: rgba(167, 139, 250, 0.1);
+  background: var(--bg-secondary);
   border-radius: 8px;
   width: 40%;
+  opacity: 0.5;
 }
 
-.skeleton-header-line:last-child {
-  height: 16px;
-  width: 60%;
+.skeleton-tab {
+  height: 40px;
+  background: var(--skeleton-bg);
+  border-radius: 8px;
+  width: 120px;
+  animation: pulse 2s infinite;
 }
 
-.skeleton-tabs {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
+.skeleton-card {
+  height: 240px;
+  background: var(--skeleton-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  animation: pulse 2s infinite;
 }
 
 .skeleton-tab {
@@ -501,23 +508,22 @@
 .students-header-title {
   font-size: 2rem;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
   margin-bottom: 8px;
   letter-spacing: -0.02em;
 }
 
 .students-header-subtitle {
   font-size: 0.9rem;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .students-table-container {
   border-radius: 24px;
-  border: 1px solid rgba(167, 139, 250, 0.2);
-  background: linear-gradient(135deg, rgba(15, 7, 36, 0.5) 0%, rgba(30, 10, 60, 0.3) 100%);
-  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--card-shadow);
 }
 
 .students-table-container:hover {
@@ -542,7 +548,7 @@
   text-align: left;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #d8b4fe;
+  color: #a78bfa;
   text-transform: uppercase;
   letter-spacing: 0.12em;
 }
@@ -556,9 +562,13 @@
 }
 
 .students-table-row {
-  border-bottom: 1px solid rgba(167, 139, 250, 0.1);
+  border-bottom: 1px solid var(--border-color);
   transition: all 0.3s ease;
   position: relative;
+}
+
+.students-table-row:hover {
+  background: var(--bg-tertiary);
 }
 
 .students-table-row:hover {
@@ -637,10 +647,10 @@
 
 .students-empty {
   border-radius: 24px;
-  border: 2px dashed rgba(167, 139, 250, 0.25);
+  border: 2px dashed var(--border-color);
   padding: 80px 40px;
   text-align: center;
-  background: linear-gradient(135deg, rgba(167, 139, 250, 0.05) 0%, rgba(109, 40, 217, 0.02) 100%);
+  background: var(--bg-secondary);
 }
 
 .students-empty-icon {

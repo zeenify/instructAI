@@ -3,10 +3,10 @@ export default function QuizScoresChart({ data }) {
         return <div style={{ color: '#94a3b8', textAlign: 'center', padding: '40px' }}>No quiz data available</div>;
     }
 
-    return (
-        <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.5)', borderRadius: '8px', border: '1px solid rgb(55, 65, 81)', padding: '24px' }}>
+return (
+        <div style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '24px', boxShadow: 'var(--card-shadow)' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {data.map((quiz, idx) => {
+{data.map((quiz, idx) => {
                     const score = Math.round(quiz.avg_score);
                     let color = '#10b981';
                     let label = 'Excellent';
@@ -23,14 +23,14 @@ export default function QuizScoresChart({ data }) {
                         <div key={`quiz-${idx}`} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                             {/* Quiz name */}
                             <div style={{ minWidth: '200px', maxWidth: '200px' }}>
-                                <p style={{ fontSize: '14px', fontWeight: '600', color: '#f1f5f9', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <p style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {quiz.quiz_name}
                                 </p>
                             </div>
 
                             {/* Bar */}
                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ flex: 1, height: '32px', backgroundColor: 'rgba(55, 65, 81, 0.3)', borderRadius: '6px', overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
+                                <div style={{ flex: 1, height: '32px', backgroundColor: 'var(--bg-tertiary)', borderRadius: '6px', overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
                                     <div
                                         style={{
                                             height: '100%',
@@ -71,19 +71,19 @@ export default function QuizScoresChart({ data }) {
                 })}
             </div>
 
-            {/* Legend */}
-            <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid rgb(55, 65, 81)', display: 'flex', gap: '24px', fontSize: '12px', flexWrap: 'wrap' }}>
+{/* Legend */}
+            <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '24px', fontSize: '12px', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ width: '12px', height: '12px', backgroundColor: '#10b981', borderRadius: '2px' }} />
-                    <span style={{ color: '#94a3b8' }}>80% or higher</span>
+                    <span style={{ color: 'var(--text-tertiary)' }}>80% or higher</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ width: '12px', height: '12px', backgroundColor: '#f59e0b', borderRadius: '2px' }} />
-                    <span style={{ color: '#94a3b8' }}>60-80%</span>
+                    <span style={{ color: 'var(--text-tertiary)' }}>60-80%</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ width: '12px', height: '12px', backgroundColor: '#ef4444', borderRadius: '2px' }} />
-                    <span style={{ color: '#94a3b8' }}>Below 60%</span>
+                    <span style={{ color: 'var(--text-tertiary)' }}>Below 60%</span>
                 </div>
             </div>
         </div>

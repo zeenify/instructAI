@@ -66,11 +66,12 @@ export default function CreateCourseModal({ isOpen, onClose, classId, onCourseCr
                         onClick={onClose}
                         className="absolute inset-0 bg-black/80 backdrop-blur-md"
                     />
-                    <motion.div
+<motion.div
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="relative z-10 w-full max-w-lg bg-[#030014] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl"
+                        style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}
+                        className="relative z-10 w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl"
                     >
                         <div className="create-course-modal">
                             <div className="create-course-header">

@@ -17,13 +17,13 @@
   gap: 12px;
   font-size: 1.5rem;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
 }
 
 .create-course-close-btn {
   background: transparent;
   border: none;
-  color: #64748b;
+  color: var(--text-tertiary);
   cursor: pointer;
   transition: all 0.3s ease;
   padding: 8px;
@@ -33,7 +33,7 @@
 }
 
 .create-course-close-btn:hover {
-  color: white;
+  color: var(--text-primary);
   transform: rotate(90deg);
 }
 
@@ -66,26 +66,26 @@
   font-size: 0.95rem !important;
   height: auto !important;
   min-height: 52px !important;
-  background: rgba(167, 139, 250, 0.03) !important;
-  border: 1.5px solid rgba(167, 139, 250, 0.2) !important;
+  background: var(--bg-tertiary) !important;
+  border: 1.5px solid var(--border-color) !important;
   border-radius: 12px !important;
-  color: white !important;
+  color: var(--text-primary) !important;
   transition: all 0.3s ease !important;
 }
 
 .form-input:focus {
-  background: rgba(167, 139, 250, 0.08) !important;
-  border-color: rgba(167, 139, 250, 0.4) !important;
+  background: var(--bg-secondary) !important;
+  border-color: #a78bfa !important;
   box-shadow: 0 0 20px rgba(167, 139, 250, 0.15) !important;
 }
 
 .form-textarea {
   padding: 16px 20px !important;
   font-size: 0.95rem !important;
-  background: rgba(167, 139, 250, 0.03) !important;
-  border: 1.5px solid rgba(167, 139, 250, 0.2) !important;
+  background: var(--bg-tertiary) !important;
+  border: 1.5px solid var(--border-color) !important;
   border-radius: 12px !important;
-  color: white !important;
+  color: var(--text-primary) !important;
   font-family: 'Inter', -apple-system, sans-serif !important;
   resize: vertical !important;
   transition: all 0.3s ease !important;
@@ -93,14 +93,20 @@
 }
 
 .form-textarea::placeholder {
-  color: #64748b !important;
+  color: var(--text-tertiary) !important;
 }
 
 .form-textarea:focus {
-  background: rgba(167, 139, 250, 0.08) !important;
-  border-color: rgba(167, 139, 250, 0.4) !important;
+  background: var(--bg-secondary) !important;
+  border-color: #a78bfa !important;
   box-shadow: 0 0 20px rgba(167, 139, 250, 0.15) !important;
   outline: none !important;
+}
+
+.form-helper-text {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin-left: 4px;
 }
 
 .form-helper-text {
@@ -116,27 +122,27 @@
   gap: 12px;
   width: 100%;
   padding: 20px;
-  background: rgba(167, 139, 250, 0.03);
-  border: 1.5px solid rgba(167, 139, 250, 0.2);
+  background: var(--bg-tertiary);
+  border: 1.5px solid var(--border-color);
   border-radius: 12px;
-  color: #94a3b8;
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .file-upload-area:hover {
-  background: rgba(167, 139, 250, 0.08);
-  border-color: rgba(167, 139, 250, 0.4);
-  color: #d8b4fe;
+  background: var(--bg-secondary);
+  border-color: #a78bfa;
+  color: #a78bfa;
 }
 
 .file-upload-area.has-file {
-  border-color: rgba(34, 211, 238, 0.3);
-  background: rgba(34, 211, 238, 0.05);
+  border-color: #22d3ee;
+  background: rgba(34, 211, 238, 0.1);
 }
 
 .file-upload-name {
-  color: white;
+  color: var(--text-primary);
   font-weight: 600;
   margin: 0 8px;
   flex: 1;

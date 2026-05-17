@@ -18,6 +18,7 @@ import { BubbleMenu as BubbleMenuPlugin } from '@tiptap/extension-bubble-menu';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
 import Button from '../../components/ui/Button';
+import { useTheme } from '../../context/ThemeContext';
 
 import CodeMirror from '@uiw/react-codemirror';
 import { java } from '@codemirror/lang-java';
@@ -45,6 +46,7 @@ const TIPTAP_EXTENSIONS = [
 export default function LessonEditor() {
     const { classId, id } = useParams(); 
     const navigate = useNavigate();
+    const { theme } = useTheme();
     
     // Core States
     const [lesson, setLesson] = useState(null);
@@ -131,23 +133,24 @@ export default function LessonEditor() {
         }
     };
 
-    if (loading) return (
-        <div className="h-screen bg-[#030014] flex items-center justify-center">
+if (loading) return (
+        <div style={{ backgroundColor: 'var(--bg-primary)' }} className="h-screen flex items-center justify-center">
             <Loader2 className="animate-spin text-purple-500" size={40} />
         </div>
     );
 
     if (!lesson) return null;
 
-    return (
-        <div className="max-w-5xl mx-auto px-4">
+return (
+        <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh', transition: 'all 0.3s ease' }}>
+<div className="w-full mx-auto px-8 pb-[500px]">
             <style>{`
                 .ProseMirror ul { list-style-type: disc !important; padding-left: 1.5rem !important; margin: 1rem 0 !important; }
                 .ProseMirror ol { list-style-type: decimal !important; padding-left: 1.5rem !important; margin: 1rem 0 !important; }
                 .ProseMirror p.is-editor-empty:first-child::before {
                     content: attr(data-placeholder);
                     float: left;
-                    color: #475569;
+                    color: var(--text-tertiary);
                     pointer-events: none;
                     height: 0;
                     font-style: italic;
@@ -155,57 +158,66 @@ export default function LessonEditor() {
                 .ProseMirror:focus { outline: none; }
             `}</style>
 
-            {/* STICKY CONTROL BAR */}
-            <div style={{ padding: '20px 0', marginBottom: '32px', gap: '24px' }} className="flex flex-col md:flex-row justify-between items-center sticky top-0 z-40 bg-[#030014]/90 backdrop-blur-xl border-b border-white/5">
-                <div style={{ gap: '16px' }} className="flex items-center w-full md:w-auto">
-                    <button
-                        onClick={() => navigate(-1)}
-                        style={{ padding: '10px 12px' }}
-                        className="hover:bg-white/5 rounded-full text-slate-500 hover:text-white transition-all border-none bg-transparent cursor-pointer"
-                    >
-                        <ChevronLeft size={24} />
-                    </button>
-                    <div className="flex flex-col flex-grow">
-                        <span style={{ marginBottom: '4px' }} className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-500">Architecture Mode</span>
-                        <input
-                            value={title || ""}
-                            onChange={(e) => setTitle(e.target.value)}
-                            className="bg-transparent border-none outline-none text-2xl font-bold text-white w-full placeholder:text-slate-800"
-                            placeholder="Unit Title..."
-                        />
+{/* STICKY CONTROL BAR */}
+<div style={{ padding: '20px 0', marginBottom: '32px', gap: '24px', backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)' }} className="flex flex-col md:flex-row justify-between items-center sticky top-0 z-40 backdrop-blur-xl">
+<div style={{ gap: '16px' }} className="flex items-center w-full md:w-auto">
+<button
+onClick={() => navigate(-1)}
+style={{ padding: '10px 12px' }}
+className="hover:bg-var(--bg-tertiary) rounded-full text-slate-500 hover:text-purple-600 transition-all border-none bg-transparent cursor-pointer"
+>
+<ChevronLeft size={24} />
+</button>
+<div className="flex flex-col flex-grow">
+<span style={{ marginBottom: '4px' }} className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-500">Architecture Mode</span>
+<input
+value={title || ""}
+onChange={(e) => setTitle(e.target.value)}
+style={{ color: 'var(--text-primary)', width: '100%' }}
+className="bg-transparent border-none outline-none text-2xl font-bold placeholder:text-slate-400"
+placeholder="Unit Title..."
+/>
+</div>
+</div>
+            <div style={{ gap: '12px' }} className="flex items-center">
+                <label style={{ backgroundColor: aiEnabled ? 'rgba(168, 85, 247, 0.15)' : 'var(--bg-tertiary)', border: aiEnabled ? '1px solid rgba(168, 85, 247, 0.4)' : '1px solid var(--border-color)', color: aiEnabled ? '#c084fc' : 'var(--text-secondary)' }} className="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-opacity-90 transition-all cursor-pointer">
+                    <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${aiEnabled ? 'bg-purple-600 border-purple-500' : 'border-slate-400 bg-transparent'}`}>
+                        {aiEnabled && <Check size={12} className="text-white" />}
                     </div>
-                </div>
-                <div style={{ gap: '12px' }} className="flex items-center">
-                    <label className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-800/50 hover:bg-slate-800 transition-colors cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={aiEnabled}
-                            onChange={(e) => setAiEnabled(e.target.checked)}
-                            className="w-4 h-4 cursor-pointer"
-                        />
-                        <span>AI Tutor</span>
-                    </label>
+                    <input
+                        type="checkbox"
+                        checked={aiEnabled}
+                        onChange={(e) => setAiEnabled(e.target.checked)}
+                        className="hidden"
+                    />
+                    <span>AI Tutor</span>
+                </label>
                     <Button loading={saving} onClick={() => handleSave()} style={{ padding: '14px 24px' }} className="text-xs uppercase tracking-widest font-black" variant="primary">
                         Sync Changes
                     </Button>
                     <button
                         onClick={() => handleSave(!isPublished)}
-                        style={{ padding: '14px 24px' }}
-                        className={`rounded-xl text-xs font-black uppercase tracking-widest border-none cursor-pointer transition-all ${isPublished ? 'bg-slate-800 text-slate-400' : 'bg-gradient-to-r from-purple-600 to-accent text-white shadow-lg shadow-purple-500/20'}`}
+                        style={{ 
+                            padding: '14px 24px',
+                            backgroundColor: isPublished ? 'var(--bg-tertiary)' : '#7e22ce',
+                            color: isPublished ? 'var(--text-primary)' : 'white',
+                            border: isPublished ? '1px solid var(--border-color)' : 'none'
+                        }}
+                        className="rounded-xl text-xs font-black uppercase tracking-widest cursor-pointer transition-all shadow-sm"
                     >
                         {isPublished ? 'Return to Draft' : 'Publish Content'}
                     </button>
                 </div>
             </div>
 
-            {/* DRAGGABLE CANVAS */}
-            <div className="max-w-3xl mx-auto pb-60">
+{/* DRAGGABLE CANVAS */}
+            <div className="w-full">
                 <Reorder.Group axis="y" values={blocks} onReorder={setBlocks} style={{ gap: '32px' }} className="flex flex-col list-none p-0">
                     {blocks.map((block) => (
                         <Reorder.Item key={block.id} value={block} className="group relative">
-                            {/* BLOCK SIDEBAR CONTROLS - Visible on Hover */}
+{/* BLOCK SIDEBAR CONTROLS - Visible on Hover */}
                             <div style={{ gap: '8px', padding: '12px' }} className="absolute -left-20 top-0 flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                <div style={{ padding: '10px 12px' }} className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-purple-300 hover:bg-purple-500/20 transition-all bg-white/5 rounded-lg border border-white/10">
+                                <div style={{ padding: '10px 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }} className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-purple-600 transition-all rounded-lg shadow-sm">
                                     <GripVertical size={18} />
                                 </div>
                                 <AnimatePresence mode="wait">
@@ -221,8 +233,8 @@ export default function LessonEditor() {
                                     ) : (
                                         <button
                                             onClick={() => setConfirmDeleteId(block.id)}
-                                            style={{ padding: '10px 12px' }}
-                                            className="text-slate-400 hover:text-red-300 hover:bg-red-500/20 border-none bg-white/5 cursor-pointer rounded-lg transition-all border border-white/10"
+                                            style={{ padding: '10px 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}
+                                            className="text-slate-400 hover:text-red-600 border-none cursor-pointer rounded-lg transition-all shadow-sm"
                                         >
                                             <Trash2 size={18} />
                                         </button>
@@ -242,11 +254,11 @@ export default function LessonEditor() {
                 </Reorder.Group>
 
                 {/* INSERTER HUB */}
-                <div style={{ marginTop: '48px' }}>
+<div style={{ marginTop: '48px' }}>
                     <div style={{ gap: '16px', marginBottom: '24px' }} className="flex items-center">
-                        <div className="h-[1px] flex-grow bg-white/5" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-700">Add Element</span>
-                        <div className="h-[1px] flex-grow bg-white/5" />
+                        <div style={{ backgroundColor: 'var(--border-color)' }} className="h-[1px] flex-grow" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500">Add Element</span>
+                        <div style={{ backgroundColor: 'var(--border-color)' }} className="h-[1px] flex-grow" />
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
                         <AddBlockBtn icon={Heading1} label="H1" onClick={() => addBlock('h1')} />
@@ -259,20 +271,23 @@ export default function LessonEditor() {
                 </div>
             </div>
         </div>
+        </div>
     );
 }
 
 function BlockElement({ block, update, isUploading, setUploading, clearUploading }) {
+    const { theme } = useTheme();
     const getYoutubeId = (url) => {
         const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
         const match = url?.match(regExp);
         return (match && match[2].length === 11) ? match[2] : null;
     };
 
-    switch (block.type) {
+switch (block.type) {
         case 'h1': return (
             <textarea
-                className="w-full bg-transparent border-none outline-none text-4xl font-black text-white placeholder:text-slate-900 tracking-tight resize-none overflow-hidden"
+                className="w-full bg-transparent border-none outline-none text-4xl font-black tracking-tight resize-none overflow-hidden"
+                style={{ color: 'var(--text-primary)' }}
                 placeholder="New Section Heading..."
                 value={block.data.text || ""}
                 onChange={(e) => {
@@ -292,10 +307,10 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
                 onChange={(html) => update(block.id, { text: html })} 
             />
         );
-        case 'video':
+case 'video':
             const ytId = getYoutubeId(block.data.url);
             return (
-                <div style={{ padding: '32px 40px', gap: '24px' }} className="rounded-[40px] bg-white/[0.02] border border-white/5 flex flex-col">
+                <div style={{ padding: '32px 40px', gap: '24px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }} className="rounded-[40px] flex flex-col shadow-sm">
                     <div className="flex items-center gap-3 text-red-500">
                         <Video size={20} />
                         <span className="text-[10px] font-black uppercase tracking-widest">Video Instruction</span>
@@ -305,19 +320,19 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
                             <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${ytId}`} frameBorder="0" allowFullScreen />
                         </div>
                     ) : (
-                        <div style={{ gap: '12px' }} className="h-48 bg-white/5 rounded-3xl flex flex-col items-center justify-center border border-dashed border-white/10 group">
-                            <Play className="text-white/10 group-hover:text-red-500 transition-colors" size={48} />
-                            <p className="text-[10px] text-slate-600 font-black uppercase tracking-widest">Paste YouTube Link Below</p>
+                        <div style={{ gap: '12px', backgroundColor: 'var(--bg-tertiary)', border: '1px dashed var(--border-color)' }} className="h-48 rounded-3xl flex flex-col items-center justify-center group">
+                            <Play className="text-slate-400 group-hover:text-red-500 transition-colors" size={48} />
+                            <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Paste YouTube Link Below</p>
                         </div>
                     )}
-                    <input style={{ padding: '10px 12px' }} className="w-full bg-white/5 border border-white/10 rounded-2xl text-sm text-white outline-none focus:border-red-500/50 transition-all" placeholder="YouTube URL..." value={block.data.url || ""} onChange={(e) => update(block.id, { url: e.target.value })} />
+                    <input style={{ padding: '10px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} className="w-full rounded-2xl text-sm outline-none focus:border-red-500/50 transition-all" placeholder="YouTube URL..." value={block.data.url || ""} onChange={(e) => update(block.id, { url: e.target.value })} />
                 </div>
             );
-        case 'link': return (
-            <div style={{ padding: '24px 28px', gap: '16px' }} className="rounded-[32px] bg-white/[0.02] border border-white/5 flex items-center group/link transition-all hover:bg-white/[0.04]">
-                <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover/link:scale-110 transition-transform"><ExternalLink size={28} /></div>
-                <div className="flex-grow" style={{ gap: '4px' }} className="flex flex-col">
-                    <input className="w-full bg-transparent border-none outline-none text-lg text-white font-black placeholder:text-slate-800" placeholder="Resource Title..." value={block.data.title || ""} onChange={(e) => update(block.id, { title: e.target.value })} />
+case 'link': return (
+            <div style={{ padding: '24px 28px', gap: '16px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }} className="rounded-[32px] flex items-center group/link transition-all hover:bg-var(--bg-tertiary) shadow-sm">
+                <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover/link:scale-110 transition-transform"><ExternalLink size={28} /></div>
+                <div className="flex-grow flex flex-col" style={{ gap: '4px' }}>
+                    <input style={{ color: 'var(--text-primary)' }} className="w-full bg-transparent border-none outline-none text-lg font-black placeholder:text-slate-400" placeholder="Resource Title..." value={block.data.title || ""} onChange={(e) => update(block.id, { title: e.target.value })} />
                     <input className="w-full bg-transparent border-none outline-none text-[10px] text-slate-500 font-mono tracking-widest uppercase" placeholder="https://..." value={block.data.url || ""} onChange={(e) => update(block.id, { url: e.target.value })} />
                 </div>
             </div>
@@ -358,10 +373,10 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
                 )}
             </div>
         );
-        case 'code': return (
-            <div style={{ padding: '32px 40px' }} className="rounded-[40px] bg-[#020202] border border-white/5 shadow-2xl relative overflow-hidden">
+case 'code': return (
+            <div style={{ padding: '32px 40px', backgroundColor: theme === 'dark' ? '#020202' : '#ffffff', border: '1px solid var(--border-color)' }} className="rounded-[40px] shadow-2xl relative overflow-hidden">
                 <div style={{ marginBottom: '24px', justifyContent: 'space-between' }} className="flex items-center">
-                    <div style={{ padding: '4px', gap: '4px' }} className="flex bg-white/5 rounded-xl">
+                    <div style={{ padding: '4px', gap: '4px', backgroundColor: 'var(--bg-tertiary)' }} className="flex rounded-xl">
                         {['playground', 'challenge'].map(m => (
                             <button key={m} onClick={() => update(block.id, { mode: m })} style={{ padding: '8px 12px' }} className={`rounded-lg text-[10px] font-black uppercase transition-all border-none cursor-pointer ${block.data.mode === m ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' : 'text-slate-600 hover:text-slate-400'}`}>{m}</button>
                         ))}
@@ -373,8 +388,8 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
                         + Java Template
                     </button>
                 </div>
-                <div className="rounded-2xl border border-white/5 overflow-hidden" style={{ marginBottom: '24px' }}>
-                    <CodeMirror value={block.data.code || ""} height="300px" theme="dark" extensions={[java()]} onChange={(val) => update(block.id, { code: val })} />
+<div className="rounded-2xl border border-white/5 overflow-hidden" style={{ marginBottom: '24px' }}>
+                    <CodeMirror value={block.data.code || ""} height="300px" theme={theme === 'dark' ? 'dark' : 'light'} extensions={[java()]} onChange={(val) => update(block.id, { code: val })} options={{ fontSize: 16 }} />
                 </div>
                 {block.data.mode === 'challenge' && (
                     <div style={{ marginTop: '24px', paddingTop: '24px', gap: '12px' }} className="border-t border-white/5 text-cyan-500 flex flex-col">
@@ -389,6 +404,7 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
 }
 
 function RichTextEditor({ content, onChange }) {
+    const { theme } = useTheme();
     const [linkUrl, setLinkUrl] = useState('');
     const [showLinkInput, setShowLinkInput] = useState(false);
     const [isTextSelected, setIsTextSelected] = useState(false);
@@ -438,22 +454,22 @@ function RichTextEditor({ content, onChange }) {
                 </div>
             )}
 
-            {/* SIDEBAR BLOCK ACTIONS (VISIBLE ON HOVER) */}
+{/* SIDEBAR BLOCK ACTIONS (VISIBLE ON HOVER) */}
             <div style={{ gap: '8px', marginBottom: '12px' }} className="flex opacity-0 group-hover/editor:opacity-100 transition-opacity">
-                <button onClick={() => editor.chain().focus().toggleBulletList().run()} style={{ padding: '10px 12px', gap: '8px' }} className={`rounded-lg border-none cursor-pointer flex items-center transition-all ${editor.isActive('bulletList') ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-white/5 text-slate-500 hover:text-slate-300'}`}><List size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">Bullets</span></button>
-                <button onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()} style={{ padding: '10px 12px', gap: '8px' }} className="rounded-lg border-none bg-white/5 text-slate-500 hover:text-red-400 cursor-pointer flex items-center transition-all"><Eraser size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">Clear Formatting</span></button>
+                <button onClick={() => editor.chain().focus().toggleBulletList().run()} style={{ padding: '10px 12px', gap: '8px' }} className={`rounded-lg border-none cursor-pointer flex items-center transition-all ${editor.isActive('bulletList') ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-var(--bg-tertiary) text-slate-500 hover:text-slate-700'}`} />
+                <button onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()} style={{ padding: '10px 12px', gap: '8px' }} className="rounded-lg border-none bg-var(--bg-tertiary) text-slate-500 hover:text-red-400 cursor-pointer flex items-center transition-all" />
             </div>
             
-            <EditorContent editor={editor} className="prose prose-invert max-w-none text-xl text-slate-300 leading-relaxed min-h-[40px]" />
+            <EditorContent editor={editor} className={`prose ${theme === 'dark' ? 'prose-invert' : ''} max-w-none text-xl text-var(--text-secondary) leading-relaxed min-h-[40px]`} />
         </div>
     );
 }
 
 function AddBlockBtn({ icon: Icon, label, onClick }) {
     return (
-        <button onClick={onClick} style={{ padding: '24px 28px', gap: '12px' }} className="flex flex-col items-center rounded-[32px] bg-white/[0.01] border border-white/5 hover:border-purple-500/30 hover:bg-purple-500/5 transition-all border-none cursor-pointer group shadow-sm">
-            <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-slate-600 group-hover:text-purple-400 group-hover:scale-110 transition-all shadow-lg"><Icon size={24} /></div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-700 group-hover:text-slate-300 transition-colors">{label}</span>
+        <button onClick={onClick} style={{ padding: '24px 28px', gap: '12px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }} className="flex flex-col items-center rounded-[32px] hover:border-purple-500/50 hover:bg-var(--bg-tertiary) transition-all border-none cursor-pointer group shadow-sm">
+            <div style={{ backgroundColor: 'var(--bg-tertiary)' }} className="w-12 h-12 rounded-2xl flex items-center justify-center text-slate-500 group-hover:text-purple-600 group-hover:scale-110 transition-all shadow-sm"><Icon size={24} /></div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-700 transition-colors">{label}</span>
         </button>
     );
 }

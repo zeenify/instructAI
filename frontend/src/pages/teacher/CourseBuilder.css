@@ -7,11 +7,11 @@
 
 .back-btn {
     display: flex; align-items: center; gap: 8px;
-    color: #64748b; font-size: 14px; font-weight: 800;
+    color: var(--text-tertiary); font-size: 14px; font-weight: 800;
     text-transform: uppercase; letter-spacing: 0.1em;
     transition: 0.2s;
 }
-.back-btn:hover { color: white; }
+.back-btn:hover { color: var(--text-primary); }
 
 .builder-header { 
     display: flex; 
@@ -48,8 +48,8 @@
 }
 
 .timeline-item {
-    background: #020202;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
     padding: 20px 28px;
     border-radius: 24px;
     display: flex;
@@ -59,6 +59,7 @@
     transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
     user-select: none;
     position: relative;
+    box-shadow: var(--card-shadow);
 }
 
 .is-dragging-active .timeline-item {
@@ -98,10 +99,10 @@
 }
 
 .action-icon-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
     cursor: pointer;
-    color: #94a3b8;
+    color: var(--text-tertiary);
     padding: 10px 12px;
     border-radius: 8px;
     transition: all 0.2s;
@@ -110,9 +111,9 @@
     justify-content: center;
 }
 .action-icon-btn:hover {
-    color: white;
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border-color: var(--border-color);
 }
 .action-icon-btn.active {
     color: #10b981;
@@ -145,10 +146,10 @@
 
 .status-badge {
     font-size: 8px; font-weight: 900; text-transform: uppercase;
-    padding: 4px 8px; border-radius: 6px; border: 1px solid;
+    padding: 4px 10px; border-radius: 6px; border: 1px solid;
 }
-.status-badge.draft { background: rgba(239, 68, 68, 0.05); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); }
-.status-badge.published { background: rgba(16, 185, 129, 0.05); color: #10b981; border-color: rgba(16, 185, 129, 0.2); }
+.status-badge.draft { background: rgba(239, 68, 68, 0.1); color: #dc2626; border-color: rgba(239, 68, 68, 0.2); }
+.status-badge.published { background: rgba(16, 185, 129, 0.1); color: #059669; border-color: rgba(16, 185, 129, 0.2); }
 
 /* Custom Scrollbar for Logs */
 .custom-scrollbar::-webkit-scrollbar { width: 6px; }

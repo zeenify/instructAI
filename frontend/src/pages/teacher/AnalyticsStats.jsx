@@ -61,14 +61,14 @@ export default function AnalyticsStats({ stats }) {
                             e.currentTarget.style.borderColor = stat.borderColor.replace('0.3', '0.5');
                             e.currentTarget.style.transform = 'translateY(-2px)';
                         }}
-                        onMouseLeave={(e) => {
+onMouseLeave={(e) => {
                             e.currentTarget.style.backgroundColor = stat.bgColor;
                             e.currentTarget.style.borderColor = stat.borderColor;
                             e.currentTarget.style.transform = 'translateY(0)';
                         }}
                     >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <p style={{ fontSize: '12px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
+                            <p style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
                                 {stat.label}
                             </p>
                             <div style={{ padding: '8px', borderRadius: '6px', backgroundColor: stat.color + '20' }}>

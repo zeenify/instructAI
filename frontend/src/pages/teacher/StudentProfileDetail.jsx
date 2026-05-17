@@ -39,29 +39,29 @@ export default function StudentProfileDetail({ profile, activeTab = 'progress' }
             {/* Header Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px' }}>
 
-                <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.5)', borderRadius: '8px', padding: '24px', border: '1px solid rgb(55, 65, 81)' }}>
+<div style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '8px', padding: '24px', border: '1px solid var(--border-color)', boxShadow: 'var(--card-shadow)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                        <p style={{ fontSize: '13px', fontWeight: '500', color: '#94a3b8' }}>Progress</p>
+                        <p style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-tertiary)' }}>Progress</p>
                         <BarChart3 size={18} style={{ color: '#4ade80' }} />
                     </div>
                     <div style={{ fontSize: '36px', fontWeight: '700', color: '#4ade80' }}>{student.completion_percentage}%</div>
-                    <p style={{ fontSize: '12px', color: '#64748b', marginTop: '12px' }}>{student.items_completed}/{student.total_items} items completed</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '12px' }}>{student.items_completed}/{student.total_items} items completed</p>
                 </div>
 
-                <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.5)', borderRadius: '8px', padding: '24px', border: '1px solid rgb(55, 65, 81)' }}>
+                <div style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '8px', padding: '24px', border: '1px solid var(--border-color)', boxShadow: 'var(--card-shadow)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                        <p style={{ fontSize: '13px', fontWeight: '500', color: '#94a3b8' }}>Student Name</p>
+                        <p style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-tertiary)' }}>Student Name</p>
                         <CheckCircle2 size={18} style={{ color: '#60a5fa' }} />
                     </div>
-                    <div style={{ fontSize: '20px', fontWeight: '700', color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{student.name}</div>
+                    <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{student.name}</div>
                 </div>
 
-                <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.5)', borderRadius: '8px', padding: '24px', border: '1px solid rgb(55, 65, 81)' }}>
+<div style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '8px', padding: '24px', border: '1px solid var(--border-color)', boxShadow: 'var(--card-shadow)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                        <p style={{ fontSize: '13px', fontWeight: '500', color: '#94a3b8' }}>Last Active</p>
+                        <p style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-tertiary)' }}>Last Active</p>
                         <Clock size={18} style={{ color: '#60a5fa' }} />
                     </div>
-                    <div style={{ fontSize: '20px', fontWeight: '700', color: '#f1f5f9' }}>
+                    <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)' }}>
                         {student.last_active ? formatDate(student.last_active) : 'Never'}
                     </div>
                 </div>
@@ -69,15 +69,15 @@ export default function StudentProfileDetail({ profile, activeTab = 'progress' }
 
             {/* Module Timeline - Only show in Progress Tab */}
             {activeTab === 'progress' && <div>
-                <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#f1f5f9', marginBottom: '24px' }}>Course Progress</h2>
+                <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '24px' }}>Course Progress</h2>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    {modules.map((module, moduleIdx) => (
+{modules.map((module, moduleIdx) => (
                         <div
                             key={module.id}
-                            style={{ backgroundColor: 'rgba(30, 41, 59, 0.5)', borderRadius: '8px', padding: '24px', border: '1px solid rgb(55, 65, 81)' }}
+                            style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '8px', padding: '24px', border: '1px solid var(--border-color)', boxShadow: 'var(--card-shadow)' }}
                         >
-                            <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#f1f5f9', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <h3 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#4ade80', fontSize: '14px', fontWeight: '700' }}>
                                     {moduleIdx + 1}
                                 </span>
@@ -90,25 +90,25 @@ export default function StudentProfileDetail({ profile, activeTab = 'progress' }
                                     const statusInfo = getStatusInfo(lesson.status);
                                     const StatusIcon = statusInfo.icon;
 
-                                    return (
+return (
                                         <div
                                             key={`lesson-${lesson.id}`}
                                             style={{
-                                                backgroundColor: 'rgba(55, 65, 81, 0.3)',
+                                                backgroundColor: 'var(--bg-tertiary)',
                                                 borderRadius: '6px',
                                                 padding: '16px',
-                                                border: '1px solid rgb(55, 65, 81)',
+                                                border: '1px solid var(--border-color)',
                                                 display: 'flex',
                                                 alignItems: 'flex-start',
                                                 gap: '16px'
                                             }}
                                         >
-                                            <div style={{ padding: '8px', borderRadius: '6px', backgroundColor: 'rgba(55, 65, 81, 0.5)', flexShrink: 0 }}>
+                                            <div style={{ padding: '8px', borderRadius: '6px', backgroundColor: 'var(--bg-primary)', opacity: 0.5, flexShrink: 0 }}>
                                                 <StatusIcon size={16} style={{ color: statusInfo.color }} />
                                             </div>
                                             <div style={{ flex: 1 }}>
-                                                <p style={{ fontWeight: '500', color: '#f1f5f9', fontSize: '14px', margin: 0 }}>{lesson.name}</p>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '8px', fontSize: '12px', color: '#94a3b8' }}>
+                                                <p style={{ fontWeight: '500', color: 'var(--text-primary)', fontSize: '14px', margin: 0 }}>{lesson.name}</p>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '8px', fontSize: '12px', color: 'var(--text-tertiary)' }}>
                                                     {lesson.status === 'completed' && (
                                                         <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                             <CheckCircle2 size={12} style={{ color: '#4ade80' }} />
@@ -138,26 +138,26 @@ export default function StudentProfileDetail({ profile, activeTab = 'progress' }
                                     const statusInfo = getStatusInfo(quiz.status);
                                     const StatusIcon = statusInfo.icon;
 
-                                    return (
+return (
                                         <div
                                             key={`quiz-${quiz.id}`}
                                             style={{
-                                                backgroundColor: 'rgba(55, 65, 81, 0.3)',
+                                                backgroundColor: 'var(--bg-tertiary)',
                                                 borderRadius: '6px',
                                                 padding: '16px',
-                                                border: '1px solid rgb(55, 65, 81)',
+                                                border: '1px solid var(--border-color)',
                                                 display: 'flex',
                                                 alignItems: 'flex-start',
                                                 gap: '16px'
                                             }}
                                         >
-                                            <div style={{ padding: '8px', borderRadius: '6px', backgroundColor: 'rgba(55, 65, 81, 0.5)', flexShrink: 0 }}>
+                                            <div style={{ padding: '8px', borderRadius: '6px', backgroundColor: 'var(--bg-primary)', opacity: 0.5, flexShrink: 0 }}>
                                                 <StatusIcon size={16} style={{ color: statusInfo.color }} />
                                             </div>
                                             <div style={{ flex: 1 }}>
-                                                <p style={{ fontWeight: '500', color: '#f1f5f9', fontSize: '14px', margin: 0 }}>{quiz.name}</p>
+                                                <p style={{ fontWeight: '500', color: 'var(--text-primary)', fontSize: '14px', margin: 0 }}>{quiz.name}</p>
                                                 {quiz.status === 'completed' && (
-                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '8px', fontSize: '12px', color: '#94a3b8' }}>
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '8px', fontSize: '12px', color: 'var(--text-tertiary)' }}>
                                                         <span>Score: {quiz.score}/{quiz.max_score}</span>
                                                         <span>•</span>
                                                         <span style={{ fontWeight: '500', color: quiz.score >= quiz.max_score * 0.7 ? '#4ade80' : '#fbbf24' }}>
@@ -180,20 +180,20 @@ export default function StudentProfileDetail({ profile, activeTab = 'progress' }
             </div>
             }
 
-            {/* Quiz Summary Table - Only show in Quizzes Tab */}
+{/* Quiz Summary Table - Only show in Quizzes Tab */}
             {activeTab === 'quizzes' && quiz_summary.length > 0 && (
                 <div>
-                    <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#f1f5f9', marginBottom: '24px' }}>Quiz Summary</h2>
+                    <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '24px' }}>Quiz Summary</h2>
 
-                    <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid rgb(55, 65, 81)' }}>
+                    <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', boxShadow: 'var(--card-shadow)' }}>
                         <table style={{ width: '100%', fontSize: '14px', borderCollapse: 'collapse' }}>
                             <thead>
-                                <tr style={{ backgroundColor: 'rgba(30, 41, 59, 0.7)', borderBottom: '1px solid rgb(55, 65, 81)' }}>
-                                    <th style={{ textAlign: 'left', padding: '16px 20px', fontWeight: '600', color: '#94a3b8' }}>Quiz Name</th>
-                                    <th style={{ textAlign: 'center', padding: '16px 20px', fontWeight: '600', color: '#94a3b8' }}>Score</th>
-                                    <th style={{ textAlign: 'center', padding: '16px 20px', fontWeight: '600', color: '#94a3b8' }}>Percentage</th>
-                                    <th style={{ textAlign: 'center', padding: '16px 20px', fontWeight: '600', color: '#94a3b8' }}>Attempts</th>
-                                    <th style={{ textAlign: 'right', padding: '16px 20px', fontWeight: '600', color: '#94a3b8' }}>Last Taken</th>
+                                <tr style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)' }}>
+                                    <th style={{ textAlign: 'left', padding: '16px 20px', fontWeight: '600', color: 'var(--text-tertiary)' }}>Quiz Name</th>
+                                    <th style={{ textAlign: 'center', padding: '16px 20px', fontWeight: '600', color: 'var(--text-tertiary)' }}>Score</th>
+                                    <th style={{ textAlign: 'center', padding: '16px 20px', fontWeight: '600', color: 'var(--text-tertiary)' }}>Percentage</th>
+                                    <th style={{ textAlign: 'center', padding: '16px 20px', fontWeight: '600', color: 'var(--text-tertiary)' }}>Attempts</th>
+                                    <th style={{ textAlign: 'right', padding: '16px 20px', fontWeight: '600', color: 'var(--text-tertiary)' }}>Last Taken</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -202,12 +202,12 @@ export default function StudentProfileDetail({ profile, activeTab = 'progress' }
                                     return (
                                         <tr
                                             key={quiz.quiz_id}
-                                            style={{ borderBottom: '1px solid rgb(55, 65, 81)', transition: 'background-color 300ms' }}
-                                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(30, 41, 59, 0.3)')}
+                                            style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 300ms' }}
+                                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)')}
                                             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                                         >
-                                            <td style={{ padding: '16px 20px', color: '#f1f5f9', fontWeight: '500' }}>{quiz.name}</td>
-                                            <td style={{ textAlign: 'center', padding: '16px 20px', color: '#94a3b8' }}>
+                                            <td style={{ padding: '16px 20px', color: 'var(--text-primary)', fontWeight: '500' }}>{quiz.name}</td>
+                                            <td style={{ textAlign: 'center', padding: '16px 20px', color: 'var(--text-secondary)' }}>
                                                 {quiz.score !== null ? `${quiz.score}/${quiz.max_score}` : '—'}
                                             </td>
                                             <td style={{ textAlign: 'center', padding: '16px 20px' }}>
@@ -242,10 +242,10 @@ export default function StudentProfileDetail({ profile, activeTab = 'progress' }
                 </div>
             )}
 
-            {/* Empty state for Quiz Summary tab */}
+{/* Empty state for Quiz Summary tab */}
             {activeTab === 'quizzes' && quiz_summary.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '60px 24px', backgroundColor: 'rgba(30, 41, 59, 0.3)', borderRadius: '8px', border: '1px solid rgb(55, 65, 81)' }}>
-                    <p style={{ fontSize: '16px', color: '#94a3b8', margin: 0 }}>No quiz attempts yet</p>
+                <div style={{ textAlign: 'center', padding: '60px 24px', backgroundColor: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', boxShadow: 'var(--card-shadow)' }}>
+                    <p style={{ fontSize: '16px', color: 'var(--text-tertiary)', margin: 0 }}>No quiz attempts yet</p>
                 </div>
             )}
         </div>

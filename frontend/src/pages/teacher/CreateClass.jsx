@@ -64,30 +64,30 @@ export default function CreateClass() {
                         <LayoutGrid size={16} /> Classroom Name
                     </label>
                     <div className="relative">
-                        <input
+<input
                             type="text"
                             placeholder="e.g. Grade 12 - Computer Science"
                             value={name}
                             onChange={e => setName(e.target.value)}
                             style={{
                                 padding: '16px 20px 16px 55px',
-                                background: 'rgba(167, 139, 250, 0.03)',
-                                border: '1.5px solid rgba(167, 139, 250, 0.2)',
+                                background: 'var(--bg-tertiary)',
+                                border: '1.5px solid var(--border-color)',
                                 borderRadius: '14px',
-                                color: 'white',
+                                color: 'var(--text-primary)',
                                 fontSize: '1rem',
                                 fontFamily: "'Inter', -apple-system, sans-serif",
                                 width: '100%',
                                 transition: 'all 0.3s ease'
                             }}
                             onFocus={(e) => {
-                                e.target.style.background = 'rgba(167, 139, 250, 0.08)';
-                                e.target.style.borderColor = 'rgba(167, 139, 250, 0.4)';
+                                e.target.style.background = 'var(--bg-secondary)';
+                                e.target.style.borderColor = '#a78bfa';
                                 e.target.style.boxShadow = '0 0 20px rgba(167, 139, 250, 0.15)';
                             }}
                             onBlur={(e) => {
-                                e.target.style.background = 'rgba(167, 139, 250, 0.03)';
-                                e.target.style.borderColor = 'rgba(167, 139, 250, 0.2)';
+                                e.target.style.background = 'var(--bg-tertiary)';
+                                e.target.style.borderColor = 'var(--border-color)';
                                 e.target.style.boxShadow = 'none';
                             }}
                             required

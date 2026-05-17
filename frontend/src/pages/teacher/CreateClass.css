@@ -16,7 +16,7 @@
   margin-bottom: 32px;
   background: transparent;
   border: none;
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 0.85rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -26,33 +26,34 @@
 }
 
 .create-class-back-btn:hover {
-  color: white;
+  color: var(--text-primary);
   transform: translateX(-4px);
 }
 
 .create-class-title {
   font-size: 2.5rem;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
   margin-bottom: 16px;
   letter-spacing: -0.02em;
 }
 
 .create-class-subtitle {
   font-size: 1rem;
-  color: #94a3b8;
+  color: var(--text-secondary);
   line-height: 1.6;
 }
 
 .create-class-form {
-  background: rgba(3, 0, 20, 0.5);
-  border: 1px solid rgba(167, 139, 250, 0.15);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 24px;
   padding: 50px 45px;
   display: flex;
   flex-direction: column;
   gap: 32px;
-  box-shadow: 0 20px 60px -15px rgba(167, 139, 250, 0.1);
+  box-shadow: var(--card-shadow);
+  transition: background 0.3s ease, border 0.3s ease;
 }
 
 .create-class-form-group {
@@ -82,30 +83,30 @@
   font-size: 1rem !important;
   height: auto !important;
   min-height: 60px !important;
-  background: rgba(167, 139, 250, 0.03) !important;
-  border: 1.5px solid rgba(167, 139, 250, 0.2) !important;
+  background: var(--bg-tertiary) !important;
+  border: 1.5px solid var(--border-color) !important;
   border-radius: 14px !important;
-  color: white !important;
+  color: var(--text-primary) !important;
   transition: all 0.3s ease !important;
 }
 
 .create-class-form-input::placeholder {
-  color: #64748b !important;
+  color: var(--text-tertiary) !important;
 }
 
 .create-class-form-input:focus {
-  background: rgba(167, 139, 250, 0.08) !important;
-  border-color: rgba(167, 139, 250, 0.4) !important;
+  background: var(--bg-secondary) !important;
+  border-color: #a78bfa !important;
   box-shadow: 0 0 20px rgba(167, 139, 250, 0.15) !important;
 }
 
 .create-class-textarea {
   padding: 16px 20px !important;
   font-size: 0.95rem !important;
-  background: rgba(167, 139, 250, 0.03) !important;
-  border: 1.5px solid rgba(167, 139, 250, 0.2) !important;
+  background: var(--bg-tertiary) !important;
+  border: 1.5px solid var(--border-color) !important;
   border-radius: 14px !important;
-  color: white !important;
+  color: var(--text-primary) !important;
   font-family: 'Inter', -apple-system, sans-serif !important;
   resize: vertical !important;
   transition: all 0.3s ease !important;
@@ -113,12 +114,12 @@
 }
 
 .create-class-textarea::placeholder {
-  color: #64748b !important;
+  color: var(--text-tertiary) !important;
 }
 
 .create-class-textarea:focus {
-  background: rgba(167, 139, 250, 0.08) !important;
-  border-color: rgba(167, 139, 250, 0.4) !important;
+  background: var(--bg-secondary) !important;
+  border-color: #a78bfa !important;
   box-shadow: 0 0 20px rgba(167, 139, 250, 0.15) !important;
   outline: none !important;
 }

@@ -1,6 +1,49 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 
+@theme {
+  /* This makes these colors available as Tailwind classes like bg-brand-bg */
+  --color-brand-bg: var(--bg-primary);
+  --color-brand-text: var(--text-primary);
+  --color-brand-muted: var(--text-secondary);
+  --color-brand-card: var(--bg-secondary);
+  --color-brand-border: var(--border-color);
+}
+
+:root {
+  /* Light Mode */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
+  --border-color: #e2e8f0;
+  --skeleton-bg: #e2e8f0;
+  --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+[data-theme="dark"] {
+  /* Dark Mode */
+  --bg-primary: #020617;
+  --bg-secondary: rgba(30, 41, 59, 0.5);
+  --bg-tertiary: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --border-color: rgb(55, 65, 81);
+  --skeleton-bg: #1e293b;
+  --card-shadow: none;
+}
+
+/* Apply base transition for smooth switching */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  font-family: 'Inter', sans-serif;
+}
+
 /* Text spacing - fix cramped text everywhere */
 h1, h2, h3, h4, h5, h6 {
   margin-bottom: 0.5rem;
