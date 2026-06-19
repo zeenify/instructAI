@@ -21,25 +21,25 @@ class RetrievalService:
             register_vector(conn)
             return conn
 
-    def search(self, class_id: int, query_embedding: list, top_k: int = 5, lesson_id: int = None) -> list:
-        """Semantic search in class materials"""
-        print(f"[RETRIEVAL] Searching for class_id={class_id}, lesson_id={lesson_id}, top_k={top_k}")
+    def search(self, course_id: int, query_embedding: list, top_k: int = 5, lesson_id: int = None) -> list:
+        """Semantic search in course materials"""
+        print(f"[RETRIEVAL] Searching for course_id={course_id}, lesson_id={lesson_id}, top_k={top_k}")
         conn = self.get_connection()
         try:
             with conn.cursor() as cur:
                 if lesson_id:
-                    # Prioritize current lesson, but also search broader class materials
+                    # Prioritize current lesson, but also search broader course materials
                     cur.execute(
                         """
                         SELECT chunk_text, metadata,
                                1 - (embedding <=> %s::vector) as similarity,
                                CASE WHEN lesson_id = %s THEN 1 ELSE 0 END as is_current_lesson
                         FROM document_chunks
-                        WHERE class_id = %s
+                        WHERE course_id = %s
                         ORDER BY is_current_lesson DESC, similarity DESC
                         LIMIT %s
                         """,
-                        (query_embedding, lesson_id, class_id, top_k)
+                        (query_embedding, lesson_id, course_id, top_k)
                     )
                 else:
                     cur.execute(
@@ -47,11 +47,11 @@ class RetrievalService:
                         SELECT chunk_text, metadata,
                                1 - (embedding <=> %s::vector) as similarity
                         FROM document_chunks
-                        WHERE class_id = %s
+                        WHERE course_id = %s
                         ORDER BY similarity DESC
                         LIMIT %s
                         """,
-                        (query_embedding, class_id, top_k)
+                        (query_embedding, course_id, top_k)
                     )
 
                 results = cur.fetchall()

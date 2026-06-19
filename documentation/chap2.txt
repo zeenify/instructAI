@@ -1,0 +1,156 @@
+CHAPTER 2
+METHODOLOGY
+
+RESEARCH DESIGN
+This study employed a Developmental Research Design combined with a Descriptive-Evaluative Approach in order to design, develop, and assess the effectiveness of the proposed system, InstructAI: An AI-Powered Instructional System for Programming Learning.
+The developmental research design is appropriate for this study because it focuses on the systematic creation, improvement, and evaluation of an educational system intended to address specific learning problems. The study followed the System Development Life Cycle (SDLC) model, which includes the following phases:
+1.Planning Phase – Identification of the existing problems encountered by students in programming learning and determination of system objectives. 
+2.Analysis Phase – Gathering of system requirements, including functional and non-functional requirements. 
+3.Design Phase – Creation of system architecture, database structure, and user interface design. 
+4.Development Phase – Actual coding and integration of AI features into the system. 
+5.Testing Phase – Identification and correction of system errors through debugging and validation. 
+6.Implementation Phase – Deployment of the system for actual use by respondents. 
+7.Evaluation Phase – Assessment of the system using ISO 25010 quality standards. 
+In addition, the descriptive-evaluative method was utilized to measure the effectiveness, usability, and overall quality of the developed system based on user responses.
+
+RESEARC LOCALE
+The study was conducted in a selected Senior High School institution where programming-related subjects are offered, particularly in the Information and Communication Technology (ICT) strand.
+The chosen locale provides a relevant environment for the study since students are actively engaged in learning programming concepts. The institution was selected based on accessibility, availability of respondents, and relevance to the objectives of the research.
+
+RESPONDENTS OF THE STUDY
+The respondents of the study were composed of Senior High School students who are currently enrolled in programming subjects. These students were selected because they are the primary beneficiaries and intended users of the developed system.
+To ensure a comprehensive evaluation, the study may also include teachers, IT instructors, or system experts who have sufficient knowledge in programming and system evaluation. Their role is to provide technical validation of the system’s functionality, reliability, and overall performance.
+
+
+
+
+
+
+SAMPLE AND SAMPLING TECHNIQUE
+The study utilized a purposive sampling technique, where respondents were selected based on specific criteria aligned with the objectives of the study.
+The criteria for selecting respondents include:
+Enrollment in programming-related subjects 
+Basic knowledge of computer operation 
+Experience in using digital learning platforms 
+Willingness to participate in the study 
+A total of 50 respondents were selected to ensure the reliability and validity of the results. Purposive sampling was chosen because it allows the researchers to focus on individuals who can provide relevant and meaningful data.
+
+DATA GATHERING PROCEDURES
+The researchers followed a systematic procedure in gathering data to ensure accuracy and reliability:
+1. Problem Identification
+The researchers identified common challenges faced by students in learning programming through informal interviews, observations, and review of existing studies.
+2. System Design and Development
+Based on the identified problems, the researchers designed and developed the InstructAI system, incorporating AI features such as automated feedback and adaptive learning.
+3. System Testing
+The system underwent initial testing to detect errors, bugs, and inconsistencies. Necessary revisions were made to improve system performance and functionality.
+
+4. Deployment
+The developed system was introduced to the selected respondents. They were given instructions on how to use the system properly.
+5. Data Collection
+After using the system, respondents were asked to answer a structured questionnaire based on ISO 25010 criteria.
+6. Retrieval of Questionnaires
+All completed questionnaires were collected, checked, and prepared for analysis.
+
+RESEARCH INSTRUMENT
+The primary instrument used in this study was a survey questionnaire based on the ISO 25010 Software Quality Model. The questionnaire was designed to evaluate the system across different quality characteristics such as functionality, usability, reliability, and security.
+The instrument used a 4-point Likert Scale to measure the level of agreement of respondents.
+
+DATA ANALYSIS TECHNIQUE
+The collected data were analyzed using descriptive statistical methods to interpret the results effectively.
+The following statistical tools were used:
+Frequency and Percentage – to describe respondent profiles 
+Mean – to determine the average rating for each criterion 
+Weighted Mean – to interpret overall system performance
+
+
+Likert Scale Interpretation:
+Scale	Range	Interpretation
+4	3.26 – 4.00	Very Good
+3	2.51 – 3.25	Good
+2	1.76 – 2.50	Fair
+1	1.00 – 1.75	Poor
+
+SYSTEM EVALUATION BASED ON ISO 25010
+The system was evaluated based on internationally recognized software quality standards under ISO 25010. Each criterion is described in detail as follows:
+
+FUNCTIONAL SUITABILITY
+This refers to the degree to which the system provides functions that meet the specified requirements of users. It evaluates whether the system produces accurate outputs, supports necessary features, and performs intended tasks effectively.
+Indicators include:
+Accuracy of system output 
+Completeness of features 
+Relevance to user needs 
+
+
+
+PERFORMANCE EFFICIENCY
+This measures how well the system performs relative to the resources used under specific conditions. It focuses on response time, processing speed, and system efficiency.
+Indicators include:
+Speed of system response 
+Time efficiency in executing tasks 
+Resource utilization 
+
+COMPATIBILITY
+This refers to the system’s ability to operate with other systems or within different environments. It ensures that the system can function across various devices, browsers, and platforms.
+Indicators include:
+Cross-platform compatibility 
+Integration capability 
+System interoperability 
+
+USABILITY
+Usability measures how easy and convenient the system is for users. It focuses on user interface design, accessibility, and overall user experience.
+Indicators include:
+Ease of navigation 
+User-friendly interface 
+Learnability of the system 
+
+RELIABILITY
+Reliability refers to the system’s ability to perform consistently without failure over time. It ensures stability and error-free operation.
+Indicators include:
+System stability 
+Error handling capability 
+Consistency of performance 
+
+SECURITY
+Security evaluates the system’s ability to protect user data and prevent unauthorized access. It ensures confidentiality, integrity, and availability of information.
+Indicators include:
+Data protection 
+User authentication 
+Access control mechanisms 
+
+MAINTABIITY
+This refers to how easily the system can be modified, updated, or improved. It focuses on code structure, flexibility, and ease of maintenance.
+Indicators include:
+Ease of updating the system 
+Modularity of code 
+Debugging capability 
+
+PORTABILITY
+Portability measures how easily the system can be transferred and used in different environments.
+Indicators include:
+Adaptability to different devices 
+Installation ease 
+System flexibility across platforms 
+
+REQUIRMENTS DOCUMENTATION
+The requirements of the system were categorized into functional and non-functional requirements:
+Functional Requirements:
+User registration and login system 
+AI-powered feedback mechanism 
+Interactive coding interface 
+Performance tracking and monitoring 
+Data storage and retrieval 
+Non-Functional Requirements:
+System performance and speed 
+Data security and privacy 
+User interface design 
+System reliability and availability 
+
+
+
+ETHICAL CONSIDERATION
+The researchers strictly adhered to ethical standards throughout the study to ensure the protection and rights of the respondents.
+Informed Consent: Respondents were fully informed about the purpose and procedures of the study before participation. 
+Voluntary Participation: Participation was entirely voluntary, and respondents were allowed to withdraw at any time. 
+Confidentiality: Personal information of respondents was kept confidential and was not disclosed to any unauthorized parties. 
+Data Privacy: All collected data were securely stored and used solely for research purposes. 
+Integrity of Data: The researchers ensured that all data collected were accurate, truthful, and free from manipulation.

@@ -180,6 +180,7 @@ class StudentMonitorController extends Controller
             $studentData[] = [
                 'id' => $studentId,
                 'name' => $studentName,
+                'lrn_number' => $profile?->lrn_number,
                 'completion_percentage' => $percentage,
                 'last_active' => $lastActive,
                 'flags' => $flags
@@ -350,6 +351,7 @@ class StudentMonitorController extends Controller
             'student' => [
                 'id' => $studentUser->id,
                 'name' => $studentName,
+                'lrn_number' => $profile?->lrn_number,
                 'completion_percentage' => $completionData['percentage'],
                 'items_completed' => $completionData['items_completed'],
                 'total_items' => $completionData['total_items'],

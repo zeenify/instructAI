@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Mail, Lock, ArrowRight, Sparkles } from 'lucide-react';
+import { User, Mail, Lock, ArrowRight, Sparkles, Hash } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -11,12 +11,17 @@ import './StudentRegisterPage.css';
 
 export default function StudentRegisterPage() {
     const [loading, setLoading] = useState(false);
-    const [form, setForm] = useState({ first_name: '', last_name: '', email: '', password: '' });
+    const [lrnError, setLrnError] = useState('');
+    const [form, setForm] = useState({ first_name: '', last_name: '', email: '', password: '', lrn_number: '' });
     const { login } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (form.lrn_number.length !== 12) {
+            setLrnError('LRN must be exactly 12 digits');
+            return;
+        }
         setLoading(true);
         try {
             const res = await api.post('/register/student', form);
@@ -95,6 +100,30 @@ export default function StudentRegisterPage() {
                         required
                         disabled={loading}
                     />
+
+                    <div>
+                        <Input
+                            label="LRN (Learner Reference Number)"
+                            icon={Hash}
+                            placeholder="Enter your 12-digit LRN"
+                            maxLength={12}
+                            value={form.lrn_number}
+                            onChange={e => {
+                                const val = e.target.value.replace(/\D/g, '').slice(0, 12);
+                                setForm({...form, lrn_number: val});
+                                if (val.length > 0 && val.length !== 12) {
+                                    setLrnError('LRN must be exactly 12 digits');
+                                } else {
+                                    setLrnError('');
+                                }
+                            }}
+                            required
+                            disabled={loading}
+                        />
+                        {lrnError && (
+                            <p style={{ color: '#f87171', fontSize: '12px', marginTop: '4px', marginLeft: '4px' }}>{lrnError}</p>
+                        )}
+                    </div>
 
                     <motion.div
                         animate={loading ? { opacity: [1, 0.7, 1] } : {}}

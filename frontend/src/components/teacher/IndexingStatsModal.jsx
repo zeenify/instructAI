@@ -5,7 +5,7 @@ import api from '../../services/api';
 import { toast } from 'sonner';
 import './IndexingStatsModal.css';
 
-export default function IndexingStatsModal({ courseId, isOpen, onClose, initialStats }) {
+export default function IndexingStatsModal({ courseId, isOpen, onClose, initialStats, onReindexComplete }) {
     const [stats, setStats] = useState(initialStats || null);
     const [loading, setLoading] = useState(!initialStats);
     const [reindexing, setReindexing] = useState(false);
@@ -15,10 +15,10 @@ export default function IndexingStatsModal({ courseId, isOpen, onClose, initialS
     const [searching, setSearching] = useState(false);
 
     useEffect(() => {
-        if (isOpen && !initialStats) {
+        if (isOpen) {
             loadStats();
         }
-    }, [isOpen, courseId, initialStats]);
+    }, [isOpen, courseId]);
 
     const loadStats = async () => {
         setLoading(true);
@@ -45,6 +45,10 @@ export default function IndexingStatsModal({ courseId, isOpen, onClose, initialS
             // Clear search results
             setSearchResults(null);
             setSearchQuery('');
+            // Notify parent component about re-index completion
+            if (onReindexComplete) {
+                onReindexComplete();
+            }
         } catch (err) {
             toast.error('Re-indexing failed: ' + (err.response?.data?.error || 'Please try again'));
         } finally {
@@ -144,10 +148,6 @@ export default function IndexingStatsModal({ courseId, isOpen, onClose, initialS
                         <>
                             {/* Stats Grid */}
                             <div className="stats-grid">
-                                <div className="stat-card">
-                                    <div className="stat-value">{stats.lessons_indexed}</div>
-                                    <div className="stat-label">Lessons Indexed</div>
-                                </div>
                                 <div className="stat-card">
                                     <div className="stat-value">{stats.total_chunks}</div>
                                     <div className="stat-label">Total Chunks</div>

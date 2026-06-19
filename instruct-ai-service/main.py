@@ -464,7 +464,8 @@ Respond with ONLY a JSON array: {{"results": [{{"question_num": 1, "is_correct":
 
 # ===== TEST SEARCH ENDPOINT =====
 class TestSearchRequest(BaseModel):
-    class_id: int
+    course_id: int | None = None
+    class_id: int | None = None  # Deprecated, for backward compatibility
     query: str
 
 
@@ -472,8 +473,11 @@ class TestSearchRequest(BaseModel):
 async def test_search(data: TestSearchRequest):
     """Test search for teacher to verify indexing worked"""
     try:
+        # Use course_id if provided, otherwise fall back to class_id (deprecated)
+        search_id = data.course_id or data.class_id
+
         print(f"[TEST SEARCH] Starting search")
-        print(f"  class_id: {data.class_id} (type: {type(data.class_id)})")
+        print(f"  course_id: {data.course_id}, class_id: {data.class_id} -> using: {search_id}")
         print(f"  query: '{data.query}' (len: {len(data.query)})")
 
         # Embed the query
@@ -483,7 +487,7 @@ async def test_search(data: TestSearchRequest):
 
         # Search without lesson_id to get broader results
         print(f"[TEST SEARCH] Searching database...")
-        results = retrieval_service.search(data.class_id, query_embedding, top_k=5, lesson_id=None)
+        results = retrieval_service.search(search_id, query_embedding, top_k=5, lesson_id=None)
         print(f"[TEST SEARCH] Found {len(results)} results")
 
         # Format results with lesson names

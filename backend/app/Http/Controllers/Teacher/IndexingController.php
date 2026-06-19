@@ -23,7 +23,7 @@ class IndexingController extends Controller
 
         // Get stats from database
         $stats = DB::table('document_chunks')
-            ->where('class_id', $course->class_id)
+            ->where('course_id', $course->id)
             ->selectRaw('
                 COUNT(*) as total_chunks,
                 COUNT(DISTINCT lesson_id) as lessons_indexed,
@@ -60,7 +60,7 @@ class IndexingController extends Controller
         try {
             // Call FastAPI to embed and search
             $response = Http::timeout(30)->post(env('AI_SERVICE_URL') . '/ai/test-search', [
-                'class_id' => $course->class_id,
+                'course_id' => $course->id,
                 'query' => $request->input('query'),
             ]);
 

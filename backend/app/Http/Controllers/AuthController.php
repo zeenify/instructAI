@@ -21,7 +21,7 @@ class AuthController extends Controller
             'password' => 'required|min:8',
             'first_name' => 'required|string',
             'last_name' => 'required|string',
-            // lrn_number and grade_level removed from validation
+            'lrn_number' => 'required|string|size:12|unique:student_profiles,lrn_number',
         ]);
 
         $user = User::create([
@@ -33,11 +33,14 @@ class AuthController extends Controller
         $user->studentProfile()->create([
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
+            'lrn_number' => $data['lrn_number'],
         ]);
 
         return response()->json([
             'message' => 'Student registered successfully',
-            'token' => $user->createToken('auth_token')->plainTextToken
+            'token' => $user->createToken('auth_token')->plainTextToken,
+            'role' => 'student',
+            'user' => $user->load('studentProfile')
         ], 201);
     }
 
@@ -97,6 +100,7 @@ class AuthController extends Controller
         try {
             $accessToken = $request->access_token;
             $chosenRole = $request->role; // 'student' or 'teacher'
+            $lrnNumber = $request->lrn_number;
 
             $response = Http::withToken($accessToken)
                             ->get("https://www.googleapis.com/oauth2/v3/userinfo");
@@ -120,6 +124,10 @@ class AuthController extends Controller
 
             // IF NEW USER AND ROLE IS CHOSEN
             if (!$user && $chosenRole) {
+                $request->validate([
+                    'lrn_number' => 'required_if:role,student|string|size:12|unique:student_profiles,lrn_number',
+                ]);
+
                 $user = User::create([
                     'email' => $email,
                     'role' => $chosenRole,
@@ -132,6 +140,7 @@ class AuthController extends Controller
                     $user->studentProfile()->create([
                         'first_name' => $googleUser['given_name'] ?? 'User',
                         'last_name' => $googleUser['family_name'] ?? '',
+                        'lrn_number' => $lrnNumber,
                     ]);
                 } else {
                     $user->teacherProfile()->create([

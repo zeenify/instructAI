@@ -1,0 +1,243 @@
+Chapter l
+THE PROBLEM AND ITS BACKGROUND
+
+Introduction
+
+The rapid advancement of digital technology has significantly transformed modern education, particularly with the emergence of Artificial Intelligence (AI) as a tool for enhancing teaching and learning processes. AI has enabled more personalized, adaptive, and accessible learning environments, allowing students to receive support tailored to their individual needs. According to Estrellado and Miranda (2023), AI integration in education presents opportunities to improve instructional delivery and student engagement through intelligent systems and data-driven approaches.
+
+In the Philippine educational context, challenges in delivering effective programming instruction remain evident, particularly at the senior high school level. Programming subjects require not only theoretical understanding but also continuous hands-on practice and guided problem-solving. However, studies have shown that students commonly struggle with programming concepts such as logic building, loops, and arrays due to their complexity (San Pedro, 2023). These difficulties are further intensified by the limited capacity of teachers to provide individualized support in classrooms with large numbers of students.
+
+Although Learning Management Systems (LMS) such as Google Classroom and similar platforms are widely used, they primarily function as repositories for instructional materials and submission tools rather than interactive learning environments. Research indicates that existing LMS platforms lack integrated features such as real-time code execution, automated feedback, and intelligent tutoring support, which are essential in programming education (Zhong & Zhan, 2025). As a result, students often experience delayed feedback, while teachers encounter challenges in monitoring progress and assessing programming outputs efficiently.
+
+The integration of Artificial Intelligence in educational systems offers a potential solution to these limitations. Intelligent Tutoring Systems (ITS) have been shown to provide real-time assistance, adaptive feedback, and guided learning experiences that improve student understanding and engagement (Fodouop Kouam, 2024). Furthermore, recent developments in AI-driven platforms demonstrate the ability to automate assessment processes and generate learning materials aligned with specific instructional content, thereby reducing teacher workload while enhancing learning effectiveness.
+
+In response to these challenges, this study proposes the development of InstructAI: A Curriculum-Aligned AI-Driven Learning Platform for Programming Instruction. The system integrates a built-in code editor, AI-powered tutoring, automated quiz generation, and performance analytics within a single platform. It allows teachers to upload curriculum-based materials, which serve as the foundation for AI-generated lessons, quizzes, and guided assistance. Through this approach, the system ensures that learning remains aligned with the intended curriculum while providing students with immediate and context-aware support.
+
+The significance of the proposed system lies in its ability to address key gaps in programming education, particularly the lack of real-time guidance, limited interactivity of existing LMS platforms, and the difficulty of providing personalized instruction. By leveraging AI, the system enhances both teaching and learning processes, enabling students to practice programming more effectively while assisting teachers in monitoring performance and delivering instruction efficiently. Ultimately, this study contributes to the advancement of educational technology by introducing a practical, scalable, and curriculum-aligned solution for improving programming instruction in the Philippine senior high school context.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Background Of The Study
+The proposed system, InstructAI: A Curriculum-Aligned AI-Driven Learning Platform for Programming Instruction, is intended to be implemented at Peñaranda Senior High School, specifically for Grade 12 students taking Information and Communications Technology (ICT) programming subjects. Based on an interview with the ICT subject instructor, the school currently faces significant challenges in delivering effective, hands-on programming instruction. While the school has integrated digital tools into its curriculum, teaching complex subjects like Java programming remains difficult due to the lack of specialized digital infrastructure tailored for coding.
+
+At present, the instructor manages the programming class using general-purpose platforms such as Google Classroom and Schoology. Although this platform is useful for distributing modules and collecting assignments, it does not support live code execution. Students are required to write their code using separate, offline Integrated Development Environments (IDEs) installed on school or personal computers, and then submit screenshots or raw code files for grading. The interview revealed that this disconnected process is highly inefficient. The teacher is forced to manually read, compile, and check dozens of student submissions to verify if the code works, leading to delayed feedback. Furthermore, students who encounter syntax errors or logic bugs while practicing at home often have no immediate access to help, leading to frustration and disengagement.
+
+Previous attempts to address these instructional gaps have relied primarily on manual workarounds. While these efforts help students practice, they do not alleviate the teacher's grading workload and lack a centralized way to monitor student progress. Furthermore, there are no existing systems in the school that provide instant, guided intervention when a student's code fails, meaning the teacher remains the sole bottleneck for answering technical questions.
+
+To address these limitations, the proposed InstructAI system integrates modern technological advancements to create a unified, specialized learning environment. By embedding a web-based code execution engine directly into the learning platform, students can read lessons, write code, and test their programs in one place without installing heavy software. Furthermore, the system introduces an automated grading mechanism and a Retrieval-Augmented Generation (RAG) AI Tutor. Based on the interview, the instructor expressed strong support for an AI assistant that is strictly grounded in the school's approved Daily Lesson Logs (DLLs), ensuring that the AI provides hints rather than direct answers. By leveraging these technologies, the system directly responds to the school's need for a sustainable, accessible, and highly efficient programming instruction tool that benefits both the students and the educator.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Statement of the Problem
+
+This study aims to design and develop InstructAI: A Curriculum-Aligned AI-Driven Learning Platform for Programming Instruction to address the lack of integrated coding tools, heavy manual grading, and limited real-time student support at Peñaranda Senior High School.
+
+Specifically, this study seeks to answer the following questions:
+
+How will the proposed system be designed and developed using the Agile Development Methodology in terms of:
+ 1.1. Requirement analysis;
+ 1.2. Design;
+ 1.3. Development;
+ 1.4. Testing;
+ 1.5. Deployment; and
+ 1.6. Review?
+How may the developed system be assessed by IT experts in terms of the following software characteristics:
+ 2.1. Functional Suitability;
+ 2.2. Performance Efficiency;
+ 2.3. Usability;
+ 2.4. Reliability;
+ 2.5. Maintainability;
+ 2.6. Security;
+ 2.7. Portability; and
+ 2.8. Compatibility?
+How may the end-users assess the quality of the developed system in terms of:
+ 3.1. Functional Suitability;
+ 3.2. Performance Efficiency; and
+ 3.3. Usability?
+Objectives of the Study
+
+General Objective
+ 	This study aims to design and develop InstructAI, a curriculum-aligned AI-driven learning platform for programming instruction, to provide an integrated coding environment, reduce the manual grading workload of teachers, and deliver real-time academic support for Grade 12 ICT students at Peñaranda Senior High School.
+
+Specific Objectives
+Specifically, this study aims to:
+
+1.Develop a web-based learning management system that features a built-in code execution engine and an automated grading mechanism for programming assessments.
+2.Implement the Agile Development Methodology throughout the system's lifecycle, including requirement analysis, system design, development, testing, deployment, and review.
+3.Enhance student problem-solving and independent learning by integrating a Retrieval-Augmented Generation (RAG) AI Tutor that provides real-time, curriculum-grounded hints.
+4.Improve the instructional efficiency of teachers by automating code evaluations and providing a centralized dashboard for course management, module generation, and student performance analytics.
+5.Evaluate the developed system based on IT experts' assessments in terms of functional suitability, performance efficiency, usability, reliability, maintainability, security, portability, and compatibility.
+6.Assess the system based on end-users' (ICT teachers and students) evaluation in terms of functional suitability, performance efficiency, and usability.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Significance Of the Study
+Generally, this study provides a transformative approach to technological education by bridging the gap between traditional learning management and intelligent, hands-on programming tools. By integrating an AI-powered tutor and a web-based code editor, the project presents a modern solution to the pedagogical and infrastructural limitations faced in teaching computer programming.
+Specifically, the development and implementation of InstructAI will directly benefit the following stakeholders:
+
+Grade 12 ICT Students: The system offers learners a dynamic and accessible environment to practice programming. By eliminating the need to install heavy software, students can write and test code directly in their browsers. Furthermore, the embedded AI Tutor provides 24/7 guided debugging and hints, significantly reducing learning frustration and helping them build computational logic independently.
+ICT Instructors: The platform significantly reduces the administrative and manual grading workload of teachers. Through the automated code-checking mechanism, instructors are freed from manually reviewing syntax errors and can instead focus on higher-level teaching. Additionally, the AI-assisted course generator streamlines the creation of modules and quizzes based on their official Daily Lesson Logs (DLLs), while the analytics dashboard helps them easily identify and assist struggling learners.
+School Administrators: For institutions like Peñaranda Senior High School, the system provides a cost-effective and scalable educational tool. It upgrades the quality of the school's Technology and Livelihood Education (TLE) or ICT strands without requiring expensive computer lab upgrades, ultimately contributing to higher academic passing rates and better digital literacy among graduates.
+The Field of Information Technology: This study contributes to the growing domain of Educational Technology (EdTech) and Artificial Intelligence. It demonstrates the practical application of Retrieval-Augmented Generation (RAG) and client-side code compilation in addressing real-world educational constraints, showcasing how modern web architectures can be utilized for specialized instruction in developing regions.
+Future Researchers: The architecture and findings of this study will serve as a foundational reference for future IT students and software engineers interested in developing intelligent tutoring systems, microservice-based learning platforms, or locally adapted AI tools. It provides empirical insights into how AI can be ethically and effectively integrated into standard school curriculums.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Scope and Delimitations
+This study covers the design and development of InstructAI, a web-based learning management system specifically tailored for programming instruction. It documents the creation of the platform's core modules, which include a role-based access system for teachers and students, a course management dashboard, and an integrated code execution environment. The system's primary capability centers on allowing students to write, test, and submit Java code directly through their web browsers using an embedded editor, while an automated grading mechanism evaluates their logic using predefined test cases.
+
+Additionally, the study encompasses the integration of a Retrieval-Augmented Generation (RAG) AI Tutor. This feature is designed to process Daily Lesson Logs (DLLs) and curriculum guides uploaded by the instructor, ensuring that the AI provides guided debugging hints rather than direct answers. The development process strictly follows the Agile methodology, covering requirement analysis, system design, development, testing, deployment, and review, followed by software quality evaluation using the ISO/IEC 25010 standard.
+
+However, despite its advanced features, the system is bound by several delimitations. The platform is specifically designed for Grade 12 Information and Communications Technology (ICT) students at Peñaranda Senior High School and is strictly limited to the Java programming language; it does not support other languages such as Python or C++ in its current phase. Furthermore, the embedded code compiler evaluates only console-based inputs and outputs, meaning graphical user interface (GUI) programs like Java Swing or JavaFX are out of scope.
+
+The study also excludes the development of a dedicated mobile application; while the system is accessible via mobile web browsers, it is primarily optimized for desktop and laptop use. Because the platform relies on cloud-based APIs for code compilation and AI generation, it does not feature an offline mode and requires a stable internet connection to function. Lastly, advanced security features such as webcam-based exam proctoring, browser-locking mechanisms, and automated plagiarism detection between student codes are not covered by this system.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Definition of Terms
+The following terms listed below are defined operationally and conceptually to provide clarity to the study:
+Agile Methodology. Agile is an iterative approach to software development and project management. In this study, it serves as the primary framework for developing InstructAI, allowing the researchers to continuously test and improve the system through cycles of requirement analysis, design, development, testing, deployment, and review.
+Artificial Intelligence (AI). Conceptually, AI refers to the simulation of human intelligence processes by computer systems. Operationally, it represents the core technology driving InstructAI, specifically powering the automated course generation and the interactive tutor that assists students with their programming tasks.
+Automated Grading. This refers to the system’s capability to evaluate student-submitted programming code. InstructAI compares the output of a student's code against predefined, hidden test cases to instantly calculate and record a score without requiring manual checking by the teacher.
+Code Execution Engine. A specialized compiler embedded within the web platform. In this study, it allows students to write, compile, test, and run their Java code directly within their web browsers, eliminating the need to install external software on their devices.
+Compatibility. Compatibility is the degree to which a system can function alongside or share data with other systems. In this study, it refers to the platform’s ability to run smoothly across different web browsers and devices used by students and teachers.
+Daily Lesson Log (DLL). A standard instructional document used by teachers in the Philippine educational system to outline their daily lessons. In this study, DLLs are uploaded into the system to serve as the exclusive knowledge base for the AI, ensuring all generated content and tutoring hints are strictly aligned with the curriculum.
+End-Users. End-users are the individuals who directly interact with the developed platform. For this study, the end-users are the ICT subject instructors who manage the classes and the Grade 12 students who utilize the platform for learning and coding.
+Functional Suitability. Functional suitability refers to the degree to which the system provides features that meet the specific needs of its users. This includes the accuracy of the automated grading and the relevance of the AI Tutor's responses.
+Integrated Development Environment (IDE). Conceptually, an IDE is a software application that provides comprehensive facilities for software development. Operationally, InstructAI features a web-based IDE interface that mimics professional coding environments, complete with a code editor, syntax highlighting, and a terminal output screen.
+Intelligent Tutoring System (ITS). An educational software designed to provide immediate and customized instruction or feedback to learners. In this study, it takes the form of a chat interface where the AI guides students through fixing syntax errors and logical bugs in their code without directly giving them the exact answers.
+Learning Management System (LMS). An LMS is a software application used for the administration, documentation, tracking, and delivery of educational courses. InstructAI serves as a specialized LMS tailored specifically for programming subjects.
+Maintainability. Maintainability is the ease with which the software can be modified to fix bugs, improve performance, or add new features without causing system failures.
+Performance Efficiency. Performance efficiency refers to how well the system functions under load, particularly evaluating the speed of the code compiler and the response time of the AI Tutor while minimizing resource consumption on the user's device.
+Portability. Portability is the ease with which the system can be transferred from one environment to another. In this study, it refers to the system's ability to be accessed flexibly across various operating systems (Windows, macOS, Android).
+Reliability. Reliability is the ability of the system to perform its intended functions consistently. It ensures that student progress, submitted code, and grades are accurately saved and accessible even during peak usage hours without data loss.
+Retrieval-Augmented Generation (RAG). Conceptually, RAG is an AI technique that connects large language models to a specific database of information. Operationally, it is the mechanism in InstructAI that forces the AI Tutor to answer student questions based solely on the teacher's uploaded DLLs rather than general internet data, preventing inaccurate or out-of-scope answers.
+Security. Security refers to the protective measures implemented within the system. In InstructAI, this includes role-based access control (RBAC), ensuring that only authorized teachers can view class analytics and modify grades, while students can only access their personal accounts.
+Usability. Usability refers to the ease with which teachers and students can navigate the platform, upload materials, generate modules, and utilize the coding workspace effectively and comfortably.
+
+
+
+
+
+References
+Department of Education. (2025, February 20). DepEd launches AI center for education. DepEd Philippines. https://www.deped.gov.ph/2025/02/20/deped-launches-ai-center-for-education/
+
+Estrellado, C. J., & Miranda, J. C. (2023). Artificial intelligence in the Philippine educational context: Circumspection and future inquiries. International Journal of Scientific and Research Publications, 13(5), 16–22. https://doi.org/10.29322/IJSRP.13.05.2023.p13704
+
+Fodouop Kouam, A. W. (2024). The effectiveness of intelligent tutoring systems in supporting students with varying levels of programming experience. Discover Education, 3(278). https://doi.org/10.1007/s44217-024-00385-3
+
+Funa, A. A., Gabay, R. A. E., Deblois, D. D., et al. (2025). Exploring perspectives toward generative artificial intelligence integration in science education: A cross-generational study. Computers & Education: Artificial Intelligence. https://doi.org/10.1016/j.caeai.2025.01
+
+Philippine Institute for Development Studies. (2022). The Philippine education system: Situationer, challenges, and ways forward (PIDS Discussion Paper No. 2022-23). PIDS. https://pidswebs.pids.gov.ph/CDN/document/pidsdps2223.pdf
+
+San Pedro, J. R. (2023). Examining student experiences: Challenges and perceptions in computer programming. International Journal of Research in Social Sciences and Education (IJRSSE). https://consortiacademia.org/10-5861-ijrse-2023-71/
+
+Springer Nature. (2025). Generating in-context, personalized feedback for intelligent tutors with large language models. International Journal of Artificial Intelligence in Education. https://doi.org/10.1007/s40593-025-00505-6
+
+University of the Philippines Open University. (2024, January). Guidelines on the use of AI for teaching and learning. UPOU. https://www.upou.edu.ph/news/upou-initiatives-in-the-use-of-artificial-intelligence-ai-in-teaching-and-learning/
+Zhong, X., & Zhan, Z. (2025). An intelligent tutoring system for programming education based on informative tutoring feedback: System development, algorithm design, and empirical study. Interactive Technology and Smart Education, 22(1), 3–24. https://doi.org/10.1108/ITSE-09-2023-0182
+
+Dela Peña, L. V. C. A. (2025). Attitude and self-efficacy of senior high school students towards Aralinks coding education. Saint Mary's University – Philippines. https://www.researchgate.net/publication/392839220
+
+Ferreira, M., et al. (2024). Impact of artificial intelligence on learning management systems: A bibliometric review. MDPI, 14(16). https://doi.org/10.3390/app14167150
+
+Hsu, C. C., et al. (2025). Analysis of learning behaviors and outcomes for students with different knowledge levels: A case study of intelligent tutoring system for coding and learning (ITS-CAL). Applied Sciences, 15(4), 1922. https://doi.org/10.3390/app15041922
+

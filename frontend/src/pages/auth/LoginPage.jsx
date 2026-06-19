@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, ArrowRight, GraduationCap, Briefcase, Loader2 } from 'lucide-react';
+import { Mail, Lock, ArrowRight, GraduationCap, Briefcase, Loader2, Hash } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -19,8 +19,11 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showRoleModal, setShowRoleModal] = useState(false);
+  const [showLrnInput, setShowLrnInput] = useState(false);
   const [selectedRole, setSelectedRole] = useState(null);
   const [tempToken, setTempToken] = useState(null);
+  const [lrnNumber, setLrnNumber] = useState('');
+  const [lrnError, setLrnError] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -30,18 +33,22 @@ export default function LoginPage() {
     }
   }, [navigate]);
 
-  const handleGoogleAuth = async (accessToken, role = null) => {
+  const handleGoogleAuth = async (accessToken, role = null, lrn = null) => {
     if (role) setSelectedRole(role);
     setLoading(true);
     try {
       const res = await api.post('/login/google', {
         access_token: accessToken,
-        role: role
+        role: role,
+        lrn_number: lrn
       });
 
       if (res.data.requires_role) {
         setTempToken(accessToken);
         setShowRoleModal(true);
+        setShowLrnInput(false);
+        setLrnNumber('');
+        setLrnError('');
         setLoading(false);
       } else {
         setShowRoleModal(false);
@@ -190,7 +197,12 @@ export default function LoginPage() {
                   <motion.button
                     whileHover={!loading ? { y: -4 } : {}}
                     whileTap={!loading ? { scale: 0.98 } : {}}
-                    onClick={() => handleGoogleAuth(tempToken, 'teacher')}
+                    onClick={() => {
+                      setShowLrnInput(false);
+                      setLrnNumber('');
+                      setLrnError('');
+                      handleGoogleAuth(tempToken, 'teacher');
+                    }}
                     disabled={loading}
                     className={`role-card teacher ${selectedRole === 'teacher' ? 'selected' : ''}`}
                   >
@@ -213,7 +225,19 @@ export default function LoginPage() {
                   <motion.button
                     whileHover={!loading ? { y: -4 } : {}}
                     whileTap={!loading ? { scale: 0.98 } : {}}
-                    onClick={() => handleGoogleAuth(tempToken, 'student')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedRole('student');
+                      if (showLrnInput) {
+                        if (lrnNumber.length !== 12) {
+                          setLrnError('LRN must be exactly 12 digits');
+                          return;
+                        }
+                        handleGoogleAuth(tempToken, 'student', lrnNumber);
+                      } else {
+                        setShowLrnInput(true);
+                      }
+                    }}
                     disabled={loading}
                     className={`role-card student ${selectedRole === 'student' ? 'selected' : ''}`}
                   >
@@ -225,11 +249,80 @@ export default function LoginPage() {
                       )}
                     </div>
                     <h3 className="role-card-title">
-                      {loading && selectedRole === 'student' ? 'Joining...' : 'Student'}
+                      {loading && selectedRole === 'student' ? 'Joining...' : showLrnInput ? 'Enter your LRN' : 'Student'}
                     </h3>
                     <p className="role-card-description">
-                      Join classes, learn from curated content, and practice code with AI assistance.
+                      {showLrnInput
+                        ? 'Enter your 12-digit LRN to verify your enrollment at Penaranda Senior High School.'
+                        : 'Join classes, learn from curated content, and practice code with AI assistance.'}
                     </p>
+
+                    {showLrnInput && (
+                      <div style={{ marginTop: '16px', width: '100%' }} onClick={e => e.stopPropagation()}>
+                        <div style={{ position: 'relative' }}>
+                          <Hash size={16} style={{ position: 'absolute', left: '12px', top: '10px', color: '#64748b', zIndex: 2 }} />
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={12}
+                            placeholder="12-digit LRN"
+                            value={lrnNumber}
+                            onChange={e => {
+                              const val = e.target.value.replace(/\D/g, '').slice(0, 12);
+                              setLrnNumber(val);
+                              if (val.length > 0 && val.length !== 12) {
+                                setLrnError('LRN must be exactly 12 digits');
+                              } else {
+                                setLrnError('');
+                              }
+                            }}
+                            autoFocus
+                            style={{
+                              width: '100%',
+                              padding: '10px 12px 10px 36px',
+                              borderRadius: '10px',
+                              border: lrnError ? '1px solid #f87171' : '1px solid rgba(34, 211, 238, 0.3)',
+                              background: 'rgba(255, 255, 255, 0.05)',
+                              color: 'white',
+                              fontSize: '14px',
+                              outline: 'none',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
+                        {lrnError && (
+                          <p style={{ color: '#f87171', fontSize: '11px', marginTop: '6px', marginLeft: '4px' }}>{lrnError}</p>
+                        )}
+                        <motion.div
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (loading) return;
+                            if (lrnNumber.length !== 12) {
+                              setLrnError('LRN must be exactly 12 digits');
+                              return;
+                            }
+                            handleGoogleAuth(tempToken, 'student', lrnNumber);
+                          }}
+                          style={{
+                            width: '100%',
+                            marginTop: '10px',
+                            padding: '10px',
+                            borderRadius: '10px',
+                            background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+                            color: 'white',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            textAlign: 'center',
+                            cursor: loading ? 'not-allowed' : 'pointer',
+                            opacity: loading ? 0.6 : 1
+                          }}
+                        >
+                          {loading ? 'Setting up...' : 'Confirm & Join'}
+                        </motion.div>
+                      </div>
+                    )}
                   </motion.button>
                 </div>
               </div>

@@ -1395,7 +1395,18 @@ const allPublished = [...(activeModuleData?.lessons || []), ...(activeModuleData
             <CurriculumReviewModal isOpen={isReviewOpen} data={aiResult} expectedParams={structureParams} onCancel={() => setIsReviewOpen(false)} onConfirm={handleConfirmAI} />
 
             {/* Indexing Stats Modal */}
-            <IndexingStatsModal courseId={id} isOpen={showIndexingStats} onClose={() => setShowIndexingStats(false)} initialStats={indexingStats} />
+            <IndexingStatsModal
+                courseId={id}
+                isOpen={showIndexingStats}
+                onClose={() => setShowIndexingStats(false)}
+                initialStats={indexingStats}
+                onReindexComplete={() => {
+                    // Refresh course data after re-indexing
+                    fetchCourse();
+                    // Reset cached indexing stats to force fresh load on next open
+                    setIndexingStats(null);
+                }}
+            />
 
             {/* Content Parameters Modal (Stage 2: Configure content details) */}
             <ContentParametersModal

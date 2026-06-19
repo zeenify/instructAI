@@ -54,6 +54,11 @@ export default function StudentProfileDetail({ profile, activeTab = 'progress' }
                         <CheckCircle2 size={18} style={{ color: '#60a5fa' }} />
                     </div>
                     <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{student.name}</div>
+                    {student.lrn_number && (
+                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '8px' }}>
+                            LRN: {student.lrn_number}
+                        </p>
+                    )}
                 </div>
 
 <div style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '8px', padding: '24px', border: '1px solid var(--border-color)', boxShadow: 'var(--card-shadow)' }}>
