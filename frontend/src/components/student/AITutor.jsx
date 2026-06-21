@@ -268,7 +268,7 @@ export default function AITutor({
                             <div className="ai-messages custom-scrollbar" ref={scrollRef}>
                                 {loadingHistory ? (
                                     <div className="flex justify-center items-center h-full">
-                                        <Loader2 className="animate-spin text-cyan-400" size={32} />
+                                        <Loader2 className="animate-spin" style={{ color: 'var(--accent)' }} size={32} />
                                     </div>
                                 ) : (
                                     messages.map((msg, i) => (

@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import InteractiveTerminal from '../../components/student/InteractiveTerminal';
 
-
 export default function CodeIDE({ block, onSolve, lessonId  }) {
     const { mode, code: initialCode, expected } = block.data;
     const [code, setCode] = useState(initialCode || "");
@@ -17,7 +16,7 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
     const [isCorrect, setIsCorrect] = useState(false);
     const [isWrong, setIsWrong] = useState(false);
     const [activeTab, setActiveTab] = useState('editor');
-    const [errorType, setErrorType] = useState(null); // 'compile', 'runtime', 'verification', null
+    const [errorType, setErrorType] = useState(null);
     const terminalRef = useRef(null); 
 
     useEffect(() => {
@@ -26,11 +25,10 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
         }
     }, [block.data.is_solved]);
 
-
     const handleRun = async () => {
         setIsRunning(true);
         setIsWrong(false); 
-        setOutput("Compiling..."); // Initial feedback
+        setOutput("Compiling...");
         
         try {
             const res = await api.post('/student/execute', {
@@ -41,7 +39,6 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
 
             const data = res.data;
 
-            // 1. Check for COMPILE errors (Syntax mistakes)
             if (data.compile_output) {
                 setErrorType('compile');
                 setOutput(data.compile_output);
@@ -49,7 +46,6 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                 return;
             }
 
-            // 2. Check for RUNTIME errors (Crashes like NullPointerException)
             if (data.stderr) {
                 setErrorType('runtime');
                 setOutput(data.stderr);
@@ -57,23 +53,16 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                 return;
             }
 
-            // 3. Process SUCCESSFUL output
             const rawOutput = (data.stdout || "").trim();
-            // Normalize line endings: convert \r\n to \n for comparison
             const cleanOutput = rawOutput.replace(/\r\n/g, '\n');
 
-            // Show the output to the student REGARDLESS of whether it's correct
-            setErrorType(null); // Clear error state
+            setErrorType(null);
             setOutput(cleanOutput || "> Program executed successfully (No output).");
 
-            // 4. Verification logic for Challenge Mode
             if (block.data.mode === 'challenge') {
                 const expected = (block.data.expected || "").trim().replace(/\r\n/g, '\n');
 
-                console.log('Output comparison:', { cleanOutput, expected, match: cleanOutput === expected });
-
                 if (cleanOutput === expected) {
-                    // Output matched - lesson challenges use output matching only (no AI verification needed)
                     setIsCorrect(true);
                     setIsWrong(false);
 
@@ -93,7 +82,6 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
             }
 
         } catch (err) {
-            // This catch block should ONLY fire if the Server is down
             console.error(err);
             setOutput("System Error: Could not reach the execution engine. Please check your internet.");
         } finally {
@@ -119,13 +107,13 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                 borderRadius: '24px',
                 border: `1.5px solid ${colors.border}`,
                 overflow: 'hidden',
-                background: 'rgba(5, 1, 29, 0.5)',
+                background: 'var(--bg-secondary)',
                 boxShadow: `0 0 30px ${colors.border}20`,
                 transition: 'all 0.5s ease'
             }}
         >
             {/* Header */}
-            <div style={{ padding: '20px 24px', background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+            <div style={{ padding: '20px 24px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ padding: '8px 10px', borderRadius: '10px', background: `${colors.bg}`, color: colors.text, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.5s' }}>
                         <Play size={14} />
@@ -151,8 +139,8 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
             {/* Tab Switcher */}
             <div style={{
                 display: 'flex',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                background: 'rgba(255, 255, 255, 0.01)',
+                borderBottom: '1px solid var(--border-color)',
+                background: 'var(--bg-tertiary)',
                 gap: '0'
             }}>
                 <button
@@ -166,7 +154,7 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                         letterSpacing: '0.1em',
                         border: 'none',
                         background: activeTab === 'editor' ? 'rgba(168, 85, 247, 0.1)' : 'transparent',
-                        color: activeTab === 'editor' ? '#a855f7' : '#64748b',
+                        color: activeTab === 'editor' ? '#a855f7' : 'var(--text-tertiary)',
                         cursor: 'pointer',
                         transition: 'all 0.3s',
                         borderBottom: activeTab === 'editor' ? '2px solid #a855f7' : 'none'
@@ -185,7 +173,7 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                         letterSpacing: '0.1em',
                         border: 'none',
                         background: activeTab === 'terminal' ? 'rgba(168, 85, 247, 0.1)' : 'transparent',
-                        color: activeTab === 'terminal' ? '#a855f7' : '#64748b',
+                        color: activeTab === 'terminal' ? '#a855f7' : 'var(--text-tertiary)',
                         cursor: 'pointer',
                         transition: 'all 0.3s',
                         borderBottom: activeTab === 'terminal' ? '2px solid #a855f7' : 'none'
@@ -226,11 +214,10 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                         lineHeight: '1.6',
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word',
-                        background: 'rgba(0, 0, 0, 0.4)'
+                        background: '#0d0d1a'
                     }}>
                         {output ? (
                             <>
-                                {/* Error Header */}
                                 {errorType && (
                                     <div style={{
                                         display: 'flex',
@@ -249,15 +236,14 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                                         </span>
                                     </div>
                                 )}
-                                {/* Output */}
                                 <div style={{
-                                    color: errorType === 'compile' ? '#fca5a5' : errorType === 'runtime' ? '#fdba74' : errorType === 'verification' ? '#d8b4fe' : '#22d3ee'
+                                    color: errorType === 'compile' ? '#fca5a5' : errorType === 'runtime' ? '#fdba74' : errorType === 'verification' ? '#d8b4fe' : 'var(--accent)'
                                 }}>
                                     {output}
                                 </div>
                             </>
                         ) : (
-                            <div style={{ color: '#64748b', fontStyle: 'italic' }}>
+                            <div style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
                                 Click "Run Program" to see output...
                             </div>
                         )}
@@ -268,8 +254,8 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
             {/* Run Button Footer */}
             <div style={{
                 padding: '16px 24px',
-                background: 'rgba(255, 255, 255, 0.02)',
-                borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                background: 'var(--bg-tertiary)',
+                borderTop: '1px solid var(--border-color)',
                 display: 'flex',
                 justifyContent: 'flex-end',
                 gap: '12px'
@@ -312,24 +298,23 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                 </button>
             </div>
 
-
             {/* Expected Output - For Challenge Mode */}
             {mode === 'challenge' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ padding: '20px 24px', borderTop: '1px solid rgba(34, 211, 238, 0.2)', background: 'rgba(34, 211, 238, 0.02)' }}>
-                    <p style={{ fontSize: '10px', color: '#22d3ee', fontWeight: 900, textTransform: 'uppercase', marginBottom: '12px', margin: '0 0 12px 0' }}>Expected Output:</p>
-                    <div style={{ background: 'rgba(34, 211, 238, 0.08)', border: '1px solid rgba(34, 211, 238, 0.2)', padding: '16px', borderRadius: '12px', color: '#a5f3fc', fontSize: '13px', fontFamily: 'Courier New, monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ padding: '20px 24px', borderTop: '1px solid var(--accent-glow)', background: 'var(--accent-light)' }}>
+                    <p style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 900, textTransform: 'uppercase', margin: '0 0 12px 0' }}>Expected Output:</p>
+                    <div style={{ background: 'var(--accent-light)', border: '1px solid var(--accent-glow)', padding: '16px', borderRadius: '12px', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'Courier New, monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                         {block.data.expected}
                     </div>
                 </motion.div>
             )}
 
             {/* Reset Button */}
-            <div style={{ padding: '16px 24px', background: 'rgba(255, 255, 255, 0.02)', borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ padding: '16px 24px', background: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
                 <button
                     onClick={() => setCode(initialCode)}
-                    style={{ padding: '10px 16px', background: 'transparent', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '10px', color: '#64748b', cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '10px', fontWeight: 900 }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'; e.currentTarget.style.color = 'white'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'; e.currentTarget.style.color = '#64748b'; }}
+                    style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '10px', color: 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '10px', fontWeight: 900 }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.color = 'var(--accent)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
                     title="Reset Code"
                 >
                     <RefreshCw size={14} />

@@ -1,21 +1,17 @@
 /* --- STUDENT THEME OVERRIDES --- */
 
-.student-theme {
-    background: #02010a;
-}
-
 /* Sidebar Branding */
 .student-theme .logo-sq {
-    background: #22d3ee;
-    box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
+    background: var(--accent);
+    box-shadow: 0 0 20px var(--accent-glow);
 }
 
 /* Nav Links & Class Items */
 .student-theme .nav-link.active, 
 .student-theme .class-item.active {
-    background: rgba(34, 211, 238, 0.08);
-    color: #22d3ee;
-    border-color: rgba(34, 211, 238, 0.2);
+    background: var(--accent-light);
+    color: var(--accent);
+    border-color: var(--accent-glow);
 }
 
 .student-theme .status-dot {
@@ -23,46 +19,46 @@
 }
 
 .student-theme .class-item.active .status-dot {
-    background: #22d3ee;
-    box-shadow: 0 0 10px #22d3ee;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
 }
 
 /* Buttons */
 .student-theme .btn-student {
-    background: #22d3ee;
-    color: #02010a;
+    background: var(--accent);
+    color: var(--bg-primary);
     border: none;
 }
 
 .student-theme .btn-student:hover {
-    background: #ffffff;
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+    background: var(--bg-secondary);
+    box-shadow: 0 0 20px var(--accent-glow);
 }
 
 /* The Join Class Button in Sidebar */
 .student-theme .add-class-btn {
-    border-color: rgba(34, 211, 238, 0.1);
-    color: #0891b2;
+    border-color: var(--accent-light);
+    color: var(--accent);
 }
 
 .student-theme .add-class-btn:hover {
-    border-color: #22d3ee;
-    color: #22d3ee;
-    background: rgba(34, 211, 238, 0.03);
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-light);
 }
 
 /* Sidebar Footer Adjustments */
 .student-theme .logout-action:hover {
-    color: #22d3ee;
+    color: var(--accent);
 }
 
 .student-theme .user-pill {
-    border-color: rgba(34, 211, 238, 0.1);
+    border-color: var(--accent-light);
 }
 
-/* Custom Scrollbar for Cyan */
+/* Custom Scrollbar for Accent */
 .student-theme .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(34, 211, 238, 0.1);
+    background: var(--accent-light);
 }
 /* --- PRO SCROLLBAR FOR STUDENT PORTAL --- */
 
@@ -76,22 +72,33 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(34, 211, 238, 0.1); /* Faint cyan by default */
+    background: var(--accent-light);
     border-radius: 20px;
     transition: background 0.3s;
 }
 
 .custom-scrollbar:hover::-webkit-scrollbar-thumb {
-    background: rgba(34, 211, 238, 0.3); /* Brightens when user is interacting */
+    background: var(--accent-glow);
 }
 
 /* Fix for Firefox */
 .custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: rgba(34, 211, 238, 0.2) transparent;
+    scrollbar-color: var(--accent-light) transparent;
 }
 
 /* Ensure the main timeline items don't jump when the scrollbar appears */
 aside {
     scrollbar-gutter: stable;
+}
+
+/* --- INTERACTIVE TERMINAL: always dark regardless of theme --- */
+.interactive-terminal {
+    isolation: isolate;
+}
+
+.interactive-terminal .xterm,
+.interactive-terminal .xterm-viewport,
+.interactive-terminal .xterm-screen {
+    background: #050120 !important;
 }

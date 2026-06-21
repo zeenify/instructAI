@@ -1,0 +1,65 @@
+/* --- QUIZ DISPLAY ANIMATIONS --- */
+
+@keyframes qz-spin-smooth {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes qz-pulse-glow {
+    0%, 100% { box-shadow: 0 0 30px var(--accent-glow), 0 0 60px var(--accent-glow); }
+    50% { box-shadow: 0 0 50px var(--accent), 0 0 80px var(--accent-glow); }
+}
+
+@keyframes qz-glow {
+    0%, 100% { box-shadow: 0 0 20px var(--accent-glow), 0 0 40px var(--accent-glow); }
+    50% { box-shadow: 0 0 30px var(--accent), 0 0 60px var(--accent-glow); }
+}
+
+@keyframes qz-float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+}
+
+@keyframes qz-shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+}
+
+.qz-spinner {
+    animation: qz-spin-smooth 2s linear infinite;
+}
+
+.qz-pulse {
+    animation: qz-pulse-glow 2s ease-in-out infinite;
+}
+
+.qz-premium-card:hover {
+    animation: qz-glow 2s ease-in-out;
+}
+
+.qz-float {
+    animation: qz-float 3s ease-in-out infinite;
+}
+
+.qz-shimmer {
+    background-image: linear-gradient(90deg, transparent 0%, var(--accent-light) 50%, transparent 100%);
+    background-size: 200px 100%;
+    animation: qz-shimmer 2s infinite;
+}
+
+/* Submitting state container */
+.qz-submitting {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 80vh;
+    gap: 48px;
+    padding: 40px 24px;
+}
+
+/* Progress bar fill */
+.qz-progress-fill {
+    background: linear-gradient(90deg, var(--accent), #06b6d4);
+    box-shadow: 0 0 20px var(--accent-glow);
+}

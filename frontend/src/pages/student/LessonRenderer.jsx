@@ -42,9 +42,7 @@ export default function LessonRenderer({ lessonId, onProgressUpdate, isCompleted
 
             setLesson({ ...lessonData, content: hydratedContent });
             setAiEnabled(lessonData.ai_enabled || false);
-            console.log("Lesson API response:", res.data);
             setClassId(res.data.class_id);
-            console.log("Set classId to:", res.data.class_id);
 
             const alreadySolvedIds = saved.map(s => s.block_id);
             setSolvedChallenges(alreadySolvedIds);
@@ -79,16 +77,16 @@ export default function LessonRenderer({ lessonId, onProgressUpdate, isCompleted
             {/* HEADER */}
             <header style={{ paddingBottom: '40px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                    <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#22d3ee' }} />
-                    <span style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: '#22d3ee' }}>Learning Module</span>
+                    <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--accent)' }} />
+                    <span style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: 'var(--accent)' }}>Learning Module</span>
                     {isCompleted && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', marginLeft: '12px' }}>
                             <CheckCircle2 size={14}/> Completed
                         </div>
                     )}
                 </div>
-                <div style={{ padding: '32px 36px', background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.08) 0%, rgba(6, 182, 212, 0.04) 100%)', border: '1px solid rgba(34, 211, 238, 0.15)', borderRadius: '20px', backdropFilter: 'blur(10px)' }}>
-                    <h1 style={{ fontSize: '52px', fontWeight: 900, color: 'white', margin: '0', lineHeight: '1.15', letterSpacing: '-0.03em', background: 'linear-gradient(135deg, #ffffff 0%, #22d3ee 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{lesson.title}</h1>
+                <div style={{ padding: '32px 36px', background: 'linear-gradient(135deg, var(--accent-light) 0%, rgba(6, 182, 212, 0.04) 100%)', border: '1px solid var(--accent-glow)', borderRadius: '20px', backdropFilter: 'blur(10px)' }}>
+                    <h1 style={{ fontSize: '52px', fontWeight: 900, color: 'var(--text-primary)', margin: '0', lineHeight: '1.15', letterSpacing: '-0.03em' }}>{lesson.title}</h1>
                 </div>
             </header>
 
@@ -109,7 +107,6 @@ export default function LessonRenderer({ lessonId, onProgressUpdate, isCompleted
                 ))}
             </div>
 
-            {/* AI Tutor */}
             {lesson && classId && (
                 <AITutor
                     classId={classId}
@@ -134,12 +131,12 @@ function renderStandardBlock(block) {
 
     switch (type) {
         case 'h1':
-            return <h2 style={{ fontSize: '36px', fontWeight: 900, color: 'white', margin: '0 0 24px 0', letterSpacing: '-0.02em', paddingBottom: '12px', borderBottom: '2px solid rgba(34, 211, 238, 0.2)' }}>{data.text}</h2>;
+            return <h2 style={{ fontSize: '36px', fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 24px 0', letterSpacing: '-0.02em', paddingBottom: '12px', borderBottom: '2px solid var(--accent-glow)' }}>{data.text}</h2>;
 
         case 'text':
             return (
                 <div
-                    style={{ fontSize: '18px', color: '#cbd5e1', lineHeight: '1.9', margin: '0' }}
+                    style={{ fontSize: '18px', color: 'var(--text-primary)', lineHeight: '1.9', margin: '0' }}
                     className="prose prose-invert max-w-none"
                     dangerouslySetInnerHTML={{ __html: data.text }}
                 />
@@ -148,11 +145,11 @@ function renderStandardBlock(block) {
         case 'image':
             return (
                 <figure style={{ margin: '32px 0', textAlign: 'center' }}>
-                    <div style={{ borderRadius: '24px', overflow: 'hidden', border: '1px solid rgba(34, 211, 238, 0.1)', boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)', transition: 'transform 0.3s' }}>
+                    <div style={{ borderRadius: '24px', overflow: 'hidden', border: '1px solid var(--accent-glow)', boxShadow: 'var(--card-shadow)', transition: 'transform 0.3s' }}>
                         <img src={data.url} style={{ width: '100%', display: 'block' }} alt={data.caption} />
                     </div>
                     {data.caption && (
-                        <figcaption style={{ marginTop: '16px', fontSize: '13px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                        <figcaption style={{ marginTop: '16px', fontSize: '13px', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                             {data.caption}
                         </figcaption>
                     )}
@@ -168,7 +165,7 @@ function renderStandardBlock(block) {
                         <span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0' }}>Video Demonstration</span>
                     </div>
                     {ytId ? (
-                        <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '24px', border: '1px solid rgba(34, 211, 238, 0.1)', boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)' }}>
+                        <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '24px', border: '1px solid var(--accent-glow)', boxShadow: 'var(--card-shadow)' }}>
                             <iframe
                                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
                                 src={`https://www.youtube.com/embed/${ytId}`}
@@ -181,8 +178,8 @@ function renderStandardBlock(block) {
                         <div style={{ padding: '40px', background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(249, 115, 22, 0.05) 100%)', borderRadius: '24px', border: '1px dashed rgba(239, 68, 68, 0.2)', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
                             <VideoIcon size={40} style={{ color: 'rgba(239, 68, 68, 0.4)' }} />
                             <div>
-                                <p style={{ fontSize: '16px', fontWeight: 700, color: 'white', margin: '0 0 8px 0' }}>{data.title || "Video Suggestion"}</p>
-                                <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0' }}>{data.description || "Teacher will add video link"}</p>
+                                <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px 0' }}>{data.title || "Video Suggestion"}</p>
+                                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0' }}>{data.description || "Teacher will add video link"}</p>
                             </div>
                         </div>
                     )}
@@ -209,8 +206,8 @@ function renderStandardBlock(block) {
                         <ExternalLink size={28} />
                     </div>
                     <div>
-                        <h4 style={{ fontSize: '18px', fontWeight: 900, color: 'white', margin: '0 0 4px 0' }}>{data.title || 'View Resource'}</h4>
-                        <p style={{ fontSize: '12px', color: '#64748b', fontFamily: 'Courier New, monospace', letterSpacing: '0.05em', margin: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '400px' }}>{data.url}</p>
+                        <h4 style={{ fontSize: '18px', fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>{data.title || 'View Resource'}</h4>
+                        <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'Courier New, monospace', letterSpacing: '0.05em', margin: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '400px' }}>{data.url}</p>
                     </div>
                 </a>
             );
@@ -223,12 +220,11 @@ function renderStandardBlock(block) {
 function LessonSkeleton() {
     return (
         <div style={{ maxWidth: '900px', margin: '0 auto', padding: '40px 20px', display: 'flex', flexDirection: 'column', gap: '32px', animation: 'pulse 2s infinite' }}>
-            <div style={{ height: '40px', background: 'rgba(34, 211, 238, 0.1)', borderRadius: '8px' }} />
-            <div style={{ height: '120px', background: 'rgba(34, 211, 238, 0.1)', borderRadius: '8px' }} />
-            <div style={{ height: '400px', background: 'rgba(34, 211, 238, 0.1)', borderRadius: '8px' }} />
+            <div style={{ height: '40px', background: 'var(--accent-light)', borderRadius: '8px' }} />
+            <div style={{ height: '120px', background: 'var(--accent-light)', borderRadius: '8px' }} />
+            <div style={{ height: '400px', background: 'var(--accent-light)', borderRadius: '8px' }} />
         </div>
     );
 }
 
-// Render AITutor within the main return
 LessonRenderer.AITutor = AITutor;

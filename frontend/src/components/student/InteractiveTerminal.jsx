@@ -11,7 +11,6 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
     const [hasError, setHasError] = useState(false);
 
     useEffect(() => {
-        // Initialize xterm
         const term = new Terminal({
             cols: 80,
             rows: 24,
@@ -29,19 +28,16 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
         term.open(terminalRef.current);
         termRef.current = term;
 
-        // User input handler - buffer input and send on Enter
         let inputBuffer = '';
         term.onData((data) => {
-            // Handle backspace
             if (data === '' || data === '\b') {
                 if (inputBuffer.length > 0) {
                     inputBuffer = inputBuffer.slice(0, -1);
-                    term.write('\b \b'); // Backspace, space, backspace to erase
+                    term.write('\b \b');
                 }
                 return;
             }
 
-            // Handle Enter
             if (data === '\r' || data === '\n') {
                 term.write('\r\n');
                 inputBuffer += '\n';
@@ -55,7 +51,6 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
                 return;
             }
 
-            // Regular character - add to buffer and echo
             inputBuffer += data;
             term.write(data);
         });
@@ -83,7 +78,6 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
         termRef.current?.clear();
         termRef.current?.write('> Connecting to execution engine...\r\n');
 
-        // Connect WebSocket
         const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3000';
         const ws = new WebSocket(wsUrl);
 
@@ -120,7 +114,6 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
                         termRef.current?.write(`\r\n> Process exited with code ${data.code}\r\n`);
                         setIsRunning(false);
 
-                        // Handle challenge verification
                         if (mode === 'challenge' && onComplete) {
                             onComplete();
                         }
@@ -149,7 +142,7 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
     };
 
     return (
-        <div style={{
+        <div className="interactive-terminal" style={{
             display: 'flex',
             flexDirection: 'column',
             height: '100%',
@@ -157,7 +150,7 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
             borderRadius: compact ? '0' : '24px',
             border: compact ? 'none' : '1.5px solid rgba(168, 85, 247, 0.3)',
             overflow: 'hidden',
-            background: compact ? 'transparent' : 'rgba(5, 1, 29, 0.5)',
+            background: compact ? 'transparent' : '#050120',
             boxShadow: compact ? 'none' : '0 0 30px rgba(168, 85, 247, 0.1)',
         }}>
             {/* Header */}
@@ -196,7 +189,7 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
                 {isRunning && <Loader2 size={14} className="animate-spin" style={{ color: '#22d3ee' }} />}
             </div>}
 
-            {/* Terminal */}
+            {/* Terminal - stays dark per spec */}
             <div style={{
                 background: '#050120',
                 padding: '16px',

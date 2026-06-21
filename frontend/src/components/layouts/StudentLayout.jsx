@@ -4,9 +4,9 @@ import { LayoutDashboard, Book, LogOut, Plus, Loader2, Sparkles, Hash } from 'lu
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import JoinClassModal from '../student/JoinClassModal';
-import '../../pages/teacher/Dashboard.css'; // Add this for the structure
-import '../../pages/student/Student.css'; 
-import '../../pages/student/Student.css'; // We will create this
+import ThemeToggle from '../ui/ThemeToggle';
+import '../../pages/teacher/Dashboard.css';
+import '../../pages/student/Student.css';
   
 
 export default function StudentLayout() {
@@ -38,7 +38,7 @@ export default function StudentLayout() {
                 <div className="sidebar-top">
                     <Link to="/dashboard/student" className="sidebar-logo">
                         <div className="logo-sq">I</div>
-                        <span className="font-bold text-xl" style={{ color: 'white', marginLeft: '10px' }}>InstructAI</span>
+                        <span className="font-bold text-xl" style={{ color: 'var(--text-primary)', marginLeft: '10px' }}>InstructAI</span>
                     </Link>
 
                     <div className="nav-group">
@@ -56,7 +56,7 @@ export default function StudentLayout() {
                             <button 
                                 onClick={() => setIsJoinModalOpen(true)}
                                 className="nav-item w-full bg-transparent border-none cursor-pointer"
-                                style={{ border: 'none', background: 'none', textAlign: 'left', marginTop: '10px', color: '#22d3ee' }}
+                                style={{ border: 'none', background: 'none', textAlign: 'left', marginTop: '10px', color: 'var(--accent)' }}
                             >
                                 <Hash size={16} />
                                 <span className="text-sm font-bold">Join Class</span>
@@ -74,15 +74,18 @@ export default function StudentLayout() {
                     </div>
                 </div>
 
-                <div style={{ paddingTop: '20px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                <div style={{ paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', padding: '12px' }}>
                         <img src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.student_profile?.first_name}`} className="w-10 h-10 rounded-full border border-white/10 shadow-lg flex-shrink-0" alt="" />
                         <div style={{ minWidth: 0, flex: 1 }}>
-                            <p style={{ fontSize: '14px', fontWeight: 700, color: 'white', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.student_profile?.first_name}</p>
-                            <p style={{ fontSize: '10px', color: '#64748b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Student Account</p>
+                            <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.student_profile?.first_name}</p>
+                            <p style={{ fontSize: '10px', color: 'var(--text-tertiary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Student Account</p>
                         </div>
                     </div>
-                    <button onClick={() => { logout(); navigate('/login'); }} className="nav-item w-full border-none bg-transparent cursor-pointer hover:text-cyan-400" style={{ border: 'none', background: 'none' }}>
+                    <div style={{ marginBottom: '12px' }}>
+                        <ThemeToggle />
+                    </div>
+                    <button onClick={() => { logout(); navigate('/login'); }} className="nav-item w-full border-none bg-transparent cursor-pointer hover:text-[var(--accent)]" style={{ border: 'none', background: 'none' }}>
                         <LogOut size={16} /> <span>Sign Out</span>
                     </button>
                 </div>

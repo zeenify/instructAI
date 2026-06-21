@@ -19,7 +19,7 @@ export default function JoinClassModal({ isOpen, onClose, onSuccess }) {
             await api.post('/student/enroll', { class_code: classCode });
             toast.success("Successfully joined the class!");
             setClassCode('');
-            onSuccess(); // Trigger a refresh of the class list
+            onSuccess();
             onClose();
         } catch (err) {
             toast.error(err.response?.data?.message || "Invalid class code or already enrolled.");
@@ -41,14 +41,16 @@ export default function JoinClassModal({ isOpen, onClose, onSuccess }) {
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="relative z-10 w-full max-w-md bg-[#030014] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl shadow-cyan-500/10"
+                        style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '32px', boxShadow: '0 20px 60px var(--accent-glow)' }}
+                        className="relative z-10 w-full max-w-md overflow-hidden"
                     >
                         <div style={{ padding: '32px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-                                <h2 style={{ fontSize: '24px', fontWeight: 700, color: 'white', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <PlusCircle className="text-cyan-400" /> Join Class
+                                <h2 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <PlusCircle style={{ color: 'var(--accent)' }} /> Join Class
                                 </h2>
-                                <button onClick={onClose} style={{ color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 10px' }} className="hover:text-white transition-colors">
+                                <button onClick={onClose} style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 10px', transition: 'color 0.3s' }}
+                                    className="hover:text-[var(--text-primary)]">
                                     <X size={20} />
                                 </button>
                             </div>

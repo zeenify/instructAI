@@ -21,6 +21,10 @@
   --border-color: #e2e8f0;
   --skeleton-bg: #e2e8f0;
   --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  /* Accent — darker teal for readability on light bg */
+  --accent: #0891b2;
+  --accent-light: rgba(8, 145, 178, 0.08);
+  --accent-glow: rgba(8, 145, 178, 0.2);
 }
 
 [data-theme="dark"] {
@@ -34,6 +38,10 @@
   --border-color: rgb(55, 65, 81);
   --skeleton-bg: #1e293b;
   --card-shadow: none;
+  /* Accent — bright cyan for dark bg */
+  --accent: #22d3ee;
+  --accent-light: rgba(34, 211, 238, 0.08);
+  --accent-glow: rgba(34, 211, 238, 0.2);
 }
 
 /* Apply base transition for smooth switching */
