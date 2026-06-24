@@ -56,7 +56,7 @@ class QuizController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            $quiz = Quiz::findOrFail($id);
+            $quiz = Quiz::with('module.course')->findOrFail($id);
 
             if ($quiz->module->course->teacher_id !== auth()->id()) {
                 return response()->json(['message' => 'Unauthorized'], 403);

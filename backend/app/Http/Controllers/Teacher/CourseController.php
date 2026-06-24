@@ -350,9 +350,10 @@ class CourseController extends Controller
     {
         $course = Course::findOrFail($id);
         
+        $moduleIds = $course->modules()->pluck('id');
         $course->modules()->update(['is_published' => true]);
-        \App\Models\Lesson::whereIn('module_id', $course->modules->pluck('id'))->update(['is_published' => true]);
-        \App\Models\Quiz::whereIn('module_id', $course->modules->pluck('id'))->update(['is_published' => true]);
+        \App\Models\Lesson::whereIn('module_id', $moduleIds)->update(['is_published' => true]);
+        \App\Models\Quiz::whereIn('module_id', $moduleIds)->update(['is_published' => true]);
         
         return response()->json(['success' => true]);
     }
@@ -439,14 +440,14 @@ class CourseController extends Controller
     {
         return DB::transaction(function () use ($request, $id) {
             $modules = $request->input('new_modules', []);
-            $savedModules =[];
+            $savedModules = [];
+            $baseOrderIndex = \App\Models\Module::where('course_id', $id)->count();
 
-            foreach ($modules as $m) {
-                // 1. Create the Module
+            foreach ($modules as $i => $m) {
                 $newModule = \App\Models\Module::create([
                     'course_id' => $id,
                     'title' => $m['title'],
-                    'order_index' => \App\Models\Module::where('course_id', $id)->count() + 1
+                    'order_index' => $baseOrderIndex + $i + 1
                 ]);
 
                 $orderCounter = 1;

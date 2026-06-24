@@ -1,460 +1,584 @@
-# Performance Monitoring Plan
+# Performance Implementation Plan
 
-**InstructAI** — Full-stack LMS (Laravel 12 + React 19 + FastAPI + Node.js execution engine)
-
----
-
-## Table of Contents
-
-- [The Big Picture](#the-big-picture)
-- [Phase 1: See What's Happening (Day 1)](#phase-1-see-whats-happening-day-1)
-- [Phase 2: Database (Day 2)](#phase-2-database-day-2)
-- [Phase 3: Backend Request Tracing (Day 3-4)](#phase-3-backend-request-tracing-day-3-4)
-- [Phase 4: Frontend (Day 5-6)](#phase-4-frontend-day-5-6)
-- [Phase 5: AI Service & Code Engine (Day 7)](#phase-5-ai-service--code-engine-day-7)
-- [Phase 6: Ship It — Persistent Storage & Alerts (Day 8+)](#phase-6-ship-it--persistent-storage--alerts-day-8)
-- [How to Read the Data](#how-to-read-the-data)
-- [Quick Wins Checklist](#quick-wins-checklist)
-- [What Big Tech Actually Does](#what-big-tech-actually-does)
+**Beginner-friendly, step-by-step.**
 
 ---
 
-## The Big Picture
+## Before We Start: Understand What's Happening
 
-Right now we're flying blind. We have:
+Every time a page loads, Laravel sends queries to NeonDB (your hosted Postgres in Singapore/Australia). Each query takes 20-100ms just for the network trip to Australia and back. Your pages fire 15-30 of these queries one after another.
 
-- Scattered `Log::` calls in 7 controllers
-- Ad-hoc `console.log` on frontend
-- AI service MetricsTracker that prints to terminal then disappears
-- No DB query timing
-- No page-load timing
-- No way to answer _"why was this page slow?"_
+**Our goal:** Reduce the number of queries per page from 15-30 down to 2-5. This is done by:
 
-**Goal:** A system where any developer can open one dashboard and answer:
-
-- Which page loads are slow?
-- Which API endpoints are slow?
-- Which DB queries are slow?
-- Is the AI service bottlenecking us?
-- Is the code execution engine slow?
+1. **Indexes** — Making each query run faster (like a book index vs reading every page)
+2. **Eager loading** — Fetching related data in one trip instead of N trips
+3. **Caching** — Skipping the DB entirely for data that hasn't changed
 
 ---
 
-## Phase 1: See What's Happening (Day 1)
+## Part 1: Database Indexes (Estimated: 20 minutes)
 
-**No installs. No new services. Just wrap what exists with timestamps.**
+### What is an Index?
 
-### 1A. Backend request logger middleware
+Without an index, finding `WHERE student_id = 5` means Postgres reads **every row** in the table to find matches. With an index, it jumps directly to the matching rows — like the index at the back of a book.
 
-Create a middleware that logs every API request with duration:
+An index is just a sorted copy of specific columns. It takes up a bit of disk space but makes queries 10-100x faster.
 
-```
-Timestamp | Method | URL | Status | Duration(ms) | UserID | Memory(MB)
-```
+### What You'll Do
 
-Written as structured JSON to `storage/logs/requests-YYYY-MM-DD.log`.
+Create a new migration file that adds 5 indexes to frequently-queried columns.
 
-This single file instantly answers: _"which endpoints are slow?"_
+**Step 1.1:** Open your terminal in the `backend` directory and run:
 
-### 1B. DB query logger service provider
-
-Register a `DB::listen()` in `AppServiceProvider` that logs every query longer than 100ms:
-
-```
-Duration(ms) | SQL (truncated 200ch) | Bindings
+```bash
+php artisan make:migration add_performance_indexes
 ```
 
-Written to `storage/logs/slow-queries-YYYY-MM-DD.log`.
+This creates a file like `2026_06_23_xxxxxx_add_performance_indexes.php` in `database/migrations/`.
 
-Answers: _"which queries are slow?"_
+**Step 1.2:** Open that file and replace its content with:
 
-### 1C. Frontend navigation performance marks
+```php
+<?php
 
-Add to the router (`App.jsx`) a simple listener that records:
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-```
-page: /dashboard/teacher/class/{id}/course/{id}
-timeToRender: 2340ms
-apiCalls: 5
-slowestApi: /api/teacher/courses/{id} (890ms)
-```
-
-Logged to `console.table` in dev, and stored in `localStorage` as a rolling window (last 100 navigations).
-
-Answers: _"which page transitions are slow?"_
-
-### 1D. AI service file-backed metrics
-
-Replace `MetricsTracker.print_metrics_summary()` with a function that appends to `logs/metrics.jsonl` (one JSON line per request).
-
-Granularity:
-```
-timestamp | endpoint | model | duration_ms | prompt_tokens | completion_tokens | error
-```
-
-Answers: _"is AI the bottleneck?"_
-
----
-
-## Phase 2: Database (Day 2)
-
-### 2A. Identify N+1 queries
-
-Use the slow-query log from Phase 1. Common patterns to look for:
-
-- Analytics endpoints running 3 separate queries instead of joins
-- CourseBuilder loading modules, then lessons, then quizzes in loops
-- Any endpoint that fires 10+ near-identical queries
-
-Fix the worst offenders with eager loading (`->with()`) or raw joins.
-
-### 2B. Add DB query timeline to request log
-
-Enrich the request log (Phase 1A) with:
-
-```json
+return new class extends Migration
 {
-  "total_db_queries": 14,
-  "total_db_time_ms": 320,
-  "slowest_query_ms": 180,
-  "slowest_query_sql": "select * from courses where..."
-}
+    public function up(): void
+    {
+        // Quiz attempts: we often search by student_id AND quiz_id AND status together
+        Schema::table('quiz_attempts', function (Blueprint $table) {
+            $table->index(['student_id', 'quiz_id', 'status'], 'idx_quiz_attempts_student_quiz_status');
+        });
+
+        // Code submissions: we often search by student_id AND lesson_id
+        Schema::table('code_submissions', function (Blueprint $table) {
+            $table->index(['student_id', 'lesson_id'], 'idx_code_submissions_student_lesson');
+        });
+
+        // Modules: we often sort by order_index within a course
+        Schema::table('modules', function (Blueprint $table) {
+            $table->index(['course_id', 'order_index'], 'idx_modules_course_order');
+        });
+
+        // Lessons: we often filter by module_id AND is_published, then sort by order_index
+        Schema::table('lessons', function (Blueprint $table) {
+            $table->index(['module_id', 'is_published', 'order_index'], 'idx_lessons_module_published_order');
+        });
+
+        // Quizzes: same pattern as lessons
+        Schema::table('quizzes', function (Blueprint $table) {
+            $table->index(['module_id', 'is_published', 'order_index'], 'idx_quizzes_module_published_order');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('quiz_attempts', function (Blueprint $table) {
+            $table->dropIndex('idx_quiz_attempts_student_quiz_status');
+        });
+        Schema::table('code_submissions', function (Blueprint $table) {
+            $table->dropIndex('idx_code_submissions_student_lesson');
+        });
+        Schema::table('modules', function (Blueprint $table) {
+            $table->dropIndex('idx_modules_course_order');
+        });
+        Schema::table('lessons', function (Blueprint $table) {
+            $table->dropIndex('idx_lessons_module_published_order');
+        });
+        Schema::table('quizzes', function (Blueprint $table) {
+            $table->dropIndex('idx_quizzes_module_published_order');
+        });
+    }
+};
 ```
 
-Now every request log also tells us: _"was DB the bottleneck?"_
+**Step 1.3:** Run the migration:
 
-### 2C. Index review
+```bash
+php artisan migrate
+```
 
-Run `EXPLAIN ANALYZE` on the 5 slowest queries from Phase 2A. Add missing indexes for:
+That's it. Five indexes added. Zero code changes. Every query on these tables will now run faster.
 
-- `enrollments.student_id + enrollments.class_id` (composite)
-- `lesson_completions.student_id + lesson_completions.lesson_id`
-- `quiz_attempts.student_id + quiz_attempts.quiz_id`
-- `code_submissions.student_id + code_submissions.lesson_id`
-
-These are the tables hit hardest by analytics/monitoring pages.
+**Note:** `lesson_completions` already has a `UNIQUE (student_id, lesson_id)` constraint which automatically creates an index in Postgres. Same for `enrollments` with `UNIQUE (student_id, class_id)`. So those two are already covered.
 
 ---
 
-## Phase 3: Backend Request Tracing (Day 3-4)
+## Part 2: Install Laravel Debugbar (Estimated: 5 minutes)
 
-### 3A. Install Laravel Debugbar (dev only)
+This is a toolbar that shows every query a page makes, right in your browser. We'll use it to find N+1 problems.
+
+**Step 2.1:** In `backend` directory:
 
 ```bash
 composer require barryvdh/laravel-debugbar --dev
 ```
 
-Gives instant per-request breakdown during development:
+**Step 2.2:** No config needed. Just refresh any page and you'll see a debug bar at the bottom. Click "Queries" to see every SQL statement the page ran.
 
-| Panel | What it shows |
-|-------|---------------|
-| Route | Which route matched |
-| Queries | Every SQL + duration |
-| Models | Model hydration count (N+1 detection) |
-| Time | Total + breakdown by section |
-| Memory | Peak usage |
-| Session | Session data |
-| Logs | All `Log::` calls in this request |
-
-### 3B. Tag critical endpoints with custom headers
-
-Add a simple middleware that appends timing headers to every API response:
-
-```
-X-InstructAI-Time-Total: 450
-X-InstructAI-Time-DB: 120
-X-InstructAI-Time-AI-Service: 0
-X-InstructAI-DB-Queries: 14
-```
-
-The frontend can then read these headers and log them alongside page metrics.
-
-### 3C. External monitoring (Sentry)
-
-Install `sentry/sentry-laravel`:
-
-```bash
-composer require sentry/sentry-laravel
-```
-
-- Automatically captures every exception
-- Records transaction performance (endpoint + duration)
-- Groups by URL pattern (not raw URL)
-- Shows slow transactions, error rates, and trends over time
-
-Performance transactions sample rate: 0.25 (25% of requests traced — enough to spot trends, low overhead).
+**What to look for:** If you see 20+ queries for a simple page, that's our target.
 
 ---
 
-## Phase 4: Frontend (Day 5-6)
+## Part 3: Enable Lazy Loading Prevention (Estimated: 30 minutes including fixes)
 
-### 4A. Navigation timing dashboard
+### What is Lazy Loading?
 
-Build a simple `<PerfMonitor />` component (hidden behind a keyboard shortcut, Ctrl+Shift+P):
-
-| Metric | Source |
-|--------|--------|
-| Route transition time | `performance.now()` before/after route change |
-| API calls per page | Axios interceptor counting |
-| Slowest API call | Axios interceptor measuring each request |
-| Total API time | Sum of all request durations |
-| Rendering time | `useEffect` + `performance.now()` after mount |
-| Bundle size | `performance.memory` (Chrome) |
-
-States: initial load, re-render, data fetching, empty, error.
-
-### 4B. Axios timing interceptor
-
-Add a request/response interceptor that:
-
-1. Sets `performance.mark()` before request
-2. Reads `X-InstructAI-Time-*` response headers
-3. Logs slow requests (>500ms) to a local rolling buffer
-4. Shows a non-blocking toast for requests >2s (only in dev)
-
-### 4C. Frontend error tracking
-
-Install `@sentry/react`:
-
-```bash
-npm install @sentry/react
-```
-
-- Automatic React error boundaries
-- Performance tracing (page loads, navigation, API calls)
-- Browser and OS breakdown
-- Session replays (optional, 1% sample)
-
-### 4D. Bundle analysis
-
-Add to `vite.config.js`:
-
-```js
-import { visualizer } from 'rollup-plugin-visualizer';
-
-plugins: [
-  react(),
-  tailwindcss(),
-  visualizer({ open: true }),
-]
-```
-
-Run `npm run build` → opens an interactive treemap of bundle sizes.
-
-Answer: _"why is this page heavy to download?"_
-
----
-
-## Phase 5: AI Service & Code Engine (Day 7)
-
-### 5A. AI service structured logging
-
-Replace `print()` with structured JSON logging via Python's `logging` module + `python-json-logger`:
-
-```
-{"timestamp": "...", "level": "INFO", "logger": "groq_pool", "message": "Key rotation", "key_index": 2, "reason": "rate_limited", "backoff_seconds": 30}
-```
-
-Ship to both console and `logs/ai-service.log`.
-
-### 5B. AI service health endpoint
-
-Extend `GET /` to return:
-
-```json
-{
-  "status": "ok",
-  "uptime_seconds": 34200,
-  "requests_total": 1523,
-  "requests_last_minute": 12,
-  "errors_last_hour": 3,
-  "avg_duration_ms": 2340,
-  "keys_active": 4,
-  "keys_rate_limited": 0,
-  "db_connected": true
-}
-```
-
-Laravel can poll this periodically and log if the AI service is unhealthy.
-
-### 5C. Code execution engine metrics
-
-Add a metrics middleware to `instruct-execute`:
-
-```json
-{
-  "endpoint": "/execute",
-  "duration_ms": 234,
-  "language": "java",
-  "compile_success": true,
-  "exit_code": 0,
-  "timestamp": "..."
-}
-```
-
-Write to `logs/execute.jsonl`.
-
----
-
-## Phase 6: Ship It — Persistent Storage & Alerts (Day 8+)
-
-### 6A. Centralized metrics table in PostgreSQL
-
-Create a `performance_logs` table:
-
-```sql
-create table performance_logs (
-  id bigserial primary key,
-  source varchar(32) not null, -- 'laravel', 'frontend', 'ai', 'execute'
-  type varchar(32) not null,   -- 'request', 'query', 'page_load', 'ai_request', 'execute'
-  metric varchar(64) not null, -- 'duration_ms', 'db_queries', 'memory_mb'
-  value numeric not null,
-  tags jsonb,                  -- {method, url, status, user_id, endpoint, model}
-  created_at timestamptz default now()
-);
-```
-
-All services write to this table. Now you can query:
-
-```sql
--- Slowest endpoints today
-select metric ->> 'url' as url, avg(value) as avg_ms
-from performance_logs
-where source = 'laravel' and type = 'request' and metric = 'duration_ms'
-  and created_at > now() - interval '24 hours'
-group by url
-order by avg_ms desc
-limit 10;
-```
-
-### 6B. Dashboard page
-
-A simple `/dashboard/admin/perf` page (admin-only) showing:
-
-| Widget | Source |
-|--------|--------|
-| Avg API response time (last 1hr line chart) | performance_logs |
-| P95 API response time | performance_logs |
-| Slowest endpoints | performance_logs |
-| DB query count trend | performance_logs |
-| Avg page load time (frontend) | performance_logs |
-| AI service avg latency | performance_logs |
-| Error rate (last 24hr) | performance_logs + Sentry |
-
-### 6C. Alerts
-
-Simple threshold checking via a scheduled Laravel command:
+When you write:
 
 ```php
-// App\Console\Commands\CheckPerformance
+$course = Course::find(1);
+// At this point, only the course data is loaded
+
+$course->modules  // <-- Laravel now fires: SELECT * FROM modules WHERE course_id = 1
 ```
-- If avg endpoint duration > 2s for last 5 minutes → alert
-- If DB query count per request > 50 → alert
-- If AI service avg duration > 10s → alert
-- If error rate > 5% → alert
 
-Alerts go to `notifications` table (same as existing notification system).
+That's "lazy loading." It seems innocent, but inside a loop it becomes:
 
-### 6D. Long term: OpenTelemetry
+```php
+foreach ($quizzes as $quiz) {
+    $quiz->module->course->class_id  // 3 NEW queries per iteration!
+    // If you have 20 questions, that's an extra 60 queries
+}
+```
 
-Once the above is running and proving useful, consider OpenTelemetry:
+We want to **prevent lazy loading** so the app forces us to load everything upfront.
 
-- **Laravel**: `open-telemetry/opentelemetry-php` SDK
-- **Python**: `opentelemetry-distro`
-- **JavaScript**: `@opentelemetry/web`
+### Step 3.1: Enable Prevention in Development
 
-Send traces to Jaeger/Grafana Tempo. Gives end-to-end distributed tracing across all 4 services.
+Open `app/Providers/AppServiceProvider.php` and change it to:
+
+```php
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\ServiceProvider;
+
+class AppServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        //
+    }
+
+    public function boot(): void
+    {
+        // Catch N+1 problems during development
+        if (app()->isLocal()) {
+            Model::preventLazyLoading(true);
+        }
+
+        // Log lazy loads in production instead of crashing
+        Model::handleLazyLoadingViolationUsing(function ($model, $relation) {
+            Log::warning("Lazy loading detected", [
+                'model' => get_class($model),
+                'relation' => $relation,
+            ]);
+        });
+    }
+}
+```
+
+### Step 3.2: Open Every Page and Fix What Breaks
+
+Now browse your app. Any lazy-loaded relationship will throw an error with a message like:
+
+> "Attempted to lazy load [relation] on model [Model]."
+
+When you see this:
+
+1. Note the model and relation name (e.g., `Course` → `modules`)
+2. Find the controller that's loading that model
+3. Add `->with('modules')` to the query:
+
+```php
+// Before (breaks):
+$course = Course::find($id);
+
+// After (works):
+$course = Course::with('modules')->find($id);
+```
+
+**Common patterns you'll need to fix:**
+
+| File | What to add |
+|------|-------------|
+| `Student/QuizController.php` | `$quiz->load('questions')` before the `->questions->map()` loop |
+| `Student/QuizController.php` | `$completedAttempt->load('answers')` before the per-question answer lookup |
+| `Student/CourseController.php` | Already uses `$course->load([...])` — check `showClass` for lazy `->courses` usage |
+| `Teacher/CourseController.php` | `$course->load('modules')` before `$course->modules->pluck('id')` in `publishAll()` |
+| `Teacher/AnalyticsController.php` | Add `->with(['modules.lessons', 'modules.quizzes'])` to the course query |
+| `Teacher/StudentMonitorController.php` | Same as AnalyticsController |
+
+**How to know if you fixed it:** Refresh the page — if the error is gone, you fixed it. Check Debugbar — query count should drop significantly.
 
 ---
 
-## How to Read the Data
+## Part 4: Fix the Student Quiz N+1 (The Biggest Slowdown)
 
-### Is it the database?
+This is the single biggest improvement. The quiz page fires 1 query per question when displaying results.
 
-```
-Look at:  Phase 1A request log → "total_db_time_ms" field
-Threshold: >30% of total request time → DB is the bottleneck
-Fix:      Phase 2A (N+1), Phase 2C (indexes)
-```
+**File:** `app/Http/Controllers/Student/QuizController.php`
 
-### Is it the backend code?
+**Find this code (around line 47-53):**
 
-```
-Look at:  Phase 1A request log → "duration_ms" - "total_db_time_ms"
-Threshold: remaining time > 500ms without AI call → code is slow
-Fix:      Phase 3A (Debugbar to see which part), optimize controller
+```php
+if ($completedAttempt) {
+    $existingResult = [
+        'details' => $quiz->questions->map(function($q) use ($completedAttempt) {
+            $ans = $completedAttempt->answers()->where('question_id', $q->id)->first();
 ```
 
-### Is it the frontend rendering?
+**The problem:** `$completedAttempt->answers()` inside the `->map()` loop fires a NEW query for every question. 20 questions = 20 extra queries.
 
-```
-Look at:  Phase 4A navigation timing → "render_ms"
-Threshold: >300ms → component re-rendering too much or too large
-Fix:      React.memo, useMemo, lazy load heavy components (3D, CodeMirror, TipTap)
+**Change to:**
+
+```php
+if ($completedAttempt) {
+    // Load ALL answers once before the loop
+    $allAnswers = $completedAttempt->answers()
+        ->whereIn('question_id', $quiz->questions->pluck('id'))
+        ->get()
+        ->keyBy('question_id');
+
+    $existingResult = [
+        'details' => $quiz->questions->map(function($q) use ($allAnswers) {
+            $ans = $allAnswers->get($q->id);
 ```
 
-### Is it the AI service?
+**What changed:** We load all answers in ONE query, then look them up from memory. 20 queries → 1 query.
 
-```
-Look at:  Phase 1D AI metrics → "duration_ms"
-Threshold: >5s for 8b model, >15s for 70b model
-Fix:      Check Groq status, reduce token count, add client-side timeout
+---
+
+## Part 5: Fix the Student Class List N+1 (Sidebar Speed)
+
+**File:** `app/Http/Controllers/Student/CourseController.php`
+
+**Find lines 29-66 (the `foreach ($classroom->courses as $course)` loop).**
+
+This loop fires 4 queries per course to compute progress. For 5 courses = 20 queries.
+
+**Replace the entire foreach loop** (lines 29-66) with:
+
+```php
+// Get all course IDs
+$courseIds = $classroom->courses->pluck('id');
+
+// Batch COUNT queries — one query per metric, not per course
+$lessonCounts = DB::table('modules')
+    ->whereIn('course_id', $courseIds)
+    ->join('lessons', 'modules.id', '=', 'lessons.module_id')
+    ->where('lessons.is_published', true)
+    ->selectRaw('modules.course_id, COUNT(*) as count')
+    ->groupBy('modules.course_id')
+    ->pluck('count', 'course_id');
+
+$quizCounts = DB::table('modules')
+    ->whereIn('course_id', $courseIds)
+    ->join('quizzes', 'modules.id', '=', 'quizzes.module_id')
+    ->where('quizzes.is_published', true)
+    ->selectRaw('modules.course_id, COUNT(*) as count')
+    ->groupBy('modules.course_id')
+    ->pluck('count', 'course_id');
+
+$completedLessons = DB::table('lesson_completions')
+    ->join('lessons', 'lesson_completions.lesson_id', '=', 'lessons.id')
+    ->join('modules', 'lessons.module_id', '=', 'modules.id')
+    ->where('lesson_completions.student_id', $studentId)
+    ->where('lessons.is_published', true)
+    ->whereIn('modules.course_id', $courseIds)
+    ->selectRaw('modules.course_id, COUNT(*) as count')
+    ->groupBy('modules.course_id')
+    ->pluck('count', 'course_id');
+
+$completedQuizzes = DB::table('quiz_attempts')
+    ->join('quizzes', 'quiz_attempts.quiz_id', '=', 'quizzes.id')
+    ->join('modules', 'quizzes.module_id', '=', 'modules.id')
+    ->where('quiz_attempts.student_id', $studentId)
+    ->where('quiz_attempts.status', 'completed')
+    ->where('quizzes.is_published', true)
+    ->whereIn('modules.course_id', $courseIds)
+    ->whereColumn('quiz_attempts.total_score', '>=', 'quizzes.passing_score')
+    ->selectRaw('modules.course_id, COUNT(*) as count')
+    ->groupBy('modules.course_id')
+    ->pluck('count', 'course_id');
+
+// Now just map the pre-computed values
+foreach ($classroom->courses as $course) {
+    $total = ($lessonCounts[$course->id] ?? 0) + ($quizCounts[$course->id] ?? 0);
+    $done = ($completedLessons[$course->id] ?? 0) + ($completedQuizzes[$course->id] ?? 0);
+    $course->progress_percent = $total > 0 ? (int) round(($done / $total) * 100) : 0;
+}
 ```
 
-### Is it the network?
+**What changed:** Instead of 4 queries per course (20 queries for 5 courses), we run 4 queries TOTAL, once. The data is then mapped in memory.
 
+---
+
+## Part 6: Frontend Caching (Auth + Sidebar)
+
+### Step 6.1: Cache User Data
+
+**File:** `frontend/src/context/AuthContext.jsx`
+
+Replace the `loadUser` function:
+
+```javascript
+useEffect(() => {
+    const loadUser = async () => {
+        if (token) {
+            // Check sessionStorage first
+            const cached = sessionStorage.getItem('user');
+            if (cached) {
+                try {
+                    const userData = JSON.parse(cached);
+                    setUser(userData);
+                    setRole(userData.role);
+                    setLoading(false);
+                    return;
+                } catch (e) {
+                    // Invalid cache, fall through to fetch
+                }
+            }
+
+            try {
+                const res = await api.get('/user', { bypassCache: true });
+                sessionStorage.setItem('user', JSON.stringify(res.data));
+                setUser(res.data);
+                setRole(res.data.role);
+            } catch (err) {
+                console.error("Session expired");
+                logout();
+            }
+        }
+        setLoading(false);
+    };
+    loadUser();
+}, [token]);
 ```
-Look at:  Phase 4B Axios interceptor → "total_api_time" vs X-InstructAI-Time-Total
-Signal:   If total_api_time > X-InstructAI-Time-Total significantly → network latency
-Fix:      CDN, compression, reduce payload size
+
+Also add to the `login` function to store user data:
+
+```javascript
+const login = (userData, userToken, userRole) => {
+    setUser(userData);
+    setToken(userToken);
+    setRole(userRole);
+    localStorage.setItem('token', userToken);
+    localStorage.setItem('role', userRole);
+    sessionStorage.setItem('user', JSON.stringify(userData)); // Add this
+};
+```
+
+And to `logout`:
+
+```javascript
+const logout = () => {
+    setUser(null);
+    setToken(null);
+    setRole(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    sessionStorage.removeItem('user'); // Add this
+    cache.clear();
+};
+```
+
+### Step 6.2: Cache Sidebar Class List
+
+**File:** `frontend/src/components/layouts/StudentLayout.jsx`
+
+Replace the `fetchClasses` function:
+
+```javascript
+const fetchClasses = async () => {
+    const cacheKey = 'sidebar:student:classes';
+    const cached = cache.get(cacheKey);
+    if (cached) {
+        setClasses(cached);
+        return;
+    }
+
+    setLoading(true);
+    try {
+        const res = await api.get('/student/classes');
+        cache.set(cacheKey, res.data);
+        setClasses(res.data);
+    } finally {
+        setLoading(false);
+    }
+};
+```
+
+**Do the same for `TeacherLayout.jsx`** if it has a similar sidebar.
+
+Invalidate the cache when the user joins a class (in `JoinClassModal.jsx` on success):
+
+```javascript
+// After successful join:
+cache.invalidatePattern('sidebar:student:classes');
 ```
 
 ---
 
-## Quick Wins Checklist
+## Part 7: Fix the Analytics N+1
 
-| # | Task | Time | Impact |
-|---|------|------|--------|
-| 1 | Add DB::listen() slow query logger | 15 min | Medium |
-| 2 | Add request timing middleware | 30 min | High |
-| 3 | Add frontend navigation perf marks | 1 hr | High |
-| 4 | Add AI service file-backed metrics | 30 min | Medium |
-| 5 | Install Debugbar (dev) | 5 min | High |
-| 6 | Add Sentry backend | 1 hr | High |
-| 7 | Add X-InstructAI-Time headers | 30 min | Medium |
-| 8 | Add frontend Axios timing interceptor | 1 hr | High |
-| 9 | Add bundle visualizer | 15 min | Low |
-| 10 | Fix worst N+1 queries | 2-4 hr | High |
-| 11 | Add missing indexes | 1 hr | High |
+**File:** `app/Http/Controllers/Teacher/AnalyticsController.php`
 
-**Start with #1, #2, #3, and #5.** These are zero-install, high-impact, and will surface the biggest issues within an hour of deployment.
+Find the `getContentEngagement()` method (around line 191). Replace the per-lesson loop with batch queries:
 
----
+**Before:**
+```php
+foreach ($courseItems['all_lessons'] as $lesson) {
+    $completions = LessonCompletion::where('lesson_id', $lesson->id)
+        ->whereIn('student_id', $enrolledStudentIds)->count();
+    $codeAttempts = CodeSubmission::where('lesson_id', $lesson->id)
+        ->whereIn('student_id', $enrolledStudentIds)->count();
+```
 
-## What Big Tech Actually Does
+**After:**
+```php
+$lessonIds = $courseItems['all_lessons']->pluck('id');
 
-They do all of the above, but at scale and with more tools:
+$completionCounts = LessonCompletion::whereIn('lesson_id', $lessonIds)
+    ->whereIn('student_id', $enrolledStudentIds)
+    ->selectRaw('lesson_id, COUNT(*) as count')
+    ->groupBy('lesson_id')
+    ->pluck('count', 'lesson_id');
 
-| Company | Frontend | Backend | DB | Alerting |
-|---------|----------|---------|----|----------|
-| **Google** | Chrome DevTools + custom RUM framework | Dapper (distributed tracing) | F1, Spanner built-in | Borgmon/Monarch |
-| **Meta** | MobileLab + React Profiler integration | Canopy (distributed tracing) | MySQL at scale | Scuba (real-time) |
-| **Netflix** | Boomerang (RUM) + custom | Hystrix (latency + circuit breakers) | Cassandra + EVCache | Atlas (monitoring) |
-| **Shopify** | StatsD + Datadog RUM | OpenTelemetry + Datadog APM | Vitess (MySQL) + Datadog | PagerDuty + Datadog |
-| **Stripe** | Custom RUM framework | OpenTelemetry + internal tracing | Custom distributed DB | Alertmanager + PagerDuty |
-| **Uber** | Synthetics + Custom | Jaeger (distributed tracing) | Schemaless (MySQL) | M3 + Alertmanager |
-| **Github** | StatsD + Datadog RUM | OpenTelemetry | MySQL + Redis | Datadog + PagerDuty |
+$codeAttemptCounts = CodeSubmission::whereIn('lesson_id', $lessonIds)
+    ->whereIn('student_id', $enrolledStudentIds)
+    ->selectRaw('lesson_id, COUNT(*) as count')
+    ->groupBy('lesson_id')
+    ->pluck('count', 'lesson_id');
 
-**The common pattern is always the same, regardless of scale:**
-
-1. **Instrument everything** — every request, every DB query, every render
-2. **Collect in one place** — centralized time-series metrics store
-3. **Visualize** — real-time dashboards
-4. **Alert** — automated threshold-based notifications
-5. **Trace end-to-end** — correlation ID across all services (the hardest part, done last)
-
-**They don't start with OpenTelemetry or Datadog.** They start with what we're doing here: timing middleware, slow query logs, and a humble dashboard. Then they add layers as the system grows.
+foreach ($courseItems['all_lessons'] as $lesson) {
+    $completions = $completionCounts[$lesson->id] ?? 0;
+    $codeAttempts = $codeAttemptCounts[$lesson->id] ?? 0;
+```
 
 ---
 
-*This plan prioritizes immediate visibility with zero upfront cost, then incrementally adds persistence, visualization, and alerting.*
+## Part 8: Fix the Reorder N+1 (Teacher Drag-and-Drop)
+
+### File: `app/Http/Controllers/Teacher/ModuleController.php`
+
+Find `reorderItems()` (around line 51). Replace the loop:
+
+**Before:**
+```php
+foreach ($items as $index => $item) {
+    if ($item['itemType'] === 'lesson') {
+        DB::table('lessons')->where('id', $item['id'])->update(['order_index' => $index + 1]);
+    } elseif ($item['itemType'] === 'quiz') {
+        DB::table('quizzes')->where('id', $item['id'])->update(['order_index' => $index + 1]);
+    }
+}
+```
+
+**After:**
+```php
+DB::transaction(function () use ($items) {
+    foreach ($items as $index => $item) {
+        $table = $item['itemType'] === 'lesson' ? 'lessons' : 'quizzes';
+        DB::table($table)->where('id', $item['id'])->update(['order_index' => $index + 1]);
+    }
+});
+```
+
+(The transaction wraps all updates together so they're sent to the DB in one batch instead of waiting for each one to finish.)
+
+Do the same for `reorderModules()` (around line 99) and `QuestionController::reorder()`.
+
+---
+
+## Step 9: Request Timing Middleware (For visibility)
+
+This tells you how long **every** API request takes, so you always know what's slow.
+
+**Create** `app/Http/Middleware/RequestTiming.php`:
+
+```php
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
+
+class RequestTiming
+{
+    public function handle(Request $request, Closure $next): Response
+    {
+        $start = microtime(true);
+        $startQueries = \DB::getQueryLog();
+        \DB::enableQueryLog();
+
+        $response = $next($request);
+
+        $duration = (int)((microtime(true) - $start) * 1000);
+        $queryLog = \DB::getQueryLog();
+        $queryCount = count($queryLog);
+        $totalDbTime = (int)collect($queryLog)->sum('time');
+
+        // Only log if it took more than 500ms
+        if ($duration > 500) {
+            Log::info("Request timing", [
+                'method' => $request->method(),
+                'url' => $request->path(),
+                'status' => $response->getStatusCode(),
+                'duration_ms' => $duration,
+                'db_queries' => $queryCount,
+                'db_time_ms' => $totalDbTime,
+            ]);
+        }
+
+        return $response;
+    }
+}
+```
+
+**Register it** in `bootstrap/app.php`:
+
+```php
+->withMiddleware(function (Middleware $middleware) {
+    $middleware->api(prepend: [
+        \App\Http\Middleware\RequestTiming::class,
+    ]);
+})
+```
+
+Now check `storage/logs/laravel.log` — you'll see entries like:
+
+```
+[2026-06-23] local.INFO: Request timing {"method":"GET","url":"api/student/quizzes/199","status":200,"duration_ms":3490,"db_queries":23,"db_time_ms":1800}
+```
+
+This tells you **exactly** which endpoints are slow, how many queries they make, and how much time is spent in the database.
+
+---
+
+## Quick Reference: What to Do During Implementation
+
+When I guide you, here's what to expect:
+
+| Step | What I'll Ask You | What You'll See |
+|------|-------------------|-----------------|
+| 1 | "Run this artisan command" | Migration file created |
+| 2 | "Paste this code into the file" | Indexes added |
+| 3 | "Run migrate" | Indexes created in DB |
+| 4 | "Open this page in your browser" | Debugbar at bottom |
+| 5 | "Try loading the quiz page" | Error or debugbar showing fewer queries |
+| 6 | "Paste this fix into the controller" | Page loads faster |
+| 7 | "Check debugbar again" | Query count dropped |
+
+The key thing to watch: **the Debugbar query count**. Before each fix, note the number. After the fix, it should be significantly lower.

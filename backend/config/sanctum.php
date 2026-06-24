@@ -66,6 +66,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Personal Access Token Model
+    |--------------------------------------------------------------------------
+    |
+    | When authenticating requests, Sanctum will use this model to find the
+    | token. We override it with our own model to skip the expensive
+    | `last_used_at` DB write on every API request.
+    |
+    */
+
+    'personal_access_token' => App\Models\PersonalAccessToken::class,
+
+    /*
+    |--------------------------------------------------------------------------
     | Sanctum Middleware
     |--------------------------------------------------------------------------
     |

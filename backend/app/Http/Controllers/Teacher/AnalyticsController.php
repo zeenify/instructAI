@@ -185,19 +185,26 @@ class AnalyticsController extends Controller
         $enrolledStudentIds = $classroom->students()->pluck('users.id')->toArray();
         $courseItems = $this->getCourseItems($courseId);
 
-        // Get engagement metrics per lesson
+        // Batch query: all lesson completions across these lessons at once
+        $lessonIds = $courseItems['all_lessons']->pluck('id')->toArray();
+
+        $completionCounts = LessonCompletion::whereIn('lesson_id', $lessonIds)
+            ->whereIn('student_id', $enrolledStudentIds)
+            ->selectRaw('lesson_id, COUNT(*) as count')
+            ->groupBy('lesson_id')
+            ->pluck('count', 'lesson_id');
+
+        // Batch query: all code submissions across these lessons at once
+        $codeAttemptCounts = CodeSubmission::whereIn('lesson_id', $lessonIds)
+            ->whereIn('student_id', $enrolledStudentIds)
+            ->selectRaw('lesson_id, COUNT(*) as count')
+            ->groupBy('lesson_id')
+            ->pluck('count', 'lesson_id');
+
         $engagementData = [];
-
         foreach ($courseItems['all_lessons'] as $lesson) {
-            $completions = LessonCompletion::where('lesson_id', $lesson->id)
-                ->whereIn('student_id', $enrolledStudentIds)
-                ->count();
-
-            $codeAttempts = CodeSubmission::where('lesson_id', $lesson->id)
-                ->whereIn('student_id', $enrolledStudentIds)
-                ->count();
-
-            $totalAttempts = $codeAttempts;
+            $completions = $completionCounts[$lesson->id] ?? 0;
+            $codeAttempts = $codeAttemptCounts[$lesson->id] ?? 0;
             $completionRate = count($enrolledStudentIds) > 0
                 ? round(($completions / count($enrolledStudentIds)) * 100)
                 : 0;
@@ -205,7 +212,7 @@ class AnalyticsController extends Controller
             $engagementData[] = [
                 'lesson_name' => $lesson->title,
                 'module_id' => $lesson->module_id,
-                'attempts' => $totalAttempts,
+                'attempts' => $codeAttempts,
                 'completion_count' => $completions,
                 'completion_rate' => $completionRate
             ];
@@ -219,9 +226,13 @@ class AnalyticsController extends Controller
 
     private function getCourseItems($courseId)
     {
-        $modules = Module::where('course_id', $courseId)->get();
-        $lessons = Lesson::whereIn('module_id', $modules->pluck('id'))->get();
-        $quizzes = Quiz::whereIn('module_id', $modules->pluck('id'))->get();
+        $course = Course::with(['modules.lessons', 'modules.quizzes'])->find($courseId);
+        $lessons = collect();
+        $quizzes = collect();
+        foreach ($course?->modules ?? [] as $module) {
+            $lessons = $lessons->merge($module->lessons);
+            $quizzes = $quizzes->merge($module->quizzes);
+        }
 
         return [
             'lesson_ids' => $lessons->pluck('id')->toArray(),

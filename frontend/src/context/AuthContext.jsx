@@ -16,6 +16,7 @@ export const AuthProvider = ({ children }) => {
         setRole(userRole);
         localStorage.setItem('token', userToken);
         localStorage.setItem('role', userRole);
+        sessionStorage.setItem('user', JSON.stringify(userData));
     };
 
     const logout = () => {
@@ -24,15 +25,30 @@ export const AuthProvider = ({ children }) => {
         setRole(null);
         localStorage.removeItem('token');
         localStorage.removeItem('role');
+        sessionStorage.removeItem('user');
         cache.clear();
     };
 
     useEffect(() => {
         const loadUser = async () => {
             if (token) {
+                // Check sessionStorage cache first (avoids API call on navigation)
+                const cached = sessionStorage.getItem('user');
+                if (cached) {
+                    try {
+                        const userData = JSON.parse(cached);
+                        setUser(userData);
+                        setRole(userData.role);
+                        setLoading(false);
+                        return;
+                    } catch (e) {
+                        // Invalid cache, fall through to fetch
+                    }
+                }
+
                 try {
-                    // Fetch full user data including profiles with bypassCache to get fresh data
                     const res = await api.get('/user', { bypassCache: true });
+                    sessionStorage.setItem('user', JSON.stringify(res.data));
                     setUser(res.data);
                     setRole(res.data.role);
                 } catch (err) {

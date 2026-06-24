@@ -45,12 +45,17 @@ class QuizController extends Controller
         $existingResult = null;
 
 if ($completedAttempt) {
+            // Load ALL answers once, then look them up from memory (fixes N+1)
+            $allAnswers = $completedAttempt->answers()
+                ->whereIn('question_id', $quiz->questions->pluck('id'))
+                ->get()
+                ->keyBy('question_id');
+
             $existingResult = [
                 'score' => $completedAttempt->total_score,
-                'max_score' => $completedAttempt->max_score, // Use the stored max score
-                // Map details so the student can review their previous answers
-                'details' => $quiz->questions->map(function($q) use ($completedAttempt) {
-                    $ans = $completedAttempt->answers()->where('question_id', $q->id)->first();
+                'max_score' => $completedAttempt->max_score,
+                'details' => $quiz->questions->map(function($q) use ($allAnswers) {
+                    $ans = $allAnswers->get($q->id);
                     $correctAnswer = $q->type === 'multiple_choice'
                         ? ($q->options[$q->expected_output] ?? 'N/A')
                         : ($q->type === 'enumeration'

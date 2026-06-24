@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Question;
 use App\Models\Quiz;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class QuestionController extends Controller
 {
@@ -42,10 +43,12 @@ class QuestionController extends Controller
 public function reorder(Request $request, $quizId)
     {
         $request->validate(['question_ids' => 'required|array']);
-        
-        foreach ($request->question_ids as $index => $id) {
-            Question::where('id', $id)->where('quiz_id', $quizId)->update(['order_index' => $index + 1]);
-        }
+
+        DB::transaction(function () use ($request, $quizId) {
+            foreach ($request->question_ids as $index => $id) {
+                Question::where('id', $id)->where('quiz_id', $quizId)->update(['order_index' => $index + 1]);
+            }
+        });
 
         return response()->json(['message' => 'Reordered']);
     }

@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { LayoutDashboard, Book, LogOut, Plus, Loader2, Sparkles, Hash } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
+import cache from '../../utils/cache';
 import JoinClassModal from '../student/JoinClassModal';
 import ThemeToggle from '../ui/ThemeToggle';
 import '../../pages/teacher/Dashboard.css';
@@ -18,10 +19,20 @@ export default function StudentLayout() {
 
     const [isJoinModalOpen, setIsJoinModalOpen] = useState(false); 
 
-    const fetchClasses = async () => {
+    const fetchClasses = async (forceRefresh = false) => {
+        const cacheKey = 'sidebar:student:classes';
+        if (!forceRefresh) {
+            const cached = cache.get(cacheKey);
+            if (cached) {
+                setClasses(cached);
+                setLoading(false);
+                return;
+            }
+        }
         setLoading(true);
         try {
             const res = await api.get('/student/classes');
+            cache.set(cacheKey, res.data);
             setClasses(res.data);
         } finally { setLoading(false); }
     };
@@ -99,7 +110,7 @@ export default function StudentLayout() {
             <JoinClassModal 
                 isOpen={isJoinModalOpen} 
                 onClose={() => setIsJoinModalOpen(false)} 
-                onSuccess={fetchClasses} 
+                onSuccess={() => fetchClasses(true)} 
             />
         </div>
     );
