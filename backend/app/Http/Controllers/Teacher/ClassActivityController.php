@@ -166,24 +166,16 @@ class ClassActivityController extends Controller
     {
         $this->authorizeActivity($activityId);
 
-        $type = $request->input('type', 'multiple_choice');
-
         $maxOrder = ActivityQuestion::where('activity_id', $activityId)->max('order_index') ?? 0;
-
-        $defaultOptions = match ($type) {
-            'multiple_choice' => ['Option 1', 'Option 2', 'Option 3', 'Option 4'],
-            'true_false' => ['True', 'False'],
-            'enumeration' => [''],
-            default => [],
-        };
 
         $question = ActivityQuestion::create([
             'activity_id' => $activityId,
-            'type' => $type,
-            'question_text' => 'New Question',
-            'options' => $defaultOptions,
-            'expected_output' => $type === 'true_false' ? 'True' : '',
-            'points' => 1,
+            'type' => $request->input('type', 'multiple_choice'),
+            'question_text' => $request->input('question_text', 'New Question'),
+            'options' => $request->input('options', []),
+            'expected_output' => $request->input('expected_output', ''),
+            'boilerplate' => $request->input('boilerplate', ''),
+            'points' => $request->input('points', 1),
             'order_index' => $maxOrder + 1,
         ]);
 
@@ -283,15 +275,15 @@ class ClassActivityController extends Controller
 
         $file = $request->file('file');
 
-        if (!$file || !$file->isValid()) {
+        if (! $file || ! $file->isValid()) {
             throw new \Exception('Invalid file upload');
         }
 
         $cloudName = env('CLOUDINARY_CLOUD_NAME');
-        $apiKey    = env('CLOUDINARY_API_KEY');
+        $apiKey = env('CLOUDINARY_API_KEY');
         $apiSecret = env('CLOUDINARY_API_SECRET');
 
-        if (!$cloudName || !$apiKey || !$apiSecret) {
+        if (! $cloudName || ! $apiKey || ! $apiSecret) {
             throw new \Exception('Cloudinary credentials are missing in .env');
         }
 
@@ -311,11 +303,11 @@ class ClassActivityController extends Controller
         $result = $uploadApi->upload($file->getRealPath(), [
             'folder' => 'instructai/class-activities',
             'resource_type' => 'auto',
-            'public_id' => $originalName . '_' . time(),
+            'public_id' => $originalName.'_'.time(),
             'format' => $extension,
         ]);
 
-        if (!$result || !isset($result['secure_url'])) {
+        if (! $result || ! isset($result['secure_url'])) {
             throw new \Exception('Cloudinary upload failed');
         }
 
@@ -342,7 +334,7 @@ class ClassActivityController extends Controller
 
         try {
             $cloudName = env('CLOUDINARY_CLOUD_NAME');
-            $apiKey    = env('CLOUDINARY_API_KEY');
+            $apiKey = env('CLOUDINARY_API_KEY');
             $apiSecret = env('CLOUDINARY_API_SECRET');
 
             if ($cloudName && $apiKey && $apiSecret) {
@@ -356,11 +348,11 @@ class ClassActivityController extends Controller
                 (new UploadApi($config))->destroy($publicId);
             }
         } catch (\Exception $e) {
-            \Log::warning('Cloudinary delete failed (continuing): ' . $e->getMessage());
+            \Log::warning('Cloudinary delete failed (continuing): '.$e->getMessage());
         }
 
         $files = $activity->instruction_files ?? [];
-        $files = array_values(array_filter($files, fn($f) => ($f['public_id'] ?? '') !== $publicId));
+        $files = array_values(array_filter($files, fn ($f) => ($f['public_id'] ?? '') !== $publicId));
 
         $activity->update(['instruction_files' => $files]);
 
