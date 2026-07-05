@@ -16,6 +16,7 @@ import ClassDetails from './pages/teacher/ClassDetails';
 import CourseBuilder from './pages/teacher/CourseBuilder';
 import LessonEditor from './pages/teacher/LessonEditor';
 import QuizBuilder from './pages/teacher/QuizBuilder';
+import ActivityEditor from './pages/teacher/ActivityEditor';
 import StudentMonitor from './pages/teacher/StudentMonitor';
 import Analytics from './pages/teacher/Analytics';
 
@@ -64,6 +65,7 @@ function App() {
             <Route path="class/:classId/course/:id" element={<CourseBuilder />} />
             <Route path="class/:classId/lesson/:id" element={<LessonEditor />} />
             <Route path="class/:classId/quiz/:id" element={<QuizBuilder />} />
+            <Route path="class/:classId/activity/:activityId" element={<ActivityEditor />} />
           </Route>
 
           

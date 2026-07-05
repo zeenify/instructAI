@@ -1,19 +1,21 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import cache from '../../utils/cache';
 import CreateCourseModal from './CreateCourseModal';
 import DeleteModal from '../../components/ui/DeleteModal';
-import { Copy, Users, BookOpen, Plus, Trash2, ExternalLink, Loader2 } from 'lucide-react';
+import { Copy, Users, BookOpen, Plus, Trash2, ExternalLink, Loader2, ClipboardList } from 'lucide-react';
+import Classwork from './Classwork';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
 export default function ClassDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [classroom, setClassroom] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('courses');
+    const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'courses');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [courseToDelete, setCourseToDelete] = useState(null);
@@ -22,13 +24,15 @@ export default function ClassDetails() {
     useEffect(() => {
         let isMounted = true;
 
-        const fetchDetails = async () => {
-            setLoading(true);
-            setClassroom(null);
-            cache.invalidate(`get:/teacher/classes/${id}`);
+        const cached = cache.get(`get:/teacher/classes/${id}`);
+        if (cached) {
+            setClassroom(cached);
+            setLoading(false);
+        }
 
+        const fetchDetails = async () => {
             try {
-                const res = await api.get(`/teacher/classes/${id}`, { bypassCache: true });
+                const res = await api.get(`/teacher/classes/${id}`);
                 if (isMounted) {
                     setClassroom(res.data);
                     setLoading(false);
@@ -45,7 +49,7 @@ export default function ClassDetails() {
             }
         };
 
-        fetchDetails();
+        if (!cached) fetchDetails();
         return () => { isMounted = false; };
     }, [id, navigate]);
 
@@ -71,6 +75,7 @@ export default function ClassDetails() {
                 courses: prev.courses.filter(c => c.id !== courseToDelete.id),
                 courses_count: prev.courses_count - 1
             }));
+            cache.invalidate(`get:/teacher/classes/${id}`);
             setDeleteModalOpen(false);
             setCourseToDelete(null);
         } catch (err) {
@@ -137,10 +142,13 @@ if (loading) {
                 </div>
             </div>
 
-{/* TABS */}
+            {/* TABS */}
             <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid var(--border-color)', marginBottom: '40px' }}>
                 <button
-                    onClick={() => setActiveTab('courses')}
+                    onClick={() => {
+                        setActiveTab('courses');
+                        navigate(`/dashboard/teacher/class/${id}`, { replace: true });
+                    }}
                     style={{
                         padding: '16px 24px',
                         background: 'transparent',
@@ -163,7 +171,10 @@ if (loading) {
                     <span>Courses</span>
                 </button>
                 <button
-                    onClick={() => setActiveTab('students')}
+                    onClick={() => {
+                        setActiveTab('students');
+                        navigate(`/dashboard/teacher/class/${id}?tab=students`, { replace: true });
+                    }}
                     style={{
                         padding: '16px 24px',
                         background: 'transparent',
@@ -184,6 +195,32 @@ if (loading) {
                 >
                     <Users size={16} />
                     <span>Students</span>
+                </button>
+                <button
+                    onClick={() => {
+                        setActiveTab('classwork');
+                        navigate(`/dashboard/teacher/class/${id}?tab=classwork`, { replace: true });
+                    }}
+                    style={{
+                        padding: '16px 24px',
+                        background: 'transparent',
+                        border: 'none',
+                        color: activeTab === 'classwork' ? '#d8b4fe' : '#64748b',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s',
+                        borderBottom: activeTab === 'classwork' ? '2px solid #d8b4fe' : 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginBottom: '-1px'
+                    }}
+                >
+                    <ClipboardList size={16} />
+                    <span>Classwork</span>
                 </button>
             </div>
 
@@ -281,7 +318,12 @@ if (loading) {
                 </div>
             )}
 
-{/* STUDENTS TAB */}
+            {/* CLASSWORK TAB */}
+            {activeTab === 'classwork' && (
+                <Classwork classId={id} />
+            )}
+
+            {/* STUDENTS TAB */}
             {activeTab === 'students' && (
                 <div>
                     <div style={{ paddingBottom: '24px', borderBottom: '1px solid var(--border-color)', marginBottom: '32px' }}>
@@ -356,6 +398,7 @@ if (loading) {
                         courses: [...prev.courses, newCourse],
                         courses_count: prev.courses_count + 1
                     }));
+                    cache.invalidate(`get:/teacher/classes/${id}`);
                 }}
             />
 

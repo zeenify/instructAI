@@ -19,8 +19,7 @@ api.interceptors.request.use((config) => {
     // Check cache for GET requests only
     // Don't cache specific endpoints that change frequently
     const noCachePatterns = [
-        /\/teacher\/classes\/\d+/,  // Don't cache individual class details
-        /\/student\/courses\/\d+/,  // Don't cache course content (changes when lessons are completed)
+        /^\/student\/courses\/\d+$/,  // Don't cache course content (changes when lessons are completed)
     ];
     const shouldNotCache = noCachePatterns.some(pattern => pattern.test(config.url));
 
@@ -52,8 +51,7 @@ api.interceptors.response.use(
     (response) => {
         // Don't cache specific endpoints that change frequently
         const noCachePatterns = [
-            /\/teacher\/classes\/\d+/,  // Don't cache individual class details
-            /\/student\/courses\/\d+/,  // Don't cache course content (changes when lessons are completed)
+            /^\/student\/courses\/\d+$/,  // Don't cache course content (changes when lessons are completed)
         ];
         const shouldNotCache = noCachePatterns.some(pattern => pattern.test(response.config.url));
 
