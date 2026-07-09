@@ -1,0 +1,607 @@
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import api from '../../services/api';
+import {
+  ChevronLeft, Clock, CheckCircle2, Circle, AlertTriangle, AlertCircle, Hourglass,
+  FileText, Upload, Trash2, Loader2, BookOpen, HelpCircle, Download,
+  Send, Play, Code as CodeIcon, Plus, XCircle
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { formatDistanceToNow, parseISO, isPast, format } from 'date-fns';
+import CodeMirror from '@uiw/react-codemirror';
+import { java } from '@codemirror/lang-java';
+import StudentActivityCard from '../../components/student/StudentActivityCard';
+import '../../pages/student/Student.css';
+
+const typeConfig = {
+  quiz: { label: 'Quiz', color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.12)' },
+  file: { label: 'File Submission', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.12)' },
+  questions: { label: 'Q&A', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' },
+  material: { label: 'Material', color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' },
+};
+
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+export default function ActivityViewer() {
+  const { classId, activityId } = useParams();
+  const navigate = useNavigate();
+
+  const [sidebarActivities, setSidebarActivities] = useState([]);
+  const [sidebarLoading, setSidebarLoading] = useState(true);
+  const [activity, setActivity] = useState(null);
+  const [submission, setSubmission] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [answers, setAnswers] = useState({});
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [quizStarted, setQuizStarted] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(null);
+  const timerRef = useRef(null);
+
+  const fetchSidebar = useCallback(async () => {
+    try {
+      const res = await api.get(`/student/classes/${classId}/activities`);
+      setSidebarActivities(res.data);
+    } catch { /* ignore */ } finally { setSidebarLoading(false); }
+  }, [classId]);
+
+  const fetchActivity = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get(`/student/activities/${activityId}`);
+      setActivity(res.data.activity);
+      setSubmission(res.data.submission);
+
+      if (res.data.submission?.answers) {
+        const restored = {};
+        res.data.submission.answers.forEach(ans => {
+          try { restored[ans.question_id] = JSON.parse(ans.submitted_answer); }
+          catch { restored[ans.question_id] = ans.submitted_answer; }
+        });
+        setAnswers(restored);
+      }
+
+      if (res.data.submission?.attachments?.length) {
+        setUploadedFiles(res.data.submission.attachments);
+      }
+    } catch {
+      toast.error('Failed to load activity');
+      navigate(`/dashboard/student/class/${classId}?tab=activities`);
+    } finally { setLoading(false); }
+  }, [activityId, classId, navigate]);
+
+  useEffect(() => {
+    fetchSidebar();
+    fetchActivity();
+  }, [fetchSidebar, fetchActivity]);
+
+  useEffect(() => {
+    if (timeLeft === null || timeLeft <= 0) return;
+    timerRef.current = setInterval(() => setTimeLeft(prev => {
+      if (prev <= 1) {
+        clearInterval(timerRef.current);
+        handleSubmit();
+        return 0;
+      }
+      return prev - 1;
+    }), 1000);
+    return () => clearInterval(timerRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft, quizStarted]);
+
+  const startQuiz = () => {
+    setQuizStarted(true);
+    if (activity.time_limit_minutes) {
+      setTimeLeft(Math.floor(activity.time_limit_minutes * 60));
+    }
+  };
+
+  const saveAnswer = (qId, value) => {
+    setAnswers(prev => ({ ...prev, [qId]: value }));
+  };
+
+  const handleUploadFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post(`/student/activities/${activityId}/upload-file`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setUploadedFiles(res.data);
+      toast.success('File uploaded');
+    } catch {
+      toast.error('Failed to upload file');
+    } finally { setUploadingFile(false); }
+    e.target.value = '';
+  };
+
+  const handleRemoveFile = async (publicId) => {
+    try {
+      const res = await api.delete(`/student/activities/${activityId}/remove-file`, { data: { public_id: publicId } });
+      setUploadedFiles(res.data);
+      toast.success('File removed');
+    } catch {
+      toast.error('Failed to remove file');
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const payload = {};
+
+      if (activity.submission_type === 'questions') {
+        payload.answers = answers;
+        payload.question_ids = (activity.questions || []).map(q => q.id);
+      }
+
+      const res = await api.post(`/student/activities/${activityId}/submit`, payload);
+      setSubmission(res.data);
+      setQuizStarted(false);
+      setTimeLeft(null);
+      toast.success(activity.submission_type === 'material' ? 'Marked as complete' : 'Submitted successfully');
+
+      if (res.data.status === 'graded') {
+        if (res.data.answers) {
+          const restored = {};
+          res.data.answers.forEach(ans => {
+            try { restored[ans.question_id] = JSON.parse(ans.submitted_answer); }
+            catch { restored[ans.question_id] = ans.submitted_answer; }
+          });
+          setAnswers(restored);
+        }
+      }
+      fetchSidebar();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to submit');
+    } finally { setSubmitting(false); }
+  };
+
+  const currentTypeKey = activity?.activity_type === 'quiz' ? 'quiz' : (activity?.submission_type || 'quiz');
+  const typeInfo = typeConfig[currentTypeKey] || typeConfig.quiz;
+  const deadlineDate = activity?.deadline_at ? parseISO(activity.deadline_at) : null;
+  const isOverdue = deadlineDate && isPast(deadlineDate);
+  const isPastDue = isOverdue && activity?.deadline_behavior === 'hard';
+  const isSubmitted = submission?.status === 'submitted' || submission?.status === 'graded';
+  const isGraded = submission?.status === 'graded';
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: 'var(--bg-primary)' }}>
+        <Loader2 className="animate-spin" size={32} color="var(--text-tertiary)" />
+      </div>
+    );
+  }
+
+  if (!activity) return null;
+
+  return (
+    <div style={{ background: 'var(--bg-primary)', minHeight: '100vh', display: 'flex' }}>
+      {/* LEFT SIDEBAR */}
+      <aside style={{ width: '300px', flexShrink: 0, background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)' }}>
+          <Link to={`/dashboard/student/class/${classId}?tab=activities`}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-tertiary)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none', marginBottom: '12px' }}
+            className="hover:text-[var(--text-primary)] transition-all">
+            <ChevronLeft size={14} /> Back to Class
+          </Link>
+          <h3 style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            Activities
+          </h3>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }} className="custom-scrollbar">
+          {sidebarLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '24px' }}><Loader2 className="animate-spin" size={20} color="var(--text-tertiary)" /></div>
+          ) : sidebarActivities.length === 0 ? (
+            <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', textAlign: 'center', padding: '24px' }}>No activities yet</p>
+          ) : (
+            sidebarActivities.map(a => (
+              <Link
+                key={a.id}
+                to={`/dashboard/student/class/${classId}/activity/${a.id}`}
+                style={{ display: 'block', textDecoration: 'none', marginBottom: '6px' }}
+              >
+                <StudentActivityCard activity={a} classId={classId} />
+              </Link>
+            ))
+          )}
+        </div>
+      </aside>
+
+      {/* RIGHT CONTENT */}
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }} className="custom-scrollbar">
+        <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%', padding: '40px 32px 120px' }}>
+
+          {/* HEADER */}
+          <div style={{ marginBottom: '32px' }}>
+            <Link to={`/dashboard/student/class/${classId}?tab=activities`}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--text-tertiary)', fontSize: '12px', fontWeight: 600, textDecoration: 'none', marginBottom: '16px' }}
+              className="hover:text-[var(--text-primary)] transition-all">
+              <ChevronLeft size={14} /> Back to Class
+            </Link>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', background: typeInfo.bg, color: typeInfo.color }}>{typeInfo.label}</span>
+                  {isSubmitted && (
+                    <span style={{ fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', background: isGraded ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)', color: isGraded ? '#10b981' : '#f59e0b' }}>
+                      {isGraded ? `Graded: ${submission.score}/${submission.max_score}` : 'Submitted'}
+                    </span>
+                  )}
+                  {isPastDue && !isSubmitted && (
+                    <span style={{ fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444' }}>Missed</span>
+                  )}
+                </div>
+                <h1 style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 8px 0', letterSpacing: '-0.02em' }}>{activity.title}</h1>
+                {deadlineDate && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: isOverdue ? '#ef4444' : 'var(--text-tertiary)' }}>
+                    <Clock size={14} />
+                    <span>Due {format(deadlineDate, 'MMM d, yyyy h:mm a')} ({formatDistanceToNow(deadlineDate, { addSuffix: true })})</span>
+                  </div>
+                )}
+              </div>
+
+              {timeLeft !== null && timeLeft > 0 && (
+                <div style={{ padding: '12px 20px', borderRadius: '12px', background: timeLeft < 60 ? 'rgba(239, 68, 68, 0.12)' : 'rgba(167, 139, 250, 0.12)', border: `1px solid ${timeLeft < 60 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(167, 139, 250, 0.3)'}`, display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  <Clock size={18} color={timeLeft < 60 ? '#ef4444' : '#a78bfa'} />
+                  <span style={{ fontSize: '20px', fontWeight: 800, fontFamily: 'monospace', color: timeLeft < 60 ? '#ef4444' : '#a78bfa' }}>{formatTime(timeLeft)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* INSTRUCTIONS */}
+          {activity.description && (
+            <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', marginBottom: '24px' }}>
+              <h4 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 10px 0' }}>Instructions</h4>
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>{activity.description}</p>
+            </div>
+          )}
+
+          {/* INSTRUCTION FILES */}
+          {activity.instruction_files?.length > 0 && (
+            <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', marginBottom: '24px' }}>
+              <h4 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 10px 0' }}>Materials</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {activity.instruction_files.map((f, i) => (
+                  <a key={i} href={f.url} target="_blank" rel="noopener noreferrer"
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '10px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', textDecoration: 'none', color: 'var(--text-primary)', fontSize: '13px' }}>
+                    <FileText size={16} color="var(--accent)" />
+                    <span style={{ flex: 1 }}>{f.name}</span>
+                    <Download size={14} color="var(--text-tertiary)" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* SUBMISSION STATUS (after submit) */}
+          {isSubmitted && activity.submission_type !== 'material' && (
+            <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: isGraded ? 'rgba(16, 185, 129, 0.06)' : 'rgba(245, 158, 11, 0.06)', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: isGraded ? '16px' : 0 }}>
+                {isGraded ? <CheckCircle2 size={20} color="#10b981" /> : <Hourglass size={20} color="#f59e0b" />}
+                <div>
+                  <p style={{ fontSize: '14px', fontWeight: 700, color: isGraded ? '#10b981' : '#f59e0b', margin: 0 }}>
+                    {isGraded ? `Graded: ${submission.score}/${submission.max_score}` : 'Submitted — awaiting grade'}
+                  </p>
+                  {submission.submitted_at && (
+                    <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: '2px 0 0 0' }}>
+                      Submitted {formatDistanceToNow(parseISO(submission.submitted_at), { addSuffix: true })}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {isGraded && submission.answers?.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {(activity.questions || []).map((q, idx) => {
+                    const ans = submission.answers.find(a => Number(a.question_id) === Number(q.id));
+                    return (
+                      <div key={q.id} style={{ padding: '14px', borderRadius: '12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                          <div style={{ flex: 1 }}>
+                            <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+                              {idx + 1}. {q.question_text}
+                            </p>
+                            <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: 0 }}>
+                              Your answer: {ans?.submitted_answer || 'No answer'}
+                            </p>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                            {ans?.is_correct !== null ? (
+                              ans?.is_correct ? <CheckCircle2 size={16} color="#10b981" /> : <XCircle size={16} color="#ef4444" />
+                            ) : (
+                              <Clock size={16} color="#94a3b8" />
+                            )}
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: ans?.is_correct ? '#10b981' : ans?.is_correct === false ? '#ef4444' : 'var(--text-tertiary)' }}>
+                              {ans?.score || 0}/{q.points}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {isGraded && submission.teacher_notes && (
+                <div style={{ marginTop: '16px', padding: '14px', borderRadius: '10px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
+                  <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', margin: '0 0 6px 0' }}>Teacher Notes</p>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>{submission.teacher_notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* MISSED PAST DUE */}
+          {isPastDue && !isSubmitted && (
+            <div style={{ padding: '24px', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239, 68, 68, 0.06)', textAlign: 'center', marginBottom: '24px' }}>
+              <AlertCircle size={32} color="#ef4444" style={{ marginBottom: '12px' }} />
+              <p style={{ fontSize: '16px', fontWeight: 700, color: '#ef4444', margin: '0 0 4px 0' }}>Deadline Passed</p>
+              <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>This activity had a hard deadline and is no longer accepting submissions.</p>
+            </div>
+          )}
+
+          {/* FILE SUBMISSION */}
+          {activity.submission_type === 'file' && !isPastDue && (
+            <div style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
+              <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Upload size={16} /> {isSubmitted ? 'Submitted Files' : 'Upload Your Work'}
+              </h4>
+
+              {!isSubmitted && (
+                <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '32px', borderRadius: '12px', border: '2px dashed var(--border-color)', cursor: 'pointer', color: 'var(--text-tertiary)', marginBottom: '16px', transition: 'all 0.2s' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.background = 'var(--accent-light)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.background = 'transparent'; }}>
+                  <Upload size={24} />
+                  <span style={{ fontSize: '14px', fontWeight: 600 }}>{uploadingFile ? 'Uploading...' : 'Click to upload a file'}</span>
+                  <span style={{ fontSize: '11px' }}>PDF, DOC, images, code files — up to 50MB</span>
+                  <input type="file" onChange={handleUploadFile} hidden disabled={uploadingFile} />
+                </label>
+              )}
+
+              {uploadedFiles.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {uploadedFiles.map((f, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '10px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
+                      <FileText size={16} color="var(--accent)" />
+                      <span style={{ flex: 1, fontSize: '13px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{(f.size / 1024).toFixed(0)} KB</span>
+                      {!isSubmitted && (
+                        <button onClick={() => handleRemoveFile(f.public_id)} type="button"
+                          style={{ padding: '6px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', borderRadius: '6px', transition: 'all 0.2s' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.background = 'transparent'; }}>
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!isSubmitted && uploadedFiles.length > 0 && (
+                <button onClick={handleSubmit} disabled={submitting}
+                  style={{ marginTop: '16px', width: '100%', padding: '14px', borderRadius: '12px', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer', background: '#7c3aed', color: 'white', fontWeight: 700, fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: submitting ? 0.6 : 1 }}>
+                  {submitting ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
+                  {submitting ? 'Submitting...' : 'Turn In'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* QUESTIONS SUBMISSION */}
+          {activity.submission_type === 'questions' && !isPastDue && !isSubmitted && (
+            <div>
+              {!quizStarted ? (
+                <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+                  <HelpCircle size={48} color="var(--accent)" style={{ marginBottom: '16px' }} />
+                  <h3 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
+                    {activity.activity_type === 'quiz' ? 'Ready to start the quiz?' : 'Ready to answer?'}
+                  </h3>
+                  <p style={{ fontSize: '14px', color: 'var(--text-tertiary)', maxWidth: '400px', margin: '0 auto 24px' }}>
+                    {activity.questions?.length || 0} question{(activity.questions?.length || 0) !== 1 ? 's' : ''}
+                    {activity.time_limit_minutes ? ` · ${activity.time_limit_minutes} min timer` : ''}
+                  </p>
+                  <button onClick={startQuiz}
+                    style={{ padding: '14px 32px', borderRadius: '12px', border: 'none', cursor: 'pointer', background: '#7c3aed', color: 'white', fontWeight: 700, fontSize: '15px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <Play size={18} /> Start
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {(activity.questions || []).map((q, idx) => (
+                    <QuestionRenderer key={q.id} question={q} index={idx} value={answers[q.id]} onChange={(val) => saveAnswer(q.id, val)} />
+                  ))}
+
+                  <button onClick={handleSubmit} disabled={submitting}
+                    style={{ width: '100%', padding: '16px', borderRadius: '12px', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer', background: '#7c3aed', color: 'white', fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: submitting ? 0.6 : 1 }}>
+                    {submitting ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+                    {submitting ? 'Submitting...' : 'Submit Answers'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* MATERIAL */}
+          {activity.submission_type === 'material' && !isSubmitted && (
+            <div style={{ textAlign: 'center', padding: '48px 24px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
+              <BookOpen size={48} color="#10b981" style={{ marginBottom: '16px' }} />
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px 0' }}>Review the material above</h3>
+              <p style={{ fontSize: '14px', color: 'var(--text-tertiary)', margin: '0 0 24px 0' }}>No submission needed. Click below when you're done.</p>
+              <button onClick={handleSubmit} disabled={submitting}
+                style={{ padding: '14px 32px', borderRadius: '12px', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer', background: '#10b981', color: 'white', fontWeight: 700, fontSize: '15px', display: 'inline-flex', alignItems: 'center', gap: '8px', opacity: submitting ? 0.6 : 1 }}>
+                {submitting ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />}
+                Mark as Read
+              </button>
+            </div>
+          )}
+
+          {activity.submission_type === 'material' && isSubmitted && (
+            <div style={{ textAlign: 'center', padding: '32px', borderRadius: '16px', border: '1px solid rgba(16, 185, 129, 0.3)', background: 'rgba(16, 185, 129, 0.06)' }}>
+              <CheckCircle2 size={40} color="#10b981" style={{ marginBottom: '12px' }} />
+              <p style={{ fontSize: '16px', fontWeight: 700, color: '#10b981', margin: 0 }}>Completed</p>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function QuestionRenderer({ question, index, value, onChange }) {
+  const [codeOutput, setCodeOutput] = useState('');
+  const [isRunning, setIsRunning] = useState(false);
+
+  if (question.type === 'multiple_choice') {
+    return (
+      <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. {question.question_text}</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {(question.options || []).map((opt, i) => (
+            <label key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '10px', border: `1px solid ${value === String(i) ? '#a78bfa' : 'var(--border-color)'}`, background: value === String(i) ? 'rgba(167, 139, 250, 0.08)' : 'var(--bg-primary)', cursor: 'pointer', transition: 'all 0.2s' }}>
+              <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: `2px solid ${value === String(i) ? '#a78bfa' : 'var(--border-color)'}`, background: value === String(i) ? '#a78bfa' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {value === String(i) && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'white' }} />}
+              </div>
+              <span style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{opt}</span>
+              <input type="radio" name={`q_${question.id}`} checked={value === String(i)} onChange={() => onChange(String(i))} style={{ display: 'none' }} />
+            </label>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (question.type === 'true_false') {
+    return (
+      <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. {question.question_text}</p>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          {['True', 'False'].map(opt => {
+            const sel = value === opt;
+            const clr = opt === 'True' ? '#10b981' : '#ef4444';
+            return (
+              <button key={opt} onClick={() => onChange(opt)}
+                style={{ flex: 1, padding: '14px', borderRadius: '12px', cursor: 'pointer', fontWeight: 700, fontSize: '14px', border: `2px solid ${sel ? clr : 'var(--border-color)'}`, background: sel ? `${clr}1a` : 'var(--bg-primary)', color: sel ? clr : 'var(--text-secondary)' }}>
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (question.type === 'identification' || question.type === 'short_answer') {
+    return (
+      <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. {question.question_text}</p>
+        <input type="text" value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder="Type your answer..."
+          style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+      </div>
+    );
+  }
+
+  if (question.type === 'enumeration') {
+    const items = Array.isArray(value) ? value : [''];
+    const addItem = () => onChange([...items, '']);
+    const updateItem = (i, v) => { const n = [...items]; n[i] = v; onChange(n); };
+    const removeItem = (i) => onChange(items.filter((_, idx) => idx !== i));
+    return (
+      <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. {question.question_text}</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {items.map((item, i) => (
+            <div key={i} style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', flexShrink: 0 }}>{i + 1}</div>
+              <input type="text" value={item} onChange={(e) => updateItem(i, e.target.value)} placeholder={`Answer ${i + 1}`}
+                style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
+              {items.length > 1 && (
+                <button onClick={() => removeItem(i)} type="button"
+                  style={{ padding: '6px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', borderRadius: '6px' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.background = 'transparent'; }}>
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        <button onClick={addItem} type="button"
+          style={{ marginTop: '8px', padding: '8px 14px', background: 'transparent', border: '1px dashed var(--border-color)', borderRadius: '8px', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: '13px' }}>
+          <Plus size={14} style={{ marginRight: '4px' }} /> Add answer
+        </button>
+      </div>
+    );
+  }
+
+  if (question.type === 'coding') {
+    const runCode = async () => {
+      setIsRunning(true);
+      setCodeOutput('');
+      try {
+        const res = await api.post('/student/execute', {
+          language: 'java',
+          code: value || question.boilerplate || '',
+        });
+        setCodeOutput(res.data.stdout || res.data.stderr || res.data.compile_output || 'No output');
+      } catch {
+        setCodeOutput('Error executing code');
+      } finally { setIsRunning(false); }
+    };
+
+    const insertBoilerplate = () => {
+      const bp = question.boilerplate || 'public class Main {\n  public static void main(String[] args) {\n    System.out.println("Hello");\n  }\n}';
+      onChange(bp);
+    };
+
+    return (
+      <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. {question.question_text}</p>
+        <div style={{ marginBottom: '8px', display: 'flex', gap: '8px' }}>
+          <button onClick={insertBoilerplate} type="button"
+            style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.3)', background: 'rgba(59, 130, 246, 0.08)', color: '#3b82f6', cursor: 'pointer', fontWeight: 600, fontSize: '11px' }}>
+            <CodeIcon size={14} style={{ marginRight: '4px' }} /> Reset Boilerplate
+          </button>
+        </div>
+        <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+          <CodeMirror value={value || question.boilerplate || ''} onChange={onChange} height="200px" extensions={[java()]} theme="dark" />
+        </div>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+          <button onClick={runCode} disabled={isRunning} type="button"
+            style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#10b981', color: 'white', cursor: isRunning ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', opacity: isRunning ? 0.6 : 1 }}>
+            {isRunning ? <Loader2 className="animate-spin" size={14} /> : <Play size={14} />} Run
+          </button>
+        </div>
+        {codeOutput && (
+          <div style={{ marginTop: '8px', padding: '12px', borderRadius: '8px', background: '#1a1a2e', color: '#e2e8f0', fontSize: '13px', fontFamily: 'monospace', whiteSpace: 'pre-wrap', maxHeight: '150px', overflow: 'auto' }}>
+            {codeOutput}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (question.type === 'essay') {
+    return (
+      <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. {question.question_text}</p>
+        <textarea value={value || ''} onChange={(e) => onChange(e.target.value)} rows={5} placeholder="Write your response..."
+          style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+      </div>
+    );
+  }
+
+  return null;
+}

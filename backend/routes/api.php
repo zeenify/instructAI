@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\Student\AIChatController;
+use App\Http\Controllers\Student\ClassActivityController as StudentClassActivityController;
 use App\Http\Controllers\Student\CodeExecutionController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
 use App\Http\Controllers\Student\EnrollmentController;
@@ -123,6 +124,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // AI Chat (Student)
     Route::post('/student/ai/chat', [AIChatController::class, 'chat']);
     Route::post('/student/ai/history', [AIChatController::class, 'loadHistory']);
+
+    // Student Class Activities
+    Route::get('/student/classes/{classId}/activities', [StudentClassActivityController::class, 'index']);
+    Route::get('/student/activities/{id}', [StudentClassActivityController::class, 'show']);
+    Route::post('/student/activities/{id}/submit', [StudentClassActivityController::class, 'submit']);
+    Route::post('/student/activities/{id}/upload-file', [StudentClassActivityController::class, 'uploadFile']);
+    Route::delete('/student/activities/{id}/remove-file', [StudentClassActivityController::class, 'removeFile']);
 
     // Indexing (Teacher)
     Route::post('/teacher/courses/{id}/index', [IndexingController::class, 'indexCourse']);

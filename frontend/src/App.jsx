@@ -24,6 +24,7 @@ import Analytics from './pages/teacher/Analytics';
 import StudentOverview from './pages/student/StudentOverview';
 import ClassView from './pages/student/Classview';
 import CourseViewer from './pages/student/CourseViewer';
+import ActivityViewer from './pages/student/ActivityViewer';
 
 // Layouts
 import TeacherLayout from './components/layouts/TeacherLayout';
@@ -95,6 +96,16 @@ function App() {
             {/* These sub-routes allow the URL to change to /lesson/5 or /quiz/1 */}
             <Route path=":itemType/:itemId" element={<CourseViewer />} />
           </Route>
+
+          {/* --- Student Activity Viewer (Focus Mode - No Main Sidebar) --- */}
+          <Route 
+              path="/dashboard/student/class/:classId/activity/:activityId" 
+              element={
+                  <ProtectedRoute allowedRole="student">
+                      <ActivityViewer />
+                  </ProtectedRoute>
+              } 
+          />
 
 
           
