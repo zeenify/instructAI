@@ -176,6 +176,11 @@ class ClassActivityController extends Controller
                         }
                     }
 
+                    if (in_array($question->type, ['essay', 'coding'])) {
+                        $score = 0;
+                        $isCorrect = false;
+                    }
+
                     ActivityAnswer::updateOrCreate(
                         [
                             'submission_id' => $submission->id,
@@ -192,10 +197,11 @@ class ClassActivityController extends Controller
                 }
 
                 if ($activity->grading_method === 'auto') {
+                    $hasManualTypes = $activity->questions->contains(fn($q) => in_array($q->type, ['essay', 'coding']));
                     $submission->update([
                         'score' => $totalScore,
-                        'status' => 'graded',
-                        'graded_at' => now(),
+                        'status' => $hasManualTypes ? 'submitted' : 'graded',
+                        'graded_at' => $hasManualTypes ? null : now(),
                     ]);
                 }
             }
@@ -210,6 +216,35 @@ class ClassActivityController extends Controller
             $submission->load('answers.question');
             return response()->json($submission);
         });
+    }
+
+    public function unsubmit($id)
+    {
+        $activity = ClassActivity::findOrFail($id);
+        $this->checkEnrollment($activity->class_id);
+
+        if ($activity->deadline_at && now()->gt($activity->deadline_at) && $activity->deadline_behavior === 'hard') {
+            return response()->json(['message' => 'Deadline has passed'], 422);
+        }
+
+        $submission = ActivitySubmission::where('activity_id', $activity->id)
+            ->where('student_id', auth()->id())
+            ->first();
+
+        if (!$submission || $submission->status === 'draft') {
+            return response()->json(['message' => 'No submission to unsubmit'], 422);
+        }
+
+        $submission->update([
+            'status' => 'draft',
+            'submitted_at' => null,
+            'score' => null,
+            'max_score' => null,
+            'graded_at' => null,
+            'graded_by' => null,
+        ]);
+
+        return response()->json(['message' => 'Submission unsubmitted']);
     }
 
     public function uploadFile(Request $request, $id)
@@ -258,6 +293,15 @@ class ClassActivityController extends Controller
             'activity_id' => $id,
             'student_id' => auth()->id(),
         ]);
+
+        if ($submission->exists && in_array($submission->status, ['submitted', 'graded'])) {
+            $submission->update([
+                'status' => 'draft',
+                'score' => null,
+                'graded_at' => null,
+                'graded_by' => null,
+            ]);
+        }
 
         if (! $submission->exists) {
             $submission->fill([

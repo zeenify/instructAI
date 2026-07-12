@@ -129,6 +129,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/student/classes/{classId}/activities', [StudentClassActivityController::class, 'index']);
     Route::get('/student/activities/{id}', [StudentClassActivityController::class, 'show']);
     Route::post('/student/activities/{id}/submit', [StudentClassActivityController::class, 'submit']);
+    Route::post('/student/activities/{id}/unsubmit', [StudentClassActivityController::class, 'unsubmit']);
     Route::post('/student/activities/{id}/upload-file', [StudentClassActivityController::class, 'uploadFile']);
     Route::delete('/student/activities/{id}/remove-file', [StudentClassActivityController::class, 'removeFile']);
 
@@ -170,5 +171,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Activity Submissions (Grading)
     Route::get('/teacher/activities/{activityId}/submissions', [ClassActivityController::class, 'submissions']);
     Route::post('/teacher/activities/{activityId}/submissions/{submissionId}/grade', [ClassActivityController::class, 'gradeSubmission']);
+    Route::get('/teacher/activities/{activityId}/enrolled-students', [ClassActivityController::class, 'getEnrolledWithStatus']);
+    Route::post('/teacher/activities/{activityId}/grade-bulk', [ClassActivityController::class, 'gradeBulk']);
+
+    // Gradebook
+    Route::get('/teacher/classes/{classId}/gradebook', [ClassActivityController::class, 'gradebook']);
 
 });

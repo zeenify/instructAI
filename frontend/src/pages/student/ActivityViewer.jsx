@@ -1,10 +1,10 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../../services/api';
 import {
   ChevronLeft, Clock, CheckCircle2, Circle, AlertTriangle, AlertCircle, Hourglass,
-  FileText, Upload, Trash2, Loader2, BookOpen, HelpCircle, Download,
-  Send, Play, Code as CodeIcon, Plus, XCircle
+  FileText, Upload, Trash2, Loader2, BookOpen, Download, ImageIcon,
+  Send, Code as CodeIcon, Plus, XCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow, parseISO, isPast, format } from 'date-fns';
@@ -20,12 +20,6 @@ const typeConfig = {
   material: { label: 'Material', color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' },
 };
 
-function formatTime(seconds) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
 export default function ActivityViewer() {
   const { classId, activityId } = useParams();
   const navigate = useNavigate();
@@ -39,9 +33,7 @@ export default function ActivityViewer() {
   const [answers, setAnswers] = useState({});
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [uploadingFile, setUploadingFile] = useState(false);
-  const [quizStarted, setQuizStarted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(null);
-  const timerRef = useRef(null);
+  const [unsubmitting, setUnsubmitting] = useState(false);
 
   const fetchSidebar = useCallback(async () => {
     try {
@@ -75,31 +67,8 @@ export default function ActivityViewer() {
     } finally { setLoading(false); }
   }, [activityId, classId, navigate]);
 
-  useEffect(() => {
-    fetchSidebar();
-    fetchActivity();
-  }, [fetchSidebar, fetchActivity]);
-
-  useEffect(() => {
-    if (timeLeft === null || timeLeft <= 0) return;
-    timerRef.current = setInterval(() => setTimeLeft(prev => {
-      if (prev <= 1) {
-        clearInterval(timerRef.current);
-        handleSubmit();
-        return 0;
-      }
-      return prev - 1;
-    }), 1000);
-    return () => clearInterval(timerRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeLeft, quizStarted]);
-
-  const startQuiz = () => {
-    setQuizStarted(true);
-    if (activity.time_limit_minutes) {
-      setTimeLeft(Math.floor(activity.time_limit_minutes * 60));
-    }
-  };
+  useEffect(() => { fetchSidebar(); }, [fetchSidebar]);
+  useEffect(() => { fetchActivity(); }, [fetchActivity]);
 
   const saveAnswer = (qId, value) => {
     setAnswers(prev => ({ ...prev, [qId]: value }));
@@ -135,6 +104,19 @@ export default function ActivityViewer() {
 
   const handleSubmit = async () => {
     if (submitting) return;
+
+    if (activity.submission_type === 'questions') {
+      const unanswered = (activity.questions || []).filter(q => {
+        const val = answers[q.id];
+        if (q.type === 'enumeration') return !Array.isArray(val) || val.every(v => !v.trim());
+        if (q.type === 'essay' || q.type === 'coding' || q.type === 'short_answer' || q.type === 'identification') return !val || !String(val).trim();
+        return val === undefined || val === null || val === '';
+      });
+      if (unanswered.length > 0) {
+        if (!window.confirm(`You have ${unanswered.length} unanswered question${unanswered.length !== 1 ? 's' : ''}. Submit anyway?`)) return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const payload = {};
@@ -146,8 +128,6 @@ export default function ActivityViewer() {
 
       const res = await api.post(`/student/activities/${activityId}/submit`, payload);
       setSubmission(res.data);
-      setQuizStarted(false);
-      setTimeLeft(null);
       toast.success(activity.submission_type === 'material' ? 'Marked as complete' : 'Submitted successfully');
 
       if (res.data.status === 'graded') {
@@ -166,6 +146,20 @@ export default function ActivityViewer() {
     } finally { setSubmitting(false); }
   };
 
+  const handleUnsubmit = useCallback(async () => {
+    if (unsubmitting) return;
+    if (!window.confirm('Unsubmit this activity? You can submit again later.')) return;
+    setUnsubmitting(true);
+    try {
+      await api.post(`/student/activities/${activityId}/unsubmit`);
+      toast.success('Submission unsubmitted');
+      setSubmission(null);
+      await fetchSidebar();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to unsubmit');
+    } finally { setUnsubmitting(false); }
+  }, [activityId, unsubmitting, fetchSidebar]);
+
   const currentTypeKey = activity?.activity_type === 'quiz' ? 'quiz' : (activity?.submission_type || 'quiz');
   const typeInfo = typeConfig[currentTypeKey] || typeConfig.quiz;
   const deadlineDate = activity?.deadline_at ? parseISO(activity.deadline_at) : null;
@@ -173,6 +167,7 @@ export default function ActivityViewer() {
   const isPastDue = isOverdue && activity?.deadline_behavior === 'hard';
   const isSubmitted = submission?.status === 'submitted' || submission?.status === 'graded';
   const isGraded = submission?.status === 'graded';
+  const canUnsubmit = !isPastDue && isSubmitted && activity.submission_type === 'file';
 
   if (loading) {
     return (
@@ -185,7 +180,7 @@ export default function ActivityViewer() {
   if (!activity) return null;
 
   return (
-    <div style={{ background: 'var(--bg-primary)', minHeight: '100vh', display: 'flex' }}>
+    <div style={{ background: 'var(--bg-primary)', height: '100vh', display: 'flex', overflow: 'hidden' }}>
       {/* LEFT SIDEBAR */}
       <aside style={{ width: '300px', flexShrink: 0, background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)' }}>
@@ -210,7 +205,7 @@ export default function ActivityViewer() {
                 to={`/dashboard/student/class/${classId}/activity/${a.id}`}
                 style={{ display: 'block', textDecoration: 'none', marginBottom: '6px' }}
               >
-                <StudentActivityCard activity={a} classId={classId} />
+                <StudentActivityCard activity={a} classId={classId} isActive={String(a.id) === String(activityId)} />
               </Link>
             ))
           )}
@@ -219,7 +214,7 @@ export default function ActivityViewer() {
 
       {/* RIGHT CONTENT */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }} className="custom-scrollbar">
-        <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%', padding: '40px 32px 120px' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', width: '100%', padding: '40px 64px 120px' }}>
 
           {/* HEADER */}
           <div style={{ marginBottom: '32px' }}>
@@ -251,12 +246,6 @@ export default function ActivityViewer() {
                 )}
               </div>
 
-              {timeLeft !== null && timeLeft > 0 && (
-                <div style={{ padding: '12px 20px', borderRadius: '12px', background: timeLeft < 60 ? 'rgba(239, 68, 68, 0.12)' : 'rgba(167, 139, 250, 0.12)', border: `1px solid ${timeLeft < 60 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(167, 139, 250, 0.3)'}`, display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                  <Clock size={18} color={timeLeft < 60 ? '#ef4444' : '#a78bfa'} />
-                  <span style={{ fontSize: '20px', fontWeight: 800, fontFamily: 'monospace', color: timeLeft < 60 ? '#ef4444' : '#a78bfa' }}>{formatTime(timeLeft)}</span>
-                </div>
-              )}
             </div>
           </div>
 
@@ -273,14 +262,30 @@ export default function ActivityViewer() {
             <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', marginBottom: '24px' }}>
               <h4 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 10px 0' }}>Materials</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {activity.instruction_files.map((f, i) => (
-                  <a key={i} href={f.url} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '10px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', textDecoration: 'none', color: 'var(--text-primary)', fontSize: '13px' }}>
-                    <FileText size={16} color="var(--accent)" />
-                    <span style={{ flex: 1 }}>{f.name}</span>
-                    <Download size={14} color="var(--text-tertiary)" />
-                  </a>
-                ))}
+                {activity.instruction_files.map((f, i) => {
+                  const isImage = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.name);
+                  return isImage ? (
+                    <div key={i} style={{ borderRadius: '10px', overflow: 'hidden', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', width: '360px' }}>
+                      <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', height: '220px', background: '#f9fafb', cursor: 'pointer' }}>
+                        <img src={f.url} alt={f.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      </a>
+                      <div style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '10px', borderTop: '1px solid var(--border-color)' }}>
+                        <ImageIcon size={14} color="var(--text-tertiary)" />
+                        <span style={{ flex: 1, fontSize: '13px', color: 'var(--text-primary)' }}>{f.name}</span>
+                        <a href={f.url} download={f.name} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'var(--accent)', fontSize: '12px', gap: '4px' }}>
+                          <Download size={14} /> Download
+                        </a>
+                      </div>
+                    </div>
+                  ) : (
+                    <a key={i} href={f.url} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '10px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', textDecoration: 'none', color: 'var(--text-primary)', fontSize: '13px' }}>
+                      <FileText size={16} color="var(--accent)" />
+                      <span style={{ flex: 1 }}>{f.name}</span>
+                      <Download size={14} color="var(--text-tertiary)" />
+                    </a>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -292,7 +297,7 @@ export default function ActivityViewer() {
                 {isGraded ? <CheckCircle2 size={20} color="#10b981" /> : <Hourglass size={20} color="#f59e0b" />}
                 <div>
                   <p style={{ fontSize: '14px', fontWeight: 700, color: isGraded ? '#10b981' : '#f59e0b', margin: 0 }}>
-                    {isGraded ? `Graded: ${submission.score}/${submission.max_score}` : 'Submitted — awaiting grade'}
+                    {isGraded ? `Graded: ${Number(submission.score).toFixed(0)}/${Number(submission.max_score).toFixed(0)}` : 'Submitted — awaiting grade'}
                   </p>
                   {submission.submitted_at && (
                     <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: '2px 0 0 0' }}>
@@ -324,7 +329,7 @@ export default function ActivityViewer() {
                               <Clock size={16} color="#94a3b8" />
                             )}
                             <span style={{ fontSize: '13px', fontWeight: 700, color: ans?.is_correct ? '#10b981' : ans?.is_correct === false ? '#ef4444' : 'var(--text-tertiary)' }}>
-                              {ans?.score || 0}/{q.points}
+                              {Number(ans?.score || 0).toFixed(0)}/{Number(q.points).toFixed(0)}
                             </span>
                           </div>
                         </div>
@@ -338,6 +343,19 @@ export default function ActivityViewer() {
                 <div style={{ marginTop: '16px', padding: '14px', borderRadius: '10px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
                   <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', margin: '0 0 6px 0' }}>Teacher Notes</p>
                   <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>{submission.teacher_notes}</p>
+                </div>
+              )}
+
+              {canUnsubmit && (
+                <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+                  <button onClick={handleUnsubmit} disabled={unsubmitting}
+                    style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: '#ef4444', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-primary)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}
+                  >
+                    {unsubmitting ? <Loader2 className="animate-spin" size={14} /> : <Trash2 size={14} />}
+                    {unsubmitting ? 'Unsubmitting...' : 'Unsubmit'}
+                  </button>
                 </div>
               )}
             </div>
@@ -402,35 +420,19 @@ export default function ActivityViewer() {
 
           {/* QUESTIONS SUBMISSION */}
           {activity.submission_type === 'questions' && !isPastDue && !isSubmitted && (
-            <div>
-              {!quizStarted ? (
-                <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-                  <HelpCircle size={48} color="var(--accent)" style={{ marginBottom: '16px' }} />
-                  <h3 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
-                    {activity.activity_type === 'quiz' ? 'Ready to start the quiz?' : 'Ready to answer?'}
-                  </h3>
-                  <p style={{ fontSize: '14px', color: 'var(--text-tertiary)', maxWidth: '400px', margin: '0 auto 24px' }}>
-                    {activity.questions?.length || 0} question{(activity.questions?.length || 0) !== 1 ? 's' : ''}
-                    {activity.time_limit_minutes ? ` · ${activity.time_limit_minutes} min timer` : ''}
-                  </p>
-                  <button onClick={startQuiz}
-                    style={{ padding: '14px 32px', borderRadius: '12px', border: 'none', cursor: 'pointer', background: '#7c3aed', color: 'white', fontWeight: 700, fontSize: '15px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                    <Play size={18} /> Start
-                  </button>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {(activity.questions || []).map((q, idx) => (
-                    <QuestionRenderer key={q.id} question={q} index={idx} value={answers[q.id]} onChange={(val) => saveAnswer(q.id, val)} />
-                  ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <p style={{ fontSize: '14px', color: 'var(--text-tertiary)', margin: '0 0 8px 0' }}>
+                {activity.questions?.length || 0} question{(activity.questions?.length || 0) !== 1 ? 's' : ''}
+              </p>
+              {(activity.questions || []).map((q, idx) => (
+                <QuestionRenderer key={q.id} question={q} index={idx} value={answers[q.id]} onChange={(val) => saveAnswer(q.id, val)} />
+              ))}
 
-                  <button onClick={handleSubmit} disabled={submitting}
-                    style={{ width: '100%', padding: '16px', borderRadius: '12px', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer', background: '#7c3aed', color: 'white', fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: submitting ? 0.6 : 1 }}>
-                    {submitting ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
-                    {submitting ? 'Submitting...' : 'Submit Answers'}
-                  </button>
-                </div>
-              )}
+              <button onClick={handleSubmit} disabled={submitting}
+                style={{ width: '100%', padding: '16px', borderRadius: '12px', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer', background: '#7c3aed', color: 'white', fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: submitting ? 0.6 : 1 }}>
+                {submitting ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+                {submitting ? 'Submitting...' : 'Submit Answers'}
+              </button>
             </div>
           )}
 

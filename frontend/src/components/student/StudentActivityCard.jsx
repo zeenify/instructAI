@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Clock, CheckCircle2, Circle, AlertTriangle, Hourglass, FileText, HelpCircle, BookOpen, Loader2 } from 'lucide-react';
-import { formatDistanceToNow, isPast, parseISO } from 'date-fns';
+import { format, isPast, parseISO } from 'date-fns';
 
 const submissionConfig = {
   quiz: { label: 'Quiz', icon: HelpCircle, color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.12)' },
@@ -17,7 +17,7 @@ const statusConfig = {
   missed: { icon: AlertTriangle, color: '#ef4444', label: 'Missed' },
 };
 
-export default function StudentActivityCard({ activity, classId }) {
+export default function StudentActivityCard({ activity, classId, isActive }) {
   const navigate = useNavigate();
 
   const typeKey = activity.activity_type === 'quiz' ? 'quiz' : (activity.submission_type || 'quiz');
@@ -38,18 +38,18 @@ export default function StudentActivityCard({ activity, classId }) {
     <div
       onClick={handleClick}
       style={{
-        background: 'var(--bg-secondary)',
-        border: '1px solid var(--border-color)',
+        background: isActive ? 'var(--accent-light)' : 'var(--bg-secondary)',
+        border: `1px solid ${isActive ? 'var(--accent-glow)' : 'var(--border-color)'}`,
         borderRadius: '20px',
         padding: '20px',
         cursor: 'pointer',
-        transition: 'all 0.2s',
+        transition: 'all 0.15s',
         display: 'flex',
         alignItems: 'center',
         gap: '16px',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.1)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.boxShadow = 'none'; }}
+      onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.1)'; } }}
+      onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.boxShadow = 'none'; } }}
     >
       <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: typeInfo.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
         <TypeIcon size={22} color={typeInfo.color} />
@@ -64,7 +64,7 @@ export default function StudentActivityCard({ activity, classId }) {
           {deadlineDate && (
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isOverdue ? '#ef4444' : 'var(--text-tertiary)' }}>
               <Clock size={12} />
-              {isOverdue ? 'Overdue by ' : 'Due '}{formatDistanceToNow(deadlineDate, { addSuffix: true })}
+              Due {format(deadlineDate, 'MMM d, yyyy h:mm a')}
             </span>
           )}
           {activity.questions_count > 0 && (
@@ -76,7 +76,7 @@ export default function StudentActivityCard({ activity, classId }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
         {activity.submission_summary?.status === 'graded' && (
           <span style={{ fontSize: '13px', fontWeight: 700, color: statusInfo.color }}>
-            {activity.submission_summary.score}/{activity.submission_summary.max_score}
+            {Number(activity.submission_summary.score).toFixed(0)}/{Number(activity.submission_summary.max_score).toFixed(0)}
           </span>
         )}
         <StatusIcon size={18} color={statusInfo.color} title={statusInfo.label} />

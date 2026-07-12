@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, Reorder, useDragControls } from 'framer-motion';
-import { ChevronLeft, Plus, Trash2, GripVertical, Clock, Eye, EyeOff, Loader2, HelpCircle, Upload, BookOpen, Edit3 } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, GripVertical, Clock, Eye, EyeOff, Loader2, HelpCircle, Upload, BookOpen, Edit3, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
 import ActivityTypeBadge from '../../components/teacher/ActivityTypeBadge';
@@ -61,12 +61,23 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!questionText.trim()) return;
+
+    if (type === 'multiple_choice') {
+      const valid = options.filter(o => o.trim());
+      if (valid.length < 2) {
+        toast.error('Multiple choice needs at least 2 options');
+        return;
+      }
+    }
+
+    const safePoints = Math.max(0, Number(points) || 0);
+
     setLoading(true);
     try {
       const payload = {
         type,
         question_text: questionText.trim(),
-        points: type === 'enumeration' ? points * options.filter(o => o.trim()).length : points,
+        points: type === 'enumeration' ? safePoints * options.filter(o => o.trim()).length : safePoints,
       };
       if (type === 'multiple_choice') {
         const filteredOptions = options.filter(o => o.trim());
@@ -144,7 +155,7 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
               <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
                 {type === 'enumeration' ? 'Points per correct answer' : 'Points'}
               </label>
-              <input type="number" min={0} step={0.5} value={points} onChange={(e) => setPoints(Number(e.target.value))}
+              <input type="number" min={0} step={0.5} value={points} onChange={(e) => setPoints(Math.max(0, Number(e.target.value) || 0))}
                 style={{ width: '100px', padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
             </div>
             {type === 'enumeration' && options.filter(o => o.trim()).length > 0 && (
@@ -169,7 +180,11 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
                   <input type="text" value={opt} onChange={(e) => { const n = [...options]; n[i] = e.target.value; setOptions(n); }} placeholder={'Option ' + (i + 1)}
                     style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
                   {options.length > 2 && (
-                    <button type="button" onClick={() => setOptions(options.filter((_, idx) => idx !== i))}
+                    <button type="button" onClick={() => {
+                      setOptions(options.filter((_, idx) => idx !== i));
+                      if (correctOption > i) setCorrectOption(correctOption - 1);
+                      else if (correctOption === i) setCorrectOption(0);
+                    }}
                       style={{ padding: '6px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', borderRadius: '6px', transition: 'all 0.2s' }}
                       onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.background = 'transparent'; }}><Trash2 size={14} /></button>
@@ -277,7 +292,7 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
   );
 }
 
-function QuestionBlock({ question, index, onUpdate, onDelete, onEdit, isPastDue, dragControls }) {
+function QuestionBlock({ question, index, onUpdate, onDelete, onEdit, disabled, dragControls }) {
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(question.question_text);
   const points = question.points;
@@ -326,14 +341,14 @@ function QuestionBlock({ question, index, onUpdate, onDelete, onEdit, isPastDue,
           </div>
         </div>
         <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-          {!isPastDue && (
+          {!disabled && (
             <button onClick={() => onEdit?.(question)}
               style={{ padding: '8px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', borderRadius: '8px', transition: 'all 0.2s' }}
               onMouseEnter={(e) => { e.currentTarget.style.color = '#a78bfa'; e.currentTarget.style.background = 'rgba(167, 139, 250, 0.1)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.background = 'transparent'; }}
               type="button" title="Edit question"><Edit3 size={14} /></button>
           )}
-          {!isPastDue && (
+          {!disabled && (
             <button onClick={() => onDelete(question)}
               style={{ padding: '8px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', borderRadius: '8px', transition: 'all 0.2s' }}
               onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
@@ -346,11 +361,11 @@ function QuestionBlock({ question, index, onUpdate, onDelete, onEdit, isPastDue,
   );
 }
 
-function ReorderItemWrapper({ question, index, onUpdate, onDelete, onEdit, isPastDue }) {
+function ReorderItemWrapper({ question, index, onUpdate, onDelete, onEdit, disabled }) {
   const dragControls = useDragControls();
   return (
     <Reorder.Item value={question} dragListener={false} dragControls={dragControls}>
-      <QuestionBlock question={question} index={index} onUpdate={onUpdate} onDelete={onDelete} onEdit={onEdit} isPastDue={isPastDue} dragControls={dragControls} />
+      <QuestionBlock question={question} index={index} onUpdate={onUpdate} onDelete={onDelete} onEdit={onEdit} disabled={disabled} dragControls={dragControls} />
     </Reorder.Item>
   );
 }
@@ -507,6 +522,8 @@ export default function ActivityEditor() {
   const isQuiz = activity.activity_type === 'quiz';
   const isActivity = activity.activity_type === 'activity';
   const isPastDue = activity.deadline_at && new Date(activity.deadline_at) < new Date();
+  const isLocked = activity.is_published && (activity.submissions_count || 0) > 0;
+  const questionsDisabled = isPastDue || isLocked;
   const totalQuestionPoints = (activity.questions || []).reduce((sum, q) => sum + Number(q.points), 0);
 
   return (
@@ -538,6 +555,10 @@ export default function ActivityEditor() {
             style={{ fontSize: '28px', fontWeight: 700, color: isPastDue ? 'var(--text-tertiary)' : 'var(--text-primary)', background: 'transparent', border: 'none', outline: 'none', width: '100%', padding: '4px 0', margin: 0, fontFamily: 'inherit' }} />
         </div>
         <div style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
+          <button onClick={() => navigate(`/dashboard/teacher/class/${classId}/activity/${activityId}/submissions`)}
+            style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'rgba(167, 139, 250, 0.1)', color: '#a78bfa', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }} type="button">
+            <UserCheck size={16} /> Submissions
+          </button>
           <button onClick={handlePublish} disabled={isPastDue}
             style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '10px', border: '1px solid var(--border-color)', background: activity.is_published ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-secondary)', color: activity.is_published ? '#16a34a' : 'var(--text-secondary)', cursor: isPastDue ? 'not-allowed' : 'pointer', opacity: isPastDue ? 0.5 : 1, fontWeight: 600, fontSize: '13px' }} type="button">
             {activity.is_published ? <Eye size={16} /> : <EyeOff size={16} />}
@@ -559,14 +580,14 @@ export default function ActivityEditor() {
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '10px', border: '1px dashed var(--border-color)', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: '13px', fontWeight: 600, transition: 'all 0.3s' }}>
                 <Upload size={16} />
                 {uploadingFile ? 'Uploading...' : 'Attach file'}
-                <input type="file" onChange={handleUploadFile} disabled={uploadingFile} style={{ display: 'none' }} />
+                <input type="file" onChange={handleUploadFile} disabled={uploadingFile} style={{ display: 'none' }} accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.zip" />
               </label>
               {(activity.instruction_files || []).length > 0 && (
                 <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {(activity.instruction_files || []).map((file, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', borderRadius: '8px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
                       <span style={{ flex: 1, fontSize: '12px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
-                      <button onClick={() => handleDeleteFile(file.public_id)} type="button"
+                      <button onClick={() => { if (window.confirm('Delete this file?')) handleDeleteFile(file.public_id); }} type="button"
                         style={{ padding: '6px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', borderRadius: '6px', flexShrink: 0, transition: 'all 0.2s' }}
                         onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.background = 'transparent'; }}><Trash2 size={12} /></button>
@@ -630,8 +651,8 @@ export default function ActivityEditor() {
             </div>
           )}
 
-          {/* Timer — only for quiz and questions-type activity (locked when past due) */}
-          {(isQuiz || activity.submission_type === 'questions') && (
+          {/* Timer — only for quiz type (locked when past due) */}
+          {isQuiz && (
             <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
               <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={14} /> Time Limit</h4>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -665,37 +686,37 @@ export default function ActivityEditor() {
           )}
         </div>
 
-        {/* Right panel — Questions or Preview */}
-        {isQuiz || activity.submission_type === 'questions' ? (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div>
-                <h4 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>Questions</h4>
-                <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>
-                  {(activity.questions || []).length > 0
+        {/* Right panel — Edit (questions / preview) */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div>
+              <h4 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>
+                {isQuiz ? 'Quiz Questions' : activity.submission_type === 'file' ? 'File Submission Preview' : activity.submission_type === 'material' ? 'Material Preview' : 'Questions'}
+              </h4>
+              <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>
+                {isQuiz || activity.submission_type === 'questions'
+                  ? (activity.questions || []).length > 0
                     ? `${(activity.questions || []).length} question${(activity.questions || []).length !== 1 ? 's' : ''} · Total: ${(activity.questions || []).reduce((sum, q) => sum + Number(q.points), 0)} pts`
-                    : isQuiz ? 'Add questions to build your quiz' : 'Add questions for this activity'}
-                </p>
-              </div>
-              {!isPastDue && (
-                <button onClick={() => setShowAddQuestion(true)}
-                  style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: 'linear-gradient(to right, #9333ea, #7e22ce)', color: 'white', fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }} type="button">
-                  <Plus size={16} /> Add Question
-                </button>
-              )}
+                    : 'No questions yet'
+                  : 'Students see this when they open the activity'}
+              </p>
             </div>
+            {(isQuiz || activity.submission_type === 'questions') && !questionsDisabled && (
+              <button onClick={() => setShowAddQuestion(true)}
+                style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: 'linear-gradient(to right, #9333ea, #7e22ce)', color: 'white', fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }} type="button">
+                <Plus size={16} /> Add Question
+              </button>
+            )}
+          </div>
 
-            {(activity.questions || []).length === 0 ? (
+          {isQuiz || activity.submission_type === 'questions' ? (
+            (activity.questions || []).length === 0 ? (
               <div style={{ border: '2px dashed var(--border-color)', borderRadius: '20px', padding: '60px 40px', textAlign: 'center', background: 'var(--bg-secondary)' }}>
                 <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#a78bfa' }}><HelpCircle size={28} /></div>
-                <p style={{ fontSize: '16px', fontWeight: 600, color: '#94a3b8', margin: '0 0 6px 0' }}>
-                  {isQuiz ? 'No questions yet' : 'No questions added'}
-                </p>
-                {!isPastDue && (
+                <p style={{ fontSize: '16px', fontWeight: 600, color: '#94a3b8', margin: '0 0 6px 0' }}>{isQuiz ? 'No questions yet' : 'No questions added'}</p>
+                {!questionsDisabled && (
                   <>
-                    <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 16px 0' }}>
-                      {isQuiz ? 'Add multiple choice, coding, and more' : 'Add questions for students to answer'}
-                    </p>
+                    <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 16px 0' }}>{isQuiz ? 'Add multiple choice, coding, and more' : 'Add questions for students to answer'}</p>
                     <button onClick={() => setShowAddQuestion(true)}
                       style={{ padding: '10px 20px', borderRadius: '8px', background: 'rgba(168, 85, 247, 0.2)', border: '1px solid rgba(167, 139, 250, 0.3)', color: '#d8b4fe', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }} type="button">
                       <Plus size={14} style={{ marginRight: '6px' }} /> Add Question
@@ -703,35 +724,38 @@ export default function ActivityEditor() {
                   </>
                 )}
               </div>
-            ) : (
+              ) : questionsDisabled ? (
+                <div>
+                  <div style={{ padding: '12px 16px', borderRadius: '12px', background: 'rgba(100, 116, 139, 0.08)', border: '1px solid var(--border-color)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-tertiary)' }}>
+                    <EyeOff size={16} /> Questions are locked because this activity is published and has submissions.
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {(activity.questions || []).map((q) => (
+                      <ReorderItemWrapper key={q.id} question={q} index={(activity.questions || []).indexOf(q)}
+                        onUpdate={handleUpdateQuestion} onDelete={(question) => setDeleteTarget(question)} onEdit={setEditQuestion} disabled={questionsDisabled} />
+                    ))}
+                  </div>
+                </div>
+              ) : (
               <Reorder.Group axis="y" values={activity.questions || []} onReorder={handleReorderQuestions} style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {(activity.questions || []).map((q) => (
                   <ReorderItemWrapper key={q.id} question={q} index={(activity.questions || []).indexOf(q)}
-                    onUpdate={handleUpdateQuestion} onDelete={(question) => setDeleteTarget(question)} onEdit={setEditQuestion} isPastDue={isPastDue}
+                    onUpdate={handleUpdateQuestion} onDelete={(question) => setDeleteTarget(question)} onEdit={setEditQuestion} disabled={false}
                   />
                 ))}
               </Reorder.Group>
-            )}
-          </div>
-        ) : activity.submission_type === 'file' ? (
-          <div>
-            <div style={{ marginBottom: '20px' }}>
-              <h4 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>Student View Preview</h4>
-              <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>Students will see this when they open the activity</p>
-            </div>
-
+            )
+          ) : activity.submission_type === 'file' ? (
             <div style={{ padding: '28px', borderRadius: '20px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
                 <Upload size={20} style={{ color: '#3b82f6' }} />
                 <span style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text-primary)' }}>File Submission</span>
               </div>
-
               <div style={{ padding: '20px', borderRadius: '14px', border: '2px dashed var(--border-color)', background: 'var(--bg-primary)', textAlign: 'center', marginBottom: '16px' }}>
                 <Upload size={32} style={{ color: 'var(--text-tertiary)', marginBottom: '8px' }} />
                 <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 0 4px 0', fontWeight: 600 }}>Upload your file</p>
                 <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: 0 }}>PDF, DOCX, images, or ZIP</p>
               </div>
-
               {activity.deadline_at && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', marginBottom: '8px' }}>
                   <Clock size={16} style={{ color: activity.deadline_behavior === 'hard' ? '#ef4444' : '#f59e0b', flexShrink: 0 }} />
@@ -741,35 +765,26 @@ export default function ActivityEditor() {
                   </span>
                 </div>
               )}
-
               {activity.max_points && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
                   <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Max score: <strong style={{ color: 'var(--text-primary)' }}>{activity.max_points}</strong> pts</span>
                 </div>
               )}
             </div>
-          </div>
-        ) : activity.submission_type === 'material' && (
-          <div>
-            <div style={{ marginBottom: '20px' }}>
-              <h4 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>Student View Preview</h4>
-              <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>Students will see the instructions as reference material</p>
-            </div>
-
+          ) : activity.submission_type === 'material' && (
             <div style={{ padding: '28px', borderRadius: '20px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
                 <BookOpen size={20} style={{ color: '#10b981' }} />
                 <span style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text-primary)' }}>Material</span>
               </div>
-
               <div style={{ padding: '20px', borderRadius: '14px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
                 <BookOpen size={32} style={{ color: 'var(--text-tertiary)', marginBottom: '8px' }} />
                 <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0, fontWeight: 600 }}>No submission required</p>
                 <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '4px' }}>Students can read and review the instructions</p>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <CreateQuestionModal key={showAddQuestion} isOpen={showAddQuestion} onClose={() => setShowAddQuestion(false)} onCreated={handleAddQuestion} />

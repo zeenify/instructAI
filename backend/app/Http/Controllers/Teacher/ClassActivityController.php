@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityAnswer;
 use App\Models\ActivityQuestion;
 use App\Models\ActivitySubmission;
 use App\Models\ClassActivity;
 use App\Models\Classroom;
+use App\Models\Enrollment;
+use App\Models\User;
 use Cloudinary\Api\Upload\UploadApi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -164,18 +167,40 @@ class ClassActivityController extends Controller
 
     public function storeQuestion(Request $request, $activityId)
     {
-        $this->authorizeActivity($activityId);
+        $activity = $this->authorizeActivity($activityId);
+
+        if ($activity->deadline_at && now()->gt($activity->deadline_at) && $activity->deadline_behavior === 'hard') {
+            return response()->json(['message' => 'Cannot modify questions past deadline'], 422);
+        }
+
+        if ($activity->is_published && $activity->submissions()->exists()) {
+            return response()->json(['message' => 'Cannot modify questions once submissions exist'], 422);
+        }
+
+        $validated = $request->validate([
+            'type' => 'required|string|in:multiple_choice,true_false,identification,enumeration,short_answer,essay,coding',
+            'question_text' => 'required|string|max:5000',
+            'options' => 'nullable|array',
+            'options.*' => 'string|max:1000',
+            'expected_output' => 'nullable|string|max:5000',
+            'boilerplate' => 'nullable|string|max:5000',
+            'points' => 'required|numeric|min:0|max:99999',
+        ]);
 
         $maxOrder = ActivityQuestion::where('activity_id', $activityId)->max('order_index') ?? 0;
 
+        if (in_array($validated['type'], ['multiple_choice', 'true_false']) && empty($validated['options'])) {
+            return response()->json(['message' => 'Options are required for this question type'], 422);
+        }
+
         $question = ActivityQuestion::create([
             'activity_id' => $activityId,
-            'type' => $request->input('type', 'multiple_choice'),
-            'question_text' => $request->input('question_text', 'New Question'),
-            'options' => $request->input('options', []),
-            'expected_output' => $request->input('expected_output', ''),
-            'boilerplate' => $request->input('boilerplate', ''),
-            'points' => $request->input('points', 1),
+            'type' => $validated['type'],
+            'question_text' => $validated['question_text'],
+            'options' => $validated['options'] ?? [],
+            'expected_output' => $validated['expected_output'] ?? '',
+            'boilerplate' => $validated['boilerplate'] ?? '',
+            'points' => $validated['points'],
             'order_index' => $maxOrder + 1,
         ]);
 
@@ -184,20 +209,54 @@ class ClassActivityController extends Controller
 
     public function updateQuestion(Request $request, $activityId, $questionId)
     {
-        $this->authorizeActivity($activityId);
+        $activity = $this->authorizeActivity($activityId);
+
+        if ($activity->deadline_at && now()->gt($activity->deadline_at) && $activity->deadline_behavior === 'hard') {
+            return response()->json(['message' => 'Cannot modify questions past deadline'], 422);
+        }
+
+        if ($activity->is_published && $activity->submissions()->exists()) {
+            return response()->json(['message' => 'Cannot modify questions once submissions exist'], 422);
+        }
 
         $question = ActivityQuestion::where('id', $questionId)
             ->where('activity_id', $activityId)
             ->firstOrFail();
 
-        $question->update($request->all());
+        $validated = $request->validate([
+            'type' => 'sometimes|string|in:multiple_choice,true_false,identification,enumeration,short_answer,essay,coding',
+            'question_text' => 'sometimes|string|max:5000',
+            'options' => 'nullable|array',
+            'options.*' => 'string|max:1000',
+            'expected_output' => 'nullable|string|max:5000',
+            'boilerplate' => 'nullable|string|max:5000',
+            'points' => 'sometimes|numeric|min:0|max:99999',
+            'order_index' => 'sometimes|integer|min:0',
+        ]);
+
+        if (isset($validated['type']) && in_array($validated['type'], ['multiple_choice', 'true_false'])) {
+            $options = $validated['options'] ?? $question->options;
+            if (empty($options)) {
+                return response()->json(['message' => 'Options are required for this question type'], 422);
+            }
+        }
+
+        $question->update($validated);
 
         return response()->json($question);
     }
 
     public function destroyQuestion($activityId, $questionId)
     {
-        $this->authorizeActivity($activityId);
+        $activity = $this->authorizeActivity($activityId);
+
+        if ($activity->deadline_at && now()->gt($activity->deadline_at) && $activity->deadline_behavior === 'hard') {
+            return response()->json(['message' => 'Cannot modify questions past deadline'], 422);
+        }
+
+        if ($activity->is_published && $activity->submissions()->exists()) {
+            return response()->json(['message' => 'Cannot modify questions once submissions exist'], 422);
+        }
 
         $question = ActivityQuestion::where('id', $questionId)
             ->where('activity_id', $activityId)
@@ -210,12 +269,23 @@ class ClassActivityController extends Controller
 
     public function reorderQuestions(Request $request, $activityId)
     {
-        $this->authorizeActivity($activityId);
+        $activity = $this->authorizeActivity($activityId);
 
-        $request->validate(['question_ids' => 'required|array']);
+        if ($activity->deadline_at && now()->gt($activity->deadline_at) && $activity->deadline_behavior === 'hard') {
+            return response()->json(['message' => 'Cannot reorder questions past deadline'], 422);
+        }
 
-        DB::transaction(function () use ($request, $activityId) {
-            foreach ($request->question_ids as $index => $id) {
+        if ($activity->is_published && $activity->submissions()->exists()) {
+            return response()->json(['message' => 'Cannot reorder questions once submissions exist'], 422);
+        }
+
+        $validated = $request->validate([
+            'question_ids' => 'required|array|min:1',
+            'question_ids.*' => 'integer|exists:activity_questions,id',
+        ]);
+
+        DB::transaction(function () use ($validated, $activityId) {
+            foreach ($validated['question_ids'] as $index => $id) {
                 ActivityQuestion::where('id', $id)
                     ->where('activity_id', $activityId)
                     ->update(['order_index' => $index + 1]);
@@ -232,7 +302,7 @@ class ClassActivityController extends Controller
         $this->authorizeActivity($activityId);
 
         $submissions = ActivitySubmission::where('activity_id', $activityId)
-            ->with(['student.studentProfile', 'answers'])
+            ->with(['student.studentProfile', 'answers.question'])
             ->orderBy('submitted_at', 'desc')
             ->get();
 
@@ -244,23 +314,126 @@ class ClassActivityController extends Controller
         $this->authorizeActivity($activityId);
 
         $validated = $request->validate([
-            'score' => 'required|numeric|min:0',
+            'score' => 'sometimes|nullable|numeric|min:0',
             'teacher_notes' => 'nullable|string',
+            'answers' => 'sometimes|array',
+            'answers.*.question_id' => 'required|exists:activity_questions,id',
+            'answers.*.score' => 'required|numeric|min:0',
         ]);
 
         $submission = ActivitySubmission::where('id', $submissionId)
             ->where('activity_id', $activityId)
             ->firstOrFail();
 
-        $submission->update([
-            'score' => $validated['score'],
-            'teacher_notes' => $validated['teacher_notes'] ?? null,
-            'status' => 'graded',
-            'graded_at' => now(),
-            'graded_by' => auth()->id(),
-        ]);
+        DB::transaction(function () use ($submission, $validated) {
+            if (!empty($validated['answers'])) {
+                $total = 0;
+                foreach ($validated['answers'] as $a) {
+                    ActivityAnswer::where('submission_id', $submission->id)
+                        ->where('question_id', $a['question_id'])
+                        ->update([
+                            'score' => $a['score'],
+                            'is_correct' => $a['score'] > 0,
+                        ]);
+                    $total += $a['score'];
+                }
+                $validated['score'] = $total;
+            }
+
+            $submission->update([
+                'score' => $validated['score'] ?? $submission->score,
+                'teacher_notes' => $validated['teacher_notes'] ?? null,
+                'status' => 'graded',
+                'graded_at' => now(),
+                'graded_by' => auth()->id(),
+            ]);
+        });
+
+        $submission->load(['answers.question', 'student.studentProfile']);
 
         return response()->json($submission);
+    }
+
+    public function getEnrolledWithStatus($activityId)
+    {
+        $activity = $this->authorizeActivity($activityId);
+
+        $submissions = ActivitySubmission::where('activity_id', $activityId)
+            ->get()
+            ->keyBy('student_id');
+
+        $enrolled = Enrollment::where('class_id', $activity->class_id)
+            ->with('student.studentProfile')
+            ->get()
+            ->map(function ($e) use ($submissions) {
+                $s = $submissions->get($e->student_id);
+                return [
+                    'student' => $e->student,
+                    'submission_id' => $s?->id,
+                    'submission_status' => $s?->status ?? 'none',
+                    'submitted_at' => $s?->submitted_at,
+                    'score' => $s?->score,
+                    'max_score' => $s?->max_score,
+                ];
+            });
+
+        return response()->json($enrolled);
+    }
+
+    public function gradeBulk(Request $request, $activityId)
+    {
+        $this->authorizeActivity($activityId);
+
+        $request->validate([
+            'submission_ids' => 'required|array',
+            'submission_ids.*' => 'exists:activity_submissions,id',
+        ]);
+
+        $count = ActivitySubmission::whereIn('id', $request->submission_ids)
+            ->where('activity_id', $activityId)
+            ->whereNull('graded_at')
+            ->where('status', 'submitted')
+            ->update([
+                'status' => 'graded',
+                'graded_at' => now(),
+                'graded_by' => auth()->id(),
+            ]);
+
+        return response()->json(['message' => "{$count} submission(s) graded"]);
+    }
+
+    // ── Gradebook ──
+
+    public function gradebook($classId)
+    {
+        $this->authorizeTeacher($classId);
+
+        $activities = ClassActivity::where('class_id', $classId)
+            ->where('is_published', true)
+            ->withCount('questions')
+            ->orderBy('created_at', 'asc')
+            ->get(['id', 'title', 'activity_type', 'submission_type', 'max_points', 'deadline_at']);
+
+        $students = User::whereHas('enrollments', fn($q) => $q->where('class_id', $classId))
+            ->with('studentProfile')
+            ->orderBy('email')
+            ->get(['id', 'email', 'avatar']);
+
+        $submissions = ActivitySubmission::whereIn('activity_id', $activities->pluck('id'))
+            ->whereIn('student_id', $students->pluck('id'))
+            ->get(['id', 'student_id', 'activity_id', 'score', 'max_score', 'status', 'submitted_at']);
+
+        $grades = [];
+        foreach ($submissions as $s) {
+            $grades[$s->student_id][$s->activity_id] = [
+                'score' => $s->score,
+                'max_score' => $s->max_score,
+                'status' => $s->status,
+                'submitted_at' => $s->submitted_at,
+            ];
+        }
+
+        return response()->json(compact('activities', 'students', 'grades'));
     }
 
     // ── Instruction Files ──
