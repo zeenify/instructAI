@@ -88,9 +88,12 @@ class ClassActivityController extends Controller
 
         $submission = $this->getSubmission($id);
 
+        $canSubmit = ! ($activity->deadline_at && now()->gt($activity->deadline_at) && $activity->deadline_behavior === 'hard');
+
         return response()->json([
             'activity' => $activity,
             'submission' => $submission,
+            'can_submit' => $canSubmit,
         ]);
     }
 
@@ -233,6 +236,10 @@ class ClassActivityController extends Controller
 
         if (!$submission || $submission->status === 'draft') {
             return response()->json(['message' => 'No submission to unsubmit'], 422);
+        }
+
+        if ($submission->status === 'graded') {
+            return response()->json(['message' => 'Cannot unsubmit a graded submission'], 422);
         }
 
         $submission->update([

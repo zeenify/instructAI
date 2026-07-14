@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, Reorder, useDragControls } from 'framer-motion';
-import { ChevronLeft, Plus, Trash2, GripVertical, Clock, Eye, EyeOff, Loader2, HelpCircle, Upload, BookOpen, Edit3, UserCheck } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, GripVertical, Clock, Eye, EyeOff, Loader2, HelpCircle, Upload, BookOpen, Edit3, UserCheck, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
 import ActivityTypeBadge from '../../components/teacher/ActivityTypeBadge';
@@ -381,6 +381,7 @@ export default function ActivityEditor() {
   const [showAddQuestion, setShowAddQuestion] = useState(false);
   const [editQuestion, setEditQuestion] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteFileTarget, setDeleteFileTarget] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
 
   const handleUploadFile = async (e) => {
@@ -418,6 +419,13 @@ export default function ActivityEditor() {
     }
   };
 
+  const handleConfirmDeleteFile = () => {
+    if (deleteFileTarget) {
+      handleDeleteFile(deleteFileTarget);
+      setDeleteFileTarget(null);
+    }
+  };
+
   const fetchActivity = useCallback(async () => {
     try {
       const res = await api.get(`/teacher/activities/${activityId}`);
@@ -437,14 +445,19 @@ export default function ActivityEditor() {
     setActivity((prev) => ({ ...prev, [field]: value }));
   };
 
-  const saveField = async (field) => {
+  const saveField = async (field, value) => {
     if (!activity) return;
+    const prevValue = activity[field];
+    const val = value !== undefined ? value : activity[field];
     setSaving(true);
     try {
-      await api.put(`/teacher/activities/${activityId}`, { [field]: activity[field] });
-      setOriginalActivity((prev) => ({ ...prev, [field]: activity[field] }));
+      await api.put(`/teacher/activities/${activityId}`, { [field]: val });
+      setOriginalActivity((prev) => ({ ...prev, [field]: val }));
       toast.success('Saved');
     } catch {
+      if (value !== undefined) {
+        setActivity((prev) => ({ ...prev, [field]: prevValue }));
+      }
       toast.error('Failed to save');
     } finally {
       setSaving(false);
@@ -543,6 +556,15 @@ export default function ActivityEditor() {
           </span>
         </div>
       )}
+      {/* Locked banner */}
+      {isLocked && !isPastDue && (
+        <div style={{ padding: '16px 20px', borderRadius: '14px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <AlertTriangle size={18} style={{ color: '#f59e0b', flexShrink: 0 }} />
+          <span style={{ fontSize: '13px', color: '#f59e0b', fontWeight: 600 }}>
+            This activity has {activity.submissions_count} submission(s). Most settings are locked to preserve grading integrity. You can still adjust the deadline.
+          </span>
+        </div>
+      )}
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px', marginBottom: '32px' }}>
@@ -550,9 +572,9 @@ export default function ActivityEditor() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
             <ActivityTypeBadge type={activity.activity_type} submissionType={activity.submission_type} size="md" />
           </div>
-          <input value={activity.title} onChange={(e) => handleFieldChange('title', e.target.value)} onBlur={() => !isPastDue && saveField('title')}
-            readOnly={isPastDue}
-            style={{ fontSize: '28px', fontWeight: 700, color: isPastDue ? 'var(--text-tertiary)' : 'var(--text-primary)', background: 'transparent', border: 'none', outline: 'none', width: '100%', padding: '4px 0', margin: 0, fontFamily: 'inherit' }} />
+          <input value={activity.title} onChange={(e) => handleFieldChange('title', e.target.value)} onBlur={() => !(isLocked || isPastDue) && saveField('title')}
+            readOnly={isLocked || isPastDue}
+            style={{ fontSize: '28px', fontWeight: 700, color: (isLocked || isPastDue) ? 'var(--text-tertiary)' : 'var(--text-primary)', background: 'transparent', border: 'none', outline: 'none', width: '100%', padding: '4px 0', margin: 0, fontFamily: 'inherit' }} />
         </div>
         <div style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
           <button onClick={() => navigate(`/dashboard/teacher/class/${classId}/activity/${activityId}/submissions`)}
@@ -573,29 +595,29 @@ export default function ActivityEditor() {
           {/* Instructions */}
           <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
             <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px 0' }}>Instructions</h4>
-            <textarea value={activity.description || ''} onChange={(e) => handleFieldChange('description', e.target.value)} onBlur={() => !isPastDue && saveField('description')} rows={5} readOnly={isPastDue}
-              placeholder="Add instructions for students..." style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: isPastDue ? 'var(--bg-secondary)' : 'var(--bg-primary)', color: isPastDue ? 'var(--text-tertiary)' : 'var(--text-primary)', fontSize: '13px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
-            {!isPastDue && (
-            <div style={{ marginTop: '12px' }}>
+            <textarea value={activity.description || ''} onChange={(e) => handleFieldChange('description', e.target.value)} onBlur={() => !(isLocked || isPastDue) && saveField('description')} rows={5} readOnly={isLocked || isPastDue}
+              placeholder="Add instructions for students..." style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: (isLocked || isPastDue) ? 'var(--bg-secondary)' : 'var(--bg-primary)', color: (isLocked || isPastDue) ? 'var(--text-tertiary)' : 'var(--text-primary)', fontSize: '13px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            {!(isLocked || isPastDue) && (
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '10px', border: '1px dashed var(--border-color)', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: '13px', fontWeight: 600, transition: 'all 0.3s' }}>
                 <Upload size={16} />
                 {uploadingFile ? 'Uploading...' : 'Attach file'}
                 <input type="file" onChange={handleUploadFile} disabled={uploadingFile} style={{ display: 'none' }} accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.zip" />
               </label>
-              {(activity.instruction_files || []).length > 0 && (
-                <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {(activity.instruction_files || []).map((file, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', borderRadius: '8px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
-                      <span style={{ flex: 1, fontSize: '12px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
-                      <button onClick={() => { if (window.confirm('Delete this file?')) handleDeleteFile(file.public_id); }} type="button"
+            )}
+            {(activity.instruction_files || []).length > 0 && (
+              <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {(activity.instruction_files || []).map((file, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', borderRadius: '8px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
+                    <span style={{ flex: 1, fontSize: '12px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+                    {!(isLocked || isPastDue) && (
+                      <button onClick={() => setDeleteFileTarget(file.public_id)} type="button"
                         style={{ padding: '6px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', borderRadius: '6px', flexShrink: 0, transition: 'all 0.2s' }}
                         onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.background = 'transparent'; }}><Trash2 size={12} /></button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
@@ -604,9 +626,9 @@ export default function ActivityEditor() {
             <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={14} /> Deadline</h4>
             <DateTimePicker value={activity.deadline_at} onChange={(val) => { handleFieldChange('deadline_at', val); if (activity) api.put(`/teacher/activities/${activityId}`, { deadline_at: val }); }} />
             <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-              <button onClick={() => { handleFieldChange('deadline_behavior', 'hard'); saveField('deadline_behavior'); }}
+              <button onClick={() => { handleFieldChange('deadline_behavior', 'hard'); saveField('deadline_behavior', 'hard'); }}
                 style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '12px', border: `1px solid ${activity.deadline_behavior === 'hard' ? '#ef4444' : 'var(--border-color)'}`, background: activity.deadline_behavior === 'hard' ? 'rgba(239, 68, 68, 0.1)' : 'transparent', color: activity.deadline_behavior === 'hard' ? '#ef4444' : 'var(--text-secondary)' }} type="button">Hard Cutoff</button>
-              <button onClick={() => { handleFieldChange('deadline_behavior', 'soft'); saveField('deadline_behavior'); }}
+              <button onClick={() => { handleFieldChange('deadline_behavior', 'soft'); saveField('deadline_behavior', 'soft'); }}
                 style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '12px', border: `1px solid ${activity.deadline_behavior === 'soft' ? '#f59e0b' : 'var(--border-color)'}`, background: activity.deadline_behavior === 'soft' ? 'rgba(245, 158, 11, 0.1)' : 'transparent', color: activity.deadline_behavior === 'soft' ? '#f59e0b' : 'var(--text-secondary)' }} type="button">Soft (late OK)</button>
             </div>
           </div>
@@ -641,8 +663,8 @@ export default function ActivityEditor() {
                   </div>
                 ) : (
                   ['auto', 'manual'].map((opt) => (
-                    <button key={opt} onClick={() => { handleFieldChange('grading_method', opt); !isPastDue && saveField('grading_method'); }} disabled={isPastDue}
-                      style={{ padding: '10px 14px', borderRadius: '10px', cursor: isPastDue ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '13px', textAlign: 'left', opacity: isPastDue ? 0.5 : 1, border: `1px solid ${activity.grading_method === opt ? '#a78bfa' : 'var(--border-color)'}`, background: activity.grading_method === opt ? 'rgba(167, 139, 250, 0.1)' : 'transparent', color: activity.grading_method === opt ? '#a78bfa' : 'var(--text-secondary)' }} type="button">
+                    <button key={opt} onClick={() => { handleFieldChange('grading_method', opt); !(isLocked || isPastDue) && saveField('grading_method', opt); }} disabled={isLocked || isPastDue}
+                      style={{ padding: '10px 14px', borderRadius: '10px', cursor: (isLocked || isPastDue) ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '13px', textAlign: 'left', opacity: (isLocked || isPastDue) ? 0.5 : 1, border: `1px solid ${activity.grading_method === opt ? '#a78bfa' : 'var(--border-color)'}`, background: activity.grading_method === opt ? 'rgba(167, 139, 250, 0.1)' : 'transparent', color: activity.grading_method === opt ? '#a78bfa' : 'var(--text-secondary)' }} type="button">
                       {opt === 'manual' ? 'Manual grade' : 'Auto-grade'}
                     </button>
                   ))
@@ -656,10 +678,10 @@ export default function ActivityEditor() {
             <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
               <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={14} /> Time Limit</h4>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input type="number" min={0} step={1} value={activity.time_limit_minutes || ''} readOnly={isPastDue}
-                  onChange={(e) => handleFieldChange('time_limit_minutes', e.target.value ? Number(e.target.value) : null)} onBlur={() => !isPastDue && saveField('time_limit_minutes')}
+                <input type="number" min={0} step={1} value={activity.time_limit_minutes || ''} readOnly={isLocked || isPastDue}
+                  onChange={(e) => handleFieldChange('time_limit_minutes', e.target.value ? Number(e.target.value) : null)} onBlur={() => !(isLocked || isPastDue) && saveField('time_limit_minutes')}
                   placeholder="No limit"
-                  style={{ width: '100px', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: isPastDue ? 'var(--bg-secondary)' : 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }} />
+                  style={{ width: '100px', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: (isLocked || isPastDue) ? 'var(--bg-secondary)' : 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }} />
                 <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>minutes</span>
               </div>
             </div>
@@ -669,10 +691,10 @@ export default function ActivityEditor() {
           {activity.submission_type === 'file' && (
             <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
               <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px 0' }}>Max Points</h4>
-              <input type="number" min={0} step={0.5} value={activity.max_points ?? ''} disabled={isPastDue}
-                onChange={(e) => handleFieldChange('max_points', e.target.value ? Number(e.target.value) : null)} onBlur={() => !isPastDue && saveField('max_points')}
+              <input type="number" min={0} step={0.5} value={activity.max_points ?? ''} disabled={isLocked || isPastDue}
+                onChange={(e) => handleFieldChange('max_points', e.target.value ? Number(e.target.value) : null)} onBlur={() => !(isLocked || isPastDue) && saveField('max_points')}
                 placeholder="Enter max score"
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: isPastDue ? 'var(--bg-secondary)' : 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: (isLocked || isPastDue) ? 'var(--bg-secondary)' : 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
             </div>
           )}
           {(isQuiz || activity.submission_type === 'questions') && activity.questions && activity.questions.length > 0 && (
@@ -731,7 +753,7 @@ export default function ActivityEditor() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {(activity.questions || []).map((q) => (
-                      <ReorderItemWrapper key={q.id} question={q} index={(activity.questions || []).indexOf(q)}
+                      <QuestionBlock key={q.id} question={q} index={(activity.questions || []).indexOf(q)}
                         onUpdate={handleUpdateQuestion} onDelete={(question) => setDeleteTarget(question)} onEdit={setEditQuestion} disabled={questionsDisabled} />
                     ))}
                   </div>
@@ -791,6 +813,7 @@ export default function ActivityEditor() {
       <CreateQuestionModal key={'edit-' + (editQuestion?.id || 'null')} isOpen={!!editQuestion} onClose={() => setEditQuestion(null)} onEdited={handleEditQuestionSubmit} editQuestion={editQuestion} />
       <DeleteModal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={() => { if (deleteTarget) handleDeleteQuestion(deleteTarget); setDeleteTarget(null); }}
         title={deleteTarget?.question_text?.slice(0, 50) || 'Question'} loading={false} />
+      <DeleteModal isOpen={!!deleteFileTarget} onClose={() => setDeleteFileTarget(null)} onConfirm={handleConfirmDeleteFile} title="File" loading={false} />
     </div>
   );
 }

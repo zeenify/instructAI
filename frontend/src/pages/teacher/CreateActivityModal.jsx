@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, ClipboardList, AlignLeft, Upload, HelpCircle, BookOpen } from 'lucide-react';
+import { X, Zap, ClipboardList, AlignLeft, Upload, HelpCircle, BookOpen, Clock } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import api from '../../services/api';
 import { toast } from 'sonner';
@@ -31,6 +31,8 @@ export default function CreateActivityModal({ isOpen, onClose, classId, onCreate
   const [description, setDescription] = useState('');
   const [selectedType, setSelectedType] = useState(null);
   const [submissionType, setSubmissionType] = useState(null);
+  const [deadlineAt, setDeadlineAt] = useState('');
+  const [deadlineBehavior, setDeadlineBehavior] = useState('hard');
   const [step, setStep] = useState('type');
   const [loading, setLoading] = useState(false);
 
@@ -44,18 +46,28 @@ export default function CreateActivityModal({ isOpen, onClose, classId, onCreate
     setTitle('');
     setDescription('');
     setSubmissionType(null);
+    setDeadlineAt('');
+    setDeadlineBehavior('hard');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim() || !selectedType) return;
     if (selectedType === 'activity' && !submissionType) return;
+    const needsDeadline = selectedType !== 'activity' || submissionType !== 'material';
+    if (needsDeadline && !deadlineAt) {
+      toast.error('Deadline is required for this activity type');
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const payload = {
         title: title.trim(),
         description: description.trim() || null,
         activity_type: selectedType,
+        deadline_at: deadlineAt || null,
+        deadline_behavior: deadlineBehavior,
       };
       if (selectedType === 'activity') {
         payload.submission_type = submissionType;
@@ -77,6 +89,8 @@ export default function CreateActivityModal({ isOpen, onClose, classId, onCreate
     setDescription('');
     setSelectedType(null);
     setSubmissionType(null);
+    setDeadlineAt('');
+    setDeadlineBehavior('hard');
     onClose();
   };
 
@@ -151,10 +165,28 @@ export default function CreateActivityModal({ isOpen, onClose, classId, onCreate
                     </div>
                   )}
 
-                  <div style={{ marginBottom: '24px' }}>
+                  <div style={{ marginBottom: '20px' }}>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}><AlignLeft size={12} style={{ marginRight: '6px' }} /> Instructions (optional)</label>
                     <textarea placeholder={selectedType === 'quiz' ? 'Quiz instructions, rules, or notes...' : 'Describe the task, include rubric or guidelines...'} value={description} onChange={(e) => setDescription(e.target.value)} rows={4}
                       style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                  </div>
+
+                  {/* Deadline */}
+                  <div style={{ marginBottom: '24px', padding: '16px', borderRadius: '14px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)' }}>
+                    <h4 style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Clock size={14} /> {selectedType === 'activity' && submissionType === 'material' ? 'Deadline (optional)' : 'Deadline'}
+                    </h4>
+                    <input type="datetime-local" value={deadlineAt} onChange={(e) => setDeadlineAt(e.target.value)}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                    <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
+                      <button type="button" onClick={() => setDeadlineBehavior('hard')}
+                        style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '11px', border: `1px solid ${deadlineBehavior === 'hard' ? '#ef4444' : 'var(--border-color)'}`, background: deadlineBehavior === 'hard' ? 'rgba(239, 68, 68, 0.1)' : 'transparent', color: deadlineBehavior === 'hard' ? '#ef4444' : 'var(--text-secondary)' }}>Hard Cutoff</button>
+                      <button type="button" onClick={() => setDeadlineBehavior('soft')}
+                        style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '11px', border: `1px solid ${deadlineBehavior === 'soft' ? '#f59e0b' : 'var(--border-color)'}`, background: deadlineBehavior === 'soft' ? 'rgba(245, 158, 11, 0.1)' : 'transparent', color: deadlineBehavior === 'soft' ? '#f59e0b' : 'var(--text-secondary)' }}>Soft (late OK)</button>
+                    </div>
+                    {selectedType === 'activity' && submissionType === 'material' && deadlineAt && (
+                      <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', margin: '8px 0 0 0' }}>Optional for materials — students can still view without submitting.</p>
+                    )}
                   </div>
 
                   <div style={{ display: 'flex', gap: '12px' }}>

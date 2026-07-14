@@ -62,7 +62,6 @@ class ClassActivityController extends Controller
             'activity_type' => 'required|string|in:quiz,activity',
             'grading_method' => 'nullable|string|in:auto,manual,none',
             'max_points' => 'nullable|numeric|min:0',
-            'deadline_at' => 'nullable|date',
             'deadline_behavior' => 'nullable|string|in:hard,soft',
             'late_submission' => 'nullable|boolean',
             'late_penalty_pct' => 'nullable|numeric|min:0|max:100',
@@ -71,6 +70,9 @@ class ClassActivityController extends Controller
 
         if ($request->activity_type === 'activity') {
             $rules['submission_type'] = 'required|string|in:file,questions,material';
+            $rules['deadline_at'] = $request->submission_type === 'material' ? 'nullable|date' : 'required|date';
+        } else {
+            $rules['deadline_at'] = 'required|date';
         }
 
         $validated = $request->validate($rules);
@@ -142,6 +144,11 @@ class ClassActivityController extends Controller
             'live_scheduled_at' => 'sometimes|nullable|date',
         ]);
 
+        if ($activity->is_published && $activity->submissions()->exists()) {
+            $allowed = ['deadline_at', 'deadline_behavior', 'is_published'];
+            $validated = array_intersect_key($validated, array_flip($allowed));
+        }
+
         $activity->update($validated);
 
         return response()->json($activity);
@@ -150,6 +157,29 @@ class ClassActivityController extends Controller
     public function destroy($id)
     {
         $activity = $this->authorizeActivity($id);
+
+        $files = $activity->instruction_files ?? [];
+        if (! empty($files)) {
+            try {
+                $cloudName = env('CLOUDINARY_CLOUD_NAME');
+                $apiKey = env('CLOUDINARY_API_KEY');
+                $apiSecret = env('CLOUDINARY_API_SECRET');
+                if ($cloudName && $apiKey && $apiSecret) {
+                    $config = [
+                        'cloud' => ['cloud_name' => $cloudName, 'api_key' => $apiKey, 'api_secret' => $apiSecret],
+                    ];
+                    $uploadApi = new UploadApi($config);
+                    foreach ($files as $file) {
+                        if (! empty($file['public_id'])) {
+                            try { $uploadApi->destroy($file['public_id']); } catch (\Exception $e) { \Log::warning('Cloudinary cleanup: '.$e->getMessage()); }
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Cloudinary cleanup failed: '.$e->getMessage());
+            }
+        }
+
         $activity->delete();
 
         return response()->json(['message' => 'Activity removed.']);
@@ -442,6 +472,10 @@ class ClassActivityController extends Controller
     {
         $activity = $this->authorizeActivity($id);
 
+        if ($activity->is_published && $activity->submissions()->exists()) {
+            return response()->json(['message' => 'Cannot modify activity once submissions exist'], 422);
+        }
+
         $request->validate([
             'file' => 'required|file|mimes:pdf,doc,docx,txt,ppt,pptx,xls,xlsx,jpg,jpeg,png,zip|max:20480',
         ]);
@@ -500,6 +534,10 @@ class ClassActivityController extends Controller
     public function deleteInstructionFile(Request $request, $id)
     {
         $activity = $this->authorizeActivity($id);
+
+        if ($activity->is_published && $activity->submissions()->exists()) {
+            return response()->json(['message' => 'Cannot modify activity once submissions exist'], 422);
+        }
 
         $request->validate(['public_id' => 'required|string']);
 

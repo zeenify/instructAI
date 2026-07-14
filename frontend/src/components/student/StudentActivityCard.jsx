@@ -56,15 +56,20 @@ export default function StudentActivityCard({ activity, classId, isActive }) {
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
           <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activity.title}</h4>
-          <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: typeInfo.bg, color: typeInfo.color, flexShrink: 0 }}>{typeInfo.label}</span>
+          <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: typeInfo.bg, color: typeInfo.color, flexShrink: 0, whiteSpace: 'nowrap' }}>{typeInfo.label}</span>
+          {activity.submission_summary?.status === 'graded' && (
+            <span style={{ fontSize: '11px', fontWeight: 700, color: statusInfo.color, flexShrink: 0, whiteSpace: 'nowrap' }}>
+              {Number(activity.submission_summary.score).toFixed(0)}/{Number(activity.submission_summary.max_score).toFixed(0)}
+            </span>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text-tertiary)' }}>
           {deadlineDate && (
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isOverdue ? '#ef4444' : 'var(--text-tertiary)' }}>
               <Clock size={12} />
-              Due {format(deadlineDate, 'MMM d, yyyy h:mm a')}
+              Due {format(deadlineDate, 'MMM d, h:mm a')}
             </span>
           )}
           {activity.questions_count > 0 && (
@@ -73,12 +78,7 @@ export default function StudentActivityCard({ activity, classId, isActive }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-        {activity.submission_summary?.status === 'graded' && (
-          <span style={{ fontSize: '13px', fontWeight: 700, color: statusInfo.color }}>
-            {Number(activity.submission_summary.score).toFixed(0)}/{Number(activity.submission_summary.max_score).toFixed(0)}
-          </span>
-        )}
+      <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
         <StatusIcon size={18} color={statusInfo.color} title={statusInfo.label} />
       </div>
     </div>

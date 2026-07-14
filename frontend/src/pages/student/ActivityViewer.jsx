@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import api from '../../services/api';
+import api, { invalidateCache } from '../../services/api';
 import {
   ChevronLeft, Clock, CheckCircle2, Circle, AlertTriangle, AlertCircle, Hourglass,
   FileText, Upload, Trash2, Loader2, BookOpen, Download, ImageIcon,
@@ -11,6 +11,7 @@ import { formatDistanceToNow, parseISO, isPast, format } from 'date-fns';
 import CodeMirror from '@uiw/react-codemirror';
 import { java } from '@codemirror/lang-java';
 import StudentActivityCard from '../../components/student/StudentActivityCard';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 import '../../pages/student/Student.css';
 
 const typeConfig = {
@@ -34,6 +35,10 @@ export default function ActivityViewer() {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [unsubmitting, setUnsubmitting] = useState(false);
+  const [showUnsubmitModal, setShowUnsubmitModal] = useState(false);
+  const [showUnansweredModal, setShowUnansweredModal] = useState(false);
+  const [unansweredCount, setUnansweredCount] = useState(0);
+  const [canSubmit, setCanSubmit] = useState(true);
 
   const fetchSidebar = useCallback(async () => {
     try {
@@ -48,6 +53,7 @@ export default function ActivityViewer() {
       const res = await api.get(`/student/activities/${activityId}`);
       setActivity(res.data.activity);
       setSubmission(res.data.submission);
+      setCanSubmit(res.data.can_submit !== false);
 
       if (res.data.submission?.answers) {
         const restored = {};
@@ -102,21 +108,7 @@ export default function ActivityViewer() {
     }
   };
 
-  const handleSubmit = async () => {
-    if (submitting) return;
-
-    if (activity.submission_type === 'questions') {
-      const unanswered = (activity.questions || []).filter(q => {
-        const val = answers[q.id];
-        if (q.type === 'enumeration') return !Array.isArray(val) || val.every(v => !v.trim());
-        if (q.type === 'essay' || q.type === 'coding' || q.type === 'short_answer' || q.type === 'identification') return !val || !String(val).trim();
-        return val === undefined || val === null || val === '';
-      });
-      if (unanswered.length > 0) {
-        if (!window.confirm(`You have ${unanswered.length} unanswered question${unanswered.length !== 1 ? 's' : ''}. Submit anyway?`)) return;
-      }
-    }
-
+  const doSubmit = async () => {
     setSubmitting(true);
     try {
       const payload = {};
@@ -129,6 +121,7 @@ export default function ActivityViewer() {
       const res = await api.post(`/student/activities/${activityId}/submit`, payload);
       setSubmission(res.data);
       toast.success(activity.submission_type === 'material' ? 'Marked as complete' : 'Submitted successfully');
+      invalidateCache(`get:/student/classes/${classId}/activities`);
 
       if (res.data.status === 'graded') {
         if (res.data.answers) {
@@ -146,12 +139,33 @@ export default function ActivityViewer() {
     } finally { setSubmitting(false); }
   };
 
+  const handleSubmit = async () => {
+    if (submitting) return;
+
+    if (activity.submission_type === 'questions') {
+      const unanswered = (activity.questions || []).filter(q => {
+        const val = answers[q.id];
+        if (q.type === 'enumeration') return !Array.isArray(val) || val.every(v => !v.trim());
+        if (q.type === 'essay' || q.type === 'coding' || q.type === 'short_answer' || q.type === 'identification') return !val || !String(val).trim();
+        return val === undefined || val === null || val === '';
+      });
+      if (unanswered.length > 0) {
+        setUnansweredCount(unanswered.length);
+        setShowUnansweredModal(true);
+        return;
+      }
+    }
+
+    doSubmit();
+  };
+
   const handleUnsubmit = useCallback(async () => {
     if (unsubmitting) return;
-    if (!window.confirm('Unsubmit this activity? You can submit again later.')) return;
+    setShowUnsubmitModal(false);
     setUnsubmitting(true);
     try {
       await api.post(`/student/activities/${activityId}/unsubmit`);
+      invalidateCache(`get:/student/classes/${classId}/activities`);
       toast.success('Submission unsubmitted');
       setSubmission(null);
       await fetchSidebar();
@@ -167,7 +181,7 @@ export default function ActivityViewer() {
   const isPastDue = isOverdue && activity?.deadline_behavior === 'hard';
   const isSubmitted = submission?.status === 'submitted' || submission?.status === 'graded';
   const isGraded = submission?.status === 'graded';
-  const canUnsubmit = !isPastDue && isSubmitted && activity.submission_type === 'file';
+  const canUnsubmit = !isPastDue && isSubmitted && !isGraded && activity.submission_type === 'file';
 
   if (loading) {
     return (
@@ -180,6 +194,7 @@ export default function ActivityViewer() {
   if (!activity) return null;
 
   return (
+    <>
     <div style={{ background: 'var(--bg-primary)', height: '100vh', display: 'flex', overflow: 'hidden' }}>
       {/* LEFT SIDEBAR */}
       <aside style={{ width: '300px', flexShrink: 0, background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
@@ -236,12 +251,15 @@ export default function ActivityViewer() {
                   {isPastDue && !isSubmitted && (
                     <span style={{ fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444' }}>Missed</span>
                   )}
+                  {isOverdue && !isPastDue && (
+                    <span style={{ fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b' }}>Late</span>
+                  )}
                 </div>
                 <h1 style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 8px 0', letterSpacing: '-0.02em' }}>{activity.title}</h1>
                 {deadlineDate && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: isOverdue ? '#ef4444' : 'var(--text-tertiary)' }}>
                     <Clock size={14} />
-                    <span>Due {format(deadlineDate, 'MMM d, yyyy h:mm a')} ({formatDistanceToNow(deadlineDate, { addSuffix: true })})</span>
+                    <span>Due {format(deadlineDate, 'MMM d, h:mm a')} ({formatDistanceToNow(deadlineDate, { addSuffix: true })})</span>
                   </div>
                 )}
               </div>
@@ -293,8 +311,8 @@ export default function ActivityViewer() {
           {/* SUBMISSION STATUS (after submit) */}
           {isSubmitted && activity.submission_type !== 'material' && (
             <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: isGraded ? 'rgba(16, 185, 129, 0.06)' : 'rgba(245, 158, 11, 0.06)', marginBottom: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: isGraded ? '16px' : 0 }}>
-                {isGraded ? <CheckCircle2 size={20} color="#10b981" /> : <Hourglass size={20} color="#f59e0b" />}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                {isGraded ? <CheckCircle2 size={20} color="#10b981" style={{ marginTop: '2px', flexShrink: 0 }} /> : <Hourglass size={20} color="#f59e0b" style={{ marginTop: '2px', flexShrink: 0 }} />}
                 <div>
                   <p style={{ fontSize: '14px', fontWeight: 700, color: isGraded ? '#10b981' : '#f59e0b', margin: 0 }}>
                     {isGraded ? `Graded: ${Number(submission.score).toFixed(0)}/${Number(submission.max_score).toFixed(0)}` : 'Submitted — awaiting grade'}
@@ -302,6 +320,11 @@ export default function ActivityViewer() {
                   {submission.submitted_at && (
                     <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: '2px 0 0 0' }}>
                       Submitted {formatDistanceToNow(parseISO(submission.submitted_at), { addSuffix: true })}
+                    </p>
+                  )}
+                  {isGraded && submission.teacher_notes && (
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '8px 0 0 0', lineHeight: '1.4' }}>
+                      {submission.teacher_notes}
                     </p>
                   )}
                 </div>
@@ -339,16 +362,9 @@ export default function ActivityViewer() {
                 </div>
               )}
 
-              {isGraded && submission.teacher_notes && (
-                <div style={{ marginTop: '16px', padding: '14px', borderRadius: '10px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
-                  <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', margin: '0 0 6px 0' }}>Teacher Notes</p>
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>{submission.teacher_notes}</p>
-                </div>
-              )}
-
               {canUnsubmit && (
                 <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
-                  <button onClick={handleUnsubmit} disabled={unsubmitting}
+                  <button onClick={() => setShowUnsubmitModal(true)} disabled={unsubmitting}
                     style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: '#ef4444', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'; e.currentTarget.style.borderColor = '#ef4444'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-primary)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}
@@ -370,8 +386,18 @@ export default function ActivityViewer() {
             </div>
           )}
 
+          {/* LATE SUBMISSION WARNING (soft deadline) */}
+          {isOverdue && !isPastDue && !isSubmitted && (
+            <div style={{ padding: '14px 20px', borderRadius: '14px', border: '1px solid rgba(245, 158, 11, 0.3)', background: 'rgba(245, 158, 11, 0.06)', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <AlertTriangle size={18} style={{ color: '#f59e0b', flexShrink: 0 }} />
+              <span style={{ fontSize: '13px', color: '#f59e0b', fontWeight: 600 }}>
+                The deadline has passed but late submissions are accepted. Your submission will be marked as late.
+              </span>
+            </div>
+          )}
+
           {/* FILE SUBMISSION */}
-          {activity.submission_type === 'file' && !isPastDue && (
+          {activity.submission_type === 'file' && canSubmit && (
             <div style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
               <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Upload size={16} /> {isSubmitted ? 'Submitted Files' : 'Upload Your Work'}
@@ -419,7 +445,7 @@ export default function ActivityViewer() {
           )}
 
           {/* QUESTIONS SUBMISSION */}
-          {activity.submission_type === 'questions' && !isPastDue && !isSubmitted && (
+          {activity.submission_type === 'questions' && canSubmit && !isSubmitted && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <p style={{ fontSize: '14px', color: 'var(--text-tertiary)', margin: '0 0 8px 0' }}>
                 {activity.questions?.length || 0} question{(activity.questions?.length || 0) !== 1 ? 's' : ''}
@@ -459,6 +485,27 @@ export default function ActivityViewer() {
         </div>
       </main>
     </div>
+    <ConfirmModal
+      isOpen={showUnsubmitModal}
+      onClose={() => setShowUnsubmitModal(false)}
+      onConfirm={handleUnsubmit}
+      title="Unsubmit Activity?"
+      message="You can submit again before the deadline. Your uploaded files will be kept."
+      confirmText="Unsubmit"
+      loading={unsubmitting}
+      variant="warning"
+    />
+    <ConfirmModal
+      isOpen={showUnansweredModal}
+      onClose={() => setShowUnansweredModal(false)}
+      onConfirm={() => { setShowUnansweredModal(false); doSubmit(); }}
+      title="Unanswered Questions"
+      message={`You have ${unansweredCount} unanswered question${unansweredCount !== 1 ? 's' : ''}. Submit anyway?`}
+      confirmText="Submit Anyway"
+      loading={submitting}
+      variant="warning"
+    />
+    </>
   );
 }
 

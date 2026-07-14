@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Clock, Loader2, CheckSquare, Download, MessageSquare, Search, Edit3, FileText, ImageIcon, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import api from '../../services/api';
+import api, { invalidateCache } from '../../services/api';
 import ActivityTypeBadge from '../../components/teacher/ActivityTypeBadge';
 
 function studentName(s) {
@@ -144,12 +144,14 @@ export default function ActivityGrading() {
     try {
       const body = {
         score: gradingForm.score,
-        feedback: gradingForm.feedback || '',
+        teacher_notes: gradingForm.feedback || '',
       };
       if (hasQuestions && Object.keys(gradingForm.answers || {}).length > 0) {
         body.answers = gradingForm.answers;
       }
       await api.post(`/teacher/activities/${activityId}/submissions/${submissionId}/grade`, body);
+      invalidateCache(`get:/teacher/activities/${activityId}/submissions`);
+      invalidateCache(`get:/teacher/activities/${activityId}/enrolled-students`);
       toast.success('Submission graded');
       setGradingTarget(null);
       setGradingForm({});
@@ -297,7 +299,7 @@ export default function ActivityGrading() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>Score:</label>
                         <input type="number" min={0} max={q.points} step={0.5} value={gradingForm.answers?.[q.id]?.score ?? q.points}
-                          onChange={(e) => setGradingForm((prev) => ({ ...prev, answers: { ...prev.answers, [q.id]: { ...(prev.answers?.[q.id] || {}), score: Number(e.target.value) } } }))}
+                          onChange={(e) => { const v = Math.min(Math.max(Number(e.target.value) || 0, 0), q.points); setGradingForm((prev) => ({ ...prev, answers: { ...prev.answers, [q.id]: { ...(prev.answers?.[q.id] || {}), score: v } } })); }}
                           style={{ width: '70px', padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }} />
                         <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>/ {q.points}</span>
                       </div>
@@ -332,7 +334,7 @@ export default function ActivityGrading() {
                     <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 8px 0' }}>Score</p>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <input type="number" min={0} max={activity.max_points || 100} step={0.5} value={gradingForm.score}
-                        onChange={(e) => setGradingForm((prev) => ({ ...prev, score: e.target.value ? Number(e.target.value) : '' }))}
+                        onChange={(e) => { const max = activity.max_points || 100; const v = e.target.value ? Math.min(Math.max(Number(e.target.value), 0), max) : ''; setGradingForm((prev) => ({ ...prev, score: v })); }}
                         placeholder="Score"
                         style={{ width: '100px', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }} />
                       <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>/ {activity.max_points || 'N/A'}</span>
