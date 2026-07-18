@@ -33,6 +33,7 @@ export default function CourseBuilder() {
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [isSubmittingItem, setIsSubmittingItem] = useState(false);
+    const [togglingItemId, setTogglingItemId] = useState(null);
     
     // Modals & Inputs
     const [moduleModal, setModuleModal] = useState({ isOpen: false, mode: 'create', id: null, title: '' });
@@ -98,7 +99,11 @@ export default function CourseBuilder() {
             await api.post(`/teacher/courses/${id}/publish`, { is_published: newStatus });
             invalidateCache(`/teacher/courses/${id}`);
             setIsPublished(newStatus);
-            toast.success(newStatus ? "Course is now live" : "Course set to draft");
+            if (newStatus) {
+              toast.success("Course is now live");
+            } else {
+              toast.warning("Course set to draft");
+            }
         } catch (err) { toast.error("Update failed"); }
         finally { setIsUpdatingStatus(false); }
     };
@@ -240,6 +245,7 @@ export default function CourseBuilder() {
     }, []);
 
     const toggleItemStatus = async (item) => {
+        setTogglingItemId(item.id);
         const newStatus = !item.is_published;
         const type = item.itemType === 'lesson' ? 'lessons' : 'quizzes';
 
@@ -259,10 +265,18 @@ export default function CourseBuilder() {
         try {
             await api.put(`/teacher/${type}/${item.id}`, { is_published: newStatus });
             invalidateCache(`/teacher/courses/${id}`);
+            if (newStatus) {
+              toast.success('Published');
+            } else {
+              toast.warning('Unpublished');
+            }
         }
         catch (err) {
             invalidateCache(`/teacher/courses/${id}`);
             fetchCourse();
+            toast.error('Failed to toggle status');
+        } finally {
+            setTogglingItemId(null);
         }
     };
 
@@ -321,7 +335,7 @@ export default function CourseBuilder() {
             }
 
             setDeleteModal({ isOpen: false, type: '', id: null });
-            toast.success("Deleted successfully");
+            toast.warning("Deleted successfully");
 
         } catch (err) {
             toast.error("Failed to delete");
@@ -361,7 +375,7 @@ export default function CourseBuilder() {
 
             setSelectedModuleIds(new Set());
             setIsBulkDeleteMode(false);
-            toast.success(`Deleted ${count} module${count === 1 ? '' : 's'} successfully`, { id: toastId });
+            toast.warning(`Deleted ${count} module${count === 1 ? '' : 's'} successfully`, { id: toastId });
         } catch (err) {
             toast.error("Failed to delete modules", { id: toastId });
             console.error('Bulk delete error:', err);
@@ -1287,7 +1301,11 @@ const allPublished = [...(activeModuleData?.lessons || []), ...(activeModuleData
                                     ]).then(() => {
                                         invalidateCache(`/teacher/courses/${id}`);
                                         fetchCourse();
-                                        toast.success(allPublished ? 'All unpublished' : 'All published');
+                                        if (allPublished) {
+                                          toast.warning('All unpublished');
+                                        } else {
+                                          toast.success('All published');
+                                        }
 }).catch(() => toast.error('Failed to update')).finally(() => setIsUpdatingStatus(false));
                                 }}
                                 style={{ padding: '12px 20px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
@@ -1351,8 +1369,8 @@ const allPublished = [...(activeModuleData?.lessons || []), ...(activeModuleData
                                         </div>
 {!isDragging && (
 <div style={{ gap: '12px' }} className="flex items-center">
-<button onClick={() => toggleItemStatus(item)} style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: '#7e22ce' }} className="p-2 px-3 rounded-lg cursor-pointer">
-{item.is_published ? <EyeOff size={18} /> : <Eye size={18} />}
+<button onClick={() => toggleItemStatus(item)} disabled={togglingItemId === item.id} style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: '#7e22ce', opacity: togglingItemId === item.id ? 0.5 : 1 }} className="p-2 px-3 rounded-lg cursor-pointer disabled:cursor-wait">
+{togglingItemId === item.id ? <Loader2 className="animate-spin" size={18} /> : (item.is_published ? <EyeOff size={18} /> : <Eye size={18} />)}
 </button>
 <button onClick={() => navigate(`/dashboard/teacher/class/${course.class_id}/${item.itemType}/${item.id}`)} style={{ padding: '12px 28px' }} className="bg-purple-600 text-white rounded-lg border-none cursor-pointer font-bold text-[10px] uppercase hover:bg-purple-500 transition-all">Open</button>
 <button onClick={() => setDeleteModal({ isOpen: true, type: item.itemType, id: item.id })} className="p-2 bg-transparent border-none text-slate-500 hover:text-red-600 cursor-pointer"><Trash2 size={18}/></button>
@@ -1511,6 +1529,7 @@ const allPublished = [...(activeModuleData?.lessons || []), ...(activeModuleData
                                                         setCourse(prev => ({ ...prev, is_coding: newValue }));
                                                         try {
                                                             await api.put(`/teacher/courses/${course.id}`, { is_coding: newValue });
+                                                            toast.success(newValue ? 'Programming course mode enabled' : 'Non-programming course mode enabled');
                                                         } catch (err) {
                                                             toast.error('Failed to update course setting');
                                                             setCourse(prev => ({ ...prev, is_coding: !newValue }));

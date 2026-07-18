@@ -228,9 +228,11 @@ export default function ActivityGrading() {
           </div>
           <h2 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{activity.title}</h2>
           <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: '4px 0 0 0' }}>
-            {submissions.length > 0
-              ? `${submissions.filter((s) => s.status === 'submitted' || s.status === 'graded').length} submitted, ${submissions.filter((s) => s.status === 'graded').length} graded`
-              : 'No submissions yet'}
+            {isMaterial
+              ? `${submissions.length} read, ${notSubmitted.length} not read`
+              : submissions.length > 0
+                ? `${submissions.filter((s) => s.status === 'submitted' || s.status === 'graded').length} submitted, ${submissions.filter((s) => s.status === 'graded').length} graded`
+                : 'No submissions yet'}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
@@ -246,7 +248,7 @@ export default function ActivityGrading() {
         <div>
           <button onClick={() => { setGradingTarget(null); setGradingForm({}); }}
             style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 600, marginBottom: '16px' }} type="button">
-            <ChevronLeft size={14} /> Back to submissions
+            <ChevronLeft size={14} /> {isMaterial ? 'Back to reader status' : 'Back to submissions'}
           </button>
 
           <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', marginBottom: '20px' }}>
@@ -286,7 +288,13 @@ export default function ActivityGrading() {
                         <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>{q.points} pts</span>
                       </div>
                       <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 8px 0', padding: '8px 10px', borderRadius: '6px', background: 'var(--bg-secondary)', fontFamily: q.type === 'coding' ? 'monospace' : 'inherit' }}>
-                        {answer?.submitted_answer || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>No answer</span>}
+                        {answer?.submitted_answer
+                          ? q.type === 'multiple_choice'
+                            ? (q.options?.[parseInt(answer.submitted_answer)] ?? answer.submitted_answer)
+                            : q.type === 'enumeration'
+                              ? (() => { try { const items = JSON.parse(answer.submitted_answer); return Array.isArray(items) ? items.join(', ') : answer.submitted_answer; } catch { return answer.submitted_answer; } })()
+                              : answer.submitted_answer
+                          : <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>No answer</span>}
                       </p>
                       {q.type !== 'essay' && q.type !== 'coding' && answer?.is_auto_graded && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
@@ -372,10 +380,20 @@ export default function ActivityGrading() {
             </div>
             <select value={submissionFilter} onChange={(e) => setSubmissionFilter(e.target.value)}
               style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none' }}>
-              <option value="all">All</option>
-              <option value="submitted">Submitted</option>
-              <option value="graded">Graded</option>
-              <option value="not_submitted">Not Submitted</option>
+              {isMaterial ? (
+                <>
+                  <option value="all">All</option>
+                  <option value="submitted">Read</option>
+                  <option value="not_submitted">Not Read</option>
+                </>
+              ) : (
+                <>
+                  <option value="all">All</option>
+                  <option value="submitted">Submitted</option>
+                  <option value="graded">Graded</option>
+                  <option value="not_submitted">Not Submitted</option>
+                </>
+              )}
             </select>
           </div>
 
@@ -386,8 +404,8 @@ export default function ActivityGrading() {
           ) : displayList.length === 0 ? (
             <div style={{ border: '2px dashed var(--border-color)', borderRadius: '20px', padding: '60px 40px', textAlign: 'center', background: 'var(--bg-secondary)' }}>
               <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#a78bfa' }}><MessageSquare size={28} /></div>
-              <p style={{ fontSize: '16px', fontWeight: 600, color: '#94a3b8', margin: '0 0 6px 0' }}>{submissionSearch || submissionFilter !== 'all' ? 'No matching submissions' : 'No submissions yet'}</p>
-              <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>{submissionSearch || submissionFilter !== 'all' ? 'Try adjusting your search or filter' : 'Submissions will appear here once students submit'}</p>
+              <p style={{ fontSize: '16px', fontWeight: 600, color: '#94a3b8', margin: '0 0 6px 0' }}>{submissionSearch || submissionFilter !== 'all' ? 'No matching entries' : 'No submissions yet'}</p>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>{submissionSearch || submissionFilter !== 'all' ? 'Try adjusting your search or filter' : isMaterial ? 'Students will appear here once they view the material' : 'Submissions will appear here once students submit'}</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -405,12 +423,12 @@ export default function ActivityGrading() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 2px 0', opacity: isNotSubmitted ? 0.5 : 1 }}>
                         {studentName(s)}
-                        {isNotSubmitted && <span style={{ fontWeight: 400, color: 'var(--text-tertiary)', fontSize: '13px' }}> (not submitted)</span>}
+                        {isNotSubmitted && <span style={{ fontWeight: 400, color: 'var(--text-tertiary)', fontSize: '13px' }}> {isMaterial ? '(not read)' : '(not submitted)'}</span>}
                       </p>
                       {!isNotSubmitted && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', fontWeight: 600, background: s.status === 'graded' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(59, 130, 246, 0.1)', color: s.status === 'graded' ? '#22c55e' : '#3b82f6' }}>
-                            {s.status === 'graded' ? 'Graded' : 'Submitted'}
+                          <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', fontWeight: 600, background: isMaterial ? 'rgba(16, 185, 129, 0.1)' : (s.status === 'graded' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(59, 130, 246, 0.1)'), color: isMaterial ? '#10b981' : (s.status === 'graded' ? '#22c55e' : '#3b82f6') }}>
+                            {isMaterial ? 'Read' : (s.status === 'graded' ? 'Graded' : 'Submitted')}
                           </span>
                           {s.is_late && <span style={{ fontSize: '11px', color: '#ef4444', fontWeight: 600 }}>Late</span>}
                           {s.submitted_at && (
@@ -425,6 +443,7 @@ export default function ActivityGrading() {
                         </div>
                       )}
                     </div>
+                    {!isMaterial && (
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       {isNotSubmitted ? (
                         <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: 600 }}>---</span>
@@ -440,6 +459,7 @@ export default function ActivityGrading() {
                         <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: 600 }}>Pending</span>
                       )}
                     </div>
+                    )}
                   </div>
                 );
               })}

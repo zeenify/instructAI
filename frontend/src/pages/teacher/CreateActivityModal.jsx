@@ -171,10 +171,10 @@ export default function CreateActivityModal({ isOpen, onClose, classId, onCreate
                       style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
                   </div>
 
-                  {/* Deadline */}
+                  {!(selectedType === 'activity' && submissionType === 'material') && (
                   <div style={{ marginBottom: '24px', padding: '16px', borderRadius: '14px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)' }}>
                     <h4 style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Clock size={14} /> {selectedType === 'activity' && submissionType === 'material' ? 'Deadline (optional)' : 'Deadline'}
+                      <Clock size={14} /> Deadline
                     </h4>
                     <input type="datetime-local" value={deadlineAt} onChange={(e) => setDeadlineAt(e.target.value)}
                       style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
@@ -184,10 +184,8 @@ export default function CreateActivityModal({ isOpen, onClose, classId, onCreate
                       <button type="button" onClick={() => setDeadlineBehavior('soft')}
                         style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '11px', border: `1px solid ${deadlineBehavior === 'soft' ? '#f59e0b' : 'var(--border-color)'}`, background: deadlineBehavior === 'soft' ? 'rgba(245, 158, 11, 0.1)' : 'transparent', color: deadlineBehavior === 'soft' ? '#f59e0b' : 'var(--text-secondary)' }}>Soft (late OK)</button>
                     </div>
-                    {selectedType === 'activity' && submissionType === 'material' && deadlineAt && (
-                      <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', margin: '8px 0 0 0' }}>Optional for materials — students can still view without submitting.</p>
-                    )}
                   </div>
+                  )}
 
                   <div style={{ display: 'flex', gap: '12px' }}>
                     <button onClick={handleBack} type="button" style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'transparent', cursor: 'pointer', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '14px' }}>Back</button>

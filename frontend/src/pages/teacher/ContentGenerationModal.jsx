@@ -48,7 +48,7 @@ export default function ContentGenerationModal({
         }
 
         setDeleteConfirm(null);
-        toast.success(`${type === 'lesson' ? 'Lesson' : 'Quiz'} removed`);
+        toast.warning(`${type === 'lesson' ? 'Lesson' : 'Quiz'} removed`);
     };
 
     const getTotalCounts = () => {

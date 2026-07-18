@@ -38,7 +38,11 @@ export default function ActivityCard({ activity, classId, onUpdate, onDelete }) 
     try {
       const res = await api.post(`/teacher/activities/${activity.id}/publish`);
       invalidateCache(`get:/teacher/classes/${classId}/activities`);
-      toast.success(res.data.is_published ? 'Published' : 'Unpublished');
+      if (res.data.is_published) {
+        toast.success('Published');
+      } else {
+        toast.warning('Unpublished');
+      }
       onUpdate({ ...activity, is_published: res.data.is_published });
     } catch {
       toast.error('Failed to toggle publish status');

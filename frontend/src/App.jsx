@@ -1,6 +1,8 @@
+import { Toaster } from 'sonner';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ClassProvider } from './context/ClassContext'; 
+import { useTheme } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // --- Page Imports ---
@@ -32,9 +34,27 @@ import TeacherLayout from './components/layouts/TeacherLayout';
 import StudentLayout from './components/layouts/StudentLayout';
 
 function App() {
+  const { theme } = useTheme();
   return (
     <AuthProvider>
       <BrowserRouter>
+        <Toaster
+          position="top-right"
+          richColors
+          closeButton
+          theme={theme}
+          toastOptions={{
+            style: {
+              fontFamily: 'inherit',
+              fontWeight: 600,
+              fontSize: '14px',
+              padding: '14px 18px',
+              borderRadius: '14px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+              border: '1px solid rgba(255,255,255,0.08)',
+            },
+          }}
+        />
         <Routes>
           {/* --- Public Routes --- */}
           <Route path="/" element={<LandingPageV2 />} />

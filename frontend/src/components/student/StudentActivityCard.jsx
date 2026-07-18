@@ -24,7 +24,10 @@ export default function StudentActivityCard({ activity, classId, isActive }) {
   const typeInfo = submissionConfig[typeKey] || submissionConfig.quiz;
   const TypeIcon = typeInfo.icon;
 
-  const statusInfo = statusConfig[activity.submission_status] || statusConfig.not_submitted;
+  let statusInfo = statusConfig[activity.submission_status] || statusConfig.not_submitted;
+  if (activity.submission_type === 'material' && activity.submission_status === 'submitted') {
+    statusInfo = { icon: CheckCircle2, color: '#10b981', label: 'Read' };
+  }
   const StatusIcon = statusInfo.icon;
 
   const deadlineDate = activity.deadline_at ? parseISO(activity.deadline_at) : null;
@@ -59,7 +62,7 @@ export default function StudentActivityCard({ activity, classId, isActive }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
           <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activity.title}</h4>
           <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: typeInfo.bg, color: typeInfo.color, flexShrink: 0, whiteSpace: 'nowrap' }}>{typeInfo.label}</span>
-          {activity.submission_summary?.status === 'graded' && (
+          {activity.submission_type !== 'material' && activity.submission_summary?.status === 'graded' && (
             <span style={{ fontSize: '11px', fontWeight: 700, color: statusInfo.color, flexShrink: 0, whiteSpace: 'nowrap' }}>
               {Number(activity.submission_summary.score).toFixed(0)}/{Number(activity.submission_summary.max_score).toFixed(0)}
             </span>

@@ -89,7 +89,7 @@ export default function Classwork({ classId }) {
     try {
       await api.delete(`/teacher/activities/${deleteTarget.id}`);
       invalidateCache(`get:/teacher/classes/${classId}/activities`);
-      toast.success(`"${deleteTarget.title}" deleted`);
+      toast.warning(`"${deleteTarget.title}" deleted`);
       setActivities((prev) => prev.filter((a) => a.id !== deleteTarget.id));
       setDeleteTarget(null);
     } catch {

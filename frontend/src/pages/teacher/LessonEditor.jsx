@@ -107,7 +107,7 @@ export default function LessonEditor() {
     const removeBlock = (blockId) => {
         setBlocks(prev => prev.filter(b => b.id !== blockId));
         setConfirmDeleteId(null);
-        toast.success("Block removed");
+        toast.warning("Block removed");
     };
 
     const handleSave = async (publishStatus = isPublished) => {
@@ -197,15 +197,22 @@ placeholder="Unit Title..."
                     </Button>
                     <button
                         onClick={() => handleSave(!isPublished)}
+                        disabled={saving}
                         style={{ 
                             padding: '14px 24px',
                             backgroundColor: isPublished ? 'var(--bg-tertiary)' : '#7e22ce',
                             color: isPublished ? 'var(--text-primary)' : 'white',
-                            border: isPublished ? '1px solid var(--border-color)' : 'none'
+                            border: isPublished ? '1px solid var(--border-color)' : 'none',
+                            opacity: saving ? 0.6 : 1,
+                            cursor: saving ? 'wait' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
                         }}
-                        className="rounded-xl text-xs font-black uppercase tracking-widest cursor-pointer transition-all shadow-sm"
+                        className="rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm"
                     >
-                        {isPublished ? 'Return to Draft' : 'Publish Content'}
+                        {saving ? <Loader2 className="animate-spin" size={16} /> : null}
+                        {saving ? (isPublished ? 'Unpublishing...' : 'Publishing...') : (isPublished ? 'Return to Draft' : 'Publish Content')}
                     </button>
                 </div>
             </div>

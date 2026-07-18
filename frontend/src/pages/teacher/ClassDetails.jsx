@@ -69,7 +69,7 @@ export default function ClassDetails() {
         setIsDeleting(true);
         try {
             await api.delete(`/teacher/courses/${courseToDelete.id}`);
-            toast.success(`"${courseToDelete.title}" deleted successfully`);
+            toast.warning(`"${courseToDelete.title}" deleted successfully`);
             setClassroom(prev => ({
                 ...prev,
                 courses: prev.courses.filter(c => c.id !== courseToDelete.id),

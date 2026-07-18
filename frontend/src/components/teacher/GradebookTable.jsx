@@ -13,9 +13,11 @@ function scoreColor(score, maxScore) {
 
 export default function GradebookTable({ data, loading, onActivityClick }) {
 
+  const activities = useMemo(() => (data?.activities || []).filter(a => a.submission_type !== 'material'), [data]);
+
   const summary = useMemo(() => {
     if (!data) return null;
-    const { activities, students, grades } = data;
+  const { students, grades } = data;
     return students.map((s) => {
       let totalScore = 0;
       let totalMax = 0;
@@ -35,7 +37,7 @@ export default function GradebookTable({ data, loading, onActivityClick }) {
       });
       return { student: s, totalScore, totalMax, graded, total: n, pct: totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : 0 };
     });
-  }, [data]);
+  }, [data, activities]);
 
   if (loading) {
     return (
@@ -45,7 +47,7 @@ export default function GradebookTable({ data, loading, onActivityClick }) {
     );
   }
 
-  if (!data || !data.activities?.length) {
+  if (!data || !activities.length) {
     return (
       <div style={{ textAlign: 'center', padding: '60px 24px', borderRadius: '24px', border: '1px dashed var(--border-color)', background: 'var(--bg-secondary)' }}>
         <TrendingUp size={48} color="var(--text-tertiary)" style={{ opacity: 0.4, marginBottom: '16px' }} />
@@ -55,7 +57,7 @@ export default function GradebookTable({ data, loading, onActivityClick }) {
     );
   }
 
-  const { activities, students, grades } = data;
+  const { grades } = data;
 
   return (
     <div style={{ overflowX: 'auto', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>

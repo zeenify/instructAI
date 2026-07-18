@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import api, { invalidateCache } from '../../services/api';
 import {
   ChevronLeft, Clock, CheckCircle2, Circle, AlertTriangle, AlertCircle, Hourglass,
-  FileText, Upload, Trash2, Loader2, BookOpen, Download, ImageIcon,
+  FileText, Upload, Trash2, Loader2, Download, ImageIcon,
   Send, Code as CodeIcon, Plus, XCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -34,6 +34,7 @@ export default function ActivityViewer() {
   const [answers, setAnswers] = useState({});
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [removingFileId, setRemovingFileId] = useState(null);
   const [unsubmitting, setUnsubmitting] = useState(false);
   const [showUnsubmitModal, setShowUnsubmitModal] = useState(false);
   const [showUnansweredModal, setShowUnansweredModal] = useState(false);
@@ -67,11 +68,19 @@ export default function ActivityViewer() {
       if (res.data.submission?.attachments?.length) {
         setUploadedFiles(res.data.submission.attachments);
       }
+
+      if (res.data.activity.submission_type === 'material' && !res.data.submission) {
+        api.post(`/student/activities/${activityId}/submit`, {}).then(r => {
+          setSubmission(r.data);
+          invalidateCache(`get:/student/classes/${classId}/activities`);
+          fetchSidebar();
+        }).catch(() => {});
+      }
     } catch {
       toast.error('Failed to load activity');
       navigate(`/dashboard/student/class/${classId}?tab=activities`);
     } finally { setLoading(false); }
-  }, [activityId, classId, navigate]);
+  }, [activityId, classId, navigate, fetchSidebar]);
 
   useEffect(() => { fetchSidebar(); }, [fetchSidebar]);
   useEffect(() => { fetchActivity(); }, [fetchActivity]);
@@ -99,12 +108,15 @@ export default function ActivityViewer() {
   };
 
   const handleRemoveFile = async (publicId) => {
+    setRemovingFileId(publicId);
     try {
       const res = await api.delete(`/student/activities/${activityId}/remove-file`, { data: { public_id: publicId } });
       setUploadedFiles(res.data);
-      toast.success('File removed');
+      toast.warning('File removed');
     } catch {
       toast.error('Failed to remove file');
+    } finally {
+      setRemovingFileId(null);
     }
   };
 
@@ -166,7 +178,7 @@ export default function ActivityViewer() {
     try {
       await api.post(`/student/activities/${activityId}/unsubmit`);
       invalidateCache(`get:/student/classes/${classId}/activities`);
-      toast.success('Submission unsubmitted');
+      toast.warning('Submission unsubmitted');
       setSubmission(null);
       await fetchSidebar();
     } catch (err) {
@@ -244,8 +256,8 @@ export default function ActivityViewer() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                   <span style={{ fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', background: typeInfo.bg, color: typeInfo.color }}>{typeInfo.label}</span>
                   {isSubmitted && (
-                    <span style={{ fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', background: isGraded ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)', color: isGraded ? '#10b981' : '#f59e0b' }}>
-                      {isGraded ? `Graded: ${submission.score}/${submission.max_score}` : 'Submitted'}
+                    <span style={{ fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', background: (isGraded || activity.submission_type === 'material') ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)', color: (isGraded || activity.submission_type === 'material') ? '#10b981' : '#f59e0b' }}>
+                      {isGraded ? `Graded: ${submission.score}/${submission.max_score}` : activity.submission_type === 'material' ? 'Read' : 'Submitted'}
                     </span>
                   )}
                   {isPastDue && !isSubmitted && (
@@ -342,7 +354,13 @@ export default function ActivityViewer() {
                               {idx + 1}. {q.question_text}
                             </p>
                             <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: 0 }}>
-                              Your answer: {ans?.submitted_answer || 'No answer'}
+                              Your answer: {ans?.submitted_answer
+                                ? q.type === 'multiple_choice'
+                                  ? (q.options?.[parseInt(ans.submitted_answer)] ?? ans.submitted_answer)
+                                  : q.type === 'enumeration'
+                                    ? (() => { try { const items = JSON.parse(ans.submitted_answer); return Array.isArray(items) ? items.join(', ') : ans.submitted_answer; } catch { return ans.submitted_answer; } })()
+                                    : ans.submitted_answer
+                                : 'No answer'}
                             </p>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
@@ -422,11 +440,11 @@ export default function ActivityViewer() {
                       <span style={{ flex: 1, fontSize: '13px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
                       <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{(f.size / 1024).toFixed(0)} KB</span>
                       {!isSubmitted && (
-                        <button onClick={() => handleRemoveFile(f.public_id)} type="button"
-                          style={{ padding: '6px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', borderRadius: '6px', transition: 'all 0.2s' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
+                        <button onClick={() => handleRemoveFile(f.public_id)} type="button" disabled={removingFileId === f.public_id}
+                          style={{ padding: '6px', background: 'transparent', border: 'none', cursor: removingFileId === f.public_id ? 'wait' : 'pointer', color: 'var(--text-tertiary)', borderRadius: '6px', transition: 'all 0.2s', opacity: removingFileId === f.public_id ? 0.4 : 1 }}
+                          onMouseEnter={(e) => { if (removingFileId !== f.public_id) { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; } }}
                           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.background = 'transparent'; }}>
-                          <Trash2 size={14} />
+                          {removingFileId === f.public_id ? <Loader2 className="animate-spin" size={14} /> : <Trash2 size={14} />}
                         </button>
                       )}
                     </div>
@@ -462,26 +480,7 @@ export default function ActivityViewer() {
             </div>
           )}
 
-          {/* MATERIAL */}
-          {activity.submission_type === 'material' && !isSubmitted && (
-            <div style={{ textAlign: 'center', padding: '48px 24px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
-              <BookOpen size={48} color="#10b981" style={{ marginBottom: '16px' }} />
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px 0' }}>Review the material above</h3>
-              <p style={{ fontSize: '14px', color: 'var(--text-tertiary)', margin: '0 0 24px 0' }}>No submission needed. Click below when you're done.</p>
-              <button onClick={handleSubmit} disabled={submitting}
-                style={{ padding: '14px 32px', borderRadius: '12px', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer', background: '#10b981', color: 'white', fontWeight: 700, fontSize: '15px', display: 'inline-flex', alignItems: 'center', gap: '8px', opacity: submitting ? 0.6 : 1 }}>
-                {submitting ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />}
-                Mark as Read
-              </button>
-            </div>
-          )}
 
-          {activity.submission_type === 'material' && isSubmitted && (
-            <div style={{ textAlign: 'center', padding: '32px', borderRadius: '16px', border: '1px solid rgba(16, 185, 129, 0.3)', background: 'rgba(16, 185, 129, 0.06)' }}>
-              <CheckCircle2 size={40} color="#10b981" style={{ marginBottom: '12px' }} />
-              <p style={{ fontSize: '16px', fontWeight: 700, color: '#10b981', margin: 0 }}>Completed</p>
-            </div>
-          )}
         </div>
       </main>
     </div>

@@ -342,7 +342,10 @@ export default function QuizBuilder() {
         try {
             await api.post(`/teacher/quizzes/${id}/reorder-questions`, { question_ids: newOrder.map(q => q.id) });
             setSaveStatus('saved');
-        } catch (err) { setSaveStatus('error'); }
+        } catch (err) {
+            setSaveStatus('error');
+            toast.error("Failed to reorder questions");
+        }
     };
 
     const removeQuestion = async () => {
@@ -351,7 +354,9 @@ export default function QuizBuilder() {
         try {
             await api.delete(`/teacher/questions/${qId}`);
             setQuestions(prev => prev.filter(q => q.id !== qId));
-            toast.success("Question deleted");
+            toast.warning("Question deleted");
+        } catch {
+            toast.error("Failed to delete question");
         } finally { setDeleteModalOpen(null); setIsSyncingId(null); }
     };
 

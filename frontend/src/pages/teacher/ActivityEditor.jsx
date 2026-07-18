@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, Reorder, useDragControls } from 'framer-motion';
-import { ChevronLeft, Plus, Trash2, GripVertical, Clock, Eye, EyeOff, Loader2, HelpCircle, Upload, BookOpen, Edit3, UserCheck, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, GripVertical, Clock, Eye, EyeOff, Loader2, HelpCircle, Upload, BookOpen, Edit3, UserCheck, AlertTriangle, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
 import ActivityTypeBadge from '../../components/teacher/ActivityTypeBadge';
@@ -382,6 +382,7 @@ export default function ActivityEditor() {
   const [editQuestion, setEditQuestion] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteFileTarget, setDeleteFileTarget] = useState(null);
+  const [publishing, setPublishing] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
 
   const handleUploadFile = async (e) => {
@@ -412,7 +413,7 @@ export default function ActivityEditor() {
     try {
       const res = await api.post('/teacher/activities/' + activityId + '/delete-instruction-file', { public_id: publicId });
       setActivity((prev) => ({ ...prev, instruction_files: res.data }));
-      toast.success('File removed');
+      toast.warning('File removed');
     } catch (err) {
       console.error('Delete file error:', err.response?.data || err.message);
       toast.error(err.response?.data?.message || 'Failed to remove file');
@@ -465,13 +466,20 @@ export default function ActivityEditor() {
   };
 
   const handlePublish = async () => {
+    setPublishing(true);
     try {
       const res = await api.post(`/teacher/activities/${activityId}/publish`);
       setActivity((prev) => ({ ...prev, is_published: res.data.is_published }));
       setOriginalActivity((prev) => ({ ...prev, is_published: res.data.is_published }));
-      toast.success(res.data.is_published ? 'Published!' : 'Unpublished');
+      if (res.data.is_published) {
+        toast.success('Published!');
+      } else {
+        toast.warning('Unpublished');
+      }
     } catch {
       toast.error('Failed to toggle publish');
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -496,7 +504,7 @@ export default function ActivityEditor() {
       await api.delete(`/teacher/activities/${activityId}/questions/${question.id}`);
       setActivity((prev) => ({ ...prev, questions: (prev.questions || []).filter((q) => q.id !== question.id) }));
       invalidateCache(`get:/teacher/activities/${activityId}`);
-      toast.success('Question removed');
+      toast.warning('Question removed');
     } catch {
       toast.error('Failed to delete question');
     }
@@ -579,12 +587,12 @@ export default function ActivityEditor() {
         <div style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
           <button onClick={() => navigate(`/dashboard/teacher/class/${classId}/activity/${activityId}/submissions`)}
             style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'rgba(167, 139, 250, 0.1)', color: '#a78bfa', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }} type="button">
-            <UserCheck size={16} /> Submissions
+            <UserCheck size={16} /> {activity.submission_type === 'material' ? 'View Status' : 'Submissions'}
           </button>
-          <button onClick={handlePublish} disabled={isPastDue}
-            style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '10px', border: '1px solid var(--border-color)', background: activity.is_published ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-secondary)', color: activity.is_published ? '#16a34a' : 'var(--text-secondary)', cursor: isPastDue ? 'not-allowed' : 'pointer', opacity: isPastDue ? 0.5 : 1, fontWeight: 600, fontSize: '13px' }} type="button">
-            {activity.is_published ? <Eye size={16} /> : <EyeOff size={16} />}
-            {activity.is_published ? 'Published' : 'Draft'}
+          <button onClick={handlePublish} disabled={isPastDue || publishing}
+            style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '10px', border: '1px solid var(--border-color)', background: activity.is_published ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-secondary)', color: activity.is_published ? '#16a34a' : 'var(--text-secondary)', cursor: (isPastDue || publishing) ? 'not-allowed' : 'pointer', opacity: (isPastDue || publishing) ? 0.5 : 1, fontWeight: 600, fontSize: '13px' }} type="button">
+            {publishing ? <Loader2 className="animate-spin" size={16} /> : activity.is_published ? <Eye size={16} /> : <EyeOff size={16} />}
+            {publishing ? (activity.is_published ? 'Unpublishing...' : 'Publishing...') : (activity.is_published ? 'Published' : 'Draft')}
           </button>
         </div>
       </div>
@@ -621,7 +629,7 @@ export default function ActivityEditor() {
             )}
           </div>
 
-          {/* Deadline */}
+          {activity.submission_type !== 'material' && (
           <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
             <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={14} /> Deadline</h4>
             <DateTimePicker value={activity.deadline_at} onChange={(val) => { handleFieldChange('deadline_at', val); if (activity) api.put(`/teacher/activities/${activityId}`, { deadline_at: val }); }} />
@@ -632,6 +640,7 @@ export default function ActivityEditor() {
                 style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '12px', border: `1px solid ${activity.deadline_behavior === 'soft' ? '#f59e0b' : 'var(--border-color)'}`, background: activity.deadline_behavior === 'soft' ? 'rgba(245, 158, 11, 0.1)' : 'transparent', color: activity.deadline_behavior === 'soft' ? '#f59e0b' : 'var(--text-secondary)' }} type="button">Soft (late OK)</button>
             </div>
           </div>
+          )}
 
           {/* Submission type (read-only) */}
           {isActivity && activity.submission_type && (
@@ -797,13 +806,42 @@ export default function ActivityEditor() {
             <div style={{ padding: '28px', borderRadius: '20px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
                 <BookOpen size={20} style={{ color: '#10b981' }} />
-                <span style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text-primary)' }}>Material</span>
+                <span style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text-primary)' }}>Material Preview</span>
               </div>
-              <div style={{ padding: '20px', borderRadius: '14px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                <BookOpen size={32} style={{ color: 'var(--text-tertiary)', marginBottom: '8px' }} />
-                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0, fontWeight: 600 }}>No submission required</p>
-                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '4px' }}>Students can read and review the instructions</p>
-              </div>
+              {activity.description ? (
+                <div style={{ padding: '16px', borderRadius: '12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
+                  <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 8px 0' }}>Instructions</p>
+                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>{activity.description}</p>
+                </div>
+              ) : (
+                <div style={{ padding: '20px', borderRadius: '14px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', textAlign: 'center', marginBottom: '16px' }}>
+                  <BookOpen size={32} style={{ color: 'var(--text-tertiary)', marginBottom: '8px' }} />
+                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0, fontWeight: 600 }}>Add instructions above</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '4px' }}>Students will see this content when they view the material</p>
+                </div>
+              )}
+              {(activity.instruction_files || []).length > 0 && (
+                <div>
+                  <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 8px 0' }}>Attachments</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {(activity.instruction_files || []).map((file, i) => {
+                      const isImage = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(file.name);
+                      return isImage ? (
+                        <a key={i} href={file.url} target="_blank" rel="noopener noreferrer"
+                          style={{ borderRadius: '10px', overflow: 'hidden', display: 'inline-block', border: '1px solid var(--border-color)', lineHeight: 0 }}>
+                          <img src={file.url} alt={file.name}
+                            style={{ maxWidth: '280px', maxHeight: '200px', objectFit: 'contain', display: 'block', background: 'var(--bg-primary)' }} />
+                        </a>
+                      ) : (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '10px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
+                          <FileText size={16} color="#10b981" />
+                          <span style={{ fontSize: '13px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
