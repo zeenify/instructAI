@@ -13,6 +13,25 @@ use Illuminate\Support\Facades\DB;
 
 class ClassActivityController extends Controller
 {
+    private function cloudinary(): ?UploadApi
+    {
+        $cloudName = env('CLOUDINARY_CLOUD_NAME');
+        $apiKey = env('CLOUDINARY_API_KEY');
+        $apiSecret = env('CLOUDINARY_API_SECRET');
+
+        if (! $cloudName || ! $apiKey || ! $apiSecret) {
+            return null;
+        }
+
+        return new UploadApi([
+            'cloud' => [
+                'cloud_name' => $cloudName,
+                'api_key' => $apiKey,
+                'api_secret' => $apiSecret,
+            ],
+        ]);
+    }
+
     private function checkEnrollment($classId)
     {
         $enrolled = Enrollment::where('student_id', auth()->id())
@@ -273,19 +292,7 @@ class ClassActivityController extends Controller
 
         $file = $request->file('file');
 
-        $cloudName = env('CLOUDINARY_CLOUD_NAME');
-        $apiKey = env('CLOUDINARY_API_KEY');
-        $apiSecret = env('CLOUDINARY_API_SECRET');
-
-        $config = [
-            'cloud' => [
-                'cloud_name' => $cloudName,
-                'api_key' => $apiKey,
-                'api_secret' => $apiSecret,
-            ],
-        ];
-
-        $uploadApi = new UploadApi($config);
+        $uploadApi = $this->cloudinary();
 
         $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
         $extension = $file->getClientOriginalExtension();
@@ -341,19 +348,9 @@ class ClassActivityController extends Controller
         $publicId = $request->input('public_id');
 
         try {
-            $cloudName = env('CLOUDINARY_CLOUD_NAME');
-            $apiKey = env('CLOUDINARY_API_KEY');
-            $apiSecret = env('CLOUDINARY_API_SECRET');
-
-            if ($cloudName && $apiKey && $apiSecret) {
-                $config = [
-                    'cloud' => [
-                        'cloud_name' => $cloudName,
-                        'api_key' => $apiKey,
-                        'api_secret' => $apiSecret,
-                    ],
-                ];
-                (new UploadApi($config))->destroy($publicId);
+            $uploadApi = $this->cloudinary();
+            if ($uploadApi) {
+                $uploadApi->destroy($publicId);
             }
         } catch (\Exception $e) {
             \Log::warning('Cloudinary delete failed: '.$e->getMessage());

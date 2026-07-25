@@ -6,6 +6,18 @@
 node_modules/
 cognify.png
 proxy.js
+opencode.json
+TOOLKIT.md
+
+# Opencode / Claude config
+.claude/
+.opencode/
+
+# Browser smoke test
+.browser-smoke/
+
+# Environment-specific backend config
+backend/config/agent-mcp.php
 
 # Laravel
 backend/.env

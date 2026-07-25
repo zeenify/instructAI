@@ -354,7 +354,7 @@ export default function QuizBuilder() {
         try {
             await api.delete(`/teacher/questions/${qId}`);
             setQuestions(prev => prev.filter(q => q.id !== qId));
-            toast.warning("Question deleted");
+            toast.success("Question deleted");
         } catch {
             toast.error("Failed to delete question");
         } finally { setDeleteModalOpen(null); setIsSyncingId(null); }

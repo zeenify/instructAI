@@ -16,6 +16,25 @@ use Illuminate\Support\Facades\DB;
 
 class ClassActivityController extends Controller
 {
+    private function cloudinary(): ?UploadApi
+    {
+        $cloudName = env('CLOUDINARY_CLOUD_NAME');
+        $apiKey = env('CLOUDINARY_API_KEY');
+        $apiSecret = env('CLOUDINARY_API_SECRET');
+
+        if (! $cloudName || ! $apiKey || ! $apiSecret) {
+            return null;
+        }
+
+        return new UploadApi([
+            'cloud' => [
+                'cloud_name' => $cloudName,
+                'api_key' => $apiKey,
+                'api_secret' => $apiSecret,
+            ],
+        ]);
+    }
+
     private function authorizeTeacher($classId)
     {
         $classroom = Classroom::where('id', $classId)
@@ -160,23 +179,13 @@ class ClassActivityController extends Controller
 
         $files = $activity->instruction_files ?? [];
         if (! empty($files)) {
-            try {
-                $cloudName = env('CLOUDINARY_CLOUD_NAME');
-                $apiKey = env('CLOUDINARY_API_KEY');
-                $apiSecret = env('CLOUDINARY_API_SECRET');
-                if ($cloudName && $apiKey && $apiSecret) {
-                    $config = [
-                        'cloud' => ['cloud_name' => $cloudName, 'api_key' => $apiKey, 'api_secret' => $apiSecret],
-                    ];
-                    $uploadApi = new UploadApi($config);
-                    foreach ($files as $file) {
-                        if (! empty($file['public_id'])) {
-                            try { $uploadApi->destroy($file['public_id']); } catch (\Exception $e) { \Log::warning('Cloudinary cleanup: '.$e->getMessage()); }
-                        }
+            $uploadApi = $this->cloudinary();
+            if ($uploadApi) {
+                foreach ($files as $file) {
+                    if (! empty($file['public_id'])) {
+                        try { $uploadApi->destroy($file['public_id']); } catch (\Exception $e) { \Log::warning('Cloudinary cleanup: '.$e->getMessage()); }
                     }
                 }
-            } catch (\Exception $e) {
-                \Log::warning('Cloudinary cleanup failed: '.$e->getMessage());
             }
         }
 
@@ -486,23 +495,11 @@ class ClassActivityController extends Controller
             throw new \Exception('Invalid file upload');
         }
 
-        $cloudName = env('CLOUDINARY_CLOUD_NAME');
-        $apiKey = env('CLOUDINARY_API_KEY');
-        $apiSecret = env('CLOUDINARY_API_SECRET');
+        $uploadApi = $this->cloudinary();
 
-        if (! $cloudName || ! $apiKey || ! $apiSecret) {
+        if (! $uploadApi) {
             throw new \Exception('Cloudinary credentials are missing in .env');
         }
-
-        $config = [
-            'cloud' => [
-                'cloud_name' => $cloudName,
-                'api_key' => $apiKey,
-                'api_secret' => $apiSecret,
-            ],
-        ];
-
-        $uploadApi = new UploadApi($config);
 
         $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
         $extension = $file->getClientOriginalExtension();
@@ -544,19 +541,9 @@ class ClassActivityController extends Controller
         $publicId = $request->input('public_id');
 
         try {
-            $cloudName = env('CLOUDINARY_CLOUD_NAME');
-            $apiKey = env('CLOUDINARY_API_KEY');
-            $apiSecret = env('CLOUDINARY_API_SECRET');
-
-            if ($cloudName && $apiKey && $apiSecret) {
-                $config = [
-                    'cloud' => [
-                        'cloud_name' => $cloudName,
-                        'api_key' => $apiKey,
-                        'api_secret' => $apiSecret,
-                    ],
-                ];
-                (new UploadApi($config))->destroy($publicId);
+            $uploadApi = $this->cloudinary();
+            if ($uploadApi) {
+                $uploadApi->destroy($publicId);
             }
         } catch (\Exception $e) {
             \Log::warning('Cloudinary delete failed (continuing): '.$e->getMessage());

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, BookOpen, Clock, CheckCircle, DraftingCompass, Loader2, TrendingUp, ListOrdered } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
@@ -36,6 +37,7 @@ const groupMeta = {
 };
 
 export default function Classwork({ classId }) {
+  const navigate = useNavigate();
   const [view, setView] = useState('activities');
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -89,7 +91,7 @@ export default function Classwork({ classId }) {
     try {
       await api.delete(`/teacher/activities/${deleteTarget.id}`);
       invalidateCache(`get:/teacher/classes/${classId}/activities`);
-      toast.warning(`"${deleteTarget.title}" deleted`);
+      toast.success(`"${deleteTarget.title}" deleted`);
       setActivities((prev) => prev.filter((a) => a.id !== deleteTarget.id));
       setDeleteTarget(null);
     } catch {
@@ -109,7 +111,7 @@ export default function Classwork({ classId }) {
   };
 
   const handleActivityClick = (activityId) => {
-    window.location.href = `/dashboard/teacher/class/${classId}/activity/${activityId}/submissions`;
+    navigate(`/dashboard/teacher/class/${classId}/activity/${activityId}/submissions`);
   };
 
   const groups = groupActivities(activities);

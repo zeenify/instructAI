@@ -1,10 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api, { invalidateCache } from '../../services/api';
 import {
   ChevronLeft, Clock, CheckCircle2, Circle, AlertTriangle, AlertCircle, Hourglass,
   FileText, Upload, Trash2, Loader2, Download, ImageIcon,
-  Send, Code as CodeIcon, Plus, XCircle
+  Send, Code as CodeIcon, Plus, XCircle, Play
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow, parseISO, isPast, format } from 'date-fns';
@@ -40,6 +40,7 @@ export default function ActivityViewer() {
   const [showUnansweredModal, setShowUnansweredModal] = useState(false);
   const [unansweredCount, setUnansweredCount] = useState(0);
   const [canSubmit, setCanSubmit] = useState(true);
+  const mounted = useRef(true);
 
   const fetchSidebar = useCallback(async () => {
     try {
@@ -70,11 +71,16 @@ export default function ActivityViewer() {
       }
 
       if (res.data.activity.submission_type === 'material' && !res.data.submission) {
-        api.post(`/student/activities/${activityId}/submit`, {}).then(r => {
-          setSubmission(r.data);
-          invalidateCache(`get:/student/classes/${classId}/activities`);
-          fetchSidebar();
-        }).catch(() => {});
+        try {
+          const r = await api.post(`/student/activities/${activityId}/submit`, {});
+          if (mounted) {
+            setSubmission(r.data);
+            invalidateCache(`get:/student/classes/${classId}/activities`);
+            fetchSidebar();
+          }
+        } catch {
+          // ignore
+        }
       }
     } catch {
       toast.error('Failed to load activity');
@@ -82,8 +88,8 @@ export default function ActivityViewer() {
     } finally { setLoading(false); }
   }, [activityId, classId, navigate, fetchSidebar]);
 
-  useEffect(() => { fetchSidebar(); }, [fetchSidebar]);
-  useEffect(() => { fetchActivity(); }, [fetchActivity]);
+  useEffect(() => { fetchSidebar(); return () => { mounted.current = false; }; }, [fetchSidebar]);
+  useEffect(() => { mounted.current = true; fetchActivity(); return () => { mounted.current = false; }; }, [fetchActivity]);
 
   const saveAnswer = (qId, value) => {
     setAnswers(prev => ({ ...prev, [qId]: value }));

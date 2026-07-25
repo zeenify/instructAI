@@ -335,7 +335,7 @@ export default function CourseBuilder() {
             }
 
             setDeleteModal({ isOpen: false, type: '', id: null });
-            toast.warning("Deleted successfully");
+            toast.success("Deleted successfully");
 
         } catch (err) {
             toast.error("Failed to delete");
@@ -375,7 +375,7 @@ export default function CourseBuilder() {
 
             setSelectedModuleIds(new Set());
             setIsBulkDeleteMode(false);
-            toast.warning(`Deleted ${count} module${count === 1 ? '' : 's'} successfully`, { id: toastId });
+            toast.success(`Deleted ${count} module${count === 1 ? '' : 's'} successfully`, { id: toastId });
         } catch (err) {
             toast.error("Failed to delete modules", { id: toastId });
             console.error('Bulk delete error:', err);

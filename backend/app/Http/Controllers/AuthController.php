@@ -98,19 +98,18 @@ class AuthController extends Controller
     public function loginWithGoogle(Request $request)
     {
         try {
-            $accessToken = $request->access_token;
+            $idToken = $request->id_token;
             $chosenRole = $request->role; // 'student' or 'teacher'
             $lrnNumber = $request->lrn_number;
 
-            $response = Http::withToken($accessToken)
-                            ->get("https://www.googleapis.com/oauth2/v3/userinfo");
+            $client = new \Google_Client(['client_id' => env('GOOGLE_CLIENT_ID')]);
+            $payload = $client->verifyIdToken($idToken);
 
-            if ($response->failed()) {
+            if (!$payload) {
                 return response()->json(['message' => 'Google verification failed'], 401);
             }
 
-            $googleUser = $response->json();
-            $email = $googleUser['email'];
+            $email = $payload['email'];
 
             $user = User::where('email', $email)->first();
 
@@ -131,21 +130,21 @@ class AuthController extends Controller
                 $user = User::create([
                     'email' => $email,
                     'role' => $chosenRole,
-                    'google_id' => $googleUser['sub'],
-                    'avatar' => $googleUser['picture'] ?? null,
+                    'google_id' => $payload['sub'],
+                    'avatar' => $payload['picture'] ?? null,
                     'password' => null,
                 ]);
 
                 if ($chosenRole === 'student') {
                     $user->studentProfile()->create([
-                        'first_name' => $googleUser['given_name'] ?? 'User',
-                        'last_name' => $googleUser['family_name'] ?? '',
+                        'first_name' => $payload['given_name'] ?? 'User',
+                        'last_name' => $payload['family_name'] ?? '',
                         'lrn_number' => $lrnNumber,
                     ]);
                 } else {
                     $user->teacherProfile()->create([
-                        'first_name' => $googleUser['given_name'] ?? 'User',
-                        'last_name' => $googleUser['family_name'] ?? '',
+                        'first_name' => $payload['given_name'] ?? 'User',
+                        'last_name' => $payload['family_name'] ?? '',
                     ]);
                 }
             }

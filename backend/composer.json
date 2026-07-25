@@ -7,6 +7,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "anilcancakir/laravel-agent-mcp": "^1.0",
         "cloudinary-labs/cloudinary-laravel": "^3.0",
         "google/apiclient": "*",
         "guzzlehttp/guzzle": "^7.10",

@@ -3,9 +3,20 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ## Project Overview
 
-InstructAI is a full-stack Learning Management System (LMS) with AI-powered curriculum generation, RAG-based AI tutor, student analytics/monitoring, and code execution engine. Built with **Laravel 12 (PHP 8.2)** backend, **React 19 + Vite** frontend, and a **FastAPI v2.0.0** microservice for AI features.
+InstructAI is a full-stack Learning Management System (LMS) with AI-powered curriculum generation, RAG-based AI tutor, student analytics/monitoring, code execution engine, and a Kotlin Android companion app (Cognify) for spaced-repetition review. Built with **Laravel 12 (PHP 8.2)** backend, **React 19 + Vite** frontend, **FastAPI v2.0.0** microservice for AI features, and **Kotlin** Android app. All services live in a single monorepo at `https://github.com/zeenify/instructAI`.
 
 ## Architecture
+
+### Repository Structure
+```
+instructAI/                  # Monorepo root
+  ├─ backend/                # Laravel 12 API (PHP 8.2)
+  ├─ frontend/               # React 19 + Vite SPA
+  ├─ instruct-ai-service/    # FastAPI v2.0.0 AI microservice
+  ├─ instruct-execute/       # Node.js code execution engine
+  ├─ cognify/                # Kotlin Android companion app
+  └─ documentation/          # Project docs/assets
+```
 
 ### Content Hierarchy
 ```
@@ -27,7 +38,7 @@ Classroom (teacher creates, students join via 6-digit code)
 - **Student Monitoring**: Teacher drill-down into student progress per course (stats, flags, profiles)
 - **RAG Vector Store**: PostgreSQL pgvector for semantic search across course content (embeddings via `all-MiniLM-L6-v2`)
 - **AI Tutor**: 4 character personas (Professor Oak, Buddy, Coach Taylor, Master Yuki) with RAG-powered chat
-- **Code Execution**: External Node.js service for compiling/running Java code with 10s timeout
+- **Code Execution**: Node.js service for compiling/running Java code with 10s timeout (in `instruct-execute/`)
 - **Curriculum Indexing**: Searchable index of course content for the AI tutor's RAG pipeline
 
 ### User Roles
@@ -62,7 +73,7 @@ All models in `backend/app/Models/`:
 
 - **Default**: PostgreSQL with pgvector extension (for RAG embeddings, 384-dim)
 - Can fall back to SQLite for local dev via `.env`
-- 23 migrations total
+- 32 migrations total
 
 ## Development Commands
 
@@ -132,7 +143,7 @@ cd frontend && npm run format:check          # Prettier check
 
 ### Backend Structure
 - **Routes**: `backend/routes/api.php` — 50+ endpoints with `/teacher/*` and `/student/*` prefixes
-- **Controllers** (18 total):
+- **Controllers** (21 total):
   - `App\Http\Controllers\Teacher\ClassroomController` — CRUD classrooms
   - `App\Http\Controllers\Teacher\CourseController` — Courses + AI generation (774 lines)
   - `App\Http\Controllers\Teacher\ModuleController` — Modules + reordering
@@ -142,16 +153,19 @@ cd frontend && npm run format:check          # Prettier check
   - `App\Http\Controllers\Teacher\IndexingController` — Vector indexing/RAG for courses/lessons
   - `App\Http\Controllers\Teacher\StudentMonitorController` — Student progress monitoring
   - `App\Http\Controllers\Teacher\AnalyticsController` — Course analytics
+  - `App\Http\Controllers\Teacher\ClassActivityController` — In-class activity CRUD, questions, grading
   - `App\Http\Controllers\Student\EnrollmentController` — Enroll via code
   - `App\Http\Controllers\Student\CourseController` — View class/course with progress
   - `App\Http\Controllers\Student\LessonController` — View lessons, mark complete, submit code
   - `App\Http\Controllers\Student\QuizController` — Take quizzes, submit, AI-grade answers
   - `App\Http\Controllers\Student\CodeExecutionController` — Code execution proxy + AI challenge verification
   - `App\Http\Controllers\Student\AIChatController` — AI tutor chat
+  - `App\Http\Controllers\Student\ClassActivityController` — Student activity submission, file upload
+  - `App\Http\Controllers\Student\ReviewerController` — AI review material generation
   - `App\Http\Controllers\AuthController` — Register (teacher/student), login, Google OAuth
   - `App\Http\Controllers\ChatController` — Landing page chatbot
 - **Models**: `backend/app/Models/` — 17 models with Eloquent relationships
-- **Migrations**: `backend/database/migrations/` — 23 migrations (order matters)
+- **Migrations**: `backend/database/migrations/` — 32 migrations (order matters)
 - **Console**: `Console\Commands\ExtractCurriculumText.php` — `php artisan curriculum:extract`
 - **Config**: `config/database.php` (pgsql default), `config/services.php` (groq keys), `config/cloudinary.php`, `config/cors.php`
 
@@ -220,7 +234,8 @@ cd frontend && npm run format:check          # Prettier check
   - `sage` (Master Yuki) — philosophical, zen
 - **Media Fetching**: Pexels API (images — currently disabled), YouTube Data API v3 (videos with dedup)
 - **Code Formatter**: Java/Python/JavaScript formatting in `utils/code_formatter.py`
-- **Prompts**: Modular prompt files in `prompts/` (curriculum, content, stage1_outline, stage2_content)
+- **Reviewer Generation**: Generates flashcards, cloze, practice questions, and summaries from lesson content via `services/reviewer_service.py` and `prompts/reviewer_prompts.py`
+- **Prompts**: Modular prompt files in `prompts/` (curriculum, content, stage1_outline, stage2_content, reviewer)
 - **Metrics**: `MetricsTracker` per-endpoint/per-model token/duration/error tracking
 
 ### Code Execution Engine (`instruct-execute/`)
@@ -232,6 +247,19 @@ cd frontend && npm run format:check          # Prettier check
 - **Security**: UUID temp dir per execution, auto-cleanup, 10s (REST) / 30s (WS) timeout
 - **Deployment**: Docker (Dockerfile) or Railway (nixpacks.toml)
 - **Port**: 3000 (configurable via `PORT` env)
+
+### Cognify Android App (`cognify/`)
+- **Purpose**: Kotlin companion app for spaced-repetition review of course material
+- **Stack**: Kotlin, Jetpack Compose, Room (local SQLite), Retrofit (API), Hilt (DI)
+- **Key Features**: Flashcard reviews, cloze deletion exercises, practice tests, study statistics, spaced repetition engine (SM-2 algorithm), offline support
+- **Architecture**: MVVM with Repository pattern
+  - `data/local/` — Room database entities, DAOs
+  - `data/remote/` — Retrofit API service, DTOs, auth interceptor
+  - `domain/model/` — Business logic (SpacedRepetitionEngine, Flashcard, etc.)
+  - `ui/` — Compose screens per feature (home, flashcards, cloze, practice, stats, settings, audio)
+  - `di/` — Hilt dependency injection modules
+- **Build**: Gradle Kotlin DSL, version catalog in `gradle/libs.versions.toml`
+- **API**: Connects to the same Laravel backend for class/course/quiz/reviewer data, plus direct Groq API for on-device AI features
 
 ## API Patterns
 
@@ -308,6 +336,26 @@ DELETE /api/teacher/questions/{id}                      # Delete question
 POST   /api/teacher/quizzes/{id}/reorder-questions      # Reorder questions
 ```
 
+**Class Activities:**
+```
+GET    /api/teacher/classes/{classId}/activities               # List activities
+POST   /api/teacher/classes/{classId}/activities               # Create activity
+GET    /api/teacher/activities/{id}                            # Get activity detail
+PUT    /api/teacher/activities/{id}                            # Update activity
+DELETE /api/teacher/activities/{id}                            # Delete activity
+POST   /api/teacher/activities/{id}/publish                    # Toggle publish
+POST   /api/teacher/activities/{activityId}/questions          # Create question
+PUT    /api/teacher/activities/{activityId}/questions/{questionId}  # Update question
+DELETE /api/teacher/activities/{activityId}/questions/{questionId}  # Delete question
+POST   /api/teacher/activities/{activityId}/questions/reorder  # Reorder questions
+POST   /api/teacher/activities/{id}/upload-instruction-file    # Upload instruction file
+POST   /api/teacher/activities/{id}/delete-instruction-file    # Delete instruction file
+GET    /api/teacher/activities/{activityId}/submissions        # List submissions
+POST   /api/teacher/activities/{activityId}/submissions/{submissionId}/grade  # Grade submission
+GET    /api/teacher/activities/{activityId}/enrolled-students  # Enrolled students list
+POST   /api/teacher/activities/{activityId}/grade-bulk         # Bulk grade
+```
+
 **Indexing (RAG):**
 ```
 POST   /api/teacher/courses/{id}/index                  # Index entire course
@@ -347,6 +395,14 @@ POST   /api/student/execute                  # Proxy to code execution engine
 POST   /api/ai/verify-code-challenge         # AI verify code challenge output
 POST   /api/student/ai/chat                  # AI tutor chat (with RAG context)
 POST   /api/student/ai/history               # Load AI tutor chat history
+POST   /api/student/reviewer/generate        # AI generate review materials via SSE
+POST   /api/student/reviewer/extract-text    # Extract text from uploaded file
+GET    /api/student/classes/{classId}/activities          # List activities
+GET    /api/student/activities/{id}                       # Get activity detail
+POST   /api/student/activities/{id}/submit               # Submit activity answers
+POST   /api/student/activities/{id}/unsubmit             # Unsubmit activity
+POST   /api/student/activities/{id}/upload-file          # Upload activity file
+DELETE /api/student/activities/{id}/remove-file          # Remove activity file
 ```
 
 ## Environment Variables
@@ -533,12 +589,3 @@ cd instruct-execute && npm start
 curl -X POST http://localhost:3000/execute \
   -H "Content-Type: application/json" \
   -d '{"language":"java","code":"public class Main { public static void main(String[] args) { System.out.println(\"Hello\"); } }"}'
-### Testing AI curriculum generation locally
-```bash
-# Start AI service
-cd instruct-ai-service && python main.py
-
-# Test endpoint directly
-curl -X POST http://localhost:8001/ai/generate-curriculum \
-  -F "prompt=Create a Python basics course with 3 modules"
-```

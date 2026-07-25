@@ -107,7 +107,7 @@ export default function LessonEditor() {
     const removeBlock = (blockId) => {
         setBlocks(prev => prev.filter(b => b.id !== blockId));
         setConfirmDeleteId(null);
-        toast.warning("Block removed");
+        toast.success("Block removed");
     };
 
     const handleSave = async (publishStatus = isPublished) => {

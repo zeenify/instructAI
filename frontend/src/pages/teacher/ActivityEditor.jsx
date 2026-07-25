@@ -413,7 +413,7 @@ export default function ActivityEditor() {
     try {
       const res = await api.post('/teacher/activities/' + activityId + '/delete-instruction-file', { public_id: publicId });
       setActivity((prev) => ({ ...prev, instruction_files: res.data }));
-      toast.warning('File removed');
+      toast.success('File removed');
     } catch (err) {
       console.error('Delete file error:', err.response?.data || err.message);
       toast.error(err.response?.data?.message || 'Failed to remove file');
@@ -504,7 +504,7 @@ export default function ActivityEditor() {
       await api.delete(`/teacher/activities/${activityId}/questions/${question.id}`);
       setActivity((prev) => ({ ...prev, questions: (prev.questions || []).filter((q) => q.id !== question.id) }));
       invalidateCache(`get:/teacher/activities/${activityId}`);
-      toast.warning('Question removed');
+      toast.success('Question removed');
     } catch {
       toast.error('Failed to delete question');
     }
