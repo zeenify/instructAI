@@ -4,6 +4,8 @@
 
 # Root
 node_modules/
+cognify.png
+proxy.js
 
 # Laravel
 backend/.env
