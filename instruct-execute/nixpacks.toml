@@ -1,0 +1,11 @@
+# nixpacks.toml
+# This tells Railway exactly what software to install
+
+[phases.setup]
+nixPkgs = ["nodejs", "jdk"]
+
+[phases.build]
+cmds = ["npm install"]
+
+[start]
+cmd = "node index.js"

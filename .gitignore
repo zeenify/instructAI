@@ -2,6 +2,9 @@
 .vscode/
 .idea/
 
+# Root
+node_modules/
+
 # Laravel
 backend/.env
 backend/vendor/
@@ -19,9 +22,20 @@ frontend/node_modules/
 frontend/dist/
 frontend/.eslintcache
 
-# Code Execution Engine (separate repo)
-instruct-execute/
-instruct-execute/**
+# AI Service
+instruct-ai-service/ai_service.log
+
+# Cognify Android App
+cognify/.gradle/
+cognify/build/
+cognify/app/build/
+cognify/local.properties
+cognify/captures/
+cognify/.externalNativeBuild/
+cognify/.idea/
+cognify/.kotlin/
+cognify/*.iml
+cognify/.settings/
 
 # OS Files
 .DS_Store
