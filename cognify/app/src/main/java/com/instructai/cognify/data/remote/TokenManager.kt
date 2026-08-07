@@ -16,7 +16,8 @@ import javax.inject.Singleton
 private val TOKEN_KEY = stringPreferencesKey("auth_token")
 private val API_MODE_KEY = stringPreferencesKey("api_mode")
 private val DIRECT_KEY_KEY = stringPreferencesKey("direct_api_key")
-private val SERVER_URL_KEY = stringPreferencesKey("server_url")
+private val SERVER_URL_KEY = stringPreferencesKey("resolved_server_url")
+private val MANUAL_SERVER_URL_KEY = stringPreferencesKey("manual_server_url")
 
 @Singleton
 class TokenManager @Inject constructor(
@@ -31,10 +32,15 @@ class TokenManager @Inject constructor(
     var serverUrl: String = BuildConfig.API_BASE_URL
         private set
 
+    @Volatile
+    var manualServerUrl: String? = null
+        private set
+
     init {
         val prefs = runBlocking { dataStore.data.first() }
         token = prefs[TOKEN_KEY]
-        serverUrl = prefs[SERVER_URL_KEY] ?: BuildConfig.API_BASE_URL
+        manualServerUrl = prefs[MANUAL_SERVER_URL_KEY]
+        serverUrl = manualServerUrl ?: prefs[SERVER_URL_KEY] ?: BuildConfig.API_BASE_URL
     }
 
     val tokenFlow: Flow<String?> = dataStore.data.map { prefs ->
@@ -53,7 +59,11 @@ class TokenManager @Inject constructor(
     }
 
     val serverUrlFlow: Flow<String> = dataStore.data.map { prefs ->
-        prefs[SERVER_URL_KEY] ?: BuildConfig.API_BASE_URL
+        prefs[MANUAL_SERVER_URL_KEY] ?: prefs[SERVER_URL_KEY] ?: BuildConfig.API_BASE_URL
+    }
+
+    val manualServerUrlFlow: Flow<String?> = dataStore.data.map { prefs ->
+        prefs[MANUAL_SERVER_URL_KEY]
     }
 
     suspend fun saveToken(newToken: String) {
@@ -93,9 +103,27 @@ class TokenManager @Inject constructor(
 
     suspend fun setServerUrl(url: String) {
         val normalized = url.trim().trimEnd('/') + "/"
+        manualServerUrl = normalized
         serverUrl = normalized
         dataStore.edit { prefs ->
-            prefs[SERVER_URL_KEY] = normalized
+            prefs[MANUAL_SERVER_URL_KEY] = normalized
+        }
+    }
+
+    suspend fun setResolvedServerUrl(url: String) {
+        dataStore.edit { prefs ->
+            prefs[SERVER_URL_KEY] = url
+        }
+        if (manualServerUrl == null) {
+            serverUrl = url
+        }
+    }
+
+    suspend fun clearManualServerUrl() {
+        manualServerUrl = null
+        serverUrl = dataStore.data.first()[SERVER_URL_KEY] ?: BuildConfig.API_BASE_URL
+        dataStore.edit { prefs ->
+            prefs.remove(MANUAL_SERVER_URL_KEY)
         }
     }
 }

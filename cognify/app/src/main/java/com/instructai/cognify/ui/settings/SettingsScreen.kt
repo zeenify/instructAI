@@ -343,27 +343,27 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            val isLan = aiSettings.serverUrl == com.instructai.cognify.BuildConfig.API_BASE_URL
+            val isManual = aiSettings.manualServerUrl != null
 
             ModeRow(
-                icon = Icons.Filled.Storage,
-                title = "Local (laptop)",
-                subtitle = com.instructai.cognify.BuildConfig.API_BASE_URL,
-                selected = isLan,
-                onClick = { viewModel.setServerUrl(com.instructai.cognify.BuildConfig.API_BASE_URL) },
+                icon = Icons.Filled.Sync,
+                title = "Automatic (recommended)",
+                subtitle = "Laptop when reachable, deployed backend otherwise",
+                selected = !isManual,
+                onClick = { viewModel.clearServerUrl() },
             )
 
             ModeRow(
                 icon = Icons.Filled.Cloud,
-                title = "Production (deployed)",
-                subtitle = "Works without your laptop",
-                selected = !isLan,
-                onClick = { /* keep current custom URL */ },
+                title = "Manual",
+                subtitle = "Pick a specific backend URL",
+                selected = isManual,
+                onClick = { /* keep current manual URL */ },
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (!isLan) {
+            if (isManual) {
                 var editUrl by remember(aiSettings.serverUrl) { mutableStateOf(aiSettings.serverUrl) }
                 OutlinedTextField(
                     value = editUrl,
@@ -385,11 +385,12 @@ fun SettingsScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = CognifyColors.ElectricViolet),
                     enabled = editUrl.isNotBlank(),
                 ) { Text("Save Server") }
+            } else {
                 Text(
-                    text = "You may need to log in again after switching servers.",
+                    text = "Active: ${aiSettings.serverUrl}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+                    modifier = Modifier.padding(start = 4.dp),
                 )
             }
 

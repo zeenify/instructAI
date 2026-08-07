@@ -24,6 +24,7 @@ data class AiSettingsState(
     val apiMode: ApiMode = ApiMode.GEMINI,
     val directApiKey: String = "",
     val serverUrl: String = BuildConfig.API_BASE_URL,
+    val manualServerUrl: String? = null,
 )
 
 @HiltViewModel
@@ -72,6 +73,11 @@ class SettingsViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            tokenManager.manualServerUrlFlow.collect { url ->
+                _aiSettings.value = _aiSettings.value.copy(manualServerUrl = url)
+            }
+        }
+        viewModelScope.launch {
             logger.getLogsFlow().collect { logs ->
                 _errorLogs.value = logs
             }
@@ -97,6 +103,12 @@ class SettingsViewModel @Inject constructor(
     fun setServerUrl(url: String) {
         viewModelScope.launch {
             tokenManager.setServerUrl(url)
+        }
+    }
+
+    fun clearServerUrl() {
+        viewModelScope.launch {
+            tokenManager.clearManualServerUrl()
         }
     }
 

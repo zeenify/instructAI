@@ -19,6 +19,8 @@ android {
 
         val apiBaseUrl = (project.findProperty("apiBaseUrl") as String?) ?: "http://192.168.1.252/api/"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        val prodApiBaseUrl = (project.findProperty("prodApiBaseUrl") as String?) ?: "https://instructai-backend.onrender.com/api/"
+        buildConfigField("String", "PROD_API_BASE_URL", "\"$prodApiBaseUrl\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
