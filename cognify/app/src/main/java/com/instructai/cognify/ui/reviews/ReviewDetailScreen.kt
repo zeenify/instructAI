@@ -17,8 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.QuestionAnswer
 import androidx.compose.material.icons.filled.Style
@@ -120,13 +120,13 @@ fun ReviewDetailScreen(
                     route = "practice",
                 ),
                 StudyModeItem(
-                    title = "Audio Review",
-                    description = "Listen to your study guide narrated aloud",
-                    icon = Icons.Filled.Headphones,
+                    title = "Summary",
+                    description = "Read the key points of your study guide",
+                    icon = Icons.Filled.Description,
                     gradient = Brush.horizontalGradient(
-                        listOf(CognifyColors.Gold, CognifyColors.ElectricViolet),
+                        listOf(CognifyColors.ElectricViolet, CognifyColors.Gold),
                     ),
-                    route = "audio",
+                    route = "summary",
                 ),
             )
 
@@ -204,7 +204,7 @@ private fun StudyModeCard(
             }
 
             Icon(
-                Icons.Filled.AutoAwesome,
+                Icons.Filled.Psychology,
                 contentDescription = null,
                 tint = CognifyColors.ElectricViolet,
                 modifier = Modifier.size(20.dp),

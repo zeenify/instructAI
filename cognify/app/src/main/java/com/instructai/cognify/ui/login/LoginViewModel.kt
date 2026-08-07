@@ -2,7 +2,6 @@ package com.instructai.cognify.ui.login
 
 import android.app.Activity
 import android.content.Intent
-import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,6 +9,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
+import com.instructai.cognify.data.logging.AppLogger
 import com.instructai.cognify.data.repository.AuthRepository
 import com.instructai.cognify.data.repository.LmsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,6 +31,7 @@ data class LoginUiState(
 class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val lmsRepository: LmsRepository,
+    private val logger: AppLogger,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -66,6 +67,7 @@ class LoginViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(isLoading = false, isLoggedIn = true)
                 },
                 onFailure = {
+                    logger.log("LoginViewModel", "Login failed: ${it.message}")
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = it.message ?: "Login failed",
@@ -85,7 +87,6 @@ class LoginViewModel @Inject constructor(
 
         val googleSignInClient: GoogleSignInClient = GoogleSignIn.getClient(activity, gso)
 
-        // Sign out first to force the account picker every time
         googleSignInClient.signOut().addOnCompleteListener {
             val signInIntent = googleSignInClient.signInIntent
             signInLauncher?.launch(signInIntent)
@@ -106,6 +107,7 @@ class LoginViewModel @Inject constructor(
                             _uiState.value = _uiState.value.copy(isLoading = false, isLoggedIn = true)
                         },
                         onFailure = { error ->
+                            logger.log("LoginViewModel", "Google login failed: ${error.message}")
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
                                 errorMessage = error.message ?: "Google login failed",
@@ -113,12 +115,14 @@ class LoginViewModel @Inject constructor(
                         },
                     )
                 } else {
+                    logger.log("LoginViewModel", "Google login: No ID token received")
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = "No ID token received",
                     )
                 }
             } catch (e: ApiException) {
+                logger.log("LoginViewModel", "Google sign-in cancelled/user cancelled", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     errorMessage = "Google sign-in cancelled",
@@ -133,7 +137,11 @@ class LoginViewModel @Inject constructor(
 
     private fun syncLmsData() {
         viewModelScope.launch {
-            lmsRepository.syncAll()
+            try {
+                lmsRepository.syncAll()
+            } catch (e: Exception) {
+                logger.log("LoginViewModel", "Initial sync failed", e)
+            }
         }
     }
 }

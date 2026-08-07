@@ -9,7 +9,7 @@ okhttp = "4.12.0"
 navigation = "2.8.5"
 lifecycle = "2.8.7"
 coroutines = "1.9.0"
-datastore = "1.1.1"
+datastore = "1.1.0"
 activityCompose = "1.9.3"
 ksp = "2.0.21-1.0.27"
 work = "2.10.0"
@@ -17,6 +17,7 @@ credentials = "1.3.0"
 credentialsPlayServices = "1.3.0"
 googleid = "1.1.1"
 playServicesAuth = "21.1.0"
+media3 = "1.6.1"
 
 [libraries]
 # Compose BOM
@@ -45,6 +46,7 @@ hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref
 hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
 hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version = "1.2.0" }
 hilt-work = { group = "androidx.hilt", name = "hilt-work", version = "1.2.0" }
+hilt-work-compiler = { group = "androidx.hilt", name = "hilt-compiler", version = "1.2.0" }
 
 # Room
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
@@ -76,6 +78,10 @@ mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition"
 
 # Core AndroidX
 core-ktx = { group = "androidx.core", name = "core-ktx", version = "1.15.0" }
+
+# Media3 playback
+media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
+media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

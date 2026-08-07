@@ -1,6 +1,9 @@
 package com.instructai.cognify.ui.flashcards
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -37,13 +40,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -55,6 +60,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.instructai.cognify.ui.components.ConfettiOverlay
 import com.instructai.cognify.ui.theme.CognifyColors
 import com.instructai.cognify.ui.theme.CognifyGradients
+import kotlin.math.abs
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,6 +110,10 @@ fun FlashcardDeckScreen(
     }
 
     val currentCard = state.flashcards.getOrNull(state.currentIndex) ?: return
+    val scope = rememberCoroutineScope()
+    val slideAnim = remember { Animatable(0f) }
+    var isSwiping by remember { mutableStateOf(false) }
+    val swipeThreshold = 200f
 
     Scaffold(
         topBar = {
@@ -155,13 +166,51 @@ fun FlashcardDeckScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Flashcard
-            FlipCard(
-                frontText = currentCard.frontText,
-                backText = currentCard.backText,
-                isFlipped = state.isFlipped,
-                onTap = { viewModel.flipCard() },
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        translationX = slideAnim.value
+                        rotationZ = slideAnim.value / 20f
+                        alpha = ((2000f - abs(slideAnim.value)) / 2000f).coerceIn(0f, 1f)
+                    }
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { isSwiping = true },
+                            onDragEnd = {
+                                isSwiping = false
+                                if (slideAnim.value > swipeThreshold) {
+                                    scope.launch {
+                                        slideAnim.animateTo(2000f, tween(200))
+                                        viewModel.rateCard(4)
+                                        slideAnim.snapTo(0f)
+                                    }
+                                } else if (slideAnim.value < -swipeThreshold) {
+                                    scope.launch {
+                                        slideAnim.animateTo(-2000f, tween(200))
+                                        viewModel.rateCard(0)
+                                        slideAnim.snapTo(0f)
+                                    }
+                                } else {
+                                    scope.launch { slideAnim.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow)) }
+                                }
+                            },
+                            onHorizontalDrag = { _, dragAmount ->
+                                if (!isSwiping) isSwiping = true
+                                scope.launch {
+                                    slideAnim.snapTo((slideAnim.value + dragAmount).coerceIn(-2000f, 2000f))
+                                }
+                            },
+                        )
+                    },
+            ) {
+                FlipCard(
+                    frontText = currentCard.frontText,
+                    backText = currentCard.backText,
+                    isFlipped = state.isFlipped,
+                    onTap = { viewModel.flipCard() },
+                )
+            }
 
             Spacer(modifier = Modifier.weight(1f))
 
@@ -172,7 +221,13 @@ fun FlashcardDeckScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Button(
-                        onClick = { viewModel.rateCard(0) },
+                        onClick = {
+                            scope.launch {
+                                slideAnim.animateTo(-2000f, tween(300))
+                                viewModel.rateCard(0)
+                                slideAnim.snapTo(0f)
+                            }
+                        },
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp),
@@ -187,7 +242,13 @@ fun FlashcardDeckScreen(
                     }
 
                     Button(
-                        onClick = { viewModel.rateCard(4) },
+                        onClick = {
+                            scope.launch {
+                                slideAnim.animateTo(2000f, tween(300))
+                                viewModel.rateCard(4)
+                                slideAnim.snapTo(0f)
+                            }
+                        },
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp),
@@ -220,20 +281,21 @@ private fun FlipCard(
     isFlipped: Boolean,
     onTap: () -> Unit,
 ) {
-    val rotation by animateFloatAsState(
-        targetValue = if (isFlipped) 180f else 0f,
-        animationSpec = tween(400),
-        label = "rotation",
-    )
+    key(frontText) {
+        val rotation by animateFloatAsState(
+            targetValue = if (isFlipped) 180f else 0f,
+            animationSpec = tween(400),
+            label = "rotation",
+        )
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(300.dp)
-            .graphicsLayer {
-                rotationY = rotation
-                cameraDistance = 12f * density
-            },
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(300.dp)
+                .graphicsLayer {
+                    rotationY = rotation
+                    cameraDistance = 12f * density
+                },
         contentAlignment = Alignment.Center,
     ) {
         Card(
@@ -329,6 +391,7 @@ private fun FlipCard(
             }
         }
     }
+    }
 }
 
 @Composable
@@ -403,7 +466,7 @@ private fun SessionCompleteScreen(
                 Button(
                     onClick = onBack,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        containerColor = CognifyColors.ElectricViolet,
                     ),
                 ) {
                     Text("Done")
@@ -411,7 +474,7 @@ private fun SessionCompleteScreen(
                 Button(
                     onClick = onRestart,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = CognifyColors.ElectricViolet,
+                        containerColor = CognifyColors.ElectricViolet.copy(alpha = 0.7f),
                     ),
                 ) {
                     Icon(Icons.Filled.Refresh, contentDescription = null)

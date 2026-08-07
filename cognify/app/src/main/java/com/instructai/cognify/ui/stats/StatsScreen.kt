@@ -127,14 +127,14 @@ fun StatsScreen(
         ) {
             StatCardItem(
                 icon = Icons.Filled.School,
-                label = "Reviews Created",
+                label = "Reviewers Created",
                 value = "${state.totalReviews}",
                 gradient = CognifyGradients.primary,
                 modifier = androidx.compose.ui.Modifier.weight(1f),
             )
             StatCardItem(
                 icon = Icons.Filled.Quiz,
-                label = "Reviews",
+                label = "Reviewers",
                 value = "${state.totalReviews}",
                 gradient = Brush.horizontalGradient(
                     listOf(CognifyColors.ElectricViolet, CognifyColors.Gold),

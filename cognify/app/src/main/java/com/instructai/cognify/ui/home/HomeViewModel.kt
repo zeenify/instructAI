@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.instructai.cognify.data.local.entity.ClassEntity
 import com.instructai.cognify.data.local.entity.ReviewEntity
+import com.instructai.cognify.data.logging.AppLogger
 import com.instructai.cognify.data.repository.AuthRepository
 import com.instructai.cognify.data.repository.LmsRepository
 import com.instructai.cognify.data.repository.ReviewRepository
@@ -32,6 +33,7 @@ class HomeViewModel @Inject constructor(
     private val reviewRepository: ReviewRepository,
     private val lmsRepository: LmsRepository,
     private val authRepository: AuthRepository,
+    private val logger: AppLogger,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -42,45 +44,67 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun loadData() {
-        val user = authRepository.currentUser
-        val name = if (user?.role == "student") {
-            user.studentProfile?.let { "${it.firstName} ${it.lastName}" }?.trim()
-        } else {
-            user?.teacherProfile?.let { "${it.firstName} ${it.lastName}" }?.trim()
-        }
-        _uiState.value = _uiState.value.copy(
-            userName = name ?: user?.email?.substringBefore("@") ?: "Student",
-            userEmail = user?.email ?: "",
-        )
-
         viewModelScope.launch {
-            reviewRepository.getAllReviews().collect { reviews ->
+            try {
+                authRepository.ensureSession()
+                val name = authRepository.getUserDisplayName()
+                val email = authRepository.currentUser?.email ?: ""
                 _uiState.value = _uiState.value.copy(
-                    recentReviews = reviews.take(5),
-                    studyStats = _uiState.value.studyStats.copy(
-                        reviewsCreated = reviews.size,
-                    ),
+                    userName = name ?: "Student",
+                    userEmail = email,
                 )
+            } catch (e: Exception) {
+                logger.log("HomeViewModel", "loadData: user info failed", e)
             }
         }
 
         viewModelScope.launch {
-            reviewRepository.getDueCount().collect { count ->
-                _uiState.value = _uiState.value.copy(dueCount = count)
+            try {
+                reviewRepository.getAllReviews().collect { reviews ->
+                    _uiState.value = _uiState.value.copy(
+                        recentReviews = reviews.take(5),
+                        studyStats = _uiState.value.studyStats.copy(
+                            reviewsCreated = reviews.size,
+                        ),
+                    )
+                }
+            } catch (e: Exception) {
+                logger.log("HomeViewModel", "getAllReviews flow error", e)
             }
         }
 
         viewModelScope.launch {
-            lmsRepository.getCachedClasses().collect { classes ->
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    classes = classes,
-                )
+            try {
+                reviewRepository.getDueCount().collect { count ->
+                    _uiState.value = _uiState.value.copy(dueCount = count)
+                }
+            } catch (e: Exception) {
+                logger.log("HomeViewModel", "getDueCount flow error", e)
             }
         }
 
         viewModelScope.launch {
-            lmsRepository.syncAll()
+            try {
+                lmsRepository.getCachedClasses().collect { classes ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        classes = classes,
+                    )
+                }
+            } catch (e: Exception) {
+                logger.log("HomeViewModel", "getCachedClasses flow error", e)
+            }
+        }
+
+    }
+
+    fun deleteReview(reviewId: Long) {
+        viewModelScope.launch {
+            try {
+                reviewRepository.deleteReview(reviewId)
+            } catch (e: Exception) {
+                logger.log("HomeViewModel", "deleteReview failed", e)
+            }
         }
     }
 }

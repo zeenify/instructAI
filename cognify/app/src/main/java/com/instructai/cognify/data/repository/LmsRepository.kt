@@ -12,6 +12,7 @@ import com.instructai.cognify.data.local.entity.LessonEntity
 import com.instructai.cognify.data.local.entity.ModuleEntity
 import com.instructai.cognify.data.local.entity.QuestionEntity
 import com.instructai.cognify.data.local.entity.QuizEntity
+import com.instructai.cognify.data.logging.AppLogger
 import com.instructai.cognify.data.remote.ApiService
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
@@ -27,6 +28,7 @@ class LmsRepository @Inject constructor(
     private val lessonDao: LessonDao,
     private val quizDao: QuizDao,
     private val questionDao: QuestionDao,
+    private val logger: AppLogger,
 ) {
     fun getCachedClasses(): Flow<List<ClassEntity>> = classDao.getAllClasses()
 
@@ -44,9 +46,15 @@ class LmsRepository @Inject constructor(
 
     suspend fun syncAll(): Result<Unit> = runCatching {
         val classesResponse = apiService.getClasses()
-        if (!classesResponse.isSuccessful) return@runCatching
+        if (!classesResponse.isSuccessful) {
+            logger.log("LmsRepository", "syncAll: getClasses returned ${classesResponse.code()}")
+            return@runCatching
+        }
 
-        val classDtos = classesResponse.body() ?: return@runCatching
+        val classDtos = classesResponse.body() ?: run {
+            logger.log("LmsRepository", "syncAll: getClasses body was null")
+            return@runCatching
+        }
         val classEntities = classDtos.map { dto ->
             ClassEntity(
                 id = dto.id,
@@ -77,15 +85,23 @@ class LmsRepository @Inject constructor(
                 }
                 courseDao.deleteByClass(classDto.id)
                 courseDao.insertAll(courseEntities)
+            } else {
+                logger.log("LmsRepository", "syncAll: getClassDetail(${classDto.id}) returned ${detailResponse.code()}")
             }
         }
     }
 
     suspend fun syncCourseDetail(courseId: Long): Result<Unit> = runCatching {
         val response = apiService.getCourseDetail(courseId)
-        if (!response.isSuccessful) return@runCatching
+        if (!response.isSuccessful) {
+            logger.log("LmsRepository", "syncCourseDetail($courseId): getCourseDetail returned ${response.code()}")
+            return@runCatching
+        }
 
-        val data = response.body() ?: return@runCatching
+        val data = response.body() ?: run {
+            logger.log("LmsRepository", "syncCourseDetail($courseId): body was null")
+            return@runCatching
+        }
         val course = data.course
 
         val moduleEntities = course.modules.map { m ->
@@ -137,9 +153,15 @@ class LmsRepository @Inject constructor(
 
     suspend fun syncLessonQuestions(quizId: Long): Result<List<QuestionEntity>> = runCatching {
         val response = apiService.getQuiz(quizId)
-        if (!response.isSuccessful) return@runCatching emptyList()
+        if (!response.isSuccessful) {
+            logger.log("LmsRepository", "syncLessonQuestions($quizId): getQuiz returned ${response.code()}")
+            return@runCatching emptyList()
+        }
 
-        val data = response.body() ?: return@runCatching emptyList()
+        val data = response.body() ?: run {
+            logger.log("LmsRepository", "syncLessonQuestions($quizId): body was null")
+            return@runCatching emptyList()
+        }
         val questions = data.quiz.questions.map { q ->
             QuestionEntity(
                 id = q.id,

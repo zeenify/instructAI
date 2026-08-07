@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.instructai.cognify.data.local.dao.ReviewDao
 import com.instructai.cognify.data.local.dao.StudyStatsDao
 import com.instructai.cognify.data.local.entity.StudyStatsEntity
+import com.instructai.cognify.data.logging.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +28,7 @@ data class StatsState(
 class StatsViewModel @Inject constructor(
     private val reviewDao: ReviewDao,
     private val statsDao: StudyStatsDao,
+    private val logger: AppLogger,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(StatsState())
@@ -38,27 +40,32 @@ class StatsViewModel @Inject constructor(
 
     fun loadStats() {
         viewModelScope.launch {
-            val reviews = reviewDao.getAllReviews().first()
-            val totalReviews = reviews.size
+            try {
+                val reviews = reviewDao.getAllReviews().first()
+                val totalReviews = reviews.size
 
-            val stats: List<StudyStatsEntity> = statsDao.getAllStats()
-            val streak = calculateStreak(stats)
+                val stats: List<StudyStatsEntity> = statsDao.getAllStats()
+                val streak = calculateStreak(stats)
 
-            val today = LocalDate.now()
-            val startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-            val weekly = (0 until 7).associate {
-                val day = startOfWeek.plusDays(it.toLong())
-                val dayEpoch = day.toEpochDay()
-                val count = stats.filter { s -> s.dateEpochDay == dayEpoch }.sumOf { s -> s.questionsAnswered }
-                day.dayOfWeek to count
+                val today = LocalDate.now()
+                val startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                val weekly = (0 until 7).associate {
+                    val day = startOfWeek.plusDays(it.toLong())
+                    val dayEpoch = day.toEpochDay()
+                    val count = stats.filter { s -> s.dateEpochDay == dayEpoch }.sumOf { s -> s.questionsAnswered }
+                    day.dayOfWeek to count
+                }
+
+                _state.value = StatsState(
+                    totalReviews = totalReviews,
+                    studyStreak = streak,
+                    weeklyActivity = weekly,
+                    isLoading = false,
+                )
+            } catch (e: Exception) {
+                logger.log("StatsViewModel", "loadStats failed", e)
+                _state.value = _state.value.copy(isLoading = false)
             }
-
-            _state.value = StatsState(
-                totalReviews = totalReviews,
-                studyStreak = streak,
-                weeklyActivity = weekly,
-                isLoading = false,
-            )
         }
     }
 

@@ -14,7 +14,7 @@ import javax.inject.Singleton
 
 private val TOKEN_KEY = stringPreferencesKey("auth_token")
 private val API_MODE_KEY = stringPreferencesKey("api_mode")
-private val GROQ_KEY_KEY = stringPreferencesKey("groq_api_key")
+private val DIRECT_KEY_KEY = stringPreferencesKey("direct_api_key")
 
 @Singleton
 class TokenManager @Inject constructor(
@@ -36,12 +36,14 @@ class TokenManager @Inject constructor(
     }
 
     val apiMode: Flow<ApiMode> = dataStore.data.map { prefs ->
-        val mode = prefs[API_MODE_KEY] ?: "backend"
-        if (mode == "byok") ApiMode.BYOK else ApiMode.BACKEND
+        when (prefs[API_MODE_KEY]) {
+            "gemini" -> ApiMode.GEMINI
+            else -> ApiMode.BACKEND
+        }
     }
 
-    val groqApiKey: Flow<String> = dataStore.data.map { prefs ->
-        prefs[GROQ_KEY_KEY] ?: ""
+    val directApiKey: Flow<String> = dataStore.data.map { prefs ->
+        prefs[DIRECT_KEY_KEY] ?: ""
     }
 
     suspend fun saveToken(newToken: String) {
@@ -66,13 +68,16 @@ class TokenManager @Inject constructor(
 
     suspend fun setApiMode(mode: ApiMode) {
         dataStore.edit { prefs ->
-            prefs[API_MODE_KEY] = if (mode == ApiMode.BYOK) "byok" else "backend"
+            prefs[API_MODE_KEY] = when (mode) {
+                ApiMode.GEMINI -> "gemini"
+                ApiMode.BACKEND -> "backend"
+            }
         }
     }
 
-    suspend fun setGroqApiKey(key: String) {
+    suspend fun setDirectApiKey(key: String) {
         dataStore.edit { prefs ->
-            prefs[GROQ_KEY_KEY] = key
+            prefs[DIRECT_KEY_KEY] = key
         }
     }
 }

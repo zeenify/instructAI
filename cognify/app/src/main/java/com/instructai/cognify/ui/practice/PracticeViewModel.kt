@@ -3,6 +3,7 @@ package com.instructai.cognify.ui.practice
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.instructai.cognify.data.local.entity.PracticeQuestionEntity
+import com.instructai.cognify.data.logging.AppLogger
 import com.instructai.cognify.data.repository.ReviewRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +30,7 @@ data class PracticeState(
 @HiltViewModel
 class PracticeViewModel @Inject constructor(
     private val reviewRepository: ReviewRepository,
+    private val logger: AppLogger,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PracticeState())
@@ -36,12 +38,16 @@ class PracticeViewModel @Inject constructor(
 
     fun loadQuestions(reviewId: Long) {
         viewModelScope.launch {
-            reviewRepository.getPracticeQuestions(reviewId).collect { questions ->
-                _state.value = _state.value.copy(
-                    questions = questions.shuffled(),
-                    isLoading = false,
-                    maxScore = questions.size,
-                )
+            try {
+                reviewRepository.getPracticeQuestions(reviewId).collect { questions ->
+                    _state.value = _state.value.copy(
+                        questions = questions.shuffled(),
+                        isLoading = false,
+                        maxScore = questions.size,
+                    )
+                }
+            } catch (e: Exception) {
+                logger.log("PracticeViewModel", "loadQuestions($reviewId) failed", e)
             }
         }
     }
@@ -51,7 +57,9 @@ class PracticeViewModel @Inject constructor(
         val current = _state.value
         val question = current.questions.getOrNull(current.currentIndex) ?: return
 
-        val isCorrect = answer.equals(question.correctAnswer, ignoreCase = true)
+        val cleanedAnswer = answer.replace(Regex("^[A-Z]\\)\\s*"), "").trim()
+        val cleanedCorrect = question.correctAnswer.replace(Regex("^[A-Z]\\)\\s*"), "").trim()
+        val isCorrect = cleanedAnswer.equals(cleanedCorrect, ignoreCase = true)
 
         _state.value = current.copy(
             selectedAnswer = answer,
@@ -84,6 +92,7 @@ class PracticeViewModel @Inject constructor(
         _state.value = PracticeState(
             questions = _state.value.questions.shuffled(),
             maxScore = _state.value.questions.size,
+            isLoading = false,
         )
     }
 }

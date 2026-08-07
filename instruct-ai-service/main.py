@@ -29,7 +29,7 @@ from services.embedding_service import embedding_service
 from services.indexing_service import indexing_service
 from services.retrieval_service import retrieval_service
 from services.rag_tutor_service import rag_tutor_service
-from services.reviewer_service import generate_reviewer_stream
+
 from config.characters import CHARACTERS
 
 # Initialize FastAPI app
@@ -658,34 +658,6 @@ async def extract_text_endpoint(file: UploadFile = File(...)):
         return {"text": text, "filename": file.filename, "length": len(text)}
     except Exception as e:
         return {"error": str(e), "text": "", "filename": file.filename, "length": 0}
-
-
-# ===== GENERATE REVIEWER =====
-class GenerateReviewerRequest(BaseModel):
-    lesson_content: str
-    lesson_title: str = ""
-    reviewer_types: list[str] = ["flashcards", "cloze", "practice", "summary"]
-    counts: dict = {}
-    difficulty: str = "medium"
-
-
-@app.post("/ai/generate-reviewer")
-async def generate_reviewer_endpoint(data: GenerateReviewerRequest):
-    """Generate flashcards, cloze, practice questions, and/or summary from lesson content"""
-    if not data.lesson_content.strip():
-        return {"error": "No lesson content provided"}
-
-    return StreamingResponse(
-        generate_reviewer_stream(
-            groq_pool=groq_pool,
-            lesson_content=data.lesson_content,
-            lesson_title=data.lesson_title,
-            reviewer_types=data.reviewer_types,
-            counts=data.counts,
-            difficulty=data.difficulty,
-        ),
-        media_type="text/event-stream",
-    )
 
 
 # ===== RUN SERVER =====

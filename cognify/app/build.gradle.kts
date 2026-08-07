@@ -17,6 +17,9 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
+        val apiBaseUrl = (project.findProperty("apiBaseUrl") as String?) ?: "http://192.168.1.252/api/"
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -41,6 +44,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -69,7 +73,6 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
-
     // Room
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
@@ -87,6 +90,11 @@ dependencies {
     // WorkManager
     implementation(libs.work.runtime.ktx)
     implementation(libs.hilt.work)
+    ksp(libs.hilt.work.compiler)
+
+    // Media3 playback
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.session)
 
     // Coroutines
     implementation(libs.coroutines.core)

@@ -15,8 +15,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,8 +34,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.RocketLaunch
+import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
@@ -44,27 +45,30 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.LibraryBooks
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -87,6 +91,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.instructai.cognify.ui.theme.CognifyColors
 import kotlinx.coroutines.launch
@@ -171,6 +177,7 @@ fun CreateReviewScreen(
                 ScreenMode.FORM -> CreationForm(state, viewModel)
                 ScreenMode.PROGRESS -> GenerationProgressScreen(
                     progressItems = state.generationProgress,
+                    errorLog = state.errorLog,
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
                 ScreenMode.PREVIEW -> ReviewerPreviewContent(
@@ -182,13 +189,18 @@ fun CreateReviewScreen(
     }
 
     if (showSaveDialog && state.generationResult != null) {
-        AlertDialog(
+        Dialog(
             onDismissRequest = { showSaveDialog = false },
-            title = { Text("Save Reviewer", fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    Text("Name your reviewer:", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(8.dp))
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(24.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            ) {
+                Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("Save Reviewer", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineSmall, color = CognifyColors.ElectricViolet)
+                    Text("Name your reviewer:", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     OutlinedTextField(
                         value = reviewTitle,
                         onValueChange = { reviewTitle = it },
@@ -196,24 +208,28 @@ fun CreateReviewScreen(
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                     )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { showSaveDialog = false }) { Text("Cancel") }
+                        Spacer(Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                val trimmed = reviewTitle.trim()
+                                if (trimmed.isNotBlank()) {
+                                    scope.launch {
+                                        val id = viewModel.saveReview(trimmed)
+                                        if (id > 0) onCreated(id)
+                                    }
+                                    showSaveDialog = false
+                                }
+                            },
+                            enabled = reviewTitle.isNotBlank(),
+                            colors = ButtonDefaults.buttonColors(containerColor = CognifyColors.ElectricViolet),
+                            shape = RoundedCornerShape(12.dp),
+                        ) { Text("Save") }
+                    }
                 }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        scope.launch {
-                            val id = viewModel.saveReview(reviewTitle)
-                            if (id > 0) onCreated(id)
-                        }
-                        showSaveDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = CognifyColors.ElectricViolet),
-                ) { Text("Save & Study") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSaveDialog = false }) { Text("Cancel") }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -234,8 +250,7 @@ private fun CreationForm(state: ReviewCreationState, viewModel: CreateReviewView
 
         when (state.sourceTab) {
             SourceTab.MODULES -> ModulesSource(state, viewModel)
-            SourceTab.FILE -> FileSource(state, viewModel)
-            SourceTab.TEXT -> TextSource(state, viewModel)
+            SourceTab.SOURCE -> SourceContent(state, viewModel)
         }
 
         Spacer(Modifier.height(20.dp))
@@ -243,7 +258,7 @@ private fun CreationForm(state: ReviewCreationState, viewModel: CreateReviewView
         Spacer(Modifier.height(8.dp))
 
         ReviewTypeToggle(
-            icon = Icons.Filled.AutoAwesome, label = "Flashcards", desc = "Q&A pairs with spaced repetition",
+            icon = Icons.Filled.Style, label = "Flashcards", desc = "Q&A pairs with spaced repetition",
             color = CognifyColors.ElectricViolet, enabled = state.flashcardEnabled, count = state.flashcardCount,
             onToggle = { viewModel.toggleFlashcard() },
             onCountChange = { viewModel.setFlashcardCount(it) },
@@ -296,11 +311,11 @@ private fun CreationForm(state: ReviewCreationState, viewModel: CreateReviewView
         Button(
             onClick = { viewModel.generate() },
             modifier = Modifier.fillMaxWidth().height(52.dp),
-            enabled = state.isExtracting,
+            enabled = !state.isGenerating,
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = CognifyColors.ElectricViolet),
         ) {
-            Icon(Icons.Filled.AutoAwesome, null)
+            Icon(Icons.Filled.RocketLaunch, null)
             Spacer(Modifier.width(8.dp))
             Text("Generate Reviewer", fontWeight = FontWeight.Bold)
         }
@@ -317,8 +332,7 @@ private fun SourceTabRow(selectedTab: SourceTab, onTabSelected: (SourceTab) -> U
     ) {
         listOf(
             SourceTab.MODULES to (Icons.Filled.LibraryBooks to "Classes"),
-            SourceTab.FILE to (Icons.Filled.FileUpload to "Upload"),
-            SourceTab.TEXT to (Icons.Filled.Edit to "Paste"),
+            SourceTab.SOURCE to (Icons.Filled.FileUpload to "Upload"),
         ).forEach { (tab, pair) ->
             Tab(
                 selected = selectedTab == tab,
@@ -337,50 +351,94 @@ private fun ModulesSource(state: ReviewCreationState, viewModel: CreateReviewVie
         shape = RoundedCornerShape(12.dp),
     ) {
         Column(Modifier.padding(12.dp)) {
-            if (state.moduleTrees.isEmpty()) {
-                Text("No modules available. Sync your classes first.",
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Your Courses", style = MaterialTheme.typography.labelMedium)
+                TextButton(onClick = { viewModel.refreshModules() }, enabled = !state.moduleLoading) {
+                    if (state.moduleLoading) {
+                        CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(4.dp))
+                    }
+                    Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(2.dp))
+                    Text(if (state.moduleLoading) "Syncing..." else "Sync", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            if (state.courseTrees.isEmpty()) {
+                Text(if (state.moduleLoading) "Loading..." else "No courses loaded. Tap Sync to fetch your data.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 8.dp),
                 )
             } else {
-                state.moduleTrees.forEachIndexed { i, tree ->
-                    var expanded by remember { mutableStateOf(false) }
-                    val selCount = tree.selectedLessonIds.size
+                state.courseTrees.forEachIndexed { ci, courseTree ->
+                    var courseExpanded by remember { mutableStateOf(false) }
+                    val totalLessons = courseTree.modules.sumOf { it.lessons.size }
+                    val totalSelected = courseTree.modules.sumOf { it.selectedLessonIds.size }
+
                     Column(Modifier.padding(vertical = 4.dp)) {
                         Row(
-                            Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(vertical = 8.dp),
+                            Modifier.fillMaxWidth().clickable { courseExpanded = !courseExpanded }.padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Filled.LibraryBooks, null, tint = CognifyColors.ElectricViolet, modifier = Modifier.size(20.dp))
+                            Box(
+                                Modifier.size(8.dp).clip(CircleShape)
+                                    .background(if (courseTree.course.isCoding) Color(0xFF00BCD4) else CognifyColors.ElectricViolet)
+                            )
                             Spacer(Modifier.width(8.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(tree.module.title, fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyLarge)
-                                Text("${tree.lessons.size} lessons • $selCount selected",
+                                Text(courseTree.course.title, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyLarge)
+                                Text("${courseTree.modules.size} modules • $totalLessons lessons • $totalSelected selected",
                                     style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            IconButton(onClick = { viewModel.selectAllInModule(i) }) {
-                                Icon(if (selCount == tree.lessons.size && tree.lessons.isNotEmpty())
-                                    Icons.Filled.RadioButtonChecked else Icons.Filled.RadioButtonUnchecked,
-                                    "All", tint = CognifyColors.ElectricViolet)
-                            }
-                            Icon(if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, modifier = Modifier.size(20.dp))
+                            Icon(if (courseExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, modifier = Modifier.size(20.dp))
                         }
-                        AnimatedVisibility(expanded) {
-                            Column(Modifier.padding(start = 28.dp)) {
-                                tree.lessons.forEach { lesson ->
-                                    Row(
-                                        Modifier.fillMaxWidth().clickable { viewModel.toggleLesson(i, lesson.id) }.padding(vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Icon(if (tree.selectedLessonIds.contains(lesson.id))
-                                            Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked, null,
-                                            tint = if (tree.selectedLessonIds.contains(lesson.id)) CognifyColors.ElectricViolet
-                                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(18.dp))
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(lesson.title, style = MaterialTheme.typography.bodyMedium,
-                                            color = if (tree.selectedLessonIds.contains(lesson.id)) MaterialTheme.colorScheme.onSurface
-                                            else MaterialTheme.colorScheme.onSurfaceVariant)
+
+                        AnimatedVisibility(courseExpanded) {
+                            Column(Modifier.padding(start = 16.dp)) {
+                                courseTree.modules.forEachIndexed { mi, mod ->
+                                    var moduleExpanded by remember { mutableStateOf(false) }
+                                    val sel = mod.selectedLessonIds.size
+
+                                    Column(Modifier.padding(vertical = 2.dp)) {
+                                        Row(
+                                            Modifier.fillMaxWidth().clickable { moduleExpanded = !moduleExpanded }.padding(vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Icon(Icons.Filled.LibraryBooks, null, tint = CognifyColors.ElectricViolet, modifier = Modifier.size(18.dp))
+                                            Spacer(Modifier.width(6.dp))
+                                            Column(Modifier.weight(1f)) {
+                                                Text(mod.module.title, fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
+                                                Text("${mod.lessons.size} lessons • $sel selected",
+                                                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                            IconButton(onClick = { viewModel.selectAllInCourseModule(ci, mi) }, modifier = Modifier.size(28.dp)) {
+                                                Icon(if (sel == mod.lessons.size && mod.lessons.isNotEmpty())
+                                                    Icons.Filled.RadioButtonChecked else Icons.Filled.RadioButtonUnchecked,
+                                                    "Select all", tint = CognifyColors.ElectricViolet, modifier = Modifier.size(18.dp))
+                                            }
+                                            Icon(if (moduleExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, modifier = Modifier.size(18.dp))
+                                        }
+
+                                        AnimatedVisibility(moduleExpanded) {
+                                            Column(Modifier.padding(start = 24.dp)) {
+                                                mod.lessons.forEach { lesson ->
+                                                    Row(
+                                                        Modifier.fillMaxWidth().clickable { viewModel.toggleLesson(ci, mi, lesson.id) }.padding(vertical = 5.dp),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                    ) {
+                                                        Icon(if (mod.selectedLessonIds.contains(lesson.id))
+                                                            Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked, null,
+                                                            tint = if (mod.selectedLessonIds.contains(lesson.id)) CognifyColors.ElectricViolet
+                                                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                            modifier = Modifier.size(16.dp))
+                                                        Spacer(Modifier.width(6.dp))
+                                                        Text(lesson.title, style = MaterialTheme.typography.bodySmall,
+                                                            color = if (mod.selectedLessonIds.contains(lesson.id)) MaterialTheme.colorScheme.onSurface
+                                                            else MaterialTheme.colorScheme.onSurfaceVariant)
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -393,55 +451,25 @@ private fun ModulesSource(state: ReviewCreationState, viewModel: CreateReviewVie
 }
 
 @Composable
-private fun FileSource(state: ReviewCreationState, viewModel: CreateReviewViewModel) {
+private fun SourceContent(state: ReviewCreationState, viewModel: CreateReviewViewModel) {
     val context = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let {
-            var name = "Unknown"
-            context.contentResolver.query(it, null, null, null, null)?.use { c ->
-                if (c.moveToFirst()) {
-                    val idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                    if (idx >= 0) name = c.getString(idx)
-                }
-            }
-            viewModel.setFile(it, name)
-        }
-    }
-
-    Card(Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-        shape = RoundedCornerShape(12.dp),
-    ) {
-        Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            if (state.selectedFileUri == null) {
-                Icon(Icons.Filled.FileUpload, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(8.dp))
-                Text("Upload PDF, DOCX, PPTX, or TXT", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(12.dp))
-                OutlinedButton(onClick = { launcher.launch(arrayOf("application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.presentationml.presentation", "text/plain")) }) {
-                    Icon(Icons.Filled.FileUpload, null); Spacer(Modifier.width(8.dp)); Text("Select File")
-                }
-            } else {
-                Icon(Icons.Filled.Description, null, modifier = Modifier.size(48.dp), tint = CognifyColors.ElectricViolet)
-                Spacer(Modifier.height(8.dp))
-                Text(state.selectedFileName, fontWeight = FontWeight.Medium)
-                Text("${state.extractedText.take(100).length} chars", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { launcher.launch(arrayOf("application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain")) }) { Text("Change") }
-                    Button(onClick = { viewModel.extractFileContent() }, enabled = !state.isExtracting) {
-                        if (state.isExtracting) { CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)) }
-                        Text(if (state.isExtracting) "Extracting..." else "Extract Text")
+    val fileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            val names = uris.map { uri ->
+                var name = "Unknown"
+                context.contentResolver.query(uri, null, null, null, null)?.use { c ->
+                    if (c.moveToFirst()) {
+                        val idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (idx >= 0) name = c.getString(idx)
                     }
                 }
+                name
             }
+            viewModel.addFiles(uris, names)
         }
     }
-}
-
-@Composable
-private fun TextSource(state: ReviewCreationState, viewModel: CreateReviewViewModel) {
-    val context = LocalContext.current
     val photoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -452,7 +480,7 @@ private fun TextSource(state: ReviewCreationState, viewModel: CreateReviewViewMo
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
         shape = RoundedCornerShape(12.dp),
     ) {
-        Column(Modifier.padding(12.dp)) {
+        Column(Modifier.fillMaxWidth().padding(12.dp)) {
             OutlinedTextField(
                 value = state.pastedText,
                 onValueChange = { viewModel.setPastedText(it) },
@@ -518,6 +546,193 @@ private fun TextSource(state: ReviewCreationState, viewModel: CreateReviewViewMo
                     Text("Add Photo", style = MaterialTheme.typography.labelMedium)
                 }
             }
+
+            Spacer(Modifier.height(12.dp))
+            Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)))
+            Spacer(Modifier.height(12.dp))
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Source Files", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                TextButton(onClick = {
+                    fileLauncher.launch(arrayOf(
+                        "application/pdf",
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                        "text/plain",
+                    ))
+                }) {
+                    Icon(Icons.Filled.FileUpload, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Add Files")
+                }
+            }
+
+            if (state.files.isEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("No files selected", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Spacer(Modifier.height(4.dp))
+            } else {
+                Spacer(Modifier.height(8.dp))
+                state.files.forEachIndexed { index, file ->
+                    FileCard(
+                        file = file,
+                        onPreview = { viewModel.showFilePreview(index) },
+                        onRemove = { viewModel.removeFile(index) },
+                    )
+                    if (index < state.files.lastIndex) Spacer(Modifier.height(6.dp))
+                }
+
+                Spacer(Modifier.height(12.dp))
+                val totalChars = state.files.sumOf { it.extractedText.length }
+                val pendingCount = state.files.count { !it.hasBeenExtracted && !it.isExtracting && it.error == null }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("${state.files.size} file(s)  •  $totalChars chars", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (state.files.any { it.extractedText.isNotBlank() }) {
+                        TextButton(onClick = { viewModel.clearAllFiles() }) {
+                            Icon(Icons.Filled.DeleteSweep, null, Modifier.size(16.dp))
+                            Spacer(Modifier.width(2.dp))
+                            Text("Clear All", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+
+                if (pendingCount > 0) {
+                    Spacer(Modifier.height(8.dp))
+                    Button(
+                        onClick = { viewModel.extractAllFiles() },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = CognifyColors.ElectricViolet),
+                    ) {
+                        if (state.files.any { it.isExtracting }) {
+                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Icon(Icons.Filled.Description, null, Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (state.files.any { it.isExtracting }) "Extracting..." else "Extract All ($pendingCount)")
+                    }
+                }
+            }
+        }
+    }
+
+    state.previewFileIndex?.let { index ->
+        val file = state.files.getOrNull(index)
+        if (file != null) {
+            FilePreviewDialog(
+                fileName = file.fileName,
+                text = file.extractedText,
+                hasBeenExtracted = file.hasBeenExtracted,
+                onDismiss = { viewModel.dismissFilePreview() },
+            )
+        }
+    }
+}
+
+@Composable
+private fun FileCard(
+    file: FileItem,
+    onPreview: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = when {
+                file.error != null -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                file.extractedText.isNotBlank() -> CognifyColors.ElectricViolet.copy(alpha = 0.06f)
+                else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            }
+        ),
+        shape = RoundedCornerShape(10.dp),
+    ) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            val mimeIcon = when {
+                file.fileName.endsWith(".pdf", ignoreCase = true) -> Icons.Filled.Description
+                file.fileName.endsWith(".docx", ignoreCase = true) -> Icons.Filled.Edit
+                file.fileName.endsWith(".pptx", ignoreCase = true) -> Icons.Filled.Edit
+                else -> Icons.Filled.FileUpload
+            }
+            Icon(mimeIcon, null, tint = CognifyColors.ElectricViolet, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+
+            Column(Modifier.weight(1f)) {
+                Text(file.fileName, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                when {
+                    file.isExtracting -> Text("Extracting...", style = MaterialTheme.typography.labelSmall, color = CognifyColors.ElectricViolet)
+                    file.error != null -> Text("Error: ${file.error}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                    file.extractedText.isNotBlank() -> Text("${file.extractedText.length} chars extracted", style = MaterialTheme.typography.labelSmall, color = Color(0xFF4CAF50))
+                    file.hasBeenExtracted -> Text("No text found (image-based file?)", style = MaterialTheme.typography.labelSmall, color = Color(0xFFFFA726))
+                    else -> Text("Not extracted", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            if (file.isExtracting) {
+                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+            } else {
+                IconButton(onClick = onPreview, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Filled.Visibility, "Preview", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Filled.Close, "Remove", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilePreviewDialog(
+    fileName: String,
+    text: String,
+    hasBeenExtracted: Boolean,
+    onDismiss: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = true),
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        ) {
+            Column(Modifier.padding(20.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(fileName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("${text.length} chars", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Filled.Close, "Close")
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(12.dp))
+
+                val displayText = when {
+                    text.isNotBlank() -> text
+                    hasBeenExtracted -> "No text could be extracted from this file. It may contain only images/scanned content."
+                    else -> "No text extracted yet."
+                }
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(400.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .verticalScroll(rememberScrollState())
+                        .padding(12.dp),
+                ) {
+                    Text(
+                        text = displayText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (text.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
         }
     }
 }
@@ -543,9 +758,17 @@ private fun ReviewTypeToggle(
             }
             if (!hideCount && enabled) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { if (count > 3) onCountChange(count - 1) }, modifier = Modifier.size(28.dp).padding(0.dp)) { Text("-", fontWeight = FontWeight.Bold) }
+                    TextButton(
+                        onClick = { if (count > 3) onCountChange(count - 1) },
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.size(32.dp),
+                    ) { Text("-", fontWeight = FontWeight.Bold) }
                     Text("$count", fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp))
-                    TextButton(onClick = { if (count < 30) onCountChange(count + 1) }, modifier = Modifier.size(28.dp).padding(0.dp)) { Text("+", fontWeight = FontWeight.Bold) }
+                    TextButton(
+                        onClick = { if (count < 30) onCountChange(count + 1) },
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.size(32.dp),
+                    ) { Text("+", fontWeight = FontWeight.Bold) }
                 }
             }
         }
@@ -562,24 +785,27 @@ fun ReviewerPreviewContent(result: ReviewerResultState, modifier: Modifier = Mod
     )
     var selectedTab by remember { mutableIntStateOf(0) }
 
-    Column(modifier) {
+    Column(modifier.fillMaxSize()) {
         val safeIndex = selectedTab.coerceIn(0, tabs.lastIndex.coerceAtLeast(0))
         if (tabs.isNotEmpty()) {
-            TabRow(
+            ScrollableTabRow(
                 selectedTabIndex = safeIndex,
                 containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = CognifyColors.ElectricViolet,
+                edgePadding = 0.dp,
             ) {
                 tabs.forEachIndexed { i, tab ->
                     Tab(selected = safeIndex == i, onClick = { selectedTab = i },
                         text = { Text("${tab.label} (${tab.count})", maxLines = 1, style = MaterialTheme.typography.labelLarge) })
                 }
             }
-            when (tabs.getOrNull(safeIndex)?.id) {
-                "flashcards" -> FlashcardList(result.flashcards)
-                "cloze" -> ClozeList(result.clozeItems)
-                "practice" -> PracticeList(result.practiceQuestions)
-                "summary" -> SummaryList(result.summarySections)
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                when (tabs.getOrNull(safeIndex)?.id) {
+                    "flashcards" -> FlashcardList(result.flashcards)
+                    "cloze" -> ClozeList(result.clozeItems)
+                    "practice" -> PracticeList(result.practiceQuestions)
+                    "summary" -> SummaryList(result.summarySections)
+                }
             }
         } else {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

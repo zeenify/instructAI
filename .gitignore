@@ -15,6 +15,16 @@ TOOLKIT.md
 
 # Browser smoke test
 .browser-smoke/
+artifacts/
+
+# Root log files
+stderr*.txt
+stdout*.txt
+build_error.log
+summary-*.md
+
+# Docs
+documentation/
 
 # Environment-specific backend config
 backend/config/agent-mcp.php
@@ -37,7 +47,7 @@ frontend/dist/
 frontend/.eslintcache
 
 # AI Service
-instruct-ai-service/ai_service.log
+instruct-ai-service/ai_service*.log
 
 # Cognify Android App
 cognify/.gradle/
@@ -50,6 +60,11 @@ cognify/.idea/
 cognify/.kotlin/
 cognify/*.iml
 cognify/.settings/
+cognify/screenshots/
+cognify/hs_err_pid*.log
+cognify/replay_pid*.log
+cognify/app/src/main/jniLibs/
+cognify/app/src/main/java/com/k2fsa/
 
 # OS Files
 .DS_Store

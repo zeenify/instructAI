@@ -1,12 +1,7 @@
 package com.instructai.cognify.ui.common
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -16,7 +11,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination
@@ -32,9 +26,7 @@ fun CognifyBottomBar(
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 4.dp,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(66.dp),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         items.forEach { item ->
             val selected = currentDestination?.route == item.route
@@ -45,7 +37,7 @@ fun CognifyBottomBar(
                 icon = {
                     Icon(
                         imageVector = item.icon,
-                        contentDescription = null,
+                        contentDescription = item.label,
                         modifier = Modifier.size(24.dp),
                         tint = if (selected) CognifyColors.ElectricViolet
                                else MaterialTheme.colorScheme.onSurfaceVariant,

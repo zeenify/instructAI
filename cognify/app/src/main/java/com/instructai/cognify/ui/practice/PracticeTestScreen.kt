@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -34,6 +36,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -42,6 +46,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -187,15 +194,62 @@ fun PracticeTestScreen(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                val options = parseOptions(question.options)
-                options.forEach { option ->
-                    OptionButton(
-                        text = option,
-                        isSelected = state.selectedAnswer == option,
-                        isCorrect = if (state.isAnswered) option == question.correctAnswer else null,
-                        enabled = !state.isAnswered,
-                        onClick = { viewModel.selectAnswer(option) },
-                    )
+                when (question.questionType) {
+                    "identification" -> {
+                        var textAnswer by remember { mutableStateOf("") }
+                        OutlinedTextField(
+                            value = textAnswer,
+                            onValueChange = { textAnswer = it },
+                            placeholder = { Text("Type your answer...") },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !state.isAnswered,
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = {
+                                if (textAnswer.isNotBlank() && !state.isAnswered) {
+                                    viewModel.selectAnswer(textAnswer)
+                                }
+                            }),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = CognifyColors.ElectricViolet,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                            ),
+                        )
+                        if (!state.isAnswered) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(
+                                onClick = { viewModel.selectAnswer(textAnswer) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = CognifyColors.ElectricViolet,
+                                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                ),
+                                enabled = textAnswer.isNotBlank(),
+                            ) {
+                                Text("Submit Answer", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                    else -> {
+                        val options = parseOptions(question.options, question.questionType)
+                        options.forEach { option ->
+                            OptionButton(
+                                text = option,
+                                isSelected = state.selectedAnswer == option,
+                                isCorrect = if (state.isAnswered) {
+                                    val cleaned = option.replace(Regex("^[A-Z]\\)\\s*"), "").trim()
+                                    val cleanedCorrect = question.correctAnswer.replace(Regex("^[A-Z]\\)\\s*"), "").trim()
+                                    cleaned.equals(cleanedCorrect, ignoreCase = true)
+                                } else null,
+                                enabled = !state.isAnswered,
+                                onClick = { viewModel.selectAnswer(option) },
+                            )
+                        }
+                    }
                 }
             }
 
@@ -212,25 +266,31 @@ fun PracticeTestScreen(
                         else CognifyColors.Error.copy(alpha = 0.1f),
                     ),
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            if (state.isCorrect == true) Icons.Filled.Check else Icons.Filled.Close,
-                            contentDescription = null,
-                            tint = if (state.isCorrect == true) CognifyColors.Success else CognifyColors.Error,
-                            modifier = Modifier.size(24.dp),
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = if (state.isCorrect == true) "Correct!" else "Incorrect",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (state.isCorrect == true) CognifyColors.Success else CognifyColors.Error,
-                        )
+                    Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                if (state.isCorrect == true) Icons.Filled.Check else Icons.Filled.Close,
+                                contentDescription = null,
+                                tint = if (state.isCorrect == true) CognifyColors.Success else CognifyColors.Error,
+                                modifier = Modifier.size(24.dp),
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = if (state.isCorrect == true) "Correct!" else "Incorrect",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (state.isCorrect == true) CognifyColors.Success else CognifyColors.Error,
+                            )
+                        }
+                        if (state.isCorrect == false) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Correct answer: ${question.correctAnswer.replace(Regex("^[A-Z]\\)\\s*"), "").trim()}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = CognifyColors.Success,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
                     }
                 }
 
@@ -390,13 +450,21 @@ private fun ResultScreen(
     }
 }
 
-private fun parseOptions(optionsJson: String): List<String> {
-    if (optionsJson.isBlank()) return emptyList()
-    return try {
+private fun parseOptions(optionsJson: String, questionType: String? = null): List<String> {
+    if (optionsJson.isBlank()) {
+        return when (questionType) {
+            "true_false" -> listOf("True", "False")
+            else -> emptyList()
+        }
+    }
+    val raw = try {
         com.google.gson.Gson().fromJson(optionsJson, Array<String>::class.java).toList()
     } catch (_: Exception) {
-        optionsJson.split(",").map { it.trim() }
+        val pipeSplit = optionsJson.split("|").map { it.trim() }.filter { it.isNotEmpty() }
+        if (pipeSplit.size > 1) pipeSplit
+        else optionsJson.split(",").map { it.trim() }.filter { it.isNotEmpty() }
     }
+    return raw.map { it.replace(Regex("^[A-Z]\\)\\s*"), "").trim() }
 }
 
 @androidx.compose.ui.tooling.preview.Preview(showBackground = true)

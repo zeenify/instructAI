@@ -3,6 +3,8 @@ package com.instructai.cognify.ui.navigation
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
@@ -10,6 +12,7 @@ import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -32,7 +35,7 @@ sealed class BottomNavItem(
     val icon: ImageVector,
 ) {
     object Home : BottomNavItem(Routes.HOME, "Home", Icons.Filled.Home)
-    object Reviews : BottomNavItem(Routes.REVIEWS, "Reviews", Icons.Filled.Book)
+    object Reviews : BottomNavItem(Routes.REVIEWS, "Reviewers", Icons.Filled.Book)
     object Stats : BottomNavItem(Routes.STATS, "Stats", Icons.Filled.BarChart)
 }
 
@@ -43,10 +46,22 @@ val bottomNavItems = listOf(
 )
 
 @Composable
-fun CognifyNavGraph() {
+fun CognifyNavGraph(
+    deepLinkReviewId: Long? = null,
+    onDeepLinkHandled: () -> Unit = {},
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+
+    LaunchedEffect(deepLinkReviewId) {
+        if (deepLinkReviewId != null) {
+            navController.navigate(Routes.summary(deepLinkReviewId)) {
+                launchSingleTop = true
+            }
+            onDeepLinkHandled()
+        }
+    }
 
     val showBottomBar = currentDestination?.route in bottomNavItems.map { it.route }
 
@@ -73,8 +88,18 @@ fun CognifyNavGraph() {
             navController = navController,
             startDestination = Routes.LOGIN,
             modifier = Modifier.padding(innerPadding),
-            enterTransition = { fadeIn(animationSpec = tween(300)) },
-            exitTransition = { fadeOut(animationSpec = tween(300)) },
+            enterTransition = {
+                fadeIn(animationSpec = tween(400)) + slideInHorizontally(animationSpec = tween(400)) { it / 4 }
+            },
+            exitTransition = {
+                fadeOut(animationSpec = tween(300))
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(300))
+            },
+            popExitTransition = {
+                fadeOut(animationSpec = tween(300)) + slideOutHorizontally(animationSpec = tween(300)) { it / 4 }
+            },
         ) {
             composable(Routes.LOGIN) {
                 LoginScreen(
@@ -88,7 +113,7 @@ fun CognifyNavGraph() {
 
             composable(Routes.HOME) {
                 HomeScreen(
-                    onNavigateToReview = { navController.navigate(Routes.REVIEWS) },
+                    onReviewClick = { id, title -> navController.navigate(Routes.reviewDetail(id, title)) },
                     onCreateReview = { navController.navigate(Routes.CREATE_REVIEW) },
                     onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
                 )
@@ -123,7 +148,7 @@ fun CognifyNavGraph() {
                             "flashcards" -> navController.navigate(Routes.flashcardDeck(id))
                             "cloze" -> navController.navigate(Routes.cloze(id))
                             "practice" -> navController.navigate(Routes.practiceTest(id))
-                            "audio" -> navController.navigate(Routes.audio(id))
+                            "summary" -> navController.navigate(Routes.summary(id))
                         }
                     },
                 )
@@ -163,11 +188,11 @@ fun CognifyNavGraph() {
             }
 
             composable(
-                route = Routes.AUDIO,
+                route = Routes.SUMMARY,
                 arguments = listOf(navArgument("reviewId") { type = NavType.LongType }),
             ) { backStackEntry ->
                 val reviewId = backStackEntry.arguments?.getLong("reviewId") ?: return@composable
-                com.instructai.cognify.ui.audio.AudioScreen(
+                com.instructai.cognify.ui.summary.SummaryScreen(
                     reviewId = reviewId,
                     onBack = { navController.popBackStack() },
                 )
@@ -176,6 +201,7 @@ fun CognifyNavGraph() {
             composable(Routes.SETTINGS) {
                 com.instructai.cognify.ui.settings.SettingsScreen(
                     onBack = { navController.popBackStack() },
+                    onVoiceLab = { navController.navigate(Routes.VOICE_LAB) },
                     onLogout = {
                         navController.navigate(Routes.LOGIN) {
                             popUpTo(0) { inclusive = true }
@@ -187,11 +213,18 @@ fun CognifyNavGraph() {
             composable(Routes.CREATE_REVIEW) {
                 com.instructai.cognify.ui.reviews.CreateReviewScreen(
                     onBack = { navController.popBackStack() },
-                    onCreated = { reviewId ->
-                        navController.navigate(Routes.reviewDetail(reviewId)) {
-                            popUpTo(Routes.REVIEWS)
+                    onCreated = { _ ->
+                        navController.navigate(Routes.REVIEWS) {
+                            popUpTo(Routes.HOME) { inclusive = false }
+                            launchSingleTop = true
                         }
                     },
+                )
+            }
+
+            composable(Routes.VOICE_LAB) {
+                com.instructai.cognify.ui.voicelab.VoiceLabScreen(
+                    onBack = { navController.popBackStack() },
                 )
             }
         }

@@ -17,11 +17,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
+import kotlin.math.abs
 import kotlin.random.Random
 
 data class ConfettiParticle(
     val x: Float = Random.nextFloat(),
-    val y: Float = Random.nextFloat() * -1f,
+    val y: Float = Random.nextFloat(),
     val size: Float = Random.nextFloat() * 8f + 4f,
     val color: Color = Color(
         red = Random.nextFloat(),
@@ -57,7 +58,8 @@ fun ConfettiOverlay(
 
     Canvas(modifier = modifier.fillMaxSize()) {
         particles.forEach { particle ->
-            val currentY = (particle.y + progress * particle.speed * size.height) % size.height
+            val rawY = (particle.y + progress * particle.speed) * size.height
+            val currentY = abs(rawY) % size.height
             val currentX = particle.x * size.width + progress * particle.drift * size.width
             rotate(
                 degrees = particle.rotation + progress * 360f,

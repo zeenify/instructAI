@@ -3,6 +3,7 @@ package com.instructai.cognify.ui.flashcards
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.instructai.cognify.data.local.entity.FlashcardEntity
+import com.instructai.cognify.data.logging.AppLogger
 import com.instructai.cognify.data.repository.FlashcardRepository
 import com.instructai.cognify.data.repository.ReviewRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +28,7 @@ data class FlashcardSessionState(
 class FlashcardViewModel @Inject constructor(
     private val reviewRepository: ReviewRepository,
     private val flashcardRepository: FlashcardRepository,
+    private val logger: AppLogger,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(FlashcardSessionState())
@@ -34,11 +36,15 @@ class FlashcardViewModel @Inject constructor(
 
     fun loadFlashcards(reviewId: Long) {
         viewModelScope.launch {
-            reviewRepository.getFlashcards(reviewId).collect { cards ->
-                _state.value = _state.value.copy(
-                    flashcards = cards.shuffled(),
-                    isLoading = false,
-                )
+            try {
+                reviewRepository.getFlashcards(reviewId).collect { cards ->
+                    _state.value = _state.value.copy(
+                        flashcards = cards.shuffled(),
+                        isLoading = false,
+                    )
+                }
+            } catch (e: Exception) {
+                logger.log("FlashcardViewModel", "loadFlashcards($reviewId) failed", e)
             }
         }
     }
@@ -52,7 +58,11 @@ class FlashcardViewModel @Inject constructor(
         val card = current.flashcards.getOrNull(current.currentIndex) ?: return
 
         viewModelScope.launch {
-            flashcardRepository.reviewFlashcard(card.id, quality)
+            try {
+                flashcardRepository.reviewFlashcard(card.id, quality)
+            } catch (e: Exception) {
+                logger.log("FlashcardViewModel", "reviewFlashcard(${card.id}) failed", e)
+            }
         }
 
         val isKnown = quality >= 3
@@ -79,6 +89,7 @@ class FlashcardViewModel @Inject constructor(
     fun resetSession() {
         _state.value = FlashcardSessionState(
             flashcards = _state.value.flashcards.shuffled(),
+            isLoading = false,
         )
     }
 }

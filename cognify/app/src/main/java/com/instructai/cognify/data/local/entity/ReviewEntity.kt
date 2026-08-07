@@ -13,7 +13,8 @@ data class ReviewEntity(
     @ColumnInfo(name = "source_type") val sourceType: String,
     @ColumnInfo(name = "content_text") val contentText: String = "",
     @ColumnInfo(name = "study_guide") val studyGuide: String = "",
-    val status: String = "draft",
+    val difficulty: String = "medium",
+    val status: String = "ready",
     @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis(),
 )

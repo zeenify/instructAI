@@ -2,10 +2,11 @@ package com.instructai.cognify.di
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import com.instructai.cognify.BuildConfig
 import com.instructai.cognify.data.remote.ApiService
 import com.instructai.cognify.data.remote.AuthInterceptor
 import com.instructai.cognify.data.remote.TokenManager
-import com.instructai.cognify.data.remote.ai.GroqApi
+import com.instructai.cognify.data.remote.ai.GeminiApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -20,11 +21,11 @@ import javax.inject.Singleton
 
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
-annotation class GroqOkHttp
+annotation class GeminiOkHttp
 
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
-annotation class GroqRetrofit
+annotation class GeminiRetrofit
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -44,9 +45,16 @@ object NetworkModule {
         }
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .header("Host", "instructai.test")
+                        .build()
+                )
+            }
             .addInterceptor(logging)
             .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(180, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
             .build()
     }
@@ -55,7 +63,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("http://192.168.1.252:8000/api/")
+            .baseUrl(BuildConfig.API_BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -69,8 +77,8 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    @GroqOkHttp
-    fun provideGroqOkHttpClient(): OkHttpClient {
+    @GeminiOkHttp
+    fun provideGeminiOkHttpClient(): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.HEADERS
         }
@@ -84,10 +92,10 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    @GroqRetrofit
-    fun provideGroqRetrofit(@GroqOkHttp client: OkHttpClient): Retrofit {
+    @GeminiRetrofit
+    fun provideGeminiRetrofit(@GeminiOkHttp client: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://api.groq.com/openai/")
+            .baseUrl("https://generativelanguage.googleapis.com/")
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -95,7 +103,7 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideGroqApi(@GroqRetrofit retrofit: Retrofit): GroqApi {
-        return retrofit.create(GroqApi::class.java)
+    fun provideGeminiApi(@GeminiRetrofit retrofit: Retrofit): GeminiApi {
+        return retrofit.create(GeminiApi::class.java)
     }
 }

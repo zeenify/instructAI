@@ -22,7 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.HourglassEmpty
@@ -49,6 +49,7 @@ import com.instructai.cognify.ui.theme.CognifyColors
 @Composable
 fun GenerationProgressScreen(
     progressItems: List<GenProgressItem>,
+    errorLog: List<String> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
@@ -83,7 +84,7 @@ fun GenerationProgressScreen(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                Icons.Filled.AutoAwesome,
+                Icons.Filled.Psychology,
                 null,
                 modifier = Modifier
                     .size(40.dp)
@@ -137,6 +138,35 @@ fun GenerationProgressScreen(
                     repeat(4) {
                         ProgressTypeSkeleton()
                         Spacer(Modifier.height(8.dp))
+                    }
+                }
+            }
+        }
+
+        if (errorLog.isNotEmpty()) {
+            Spacer(Modifier.height(16.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFFF5252).copy(alpha = 0.1f),
+                ),
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                Column(Modifier.padding(12.dp)) {
+                    Text(
+                        "Error Log",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFF5252),
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    errorLog.forEach { err ->
+                        Text(
+                            err,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFFF5252).copy(alpha = 0.8f),
+                        )
+                        Spacer(Modifier.height(2.dp))
                     }
                 }
             }

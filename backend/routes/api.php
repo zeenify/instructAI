@@ -10,6 +10,7 @@ use App\Http\Controllers\Student\EnrollmentController;
 use App\Http\Controllers\Student\LessonController as StudentLessonController;
 use App\Http\Controllers\Student\QuizController as StudentQuizController;
 use App\Http\Controllers\Student\ReviewerController;
+use App\Http\Controllers\Student\TtsController;
 use App\Http\Controllers\Teacher\AnalyticsController;
 use App\Http\Controllers\Teacher\ClassActivityController;
 // --- ADD STUDENT CONTROLLERS ---
@@ -126,7 +127,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/student/ai/chat', [AIChatController::class, 'chat']);
     Route::post('/student/ai/history', [AIChatController::class, 'loadHistory']);
     Route::post('/student/generate-reviewer', [ReviewerController::class, 'generate']);
+    Route::post('/student/reviewer/transform-tts', [ReviewerController::class, 'transformTts']);
     Route::post('/student/extract-text', [ReviewerController::class, 'extractText']);
+    Route::post('/student/tts', [TtsController::class, 'synthesize']);
+    Route::get('/student/tts/voices', [TtsController::class, 'voices']);
 
     // Student Class Activities
     Route::get('/student/classes/{classId}/activities', [StudentClassActivityController::class, 'index']);

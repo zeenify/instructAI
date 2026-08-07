@@ -10,13 +10,14 @@ object Routes {
     const val FLASHCARD_DECK = "flashcard_deck/{reviewId}"
     const val CLOZE = "cloze/{reviewId}"
     const val PRACTICE_TEST = "practice_test/{reviewId}"
-    const val AUDIO = "audio/{reviewId}"
+    const val SUMMARY = "summary/{reviewId}"
     const val STATS = "stats"
+    const val VOICE_LAB = "voice_lab"
 
     fun reviewDetail(reviewId: Long, reviewTitle: String = "") =
         "review_detail/$reviewId/${java.net.URLEncoder.encode(reviewTitle, "UTF-8")}"
     fun flashcardDeck(reviewId: Long) = "flashcard_deck/$reviewId"
     fun cloze(reviewId: Long) = "cloze/$reviewId"
     fun practiceTest(reviewId: Long) = "practice_test/$reviewId"
-    fun audio(reviewId: Long) = "audio/$reviewId"
+    fun summary(reviewId: Long) = "summary/$reviewId"
 }

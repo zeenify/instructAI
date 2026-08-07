@@ -1,8 +1,11 @@
 <?php
+
 namespace App\Http\Controllers\Student;
+
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+
 class CodeExecutionController extends Controller
 {
     public function execute(Request $request)
@@ -10,7 +13,7 @@ class CodeExecutionController extends Controller
         $request->validate([
             'code' => 'required|string',
             'language' => 'sometimes|string',
-            'input' => 'nullable|string'
+            'input' => 'nullable|string',
         ]);
 
         // Use 'java' as default if not provided
@@ -48,6 +51,7 @@ class CodeExecutionController extends Controller
 
             if ($response->successful()) {
                 \Log::info('CodeExecution: Local engine succeeded');
+
                 return response()->json($response->json());
             }
         } catch (\Exception $localError) {
@@ -61,23 +65,24 @@ class CodeExecutionController extends Controller
 
             if ($response->successful()) {
                 \Log::info('CodeExecution: Deployed engine succeeded');
+
                 return response()->json($response->json());
             }
 
             return response()->json([
                 'stderr' => 'The execution engine is temporarily unavailable.',
-                'stdout' => ''
+                'stdout' => '',
             ], 503);
 
         } catch (\Exception $deployedError) {
             \Log::error('CodeExecution: Both engines failed', [
                 'local_error' => $localError->getMessage() ?? 'Not attempted',
-                'deployed_error' => $deployedError->getMessage()
+                'deployed_error' => $deployedError->getMessage(),
             ]);
 
             return response()->json([
                 'stderr' => 'Engine Connection Error: No available execution engine.',
-                'stdout' => ''
+                'stdout' => '',
             ], 500);
         }
     }
@@ -87,7 +92,7 @@ class CodeExecutionController extends Controller
         $request->validate([
             'question_text' => 'required|string',
             'code' => 'required|string',
-            'expected_output' => 'required|string'
+            'expected_output' => 'required|string',
         ]);
 
         try {
@@ -97,21 +102,23 @@ class CodeExecutionController extends Controller
             $response = Http::timeout(20)->post("{$aiUrl}/ai/verify-code-challenge", [
                 'question_text' => $request->question_text,
                 'code' => $request->code,
-                'expected_output' => $request->expected_output
+                'expected_output' => $request->expected_output,
             ]);
 
             if ($response->successful()) {
                 \Log::info('CodeExecution: Verification succeeded');
+
                 return response()->json($response->json());
             }
 
             \Log::warning('CodeExecution: Verification failed', ['status' => $response->status()]);
+
             return response()->json(['passed' => false, 'reason' => 'Verification service error'], 500);
 
         } catch (\Exception $e) {
             \Log::error('CodeExecution: Verification error', ['error' => $e->getMessage()]);
+
             return response()->json(['passed' => false, 'reason' => 'Could not verify solution'], 500);
         }
     }
-
 }

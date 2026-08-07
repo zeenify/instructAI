@@ -8,15 +8,13 @@ import com.instructai.cognify.data.remote.dto.LessonResponse
 import com.instructai.cognify.data.remote.dto.LoginRequest
 import com.instructai.cognify.data.remote.dto.LoginResponse
 import com.instructai.cognify.data.remote.dto.QuizResponse
+import com.instructai.cognify.data.remote.dto.TtsVoicesResponse
 import com.instructai.cognify.data.remote.dto.UserDto
-import okhttp3.MultipartBody
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
-import retrofit2.http.Multipart
 import retrofit2.http.POST
-import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Streaming
 
@@ -49,13 +47,22 @@ interface ApiService {
     @GET("student/quizzes/{id}")
     suspend fun getQuiz(@Path("id") id: Long): Response<QuizResponse>
 
-    @Multipart
-    @POST("student/extract-text")
-    suspend fun extractText(@Part file: MultipartBody.Part): Response<ResponseBody>
-
     @POST("student/generate-reviewer")
-    @Streaming
     suspend fun generateReviewer(
+        @Body request: Map<String, @JvmSuppressWildcards Any>,
+    ): Response<ResponseBody>
+
+    @POST("student/reviewer/transform-tts")
+    suspend fun transformTts(
+        @Body request: Map<String, @JvmSuppressWildcards Any>,
+    ): Response<ResponseBody>
+
+    @GET("student/tts/voices")
+    suspend fun getTtsVoices(): Response<TtsVoicesResponse>
+
+    @Streaming
+    @POST("student/tts")
+    suspend fun synthesizeTts(
         @Body request: Map<String, @JvmSuppressWildcards Any>,
     ): Response<ResponseBody>
 }

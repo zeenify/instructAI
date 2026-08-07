@@ -9,7 +9,11 @@ import com.instructai.cognify.data.local.entity.FlashcardEntity
 import com.instructai.cognify.data.local.entity.FlashcardReviewEntity
 import com.instructai.cognify.data.local.entity.PracticeQuestionEntity
 import com.instructai.cognify.data.local.entity.ReviewEntity
+import com.instructai.cognify.data.logging.AppLogger
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,7 +23,19 @@ class ReviewRepository @Inject constructor(
     private val flashcardDao: FlashcardDao,
     private val clozeDao: ClozeDao,
     private val practiceQuestionDao: PracticeQuestionDao,
+    private val logger: AppLogger,
 ) {
+    private val _pendingHighlight = MutableStateFlow<Long?>(null)
+    val pendingHighlight: StateFlow<Long?> = _pendingHighlight.asStateFlow()
+
+    fun setPendingHighlight(reviewId: Long) {
+        _pendingHighlight.value = reviewId
+    }
+
+    fun clearPendingHighlight() {
+        _pendingHighlight.value = null
+    }
+
     fun getAllReviews(): Flow<List<ReviewEntity>> = reviewDao.getAllReviews()
 
     suspend fun getReviewById(id: Long): ReviewEntity? = reviewDao.getReviewById(id)
@@ -30,6 +46,7 @@ class ReviewRepository @Inject constructor(
         courseId: Long? = null,
         lessonId: Long? = null,
         contentText: String = "",
+        difficulty: String = "medium",
     ): Long {
         val review = ReviewEntity(
             title = title,
@@ -37,48 +54,75 @@ class ReviewRepository @Inject constructor(
             courseId = courseId,
             lessonId = lessonId,
             contentText = contentText,
+            difficulty = difficulty,
         )
-        return reviewDao.insert(review)
+        return try {
+            reviewDao.insert(review)
+        } catch (e: Exception) {
+            logger.log("ReviewRepository", "createReview failed: title=$title", e)
+            -1L
+        }
     }
 
-    suspend fun deleteReview(id: Long) = reviewDao.deleteById(id)
+    suspend fun updateReview(review: ReviewEntity) = try {
+        reviewDao.update(review)
+    } catch (e: Exception) {
+        logger.log("ReviewRepository", "updateReview failed: id=${review.id}", e)
+    }
+
+    suspend fun deleteReview(id: Long) = try {
+        reviewDao.deleteById(id)
+    } catch (e: Exception) {
+        logger.log("ReviewRepository", "deleteReview($id) failed", e)
+    }
 
     suspend fun generateFlashcards(reviewId: Long, flashcards: List<Pair<String, String>>) {
-        flashcardDao.deleteByReview(reviewId)
-        val entities = flashcards.mapIndexed { index, (front, back) ->
-            FlashcardEntity(
-                reviewId = reviewId,
-                frontText = front,
-                backText = back,
-                orderIndex = index,
-            )
-        }
-        flashcardDao.insertAll(entities)
-
-        entities.forEach { entity ->
-            flashcardDao.insertReview(
-                FlashcardReviewEntity(flashcardId = entity.id)
-            )
+        try {
+            flashcardDao.deleteByReview(reviewId)
+            val entities = flashcards.mapIndexed { index, (front, back) ->
+                FlashcardEntity(
+                    reviewId = reviewId,
+                    frontText = front,
+                    backText = back,
+                    orderIndex = index,
+                )
+            }
+            flashcardDao.insertAll(entities)
+            entities.forEach { entity ->
+                flashcardDao.insertReview(
+                    FlashcardReviewEntity(flashcardId = entity.id)
+                )
+            }
+        } catch (e: Exception) {
+            logger.log("ReviewRepository", "generateFlashcards failed for review $reviewId", e)
         }
     }
 
     suspend fun generateClozeItems(reviewId: Long, items: List<Triple<String, String, String>>) {
-        clozeDao.deleteByReview(reviewId)
-        val entities = items.mapIndexed { index, (before, answer, after) ->
-            ClozeEntity(
-                reviewId = reviewId,
-                sentenceBefore = before,
-                blankAnswer = answer,
-                sentenceAfter = after,
-                orderIndex = index,
-            )
+        try {
+            clozeDao.deleteByReview(reviewId)
+            val entities = items.mapIndexed { index, (before, answer, after) ->
+                ClozeEntity(
+                    reviewId = reviewId,
+                    sentenceBefore = before,
+                    blankAnswer = answer,
+                    sentenceAfter = after,
+                    orderIndex = index,
+                )
+            }
+            clozeDao.insertAll(entities)
+        } catch (e: Exception) {
+            logger.log("ReviewRepository", "generateClozeItems failed for review $reviewId", e)
         }
-        clozeDao.insertAll(entities)
     }
 
     suspend fun generatePracticeQuestions(reviewId: Long, questions: List<PracticeQuestionEntity>) {
-        practiceQuestionDao.deleteByReview(reviewId)
-        practiceQuestionDao.insertAll(questions)
+        try {
+            practiceQuestionDao.deleteByReview(reviewId)
+            practiceQuestionDao.insertAll(questions)
+        } catch (e: Exception) {
+            logger.log("ReviewRepository", "generatePracticeQuestions failed for review $reviewId", e)
+        }
     }
 
     fun getFlashcards(reviewId: Long): Flow<List<FlashcardEntity>> =
