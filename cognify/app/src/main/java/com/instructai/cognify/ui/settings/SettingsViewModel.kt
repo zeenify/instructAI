@@ -2,6 +2,7 @@ package com.instructai.cognify.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.instructai.cognify.BuildConfig
 import com.instructai.cognify.data.logging.AppLogger
 import com.instructai.cognify.data.logging.LogEntry
 import com.instructai.cognify.data.remote.TokenManager
@@ -22,6 +23,7 @@ data class UserInfo(
 data class AiSettingsState(
     val apiMode: ApiMode = ApiMode.GEMINI,
     val directApiKey: String = "",
+    val serverUrl: String = BuildConfig.API_BASE_URL,
 )
 
 @HiltViewModel
@@ -65,6 +67,11 @@ class SettingsViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            tokenManager.serverUrlFlow.collect { url ->
+                _aiSettings.value = _aiSettings.value.copy(serverUrl = url)
+            }
+        }
+        viewModelScope.launch {
             logger.getLogsFlow().collect { logs ->
                 _errorLogs.value = logs
             }
@@ -84,6 +91,12 @@ class SettingsViewModel @Inject constructor(
     fun saveDirectApiKey() {
         viewModelScope.launch {
             tokenManager.setDirectApiKey(_aiSettings.value.directApiKey)
+        }
+    }
+
+    fun setServerUrl(url: String) {
+        viewModelScope.launch {
+            tokenManager.setServerUrl(url)
         }
     }
 

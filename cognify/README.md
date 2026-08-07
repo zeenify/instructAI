@@ -32,6 +32,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup-sherpa.ps1
   ```properties
   apiBaseUrl=http://10.0.2.2/api/
   ```
+  At runtime the URL can also be switched in the app (Settings → Server): pick **Local (laptop)** for dev, or **Production** with a deployed backend URL (e.g. `https://<backend>.onrender.com/api/`) so the app works away from your network. Log in again after switching.
 - **Google Sign-In**: configure your web client ID in `app/src/main/res/values/strings.xml` (`google_web_client_id`).
 
 ## Notes

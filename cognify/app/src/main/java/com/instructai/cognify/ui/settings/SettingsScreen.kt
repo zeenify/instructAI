@@ -25,6 +25,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
@@ -328,6 +329,67 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp),
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Server",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = CognifyColors.ElectricViolet,
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            val isLan = aiSettings.serverUrl == com.instructai.cognify.BuildConfig.API_BASE_URL
+
+            ModeRow(
+                icon = Icons.Filled.Storage,
+                title = "Local (laptop)",
+                subtitle = com.instructai.cognify.BuildConfig.API_BASE_URL,
+                selected = isLan,
+                onClick = { viewModel.setServerUrl(com.instructai.cognify.BuildConfig.API_BASE_URL) },
+            )
+
+            ModeRow(
+                icon = Icons.Filled.Cloud,
+                title = "Production (deployed)",
+                subtitle = "Works without your laptop",
+                selected = !isLan,
+                onClick = { /* keep current custom URL */ },
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (!isLan) {
+                var editUrl by remember(aiSettings.serverUrl) { mutableStateOf(aiSettings.serverUrl) }
+                OutlinedTextField(
+                    value = editUrl,
+                    onValueChange = { editUrl = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Backend URL") },
+                    placeholder = { Text("https://your-backend.onrender.com/api/") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        viewModel.setServerUrl(editUrl)
+                        viewModel.setApiMode(com.instructai.cognify.data.repository.ApiMode.BACKEND)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = CognifyColors.ElectricViolet),
+                    enabled = editUrl.isNotBlank(),
+                ) { Text("Save Server") }
+                Text(
+                    text = "You may need to log in again after switching servers.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp),
                 )
             }
 

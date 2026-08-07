@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.instructai.cognify.BuildConfig
 import com.instructai.cognify.data.repository.ApiMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -15,6 +16,7 @@ import javax.inject.Singleton
 private val TOKEN_KEY = stringPreferencesKey("auth_token")
 private val API_MODE_KEY = stringPreferencesKey("api_mode")
 private val DIRECT_KEY_KEY = stringPreferencesKey("direct_api_key")
+private val SERVER_URL_KEY = stringPreferencesKey("server_url")
 
 @Singleton
 class TokenManager @Inject constructor(
@@ -25,10 +27,14 @@ class TokenManager @Inject constructor(
     var token: String? = null
         private set
 
+    @Volatile
+    var serverUrl: String = BuildConfig.API_BASE_URL
+        private set
+
     init {
-        token = runBlocking {
-            dataStore.data.first()[TOKEN_KEY]
-        }
+        val prefs = runBlocking { dataStore.data.first() }
+        token = prefs[TOKEN_KEY]
+        serverUrl = prefs[SERVER_URL_KEY] ?: BuildConfig.API_BASE_URL
     }
 
     val tokenFlow: Flow<String?> = dataStore.data.map { prefs ->
@@ -44,6 +50,10 @@ class TokenManager @Inject constructor(
 
     val directApiKey: Flow<String> = dataStore.data.map { prefs ->
         prefs[DIRECT_KEY_KEY] ?: ""
+    }
+
+    val serverUrlFlow: Flow<String> = dataStore.data.map { prefs ->
+        prefs[SERVER_URL_KEY] ?: BuildConfig.API_BASE_URL
     }
 
     suspend fun saveToken(newToken: String) {
@@ -78,6 +88,14 @@ class TokenManager @Inject constructor(
     suspend fun setDirectApiKey(key: String) {
         dataStore.edit { prefs ->
             prefs[DIRECT_KEY_KEY] = key
+        }
+    }
+
+    suspend fun setServerUrl(url: String) {
+        val normalized = url.trim().trimEnd('/') + "/"
+        serverUrl = normalized
+        dataStore.edit { prefs ->
+            prefs[SERVER_URL_KEY] = normalized
         }
     }
 }

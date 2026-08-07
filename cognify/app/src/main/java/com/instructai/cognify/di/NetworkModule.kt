@@ -12,6 +12,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -39,24 +40,43 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
+    fun provideOkHttpClient(authInterceptor: AuthInterceptor, tokenManager: TokenManager): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
             .addInterceptor { chain ->
-                chain.proceed(
-                    chain.request().newBuilder()
-                        .header("Host", "instructai.test")
+                val original = chain.request()
+                val base = tokenManager.serverUrl.toHttpUrlOrNull()
+                if (base == null) {
+                    chain.proceed(original)
+                } else {
+                    val url = original.url.newBuilder()
+                        .scheme(base.scheme)
+                        .host(base.host)
+                        .port(base.port)
                         .build()
-                )
+                    var builder = original.newBuilder().url(url)
+                    if (isLanHost(base.host)) {
+                        builder = builder.header("Host", "instructai.test")
+                    }
+                    chain.proceed(builder.build())
+                }
             }
             .addInterceptor(logging)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(180, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
             .build()
+    }
+
+    private fun isLanHost(host: String): Boolean {
+        return host == "localhost" ||
+            host == "127.0.0.1" ||
+            host.startsWith("192.168.") ||
+            host.startsWith("10.") ||
+            host.matches(Regex("^172\\.(1[6-9]|2[0-9]|3[01])\\."))
     }
 
     @Provides
