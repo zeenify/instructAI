@@ -75,6 +75,23 @@ All models in `backend/app/Models/`:
 - Can fall back to SQLite for local dev via `.env`
 - 32 migrations total
 
+## Deployment
+
+**Targets (as of Aug 2026):**
+- **Frontend** — Vercel, `https://instruct-ai-topaz.vercel.app`, root dir `frontend/`, auto-deploy from `main`
+- **Backend** — Render web service, root dir `backend/`, Docker deploy (`backend/Dockerfile`, port 10000, runs `migrate --force` on boot), auto-deploy from `main`
+- **Database** — Neon Postgres (already provisioned, pgvector enabled). Never touch the live DB config without confirmation
+- **AI service (instruct-ai-service)** — NOT deployed; runs locally only. Deployed features degrade: teacher AI generation/RAG/reviewer gen error out, AI quiz grading silently skips (MC/TF still grade), AI tutor broken
+- **Code execution engine (instruct-execute)** — currently Railway, **pending migration to Render** (see below)
+
+**PENDING: execute engine migration (Railway → Render)**
+- Engine was previously deployed on Railway (nixpacks config); Railway trial credit ended and the account is locked. Decision: migrate to Render.
+- Not yet done — requires:
+  - Backend `EXECUTION_ENGINE_URL` env var updated to the new Render URL (`backend/app/Http/Controllers/Student/CodeExecutionController.php` falls back to localhost:3000 first, then this URL)
+  - Frontend `VITE_WS_URL` env var updated (WS interactive terminal connects directly from the browser)
+  - Engine deploy config: use `instruct-execute/Dockerfile` (Render) — `nixpacks.toml` is Railway-specific and can be removed once migrated
+  - If the engine runs on a **free** Render instance: 0.1 CPU makes `javac`/`java` too slow to fit the 10s execution timeout — paid instance (Starter $7/mo, 0.5 CPU) or a VPS is required. Free tier also shares the workspace-wide 750 instance-hours/mo pool and sleeps after 15 min idle
+
 ## Development Commands
 
 ### Initial Setup
