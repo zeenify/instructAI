@@ -36,8 +36,8 @@ class ReviewerController extends Controller
             $prompt = self::PROMPTS[$rtype] ?? '';
             $count = $counts[$rtype] ?? self::DEFAULT_COUNTS[$rtype] ?? 5;
             $filled = str_replace(
-                ['{title}', '{content}', '{count}'],
-                [$lessonTitle, $lessonContent, (string) $count],
+                ['{title}', '{content}', '{count}', '{difficulty}'],
+                [$lessonTitle, $lessonContent, (string) $count, $request->input('difficulty', 'medium')],
                 $prompt
             );
 
@@ -223,6 +223,11 @@ RULES:
 - NEVER include ambiguous questions or yes/no questions
 - ALWAYS ensure the answer is factually accurate based SOLELY on the given content
 
+DIFFICULTY: {difficulty}
+- easy: focus on core definitions and the most important facts
+- medium: balanced mix of definitions, relationships, and important details
+- hard: emphasize nuance, edge cases, comparisons, and deeper understanding
+
 Lesson title: {title}
 Lesson content:
 {content}
@@ -240,6 +245,11 @@ RULES:
 - The surrounding text must provide enough context to infer the answer
 - Vary the position of the blank
 
+DIFFICULTY: {difficulty}
+- easy: blanks on the most prominent terms only
+- medium: mix of prominent terms and supporting concepts
+- hard: blanks on less obvious terms requiring deeper context
+
 Lesson title: {title}
 Lesson content:
 {content}
@@ -254,21 +264,24 @@ NOISE NOTICE: The content may contain extraction noise — headers, footers, pag
 QUESTION TYPES (MUST INCLUDE AT LEAST ONE OF EACH):
 - "multiple_choice" (4 options, one correct)
 - "true_false" (always provide options: ["True", "False"])
-- "identification" (one-word answer, max 3 words, options: empty array)
 
 RULES:
-- YOU MUST INCLUDE ALL THREE TYPES: multiple_choice, true_false, and identification
-- EVERY question MUST include an "options" field. For true_false: ["True", "False"]. For identification: [].
+- YOU MUST INCLUDE BOTH TYPES: multiple_choice and true_false
+- EVERY question MUST include an "options" field. For true_false: ["True", "False"].
 - Multiple choice distractors should be COMMON MISCONCEPTIONS
 - True/false should test understanding of nuances
-- Identification requires a ONE-WORD or short-phrase answer (max 3 words)
 - Each question must be answerable based SOLELY on the given content
+
+DIFFICULTY: {difficulty}
+- easy: straightforward recall of key facts and definitions
+- medium: mix of recall, application, and nuanced true/false statements
+- hard: require deeper understanding, application, and subtle distinctions
 
 Lesson title: {title}
 Lesson content:
 {content}
 
-Generate exactly {count} questions. YOU MUST distribute across all three types (multiple_choice, true_false, identification). Return ONLY a valid JSON array:
+Generate exactly {count} questions. YOU MUST distribute across both types (multiple_choice, true_false). Return ONLY a valid JSON array:
 [{"type": "multiple_choice", "question": "?", "options": ["A) opt1", "B) opt2", "C) opt3", "D) opt4"], "correct_answer": "A) opt1", "explanation": "..."}]',
 
         'summary' => 'You are a world-class study material creator. Create a comprehensive yet scannable summary for mobile review.
