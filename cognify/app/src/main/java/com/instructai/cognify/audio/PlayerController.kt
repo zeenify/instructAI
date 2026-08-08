@@ -198,6 +198,7 @@ class PlayerController @Inject constructor(
                     val realDuration = player.duration.takeIf { it > 0 }
                     val timeline = if (s.isMerged) position else timelineStartMs(s.currentIndex) + position
                     val total = if (s.isMerged) realDuration ?: s.sessionDurationMs else s.sessionDurationMs
+                    val mergedIndex = if (s.isMerged) locateTime(timeline).first else null
                     _state.update {
                         it.copy(
                             positionMs = position,
@@ -205,6 +206,7 @@ class PlayerController @Inject constructor(
                             timelinePositionMs = timeline,
                             sessionDurationMs = if (s.isMerged && realDuration != null) realDuration else it.sessionDurationMs,
                             remainingMs = (total - timeline).coerceAtLeast(0L),
+                            currentIndex = mergedIndex ?: it.currentIndex,
                         )
                     }
                 } else {
