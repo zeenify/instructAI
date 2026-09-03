@@ -68,4 +68,5 @@ cognify/app/src/main/java/com/k2fsa/
 
 # OS Files
 .DS_Store
-Thumbs.db
+Thumbs.db__pycache__/
+*.pyc

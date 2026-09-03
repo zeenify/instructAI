@@ -12,7 +12,7 @@ start "" "%WT_EXE%" ^
   -p "Command Prompt" -d "%ROOT%\backend" cmd /k "php artisan serve" ; ^
   sp -V -p "Command Prompt" -d "%ROOT%\frontend" cmd /k "npm run dev" ; ^
   sp -V -p "Command Prompt" -d "%ROOT%\instruct-ai-service" cmd /k "venv\Scripts\activate && python main.py" ; ^
-  new-tab -p "Command Prompt" -d "%ROOT%" cmd /k "claude"
+  new-tab -p "Command Prompt" -d "%ROOT%" cmd /k "opencode"
 
 :: 3. Immediate Exit
 exit
