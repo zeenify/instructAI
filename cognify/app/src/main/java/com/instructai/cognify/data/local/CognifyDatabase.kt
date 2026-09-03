@@ -4,6 +4,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.instructai.cognify.data.local.dao.ClassDao
 import com.instructai.cognify.data.local.dao.ClozeDao
+import com.instructai.cognify.data.local.dao.CompletedSessionDao
 import com.instructai.cognify.data.local.dao.CourseDao
 import com.instructai.cognify.data.local.dao.FlashcardDao
 import com.instructai.cognify.data.local.dao.LessonDao
@@ -19,6 +20,7 @@ import com.instructai.cognify.data.local.dao.TtsClipDao
 import com.instructai.cognify.data.local.dao.UserDao
 import com.instructai.cognify.data.local.entity.AttemptEntity
 import com.instructai.cognify.data.local.entity.ClassEntity
+import com.instructai.cognify.data.local.entity.CompletedSessionEntity
 import com.instructai.cognify.data.local.entity.ClozeEntity
 import com.instructai.cognify.data.local.entity.CourseEntity
 import com.instructai.cognify.data.local.entity.FlashcardEntity
@@ -45,6 +47,7 @@ import com.instructai.cognify.data.local.entity.UserEntity
         FlashcardReviewEntity::class,
         ClozeEntity::class,
         PracticeQuestionEntity::class,
+        CompletedSessionEntity::class,
         AttemptEntity::class,
         ClassEntity::class,
         CourseEntity::class,
@@ -55,7 +58,7 @@ import com.instructai.cognify.data.local.entity.UserEntity
         StudyStatsEntity::class,
         UserEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = false,
 )
 abstract class CognifyDatabase : RoomDatabase() {
@@ -66,6 +69,7 @@ abstract class CognifyDatabase : RoomDatabase() {
     abstract fun flashcardDao(): FlashcardDao
     abstract fun clozeDao(): ClozeDao
     abstract fun practiceQuestionDao(): PracticeQuestionDao
+    abstract fun completedSessionDao(): CompletedSessionDao
     abstract fun studyStatsDao(): StudyStatsDao
     abstract fun classDao(): ClassDao
     abstract fun courseDao(): CourseDao

@@ -1,6 +1,8 @@
 package com.instructai.cognify.data.repository
 
+import com.instructai.cognify.data.local.dao.CompletedSessionDao
 import com.instructai.cognify.data.local.dao.StudyStatsDao
+import com.instructai.cognify.data.local.entity.CompletedSessionEntity
 import com.instructai.cognify.data.local.entity.StudyStatsEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -12,6 +14,7 @@ import javax.inject.Singleton
 @Singleton
 class StudyStatsRepository @Inject constructor(
     private val statsDao: StudyStatsDao,
+    private val completedSessionDao: CompletedSessionDao,
 ) {
 
     suspend fun recordActivity(
@@ -68,6 +71,20 @@ class StudyStatsRepository @Inject constructor(
             val scored = stats.filter { it.averageScore > 0f }
             if (scored.isEmpty()) null else scored.map { it.averageScore }.average().toFloat()
         }
+
+    suspend fun recordSessionCompleted(reviewId: Long, type: String, setId: Long?) {
+        completedSessionDao.insertIgnore(
+            CompletedSessionEntity(
+                reviewId = reviewId,
+                type = type,
+                setId = setId ?: CompletedSessionEntity.NO_SET,
+                dateEpochDay = LocalDate.now().toEpochDay(),
+            )
+        )
+    }
+
+    fun observeSessionsCompletedToday(): Flow<Int> =
+        completedSessionDao.observeCountByDate(LocalDate.now().toEpochDay())
 
     private fun currentStreak(activeDays: List<Long>): Int {
         if (activeDays.isEmpty()) return 0

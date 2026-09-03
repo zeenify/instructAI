@@ -2,6 +2,7 @@ package com.instructai.cognify.ui.practice
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.instructai.cognify.data.local.entity.CompletedSessionEntity
 import com.instructai.cognify.data.local.entity.PracticeQuestionEntity
 import com.instructai.cognify.data.logging.AppLogger
 import com.instructai.cognify.data.repository.ReviewRepository
@@ -38,7 +39,12 @@ class PracticeViewModel @Inject constructor(
     private val _state = MutableStateFlow(PracticeState())
     val state: StateFlow<PracticeState> = _state.asStateFlow()
 
+    private var currentReviewId: Long? = null
+    private var currentSetId: Long? = null
+
     fun loadQuestions(reviewId: Long, setId: Long? = null) {
+        currentReviewId = reviewId
+        currentSetId = setId
         viewModelScope.launch {
             try {
                 reviewRepository.getPracticeQuestions(reviewId, setId).collect { questions ->
@@ -78,12 +84,20 @@ class PracticeViewModel @Inject constructor(
         if (nextIndex >= current.questions.size) {
             if (!current.isFinished) {
                 val accuracy = if (current.maxScore > 0) current.score.toFloat() / current.maxScore else null
+                val reviewId = currentReviewId
                 viewModelScope.launch {
                     try {
                         studyStatsRepository.recordActivity(
                             questionsAnswered = current.questions.size,
                             practiceAccuracy = accuracy,
                         )
+                        if (reviewId != null) {
+                            studyStatsRepository.recordSessionCompleted(
+                                reviewId,
+                                CompletedSessionEntity.TYPE_PRACTICE,
+                                currentSetId,
+                            )
+                        }
                     } catch (e: Exception) {
                         logger.log("PracticeViewModel", "recordActivity failed", e)
                     }

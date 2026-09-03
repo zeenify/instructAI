@@ -2,6 +2,7 @@ package com.instructai.cognify.ui.flashcards
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.instructai.cognify.data.local.entity.CompletedSessionEntity
 import com.instructai.cognify.data.logging.AppLogger
 import com.instructai.cognify.data.repository.FlashcardRepository
 import com.instructai.cognify.data.repository.ReviewRepository
@@ -81,6 +82,7 @@ class FlashcardViewModel @Inject constructor(
 
     fun loadDueCards(reviewId: Long? = null) {
         currentReviewId = reviewId
+        currentSetId = null
         viewModelScope.launch {
             try {
                 val due = reviewRepository.dueDeck(reviewId).first()
@@ -113,18 +115,30 @@ class FlashcardViewModel @Inject constructor(
     }
 
     fun rateCard(card: FlashcardCard, isCorrect: Boolean) {
+        val current = _state.value
+        val finishingSession = !current.isSessionComplete &&
+            current.currentIndex + 1 >= current.cards.size
         viewModelScope.launch {
             try {
                 flashcardRepository.reviewFlashcard(card.id, if (isCorrect) 5 else 2)
                 if (isCorrect) {
                     studyStatsRepository.recordActivity(flashcardsReviewed = 1)
                 }
+                if (finishingSession && !current.dueMode) {
+                    val reviewId = currentReviewId
+                    if (reviewId != null) {
+                        studyStatsRepository.recordSessionCompleted(
+                            reviewId,
+                            CompletedSessionEntity.TYPE_FLASHCARD,
+                            currentSetId,
+                        )
+                    }
+                }
             } catch (e: Exception) {
                 logger.log("FlashcardViewModel", "rateCard(${card.id}, $isCorrect) failed", e)
             }
         }
 
-        val current = _state.value
         val nextIndex = current.currentIndex + 1
 
         if (nextIndex >= current.cards.size) {

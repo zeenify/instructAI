@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Delete
@@ -213,6 +214,13 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
+                    PremiumStatCard(
+                        title = "Reviewed Today",
+                        value = "${state.sessionsCompletedToday}",
+                        icon = Icons.Filled.CheckCircle,
+                        gradient = CognifyGradients.primary,
+                        modifier = Modifier.weight(1f),
+                    )
                     PremiumStatCard(
                         title = "Day Streak",
                         value = "${state.studyStats.currentStreak}",
