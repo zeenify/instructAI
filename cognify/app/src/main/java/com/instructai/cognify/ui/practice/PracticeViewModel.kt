@@ -38,10 +38,7 @@ class PracticeViewModel @Inject constructor(
     private val _state = MutableStateFlow(PracticeState())
     val state: StateFlow<PracticeState> = _state.asStateFlow()
 
-    private var currentReviewId: Long? = null
-
     fun loadQuestions(reviewId: Long, setId: Long? = null) {
-        currentReviewId = reviewId
         viewModelScope.launch {
             try {
                 reviewRepository.getPracticeQuestions(reviewId, setId).collect { questions ->

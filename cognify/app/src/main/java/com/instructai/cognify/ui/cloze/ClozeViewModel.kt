@@ -34,10 +34,7 @@ class ClozeViewModel @Inject constructor(
     private val _state = MutableStateFlow(ClozeSessionState())
     val state: StateFlow<ClozeSessionState> = _state.asStateFlow()
 
-    private var currentReviewId: Long? = null
-
     fun loadClozeItems(reviewId: Long, setId: Long? = null) {
-        currentReviewId = reviewId
         viewModelScope.launch {
             try {
                 reviewRepository.getClozeItems(reviewId, setId).collect { items ->
