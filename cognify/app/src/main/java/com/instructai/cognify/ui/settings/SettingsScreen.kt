@@ -21,7 +21,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
@@ -30,6 +33,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Psychology
@@ -41,7 +45,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.ui.window.Dialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -59,14 +62,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.instructai.cognify.data.local.ai.ModelRegistry
+import com.instructai.cognify.data.local.ai.ModelSpec
 import com.instructai.cognify.ui.theme.CognifyColors
 import com.instructai.cognify.ui.theme.CognifyGradients
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -281,7 +284,7 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             val aiSettings by viewModel.aiSettings.collectAsState()
-            val scope = rememberCoroutineScope()
+            val localAi by viewModel.localAi.collectAsState()
 
             ModeRow(
                 icon = Icons.Filled.Psychology,
@@ -297,6 +300,14 @@ fun SettingsScreen(
                 subtitle = "Default — no key needed, stricter limits",
                 selected = aiSettings.apiMode == com.instructai.cognify.data.repository.ApiMode.BACKEND,
                 onClick = { viewModel.setApiMode(com.instructai.cognify.data.repository.ApiMode.BACKEND) },
+            )
+
+            ModeRow(
+                icon = Icons.Filled.Memory,
+                title = "Local AI (On-Device)",
+                subtitle = "Runs on your phone — private, offline, no limits",
+                selected = aiSettings.apiMode == com.instructai.cognify.data.repository.ApiMode.LOCAL,
+                onClick = { viewModel.setApiMode(com.instructai.cognify.data.repository.ApiMode.LOCAL) },
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -323,6 +334,14 @@ fun SettingsScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = CognifyColors.ElectricViolet),
                     enabled = editKey.isNotBlank(),
                 ) { Text("Save Key") }
+            } else if (aiSettings.apiMode == com.instructai.cognify.data.repository.ApiMode.LOCAL) {
+                LocalAiCard(
+                    card = localAi,
+                    onStart = viewModel::startLocalAi,
+                    onStop = viewModel::stopLocalAi,
+                    onSelectModel = viewModel::selectLocalModel,
+                    onDeleteModel = viewModel::deleteLocalModel,
+                )
             } else {
                 Text(
                     text = "Using shared server key. Free-tier limits apply.",
@@ -464,6 +483,179 @@ fun SettingsScreen(
             )
         }
     }
+}
+
+@Composable
+private fun LocalAiCard(
+    card: LocalAiCardState,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+    onSelectModel: (ModelSpec) -> Unit,
+    onDeleteModel: (ModelSpec) -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+
+            // --- Power row ---
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val isOn = card.engineState is com.instructai.cognify.data.local.ai.LocalAiState.On
+                val isBusy = card.engineState is com.instructai.cognify.data.local.ai.LocalAiState.Downloading ||
+                    card.engineState is com.instructai.cognify.data.local.ai.LocalAiState.Loading
+
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            if (isOn) CognifyColors.ElectricViolet.copy(alpha = 0.2f)
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Filled.Memory,
+                        contentDescription = null,
+                        tint = if (isOn) CognifyColors.ElectricViolet else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Local AI",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = when (val s = card.engineState) {
+                            is com.instructai.cognify.data.local.ai.LocalAiState.On ->
+                                "On — ${s.modelName}. Auto-stops after 10 min idle."
+                            is com.instructai.cognify.data.local.ai.LocalAiState.Downloading -> {
+                                val p = s.progress
+                                if (p != null) "Downloading ${p.percent}% (${formatBytes(p.bytesPerSecond)}/s)"
+                                else "Downloading model..."
+                            }
+                            is com.instructai.cognify.data.local.ai.LocalAiState.Loading -> "Loading model into RAM..."
+                            is com.instructai.cognify.data.local.ai.LocalAiState.Error -> "Error: ${s.message}"
+                            com.instructai.cognify.data.local.ai.LocalAiState.Off -> "Off — tap Start to power up"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                Button(
+                    onClick = if (isOn || isBusy) onStop else onStart,
+                    modifier = Modifier.height(40.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !(isBusy && card.engineState is com.instructai.cognify.data.local.ai.LocalAiState.Loading),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isOn || isBusy) Color(0xFFFF5252) else CognifyColors.ElectricViolet,
+                    ),
+                ) {
+                    Text(
+                        if (isOn || isBusy) "Stop" else "Start",
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+
+            // --- Download progress bar ---
+            val downloading = card.engineState as? com.instructai.cognify.data.local.ai.LocalAiState.Downloading
+            if (downloading?.progress != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                LinearProgressIndicator(
+                    progress = { downloading.progress!!.percent / 100f },
+                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                    color = CognifyColors.ElectricViolet,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // --- Model list ---
+            Text(
+                text = "Model",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = CognifyColors.ElectricViolet,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            val engineOn = card.engineState is com.instructai.cognify.data.local.ai.LocalAiState.On
+            val engineBusy = card.engineState is com.instructai.cognify.data.local.ai.LocalAiState.Downloading ||
+                card.engineState is com.instructai.cognify.data.local.ai.LocalAiState.Loading
+
+            ModelRegistry.ALL.forEach { spec ->
+                val downloadedBytes = card.downloadedModels[spec.id] ?: 0L
+                val downloaded = downloadedBytes > 0
+                val selected = card.selectedModelId == spec.id
+                val recommended = card.recommendedModelId == spec.id
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(
+                        selected = selected,
+                        onClick = { if (!engineOn && !engineBusy) onSelectModel(spec) },
+                        enabled = !engineOn && !engineBusy,
+                        colors = androidx.compose.material3.RadioButtonDefaults.colors(
+                            selectedColor = CognifyColors.ElectricViolet,
+                        ),
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = spec.displayName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            )
+                            if (recommended) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Recommended",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = CognifyColors.Gold,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                        }
+                        Text(
+                            text = if (downloaded) "~${spec.ramEstimateGb}GB RAM while on"
+                            else "Download ${formatBytes(spec.sizeBytes)} · ~${spec.ramEstimateGb}GB RAM",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (downloaded) {
+                        IconButton(onClick = { onDeleteModel(spec) }, enabled = !engineBusy) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = "Delete model",
+                                tint = Color(0xFFFF5252).copy(alpha = 0.8f),
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatBytes(bytes: Long): String = when {
+    bytes >= 1_000_000_000 -> "%.1fGB".format(bytes / 1_000_000_000.0)
+    bytes >= 1_000_000 -> "%.0fMB".format(bytes / 1_000_000.0)
+    bytes >= 1_000 -> "%.0fKB".format(bytes / 1_000.0)
+    else -> "${bytes}B"
 }
 
 @Composable

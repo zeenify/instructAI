@@ -47,8 +47,12 @@ class ModelDownloadManager @Inject constructor(
 
     fun partialFile(spec: ModelSpec): File = File(modelsDir, spec.fileName + ".part")
 
-    fun isDownloaded(spec: ModelSpec): Boolean =
-        modelFile(spec).exists() && modelFile(spec).length() >= spec.sizeBytes
+    fun isDownloaded(spec: ModelSpec): Boolean {
+        // The final file only appears via rename after a cleanly completed
+        // download, so existence is proof of completion — registry
+        // sizeBytes is an estimate for UI display, not a gate.
+        return modelFile(spec).exists() && modelFile(spec).length() > 0
+    }
 
     /** Total bytes currently used by model files (complete or in-progress). */
     fun usedBytes(): Long =
@@ -132,11 +136,14 @@ class ModelDownloadManager @Inject constructor(
                 }
             }
 
-            if (downloaded < spec.sizeBytes) {
+            // Trust the server's content-length when present; fall back to
+            // the registry estimate only if the server didn't report it.
+            val expectedTotal = if (total > 0) total else spec.sizeBytes
+            if (downloaded < expectedTotal) {
                 // Incomplete — keep the .part file so the next attempt resumes.
                 trySend(
                     DownloadEvent.Failed(
-                        "Incomplete: ${downloaded / 1_000_000}MB of ${spec.sizeBytes / 1_000_000}MB"
+                        "Incomplete: ${downloaded / 1_000_000}MB of ${expectedTotal / 1_000_000}MB"
                     )
                 )
                 close()
