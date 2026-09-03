@@ -2,6 +2,7 @@ package com.instructai.cognify.data.local.ai
 
 import android.content.Context
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
+import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
 import com.instructai.cognify.data.logging.AppLogger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -232,7 +233,8 @@ class LocalAiEngine @Inject constructor(
     /**
      * Run one prompt through the loaded model. On-device generation is
      * one-prompt-at-a-time (MediaPipe engine is not thread-safe), so this
-     * serializes concurrent callers.
+     * serializes concurrent callers. Sampling runs at temperature 0.7 —
+     * tiny models go lazy/short under greedy decoding.
      */
     suspend fun generate(prompt: String): Result<String> = generateMutex.withLock {
         val inference = inferenceRef.get()
@@ -240,7 +242,19 @@ class LocalAiEngine @Inject constructor(
 
         markActivity()
         val output = withContext(Dispatchers.IO) {
-            runCatching { inference.generateResponse(prompt) }
+            runCatching {
+                LlmInferenceSession.createFromOptions(
+                    inference,
+                    LlmInferenceSession.LlmInferenceSessionOptions.builder()
+                        .setTemperature(0.7f)
+                        .setTopK(40)
+                        .build(),
+                ).use { session ->
+                    runCatching { logger.log("LocalAiEngine", "Prompt tokens: ${session.sizeInTokens(prompt)}") }
+                    session.addQueryChunk(prompt)
+                    session.generateResponse()
+                }
+            }
         }
         markActivity()
 

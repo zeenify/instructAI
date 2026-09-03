@@ -102,10 +102,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val recommended = recommendedModel().id
             tokenManager.localModelId.collect { id ->
-                // Keep the engine's selection in sync with what's persisted.
-                ModelRegistry.byId(id)?.let { localAiEngine.selectModel(it) }
+                // Self-heal ids removed from the registry (e.g. after an
+                // app update trims the lineup): fall back to the default.
+                val spec = ModelRegistry.byId(id) ?: ModelRegistry.DEFAULT
+                localAiEngine.selectModel(spec)
                 _localAi.value = _localAi.value.copy(
-                    selectedModelId = id,
+                    selectedModelId = spec.id,
                     recommendedModelId = recommended,
                 )
             }
