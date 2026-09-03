@@ -32,10 +32,9 @@ class ReviewsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 reviewRepository.getAllReviews().collect { reviews ->
-                    _uiState.value = ReviewsUiState(
+                    _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         reviews = reviews,
-                        highlightReviewId = _uiState.value.highlightReviewId,
                     )
                 }
             } catch (e: Exception) {

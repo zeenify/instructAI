@@ -115,6 +115,7 @@ fun CognifyNavGraph(
                 HomeScreen(
                     onReviewClick = { id, title -> navController.navigate(Routes.reviewDetail(id, title)) },
                     onCreateReview = { navController.navigate(Routes.CREATE_REVIEW) },
+                    onDueClick = { navController.navigate(Routes.dueReviewers()) },
                     onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
                 )
             }
@@ -138,16 +139,17 @@ fun CognifyNavGraph(
                 ),
             ) { backStackEntry ->
                 val reviewId = backStackEntry.arguments?.getLong("reviewId") ?: return@composable
-                val reviewTitle = backStackEntry.arguments?.getString("reviewTitle") ?: ""
+                val reviewTitle = backStackEntry.arguments?.getString("reviewTitle")
+                    ?.let { java.net.URLDecoder.decode(it, "UTF-8") } ?: ""
                 com.instructai.cognify.ui.reviews.ReviewDetailScreen(
                     reviewId = reviewId,
                     reviewTitle = reviewTitle,
                     onBack = { navController.popBackStack() },
                     onNavigateToMode = { mode, id ->
                         when (mode) {
-                            "flashcards" -> navController.navigate(Routes.flashcardDeck(id))
-                            "cloze" -> navController.navigate(Routes.cloze(id))
-                            "practice" -> navController.navigate(Routes.practiceTest(id))
+                            "flashcards" -> navController.navigate(Routes.setPicker(id, "flashcards", reviewTitle))
+                            "cloze" -> navController.navigate(Routes.setPicker(id, "cloze", reviewTitle))
+                            "practice" -> navController.navigate(Routes.setPicker(id, "practice", reviewTitle))
                             "summary" -> navController.navigate(Routes.summary(id))
                         }
                     },
@@ -155,11 +157,86 @@ fun CognifyNavGraph(
             }
 
             composable(
-                route = Routes.FLASHCARD_DECK,
-                arguments = listOf(navArgument("reviewId") { type = NavType.LongType }),
+                route = Routes.SET_PICKER,
+                arguments = listOf(
+                    navArgument("reviewId") { type = NavType.LongType },
+                    navArgument("type") { type = NavType.StringType },
+                    navArgument("reviewTitle") { type = NavType.StringType; defaultValue = "" },
+                ),
             ) { backStackEntry ->
                 val reviewId = backStackEntry.arguments?.getLong("reviewId") ?: return@composable
+                val type = backStackEntry.arguments?.getString("type") ?: "flashcards"
+                val reviewTitle = backStackEntry.arguments?.getString("reviewTitle")
+                    ?.let { java.net.URLDecoder.decode(it, "UTF-8") } ?: ""
+                com.instructai.cognify.ui.sets.SetPickerScreen(
+                    reviewId = reviewId,
+                    type = type,
+                    reviewTitle = reviewTitle,
+                    onBack = { navController.popBackStack() },
+                    onStartSet = { setId ->
+                        when (type) {
+                            "flashcards" -> navController.navigate(Routes.flashcardDeck(reviewId, setId))
+                            "cloze" -> navController.navigate(Routes.cloze(reviewId, setId))
+                            "practice" -> navController.navigate(Routes.practiceTest(reviewId, setId))
+                        }
+                    },
+                )
+            }
+
+            composable(
+                route = Routes.FLASHCARD_DECK,
+                arguments = listOf(
+                    navArgument("reviewId") { type = NavType.LongType },
+                    navArgument("setId") { type = NavType.LongType; defaultValue = -1L },
+                ),
+            ) { backStackEntry ->
+                val reviewId = backStackEntry.arguments?.getLong("reviewId") ?: return@composable
+                val setId = backStackEntry.arguments?.getLong("setId")?.takeIf { it > 0L }
                 com.instructai.cognify.ui.flashcards.FlashcardDeckScreen(
+                    reviewId = reviewId,
+                    setId = setId,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(
+                route = Routes.DUE_REVIEWERS,
+                arguments = listOf(
+                    navArgument("reviewId") { type = NavType.LongType; defaultValue = -1L },
+                ),
+            ) { backStackEntry ->
+                com.instructai.cognify.ui.reviews.DueReviewersScreen(
+                    onBack = { navController.popBackStack() },
+                    onStartFlashcards = { id, _ ->
+                        navController.navigate(Routes.missedFlashcards(id))
+                    },
+                    onStartQuestions = { id, _ ->
+                        navController.navigate(Routes.missedQuestions(id))
+                    },
+                )
+            }
+
+            composable(
+                route = Routes.MISSED_FLASHCARDS,
+                arguments = listOf(
+                    navArgument("reviewId") { type = NavType.LongType },
+                ),
+            ) { backStackEntry ->
+                val reviewId = backStackEntry.arguments?.getLong("reviewId") ?: return@composable
+                com.instructai.cognify.ui.flashcards.MissedFlashcardsScreen(
+                    reviewId = reviewId,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(
+                route = Routes.MISSED_QUESTIONS,
+                arguments = listOf(
+                    navArgument("reviewId") { type = NavType.LongType },
+                ),
+            ) { backStackEntry ->
+                val reviewId = backStackEntry.arguments?.getLong("reviewId") ?: return@composable
+                com.instructai.cognify.ui.questions.MissedQuestionsScreen(
                     reviewId = reviewId,
                     onBack = { navController.popBackStack() },
                 )
@@ -167,22 +244,32 @@ fun CognifyNavGraph(
 
             composable(
                 route = Routes.CLOZE,
-                arguments = listOf(navArgument("reviewId") { type = NavType.LongType }),
+                arguments = listOf(
+                    navArgument("reviewId") { type = NavType.LongType },
+                    navArgument("setId") { type = NavType.LongType; defaultValue = -1L },
+                ),
             ) { backStackEntry ->
                 val reviewId = backStackEntry.arguments?.getLong("reviewId") ?: return@composable
+                val setId = backStackEntry.arguments?.getLong("setId")?.takeIf { it > 0L }
                 com.instructai.cognify.ui.cloze.ClozeScreen(
                     reviewId = reviewId,
+                    setId = setId,
                     onBack = { navController.popBackStack() },
                 )
             }
 
             composable(
                 route = Routes.PRACTICE_TEST,
-                arguments = listOf(navArgument("reviewId") { type = NavType.LongType }),
+                arguments = listOf(
+                    navArgument("reviewId") { type = NavType.LongType },
+                    navArgument("setId") { type = NavType.LongType; defaultValue = -1L },
+                ),
             ) { backStackEntry ->
                 val reviewId = backStackEntry.arguments?.getLong("reviewId") ?: return@composable
+                val setId = backStackEntry.arguments?.getLong("setId")?.takeIf { it > 0L }
                 com.instructai.cognify.ui.practice.PracticeTestScreen(
                     reviewId = reviewId,
+                    setId = setId,
                     onBack = { navController.popBackStack() },
                 )
             }

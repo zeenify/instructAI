@@ -3,8 +3,10 @@ package com.instructai.cognify.ui.practice
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.instructai.cognify.data.local.entity.PracticeQuestionEntity
+import com.instructai.cognify.data.local.entity.MissedItemEntity
 import com.instructai.cognify.data.logging.AppLogger
 import com.instructai.cognify.data.repository.ReviewRepository
+import com.instructai.cognify.data.repository.StudyStatsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,16 +32,20 @@ data class PracticeState(
 @HiltViewModel
 class PracticeViewModel @Inject constructor(
     private val reviewRepository: ReviewRepository,
+    private val studyStatsRepository: StudyStatsRepository,
     private val logger: AppLogger,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PracticeState())
     val state: StateFlow<PracticeState> = _state.asStateFlow()
 
-    fun loadQuestions(reviewId: Long) {
+    private var currentReviewId: Long? = null
+
+    fun loadQuestions(reviewId: Long, setId: Long? = null) {
+        currentReviewId = reviewId
         viewModelScope.launch {
             try {
-                reviewRepository.getPracticeQuestions(reviewId).collect { questions ->
+                reviewRepository.getPracticeQuestions(reviewId, setId).collect { questions ->
                     _state.value = _state.value.copy(
                         questions = questions.shuffled(),
                         isLoading = false,
@@ -67,6 +73,21 @@ class PracticeViewModel @Inject constructor(
             isCorrect = isCorrect,
             score = if (isCorrect) current.score + 1 else current.score,
         )
+
+        val reviewId = currentReviewId
+        if (reviewId != null) {
+            viewModelScope.launch {
+                try {
+                    if (isCorrect) {
+                        reviewRepository.clearMissed(reviewId, MissedItemEntity.TYPE_PRACTICE, question.id)
+                    } else {
+                        reviewRepository.markMissed(reviewId, MissedItemEntity.TYPE_PRACTICE, question.id)
+                    }
+                } catch (e: Exception) {
+                    logger.log("PracticeViewModel", "missed tracking failed", e)
+                }
+            }
+        }
     }
 
     fun nextQuestion() {
@@ -74,6 +95,19 @@ class PracticeViewModel @Inject constructor(
         val nextIndex = current.currentIndex + 1
 
         if (nextIndex >= current.questions.size) {
+            if (!current.isFinished) {
+                val accuracy = if (current.maxScore > 0) current.score.toFloat() / current.maxScore else null
+                viewModelScope.launch {
+                    try {
+                        studyStatsRepository.recordActivity(
+                            questionsAnswered = current.questions.size,
+                            practiceAccuracy = accuracy,
+                        )
+                    } catch (e: Exception) {
+                        logger.log("PracticeViewModel", "recordActivity failed", e)
+                    }
+                }
+            }
             _state.value = current.copy(
                 isFinished = true,
                 showResult = true,

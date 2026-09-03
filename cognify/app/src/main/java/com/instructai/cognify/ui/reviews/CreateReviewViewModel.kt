@@ -12,6 +12,7 @@ import com.instructai.cognify.data.repository.ReviewRepository
 import com.instructai.cognify.data.repository.MAX_CONTENT_CHARS
 import com.instructai.cognify.data.repository.ReviewerEvent
 import com.instructai.cognify.data.repository.ReviewerRepository
+import com.instructai.cognify.data.repository.StudyStatsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -98,6 +99,7 @@ class CreateReviewViewModel @Inject constructor(
     private val lmsRepository: LmsRepository,
     private val reviewRepository: ReviewRepository,
     private val reviewerRepository: ReviewerRepository,
+    private val studyStatsRepository: StudyStatsRepository,
     private val logger: AppLogger,
 ) : ViewModel() {
 
@@ -460,6 +462,11 @@ class CreateReviewViewModel @Inject constructor(
                     )
                 },
             )
+        }
+        try {
+            studyStatsRepository.recordActivity(reviewsCreated = 1)
+        } catch (e: Exception) {
+            logger.log("CreateReviewViewModel", "recordActivity failed", e)
         }
         return reviewId
     }

@@ -1,7 +1,6 @@
 package com.instructai.cognify.ui.reviews
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -52,12 +51,13 @@ fun ReviewDetailScreen(
     onBack: () -> Unit,
     onNavigateToMode: (String, Long) -> Unit,
 ) {
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = reviewTitle,
+                        text = reviewTitle.ifBlank { "Reviewer" },
                         maxLines = 1,
                     )
                 },

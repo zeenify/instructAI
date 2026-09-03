@@ -16,11 +16,12 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE,
         )
     ],
-    indices = [Index("review_id")],
+    indices = [Index("review_id"), Index("review_id", "set_id")],
 )
 data class FlashcardEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     @ColumnInfo(name = "review_id") val reviewId: Long,
+    @ColumnInfo(name = "set_id") val setId: Long? = null,
     @ColumnInfo(name = "front_text") val frontText: String,
     @ColumnInfo(name = "back_text") val backText: String,
     @ColumnInfo(name = "tags") val tags: String = "",

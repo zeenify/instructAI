@@ -65,13 +65,14 @@ import com.instructai.cognify.ui.theme.CognifyGradients
 @Composable
 fun PracticeTestScreen(
     reviewId: Long,
+    setId: Long? = null,
     onBack: () -> Unit,
     viewModel: PracticeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
 
-    LaunchedEffect(reviewId) {
-        viewModel.loadQuestions(reviewId)
+    LaunchedEffect(reviewId, setId) {
+        viewModel.loadQuestions(reviewId, setId)
     }
 
     if (state.showResult) {

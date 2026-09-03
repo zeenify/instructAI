@@ -8,6 +8,7 @@ import com.instructai.cognify.data.logging.AppLogger
 import com.instructai.cognify.data.repository.AuthRepository
 import com.instructai.cognify.data.repository.LmsRepository
 import com.instructai.cognify.data.repository.ReviewRepository
+import com.instructai.cognify.data.repository.StudyStatsRepository
 import com.instructai.cognify.domain.model.StudyStats
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +23,7 @@ data class HomeUiState(
     val userName: String = "Student",
     val userEmail: String = "",
     val streak: Int = 0,
-    val dueCount: Int = 0,
+    val dueReviewersCount: Int = 0,
     val recentReviews: List<ReviewEntity> = emptyList(),
     val classes: List<ClassEntity> = emptyList(),
     val studyStats: StudyStats = StudyStats(),
@@ -33,6 +34,7 @@ class HomeViewModel @Inject constructor(
     private val reviewRepository: ReviewRepository,
     private val lmsRepository: LmsRepository,
     private val authRepository: AuthRepository,
+    private val studyStatsRepository: StudyStatsRepository,
     private val logger: AppLogger,
 ) : ViewModel() {
 
@@ -75,11 +77,23 @@ class HomeViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                reviewRepository.getDueCount().collect { count ->
-                    _uiState.value = _uiState.value.copy(dueCount = count)
+                studyStatsRepository.observeCurrentStreak().collect { streak ->
+                    _uiState.value = _uiState.value.copy(
+                        studyStats = _uiState.value.studyStats.copy(currentStreak = streak),
+                    )
                 }
             } catch (e: Exception) {
-                logger.log("HomeViewModel", "getDueCount flow error", e)
+                logger.log("HomeViewModel", "current streak flow error", e)
+            }
+        }
+
+        viewModelScope.launch {
+            try {
+                reviewRepository.getMissedReviewIds().collect { reviewIds ->
+                    _uiState.value = _uiState.value.copy(dueReviewersCount = reviewIds.size)
+                }
+            } catch (e: Exception) {
+                logger.log("HomeViewModel", "missed review ids flow error", e)
             }
         }
 

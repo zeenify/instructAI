@@ -6,6 +6,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -91,6 +92,7 @@ private val cardThemes = listOf(
 fun HomeScreen(
     onReviewClick: (Long, String) -> Unit,
     onCreateReview: () -> Unit,
+    onDueClick: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -215,10 +217,11 @@ fun HomeScreen(
                 ) {
                     PremiumStatCard(
                         title = "Due Today",
-                        value = "${state.dueCount}",
+                        value = "${state.dueReviewersCount}",
                         icon = Icons.Filled.Bolt,
                         gradient = CognifyGradients.primary,
                         modifier = Modifier.weight(1f),
+                        onClick = onDueClick,
                     )
                     PremiumStatCard(
                         title = "Day Streak",
@@ -388,9 +391,11 @@ private fun PremiumStatCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     gradient: Brush,
     modifier: Modifier = Modifier,
+    onClick: () -> Unit = {},
+    hint: String? = null,
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(
@@ -429,6 +434,15 @@ private fun PremiumStatCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (hint != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = hint,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = CognifyColors.ElectricViolet,
+                )
+            }
         }
     }
 }

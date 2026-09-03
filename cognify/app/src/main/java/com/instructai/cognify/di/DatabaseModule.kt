@@ -10,11 +10,13 @@ import com.instructai.cognify.data.local.dao.ClozeDao
 import com.instructai.cognify.data.local.dao.CourseDao
 import com.instructai.cognify.data.local.dao.FlashcardDao
 import com.instructai.cognify.data.local.dao.LessonDao
+import com.instructai.cognify.data.local.dao.MissedItemDao
 import com.instructai.cognify.data.local.dao.ModuleDao
 import com.instructai.cognify.data.local.dao.PracticeQuestionDao
 import com.instructai.cognify.data.local.dao.QuestionDao
 import com.instructai.cognify.data.local.dao.QuizDao
 import com.instructai.cognify.data.local.dao.ReviewDao
+import com.instructai.cognify.data.local.dao.ReviewSetDao
 import com.instructai.cognify.data.local.dao.ReviewTtsDao
 import com.instructai.cognify.data.local.dao.StudyStatsDao
 import com.instructai.cognify.data.local.dao.TtsClipDao
@@ -88,6 +90,65 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `review_sets` (" +
+                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`review_id` INTEGER NOT NULL, " +
+                    "`type` TEXT NOT NULL, " +
+                    "`name` TEXT NOT NULL, " +
+                    "`created_at` INTEGER NOT NULL, " +
+                    "FOREIGN KEY(`review_id`) REFERENCES `reviews`(`id`) " +
+                    "ON UPDATE NO ACTION ON DELETE CASCADE)"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_review_sets_review_id` ON `review_sets` (`review_id`)"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_review_sets_review_id_type` ON `review_sets` (`review_id`, `type`)"
+            )
+            db.execSQL("ALTER TABLE `flashcards` ADD COLUMN `set_id` INTEGER")
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_flashcards_review_id_set_id` " +
+                    "ON `flashcards` (`review_id`, `set_id`)"
+            )
+            db.execSQL("ALTER TABLE `cloze_items` ADD COLUMN `set_id` INTEGER")
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_cloze_items_review_id_set_id` " +
+                    "ON `cloze_items` (`review_id`, `set_id`)"
+            )
+            db.execSQL("ALTER TABLE `practice_questions` ADD COLUMN `set_id` INTEGER")
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_practice_questions_review_id_set_id` " +
+                    "ON `practice_questions` (`review_id`, `set_id`)"
+            )
+        }
+    }
+
+    private val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `missed_items` (" +
+                    "`review_id` INTEGER NOT NULL, " +
+                    "`item_type` TEXT NOT NULL, " +
+                    "`item_id` INTEGER NOT NULL, " +
+                    "`missed_at` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`review_id`, `item_type`, `item_id`), " +
+                    "FOREIGN KEY(`review_id`) REFERENCES `reviews`(`id`) " +
+                    "ON UPDATE NO ACTION ON DELETE CASCADE)"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_missed_items_review_id` " +
+                    "ON `missed_items` (`review_id`)"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_missed_items_review_id_item_type` " +
+                    "ON `missed_items` (`review_id`, `item_type`)"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): CognifyDatabase {
@@ -96,17 +157,19 @@ object DatabaseModule {
             CognifyDatabase::class.java,
             "cognify_db",
         )
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .fallbackToDestructiveMigration()
             .build()
     }
 
     @Provides fun provideReviewDao(db: CognifyDatabase): ReviewDao = db.reviewDao()
+    @Provides fun provideReviewSetDao(db: CognifyDatabase): ReviewSetDao = db.reviewSetDao()
     @Provides fun provideReviewTtsDao(db: CognifyDatabase): ReviewTtsDao = db.reviewTtsDao()
     @Provides fun provideTtsClipDao(db: CognifyDatabase): TtsClipDao = db.ttsClipDao()
     @Provides fun provideFlashcardDao(db: CognifyDatabase): FlashcardDao = db.flashcardDao()
     @Provides fun provideClozeDao(db: CognifyDatabase): ClozeDao = db.clozeDao()
     @Provides fun providePracticeQuestionDao(db: CognifyDatabase): PracticeQuestionDao = db.practiceQuestionDao()
+    @Provides fun provideMissedItemDao(db: CognifyDatabase): MissedItemDao = db.missedItemDao()
     @Provides fun provideStudyStatsDao(db: CognifyDatabase): StudyStatsDao = db.studyStatsDao()
     @Provides fun provideClassDao(db: CognifyDatabase): ClassDao = db.classDao()
     @Provides fun provideCourseDao(db: CognifyDatabase): CourseDao = db.courseDao()

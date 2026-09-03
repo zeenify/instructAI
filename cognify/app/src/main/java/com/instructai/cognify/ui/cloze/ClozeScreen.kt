@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
@@ -53,13 +54,14 @@ import com.instructai.cognify.ui.theme.CognifyGradients
 @Composable
 fun ClozeScreen(
     reviewId: Long,
+    setId: Long? = null,
     onBack: () -> Unit,
     viewModel: ClozeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
 
-    LaunchedEffect(reviewId) {
-        viewModel.loadClozeItems(reviewId)
+    LaunchedEffect(reviewId, setId) {
+        viewModel.loadClozeItems(reviewId, setId)
     }
 
     if (state.isComplete) {
@@ -88,7 +90,7 @@ fun ClozeScreen(
                         Text("Done")
                     }
                     Button(
-                        onClick = { viewModel.loadClozeItems(reviewId) },
+                        onClick = { viewModel.loadClozeItems(reviewId, setId) },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = CognifyColors.ElectricViolet,
                         ),
@@ -255,20 +257,56 @@ fun ClozeScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             if (state.isRevealed) {
-                Button(
-                    onClick = { viewModel.next() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = CognifyColors.ElectricViolet,
-                    ),
-                ) {
-                    Text(
-                        "Continue",
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                if (!state.isAssessed) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Button(
+                            onClick = { viewModel.reportSelfAssessment(false) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = CognifyColors.Error.copy(alpha = 0.15f),
+                            ),
+                        ) {
+                            Icon(Icons.Filled.Close, contentDescription = null, tint = CognifyColors.Error)
+                            Spacer(modifier = Modifier.size(6.dp))
+                            Text("Missed It", color = CognifyColors.Error, fontWeight = FontWeight.SemiBold)
+                        }
+                        Button(
+                            onClick = { viewModel.reportSelfAssessment(true) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = CognifyColors.Success.copy(alpha = 0.15f),
+                            ),
+                        ) {
+                            Icon(Icons.Filled.Check, contentDescription = null, tint = CognifyColors.Success)
+                            Spacer(modifier = Modifier.size(6.dp))
+                            Text("Got It", color = CognifyColors.Success, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                } else {
+                    Button(
+                        onClick = { viewModel.next() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = CognifyColors.ElectricViolet,
+                        ),
+                    ) {
+                        Text(
+                            "Continue",
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                 }
             } else {
                 TextButton(

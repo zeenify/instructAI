@@ -5,12 +5,16 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.instructai.cognify.data.local.entity.StudyStatsEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface StudyStatsDao {
 
     @Query("SELECT * FROM study_stats ORDER BY date_epoch_day DESC")
     suspend fun getAllStats(): List<StudyStatsEntity>
+
+    @Query("SELECT * FROM study_stats ORDER BY date_epoch_day DESC")
+    fun observeAllStats(): Flow<List<StudyStatsEntity>>
 
     @Query("SELECT * FROM study_stats WHERE date_epoch_day = :epochDay LIMIT 1")
     suspend fun getStatsByDate(epochDay: Long): StudyStatsEntity?

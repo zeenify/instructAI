@@ -377,12 +377,12 @@ private fun ReviewCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = review.difficulty.replaceFirstChar { it.uppercase() },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = difficultyColor,
-                    )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = review.difficulty.replaceFirstChar { it.uppercase() },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = difficultyColor,
+                )
                 }
             }
             IconButton(onClick = onDelete) {

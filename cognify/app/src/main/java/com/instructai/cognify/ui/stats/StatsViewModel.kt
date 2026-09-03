@@ -3,31 +3,31 @@ package com.instructai.cognify.ui.stats
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.instructai.cognify.data.local.dao.ReviewDao
-import com.instructai.cognify.data.local.dao.StudyStatsDao
-import com.instructai.cognify.data.local.entity.StudyStatsEntity
 import com.instructai.cognify.data.logging.AppLogger
+import com.instructai.cognify.data.repository.StudyStatsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
-import java.time.LocalDate
-import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
 
 data class StatsState(
     val totalReviews: Int = 0,
     val studyStreak: Int = 0,
+    val bestStreak: Int = 0,
     val weeklyActivity: Map<DayOfWeek, Int> = emptyMap(),
+    val totalFlashcards: Int = 0,
+    val totalQuestions: Int = 0,
+    val avgScore: Float? = null,
     val isLoading: Boolean = true,
 )
 
 @HiltViewModel
 class StatsViewModel @Inject constructor(
     private val reviewDao: ReviewDao,
-    private val statsDao: StudyStatsDao,
+    private val studyStatsRepository: StudyStatsRepository,
     private val logger: AppLogger,
 ) : ViewModel() {
 
@@ -35,53 +35,70 @@ class StatsViewModel @Inject constructor(
     val state: StateFlow<StatsState> = _state.asStateFlow()
 
     init {
-        loadStats()
-    }
-
-    fun loadStats() {
         viewModelScope.launch {
             try {
-                val reviews = reviewDao.getAllReviews().first()
-                val totalReviews = reviews.size
-
-                val stats: List<StudyStatsEntity> = statsDao.getAllStats()
-                val streak = calculateStreak(stats)
-
-                val today = LocalDate.now()
-                val startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                val weekly = (0 until 7).associate {
-                    val day = startOfWeek.plusDays(it.toLong())
-                    val dayEpoch = day.toEpochDay()
-                    val count = stats.filter { s -> s.dateEpochDay == dayEpoch }.sumOf { s -> s.questionsAnswered }
-                    day.dayOfWeek to count
+                reviewDao.getAllReviews().collect { reviews ->
+                    _state.value = _state.value.copy(totalReviews = reviews.size, isLoading = false)
                 }
-
-                _state.value = StatsState(
-                    totalReviews = totalReviews,
-                    studyStreak = streak,
-                    weeklyActivity = weekly,
-                    isLoading = false,
-                )
             } catch (e: Exception) {
-                logger.log("StatsViewModel", "loadStats failed", e)
+                logger.log("StatsViewModel", "review count flow error", e)
                 _state.value = _state.value.copy(isLoading = false)
             }
         }
-    }
-
-    private fun calculateStreak(stats: List<StudyStatsEntity>): Int {
-        if (stats.isEmpty()) return 0
-        val sorted = stats.sortedByDescending { it.dateEpochDay }
-        var streak = 0
-        var current = LocalDate.now().toEpochDay()
-        for (s in sorted) {
-            if (s.dateEpochDay == current || s.dateEpochDay == current - 1) {
-                streak++
-                current = s.dateEpochDay
-            } else if (s.dateEpochDay < current - 1) {
-                break
+        viewModelScope.launch {
+            try {
+                studyStatsRepository.observeCurrentStreak().collect { streak ->
+                    _state.value = _state.value.copy(studyStreak = streak, isLoading = false)
+                }
+            } catch (e: Exception) {
+                logger.log("StatsViewModel", "current streak flow error", e)
+                _state.value = _state.value.copy(isLoading = false)
             }
         }
-        return streak
+        viewModelScope.launch {
+            try {
+                studyStatsRepository.observeBestStreak().collect { streak ->
+                    _state.value = _state.value.copy(bestStreak = streak)
+                }
+            } catch (e: Exception) {
+                logger.log("StatsViewModel", "best streak flow error", e)
+            }
+        }
+        viewModelScope.launch {
+            try {
+                studyStatsRepository.observeWeeklyActivity().collect { weekly ->
+                    _state.value = _state.value.copy(weeklyActivity = weekly)
+                }
+            } catch (e: Exception) {
+                logger.log("StatsViewModel", "weekly activity flow error", e)
+            }
+        }
+        viewModelScope.launch {
+            try {
+                studyStatsRepository.observeTotalFlashcardsReviewed().collect { count ->
+                    _state.value = _state.value.copy(totalFlashcards = count)
+                }
+            } catch (e: Exception) {
+                logger.log("StatsViewModel", "flashcards reviewed flow error", e)
+            }
+        }
+        viewModelScope.launch {
+            try {
+                studyStatsRepository.observeTotalQuestionsAnswered().collect { count ->
+                    _state.value = _state.value.copy(totalQuestions = count)
+                }
+            } catch (e: Exception) {
+                logger.log("StatsViewModel", "questions answered flow error", e)
+            }
+        }
+        viewModelScope.launch {
+            try {
+                studyStatsRepository.observeAvgPracticeScore().collect { avg ->
+                    _state.value = _state.value.copy(avgScore = avg)
+                }
+            } catch (e: Exception) {
+                logger.log("StatsViewModel", "avg score flow error", e)
+            }
+        }
     }
 }

@@ -7,11 +7,13 @@ import com.instructai.cognify.data.local.dao.ClozeDao
 import com.instructai.cognify.data.local.dao.CourseDao
 import com.instructai.cognify.data.local.dao.FlashcardDao
 import com.instructai.cognify.data.local.dao.LessonDao
+import com.instructai.cognify.data.local.dao.MissedItemDao
 import com.instructai.cognify.data.local.dao.ModuleDao
 import com.instructai.cognify.data.local.dao.PracticeQuestionDao
 import com.instructai.cognify.data.local.dao.QuestionDao
 import com.instructai.cognify.data.local.dao.QuizDao
 import com.instructai.cognify.data.local.dao.ReviewDao
+import com.instructai.cognify.data.local.dao.ReviewSetDao
 import com.instructai.cognify.data.local.dao.ReviewTtsDao
 import com.instructai.cognify.data.local.dao.StudyStatsDao
 import com.instructai.cognify.data.local.dao.TtsClipDao
@@ -23,11 +25,13 @@ import com.instructai.cognify.data.local.entity.CourseEntity
 import com.instructai.cognify.data.local.entity.FlashcardEntity
 import com.instructai.cognify.data.local.entity.FlashcardReviewEntity
 import com.instructai.cognify.data.local.entity.LessonEntity
+import com.instructai.cognify.data.local.entity.MissedItemEntity
 import com.instructai.cognify.data.local.entity.ModuleEntity
 import com.instructai.cognify.data.local.entity.PracticeQuestionEntity
 import com.instructai.cognify.data.local.entity.QuestionEntity
 import com.instructai.cognify.data.local.entity.QuizEntity
 import com.instructai.cognify.data.local.entity.ReviewEntity
+import com.instructai.cognify.data.local.entity.ReviewSetEntity
 import com.instructai.cognify.data.local.entity.ReviewTtsEntity
 import com.instructai.cognify.data.local.entity.StudyStatsEntity
 import com.instructai.cognify.data.local.entity.TtsClipEntity
@@ -36,12 +40,14 @@ import com.instructai.cognify.data.local.entity.UserEntity
 @Database(
     entities = [
         ReviewEntity::class,
+        ReviewSetEntity::class,
         ReviewTtsEntity::class,
         TtsClipEntity::class,
         FlashcardEntity::class,
         FlashcardReviewEntity::class,
         ClozeEntity::class,
         PracticeQuestionEntity::class,
+        MissedItemEntity::class,
         AttemptEntity::class,
         ClassEntity::class,
         CourseEntity::class,
@@ -52,16 +58,18 @@ import com.instructai.cognify.data.local.entity.UserEntity
         StudyStatsEntity::class,
         UserEntity::class,
     ],
-    version = 6,
+    version = 8,
     exportSchema = false,
 )
 abstract class CognifyDatabase : RoomDatabase() {
     abstract fun reviewDao(): ReviewDao
+    abstract fun reviewSetDao(): ReviewSetDao
     abstract fun reviewTtsDao(): ReviewTtsDao
     abstract fun ttsClipDao(): TtsClipDao
     abstract fun flashcardDao(): FlashcardDao
     abstract fun clozeDao(): ClozeDao
     abstract fun practiceQuestionDao(): PracticeQuestionDao
+    abstract fun missedItemDao(): MissedItemDao
     abstract fun studyStatsDao(): StudyStatsDao
     abstract fun classDao(): ClassDao
     abstract fun courseDao(): CourseDao

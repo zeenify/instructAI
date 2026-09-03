@@ -108,6 +108,13 @@ fun StatsScreen(
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
                         )
+                        if (state.bestStreak > state.studyStreak) {
+                            Text(
+                                text = "Best: ${state.bestStreak} days",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.8f),
+                            )
+                        }
                     }
                     Icon(
                         Icons.Filled.FlashOn,
@@ -133,9 +140,9 @@ fun StatsScreen(
                 modifier = androidx.compose.ui.Modifier.weight(1f),
             )
             StatCardItem(
-                icon = Icons.Filled.Quiz,
-                label = "Reviewers",
-                value = "${state.totalReviews}",
+                icon = Icons.Filled.FlashOn,
+                label = "Cards Reviewed",
+                value = "${state.totalFlashcards}",
                 gradient = Brush.horizontalGradient(
                     listOf(CognifyColors.ElectricViolet, CognifyColors.Gold),
                 ),
@@ -150,18 +157,18 @@ fun StatsScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             StatCardItem(
-                icon = Icons.Filled.TrendingUp,
-                label = "Avg Score",
-                value = "85%",
+                icon = Icons.Filled.Quiz,
+                label = "Questions Answered",
+                value = "${state.totalQuestions}",
                 gradient = Brush.horizontalGradient(
                     listOf(CognifyColors.Gold, CognifyColors.ElectricViolet),
                 ),
                 modifier = androidx.compose.ui.Modifier.weight(1f),
             )
             StatCardItem(
-                icon = Icons.Filled.FlashOn,
-                label = "Streak",
-                value = "${state.studyStreak}",
+                icon = Icons.Filled.TrendingUp,
+                label = "Avg Score",
+                value = avgScoreValue(state.avgScore),
                 gradient = CognifyGradients.gold,
                 modifier = androidx.compose.ui.Modifier.weight(1f),
             )
@@ -282,3 +289,6 @@ private fun StatCardItem(
         }
     }
 }
+
+private fun avgScoreValue(avgScore: Float?): String =
+    if (avgScore != null) "${(avgScore * 100).toInt()}%" else "—"
