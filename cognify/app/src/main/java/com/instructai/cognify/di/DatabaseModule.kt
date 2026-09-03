@@ -10,7 +10,6 @@ import com.instructai.cognify.data.local.dao.ClozeDao
 import com.instructai.cognify.data.local.dao.CourseDao
 import com.instructai.cognify.data.local.dao.FlashcardDao
 import com.instructai.cognify.data.local.dao.LessonDao
-import com.instructai.cognify.data.local.dao.MissedItemDao
 import com.instructai.cognify.data.local.dao.ModuleDao
 import com.instructai.cognify.data.local.dao.PracticeQuestionDao
 import com.instructai.cognify.data.local.dao.QuestionDao
@@ -149,6 +148,12 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("DROP TABLE IF EXISTS `missed_items`")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): CognifyDatabase {
@@ -157,7 +162,7 @@ object DatabaseModule {
             CognifyDatabase::class.java,
             "cognify_db",
         )
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -169,7 +174,6 @@ object DatabaseModule {
     @Provides fun provideFlashcardDao(db: CognifyDatabase): FlashcardDao = db.flashcardDao()
     @Provides fun provideClozeDao(db: CognifyDatabase): ClozeDao = db.clozeDao()
     @Provides fun providePracticeQuestionDao(db: CognifyDatabase): PracticeQuestionDao = db.practiceQuestionDao()
-    @Provides fun provideMissedItemDao(db: CognifyDatabase): MissedItemDao = db.missedItemDao()
     @Provides fun provideStudyStatsDao(db: CognifyDatabase): StudyStatsDao = db.studyStatsDao()
     @Provides fun provideClassDao(db: CognifyDatabase): ClassDao = db.classDao()
     @Provides fun provideCourseDao(db: CognifyDatabase): CourseDao = db.courseDao()

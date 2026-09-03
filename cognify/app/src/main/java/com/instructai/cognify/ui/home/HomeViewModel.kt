@@ -23,7 +23,6 @@ data class HomeUiState(
     val userName: String = "Student",
     val userEmail: String = "",
     val streak: Int = 0,
-    val dueReviewersCount: Int = 0,
     val recentReviews: List<ReviewEntity> = emptyList(),
     val classes: List<ClassEntity> = emptyList(),
     val studyStats: StudyStats = StudyStats(),
@@ -84,16 +83,6 @@ class HomeViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 logger.log("HomeViewModel", "current streak flow error", e)
-            }
-        }
-
-        viewModelScope.launch {
-            try {
-                reviewRepository.getMissedReviewIds().collect { reviewIds ->
-                    _uiState.value = _uiState.value.copy(dueReviewersCount = reviewIds.size)
-                }
-            } catch (e: Exception) {
-                logger.log("HomeViewModel", "missed review ids flow error", e)
             }
         }
 

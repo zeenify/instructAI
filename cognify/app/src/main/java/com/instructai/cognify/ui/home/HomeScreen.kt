@@ -27,10 +27,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.RocketLaunch
@@ -92,7 +91,6 @@ private val cardThemes = listOf(
 fun HomeScreen(
     onReviewClick: (Long, String) -> Unit,
     onCreateReview: () -> Unit,
-    onDueClick: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -215,14 +213,6 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    PremiumStatCard(
-                        title = "Due Today",
-                        value = "${state.dueReviewersCount}",
-                        icon = Icons.Filled.Bolt,
-                        gradient = CognifyGradients.primary,
-                        modifier = Modifier.weight(1f),
-                        onClick = onDueClick,
-                    )
                     PremiumStatCard(
                         title = "Day Streak",
                         value = "${state.studyStats.currentStreak}",

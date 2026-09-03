@@ -2,14 +2,12 @@ package com.instructai.cognify.data.repository
 
 import com.instructai.cognify.data.local.dao.ClozeDao
 import com.instructai.cognify.data.local.dao.FlashcardDao
-import com.instructai.cognify.data.local.dao.MissedItemDao
 import com.instructai.cognify.data.local.dao.PracticeQuestionDao
 import com.instructai.cognify.data.local.dao.ReviewDao
 import com.instructai.cognify.data.local.dao.ReviewSetDao
 import com.instructai.cognify.data.local.entity.ClozeEntity
 import com.instructai.cognify.data.local.entity.FlashcardEntity
 import com.instructai.cognify.data.local.entity.FlashcardReviewEntity
-import com.instructai.cognify.data.local.entity.MissedItemEntity
 import com.instructai.cognify.data.local.entity.PracticeQuestionEntity
 import com.instructai.cognify.data.local.entity.ReviewEntity
 import com.instructai.cognify.data.local.entity.ReviewSetEntity
@@ -18,7 +16,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,7 +26,6 @@ class ReviewRepository @Inject constructor(
     private val flashcardDao: FlashcardDao,
     private val clozeDao: ClozeDao,
     private val practiceQuestionDao: PracticeQuestionDao,
-    private val missedItemDao: MissedItemDao,
     private val logger: AppLogger,
 ) {
     private val _pendingHighlight = MutableStateFlow<Long?>(null)
@@ -222,41 +218,4 @@ class ReviewRepository @Inject constructor(
             "practice" -> practiceQuestionDao.getCountByReviewAndSet(reviewId, setId)
             else -> 0
         }
-
-    fun getMissedReviewIds(): Flow<List<Long>> = missedItemDao.getMissedReviewIds()
-
-    fun getTotalMissedCount(): Flow<Int> = missedItemDao.getTotalMissedCount()
-
-    fun getMissedItemIds(reviewId: Long, type: String): Flow<List<Long>> =
-        missedItemDao.getMissedItemIds(reviewId, type)
-
-    fun getMissedCountByType(reviewId: Long, type: String): Flow<Int> =
-        missedItemDao.getMissedCountByType(reviewId, type)
-
-    suspend fun markMissed(reviewId: Long, type: String, itemId: Long) = try {
-        missedItemDao.upsert(MissedItemEntity(reviewId = reviewId, itemType = type, itemId = itemId))
-    } catch (e: Exception) {
-        logger.log("ReviewRepository", "markMissed($reviewId, $type, $itemId) failed", e)
-    }
-
-    suspend fun clearMissed(reviewId: Long, type: String, itemId: Long) = try {
-        missedItemDao.remove(reviewId, type, itemId)
-    } catch (e: Exception) {
-        logger.log("ReviewRepository", "clearMissed($reviewId, $type, $itemId) failed", e)
-    }
-
-    suspend fun getMissedFlashcards(reviewId: Long): List<FlashcardEntity> {
-        val ids = missedItemDao.getMissedItemIds(reviewId, MissedItemEntity.TYPE_FLASHCARD).first()
-        return if (ids.isEmpty()) emptyList() else flashcardDao.getFlashcardsByIds(ids)
-    }
-
-    suspend fun getMissedClozeItems(reviewId: Long): List<ClozeEntity> {
-        val ids = missedItemDao.getMissedItemIds(reviewId, MissedItemEntity.TYPE_CLOZE).first()
-        return if (ids.isEmpty()) emptyList() else clozeDao.getClozeItemsByIds(ids)
-    }
-
-    suspend fun getMissedPracticeQuestions(reviewId: Long): List<PracticeQuestionEntity> {
-        val ids = missedItemDao.getMissedItemIds(reviewId, MissedItemEntity.TYPE_PRACTICE).first()
-        return if (ids.isEmpty()) emptyList() else practiceQuestionDao.getQuestionsByIds(ids)
-    }
 }

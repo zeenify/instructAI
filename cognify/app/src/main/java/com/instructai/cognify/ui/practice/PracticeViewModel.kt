@@ -3,7 +3,6 @@ package com.instructai.cognify.ui.practice
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.instructai.cognify.data.local.entity.PracticeQuestionEntity
-import com.instructai.cognify.data.local.entity.MissedItemEntity
 import com.instructai.cognify.data.logging.AppLogger
 import com.instructai.cognify.data.repository.ReviewRepository
 import com.instructai.cognify.data.repository.StudyStatsRepository
@@ -73,21 +72,6 @@ class PracticeViewModel @Inject constructor(
             isCorrect = isCorrect,
             score = if (isCorrect) current.score + 1 else current.score,
         )
-
-        val reviewId = currentReviewId
-        if (reviewId != null) {
-            viewModelScope.launch {
-                try {
-                    if (isCorrect) {
-                        reviewRepository.clearMissed(reviewId, MissedItemEntity.TYPE_PRACTICE, question.id)
-                    } else {
-                        reviewRepository.markMissed(reviewId, MissedItemEntity.TYPE_PRACTICE, question.id)
-                    }
-                } catch (e: Exception) {
-                    logger.log("PracticeViewModel", "missed tracking failed", e)
-                }
-            }
-        }
     }
 
     fun nextQuestion() {

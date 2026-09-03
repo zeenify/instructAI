@@ -3,7 +3,6 @@ package com.instructai.cognify.ui.flashcards
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.instructai.cognify.data.logging.AppLogger
-import com.instructai.cognify.data.local.entity.MissedItemEntity
 import com.instructai.cognify.data.repository.FlashcardRepository
 import com.instructai.cognify.data.repository.ReviewRepository
 import com.instructai.cognify.data.repository.StudyStatsRepository
@@ -26,7 +25,6 @@ data class FlashcardState(
     val isSessionComplete: Boolean = false,
     val dueCount: Int = 0,
     val dueMode: Boolean = false,
-    val missedMode: Boolean = false,
 )
 
 data class FlashcardCard(
@@ -100,33 +98,12 @@ class FlashcardViewModel @Inject constructor(
         }
     }
 
-    fun loadMissedCards(reviewId: Long) {
-        currentReviewId = reviewId
-        viewModelScope.launch {
-            try {
-                val missed = reviewRepository.getMissedFlashcards(reviewId)
-                val cards = missed.map { FlashcardCard(it.id, it.frontText, it.backText, false, 0L) }
-                _state.value = FlashcardState(
-                    isLoading = false,
-                    missedMode = true,
-                    dueCount = cards.size,
-                    cards = cards,
-                )
-            } catch (e: Exception) {
-                logger.log("FlashcardViewModel", "loadMissedCards($reviewId) failed", e)
-                _state.value = _state.value.copy(isLoading = false)
-            }
-        }
-    }
-
     fun resetSession() {
         val dueMode = _state.value.dueMode
-        val missedMode = _state.value.missedMode
         val reviewId = currentReviewId
-        _state.value = FlashcardState(dueMode = dueMode, missedMode = missedMode)
+        _state.value = FlashcardState(dueMode = dueMode)
         when {
             dueMode -> loadDueCards(reviewId)
-            missedMode -> reviewId?.let { loadMissedCards(it) }
             else -> reviewId?.let { loadCards(it, currentSetId) }
         }
     }
@@ -139,14 +116,6 @@ class FlashcardViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 flashcardRepository.reviewFlashcard(card.id, if (isCorrect) 5 else 2)
-                val reviewId = currentReviewId
-                if (reviewId != null) {
-                    if (isCorrect) {
-                        reviewRepository.clearMissed(reviewId, MissedItemEntity.TYPE_FLASHCARD, card.id)
-                    } else {
-                        reviewRepository.markMissed(reviewId, MissedItemEntity.TYPE_FLASHCARD, card.id)
-                    }
-                }
                 if (isCorrect) {
                     studyStatsRepository.recordActivity(flashcardsReviewed = 1)
                 }

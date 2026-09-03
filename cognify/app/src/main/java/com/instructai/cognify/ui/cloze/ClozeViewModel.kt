@@ -3,7 +3,6 @@ package com.instructai.cognify.ui.cloze
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.instructai.cognify.data.local.entity.ClozeEntity
-import com.instructai.cognify.data.local.entity.MissedItemEntity
 import com.instructai.cognify.data.logging.AppLogger
 import com.instructai.cognify.data.repository.ReviewRepository
 import com.instructai.cognify.data.repository.StudyStatsRepository
@@ -71,22 +70,6 @@ class ClozeViewModel @Inject constructor(
             correct = if (isCorrect) current.correct + 1 else current.correct,
             incorrect = if (!isCorrect) current.incorrect + 1 else current.incorrect,
         )
-
-        val item = current.items.getOrNull(current.currentIndex) ?: return
-        val reviewId = currentReviewId
-        if (reviewId != null) {
-            viewModelScope.launch {
-                try {
-                    if (isCorrect) {
-                        reviewRepository.clearMissed(reviewId, MissedItemEntity.TYPE_CLOZE, item.id)
-                    } else {
-                        reviewRepository.markMissed(reviewId, MissedItemEntity.TYPE_CLOZE, item.id)
-                    }
-                } catch (e: Exception) {
-                    logger.log("ClozeViewModel", "missed tracking failed", e)
-                }
-            }
-        }
     }
 
     fun next() {

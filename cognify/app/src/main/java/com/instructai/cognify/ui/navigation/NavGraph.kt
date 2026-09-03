@@ -115,7 +115,6 @@ fun CognifyNavGraph(
                 HomeScreen(
                     onReviewClick = { id, title -> navController.navigate(Routes.reviewDetail(id, title)) },
                     onCreateReview = { navController.navigate(Routes.CREATE_REVIEW) },
-                    onDueClick = { navController.navigate(Routes.dueReviewers()) },
                     onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
                 )
             }
@@ -195,49 +194,6 @@ fun CognifyNavGraph(
                 com.instructai.cognify.ui.flashcards.FlashcardDeckScreen(
                     reviewId = reviewId,
                     setId = setId,
-                    onBack = { navController.popBackStack() },
-                )
-            }
-
-            composable(
-                route = Routes.DUE_REVIEWERS,
-                arguments = listOf(
-                    navArgument("reviewId") { type = NavType.LongType; defaultValue = -1L },
-                ),
-            ) { backStackEntry ->
-                com.instructai.cognify.ui.reviews.DueReviewersScreen(
-                    onBack = { navController.popBackStack() },
-                    onStartFlashcards = { id, _ ->
-                        navController.navigate(Routes.missedFlashcards(id))
-                    },
-                    onStartQuestions = { id, _ ->
-                        navController.navigate(Routes.missedQuestions(id))
-                    },
-                )
-            }
-
-            composable(
-                route = Routes.MISSED_FLASHCARDS,
-                arguments = listOf(
-                    navArgument("reviewId") { type = NavType.LongType },
-                ),
-            ) { backStackEntry ->
-                val reviewId = backStackEntry.arguments?.getLong("reviewId") ?: return@composable
-                com.instructai.cognify.ui.flashcards.MissedFlashcardsScreen(
-                    reviewId = reviewId,
-                    onBack = { navController.popBackStack() },
-                )
-            }
-
-            composable(
-                route = Routes.MISSED_QUESTIONS,
-                arguments = listOf(
-                    navArgument("reviewId") { type = NavType.LongType },
-                ),
-            ) { backStackEntry ->
-                val reviewId = backStackEntry.arguments?.getLong("reviewId") ?: return@composable
-                com.instructai.cognify.ui.questions.MissedQuestionsScreen(
-                    reviewId = reviewId,
                     onBack = { navController.popBackStack() },
                 )
             }
