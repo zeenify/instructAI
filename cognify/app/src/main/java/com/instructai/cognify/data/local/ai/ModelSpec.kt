@@ -28,42 +28,45 @@ data class ModelSpec(
 object ModelRegistry {
 
     // To move hosting to our own bucket later, change only these URLs.
+    // Verified working (ungated, ranged-GET resumable) as of 2026-09-04:
+    private const val GEMMA_E2B_URL =
+        "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-web.task"
+    private const val GEMMA_E4B_URL =
+        "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it-web.task"
+    // The Gemma 3 1B .task is license-gated on HuggingFace (HTTP 401 without
+    // a token). Pending self-hosting on our own bucket.
     private const val GEMMA_1B_URL =
-        "https://storage.googleapis.com/mediapipe-assets/gemma_1b_int8.task"
-    private const val GEMMA_3N_E2B_URL =
-        "https://storage.googleapis.com/mediapipe-assets/gemma_3n_e2b_int8.task"
-    private const val GEMMA_3N_E4B_URL =
-        "https://storage.googleapis.com/mediapipe-assets/gemma_3n_e4b_int8.task"
+        "https://huggingface.co/litert-community/Gemma3-1B-IT/resolve/main/gemma3-1b-it-int4.task"
 
     val LITE = ModelSpec(
         id = "gemma-1b",
         displayName = "Gemma 1B (Lite)",
         tier = ModelSpec.TIER_LITE,
-        fileName = "gemma_1b_int8.task",
+        fileName = "gemma3-1b-it-int4.task",
         downloadUrl = GEMMA_1B_URL,
-        sizeBytes = 1_000_000_000L,
+        sizeBytes = 554_000_000L,
         ramEstimateGb = 2,
         maxTokens = 2048,
     )
 
     val STANDARD = ModelSpec(
-        id = "gemma-3n-e2b",
-        displayName = "Gemma 3n E2B (Standard)",
+        id = "gemma-4-e2b",
+        displayName = "Gemma E2B (Standard)",
         tier = ModelSpec.TIER_STANDARD,
-        fileName = "gemma_3n_e2b_int8.task",
-        downloadUrl = GEMMA_3N_E2B_URL,
-        sizeBytes = 3_000_000_000L,
+        fileName = "gemma-4-E2B-it-web.task",
+        downloadUrl = GEMMA_E2B_URL,
+        sizeBytes = 2_000_000_000L,
         ramEstimateGb = 3,
         maxTokens = 4096,
     )
 
     val MAX = ModelSpec(
-        id = "gemma-3n-e4b",
-        displayName = "Gemma 3n E4B (Max)",
+        id = "gemma-4-e4b",
+        displayName = "Gemma E4B (Max)",
         tier = ModelSpec.TIER_MAX,
-        fileName = "gemma_3n_e4b_int8.task",
-        downloadUrl = GEMMA_3N_E4B_URL,
-        sizeBytes = 6_000_000_000L,
+        fileName = "gemma-4-E4B-it-web.task",
+        downloadUrl = GEMMA_E4B_URL,
+        sizeBytes = 3_000_000_000L,
         ramEstimateGb = 6,
         maxTokens = 4096,
     )

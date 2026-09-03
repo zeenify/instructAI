@@ -148,7 +148,9 @@ class LocalAiEngine @Inject constructor(
                     throw e
                 }
                 if (downloadError != null) {
-                    _state.value = LocalAiState.Error("Download failed: $downloadError")
+                    _state.value = LocalAiState.Error(
+                        "Download failed: " + (downloadError?.lineSequence()?.first()?.take(160) ?: "unknown")
+                    )
                     logger.log("LocalAiEngine", "Download ${spec.id} failed: $downloadError")
                     return
                 }
@@ -183,7 +185,7 @@ class LocalAiEngine @Inject constructor(
                     logger.log("LocalAiEngine", "Model ${spec.id} loaded — engine ON")
                 },
                 onFailure = { e ->
-                    _state.value = LocalAiState.Error("Failed to load model: ${e.message}")
+                    _state.value = LocalAiState.Error("Failed to load model: ${sanitizeError(e)}")
                     logger.log("LocalAiEngine", "Load ${spec.id} failed: ${e.message}", e)
                 },
             )
@@ -191,10 +193,23 @@ class LocalAiEngine @Inject constructor(
             // stop() cancelled this pipeline and already set Off.
             throw e
         } catch (e: Exception) {
-            _state.value = LocalAiState.Error("Power on failed: ${e.message}")
+            _state.value = LocalAiState.Error("Power on failed: ${sanitizeError(e)}")
             logger.log("LocalAiEngine", "Power on failed: ${e.message}", e)
         }
     }
+
+    /**
+     * MediaPipe exceptions carry multi-line internal source traces; surface
+     * only the first line, trimmed, so the Settings status stays readable.
+     * Full detail always goes to AppLogger.
+     */
+    private fun sanitizeError(e: Throwable): String =
+        (e.message ?: e.toString())
+            .lineSequence()
+            .first()
+            .replace(Regex("={3,}\\s*Source Location Trace.*"), "")
+            .trim()
+            .take(160)
 
     /**
      * Power OFF / universal cancel: unloads the model (freeing all RAM) and
