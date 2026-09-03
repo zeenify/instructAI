@@ -8,6 +8,7 @@ use App\Http\Controllers\Student\CodeExecutionController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
 use App\Http\Controllers\Student\EnrollmentController;
 use App\Http\Controllers\Student\LessonController as StudentLessonController;
+use App\Http\Controllers\Student\LiveQuizController;
 use App\Http\Controllers\Student\QuizController as StudentQuizController;
 use App\Http\Controllers\Student\ReviewerController;
 use App\Http\Controllers\Student\TtsController;
@@ -140,6 +141,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/student/activities/{id}/upload-file', [StudentClassActivityController::class, 'uploadFile']);
     Route::delete('/student/activities/{id}/remove-file', [StudentClassActivityController::class, 'removeFile']);
 
+    // Student Live Quiz (student-paced)
+    Route::post('/student/activities/{id}/quiz/join', [LiveQuizController::class, 'join']);
+    Route::post('/student/activities/{id}/quiz/start', [LiveQuizController::class, 'start']);
+    Route::post('/student/activities/{id}/quiz/answers', [LiveQuizController::class, 'answers']);
+    Route::post('/student/activities/{id}/quiz/advance', [LiveQuizController::class, 'advance']);
+    Route::post('/student/activities/{id}/quiz/finish', [LiveQuizController::class, 'finish']);
+    Route::post('/student/activities/{id}/quiz/heartbeat', [LiveQuizController::class, 'heartbeat']);
+    Route::get('/student/activities/{id}/quiz/state', [LiveQuizController::class, 'state']);
+
     // Indexing (Teacher)
     Route::post('/teacher/courses/{id}/index', [IndexingController::class, 'indexCourse']);
     Route::post('/teacher/lessons/{id}/index', [IndexingController::class, 'indexLesson']);
@@ -164,7 +174,17 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('/teacher/activities/{id}', [ClassActivityController::class, 'update']);
     Route::delete('/teacher/activities/{id}', [ClassActivityController::class, 'destroy']);
     Route::post('/teacher/activities/{id}/publish', [ClassActivityController::class, 'togglePublish']);
+    Route::post('/teacher/activities/{id}/start-live', [ClassActivityController::class, 'startLive']);
+    Route::post('/teacher/activities/{id}/pause-live', [ClassActivityController::class, 'pauseLive']);
+    Route::post('/teacher/activities/{id}/resume-live', [ClassActivityController::class, 'resumeLive']);
+    Route::post('/teacher/activities/{id}/end-live', [ClassActivityController::class, 'endLive']);
+    Route::post('/teacher/activities/{id}/live/question', [ClassActivityController::class, 'setLiveQuestion']);
+    Route::post('/teacher/activities/{id}/live/reveal', [ClassActivityController::class, 'revealLiveQuestion']);
+    Route::get('/teacher/activities/{id}/live-board', [ClassActivityController::class, 'liveBoard']);
 
+    Route::get('/teacher/activities/{id}/live-progress', [ClassActivityController::class, 'liveProgress']);
+
+    Route::get('/teacher/activities/{id}/results-analysis', [ClassActivityController::class, 'resultsAnalysis']);
     // Activity Questions
     Route::post('/teacher/activities/{activityId}/questions', [ClassActivityController::class, 'storeQuestion']);
     Route::put('/teacher/activities/{activityId}/questions/{questionId}', [ClassActivityController::class, 'updateQuestion']);

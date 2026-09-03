@@ -114,7 +114,7 @@ if ($completedAttempt) {
     {
         $request->validate([
             'question_id' => 'required|exists:questions,id',
-            'answer' => 'required|string'
+            'answer' => 'required|string|max:5000'
         ]);
 
         StudentAnswer::updateOrCreate(
@@ -135,10 +135,17 @@ if ($completedAttempt) {
 
     public function submit(Request $request, $quizId)
     {
+        $request->validate([
+            'answers' => 'required|array|max:500',
+            'answers.*' => 'nullable',
+            'question_ids' => 'nullable|array|max:500',
+            'question_ids.*' => 'integer|min:1',
+        ]);
+
         return DB::transaction(function () use ($request, $quizId) {
             $user = $request->user();
             $quiz = Quiz::with('questions')->findOrFail($quizId);
-            $submittedAnswers = $request->answers; 
+            $submittedAnswers = $request->answers ?? [];
 
 // Filter questions to ONLY the ones the frontend actually showed the student
             $subsetIds = $request->input('question_ids', []);

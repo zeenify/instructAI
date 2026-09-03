@@ -44,6 +44,13 @@ class ModuleController extends Controller
 
     public function reorderItems(Request $request, $moduleId)
     {
+        $request->validate([
+            'items' => 'required|array|max:500',
+            'items.*' => 'required|array',
+            'items.*.id' => 'required|integer|min:1',
+            'items.*.itemType' => 'required|string|in:lesson,quiz',
+        ]);
+
         $items = $request->items;
 
         // A Transaction ensures the DB doesn't save partial/messy data

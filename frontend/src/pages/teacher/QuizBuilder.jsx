@@ -224,10 +224,11 @@ function DraggableQuestion({ q, index, quiz, deleteModalOpen, setDeleteModalOpen
                         }`}>Weight</span>
                         <input
                             type="number"
-                            min="0"
+                            min="1"
+                            step="1"
                             value={q.points ?? 1}
                             onChange={(e) => {
-                                const val = Math.max(0, Number(e.target.value));
+                                const val = Math.max(1, Number(e.target.value));
                                 updateQuestion(q.id, { points: val });
                             }}
                             className={`w-16 bg-transparent border-none outline-none text-right font-black text-xl ${
@@ -496,7 +497,7 @@ export default function QuizBuilder() {
                                 theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
                             }`}>{quiz.timer_mode === 'per_question' ? 'Seconds' : 'Minutes'}</span>
                         </div>
-                        <input type="number" min="0" className={`bg-transparent border-none outline-none font-black text-xl w-16 text-right ${
+                        <input type="number" min="1" max="300" className={`bg-transparent border-none outline-none font-black text-xl w-16 text-right ${
                             theme === 'dark' ? 'text-white' : 'text-slate-800'
                         }`} value={getDisplayTime()} onChange={(e) => handleTimeInput(e.target.value)} onBlur={() => handleSaveSettings()} />
                     </div>

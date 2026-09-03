@@ -20,6 +20,7 @@ return new class extends Migration
 
         // 2. Restructure Courses
         Schema::table('courses', function (Blueprint $table) {
+            $table->dropUnique(['class_code']); // SQLite cannot drop a column while an index references it
             $table->dropColumn('class_code'); // Moving this to Classes
             $table->foreignId('class_id')->after('teacher_id')->constrained('classes')->onDelete('cascade');
             $table->boolean('is_published')->default(false);

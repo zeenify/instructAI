@@ -13,11 +13,14 @@ return new class extends Migration
     {
         // Update Student Profiles
         Schema::table('student_profiles', function (Blueprint $table) {
+            // SQLite cannot drop a column while an index references it
+            $table->dropUnique(['lrn_number']);
             $table->dropColumn(['lrn_number', 'grade_level']);
         });
 
         // Update Teacher Profiles
         Schema::table('teacher_profiles', function (Blueprint $table) {
+            $table->dropUnique(['employee_id']);
             $table->dropColumn(['employee_id', 'department']);
             $table->string('organization')->nullable()->after('last_name');
         });

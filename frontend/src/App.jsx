@@ -20,12 +20,15 @@ import LessonEditor from './pages/teacher/LessonEditor';
 import QuizBuilder from './pages/teacher/QuizBuilder';
 import ActivityEditor from './pages/teacher/ActivityEditor';
 import ActivityGrading from './pages/teacher/ActivityGrading';
+import LiveQuizMonitor from './pages/teacher/LiveQuizMonitor';
+import ActivityResults from './pages/teacher/ActivityResults';
 import StudentMonitor from './pages/teacher/StudentMonitor';
 import Analytics from './pages/teacher/Analytics';
 
 // Student Pages
 import StudentOverview from './pages/student/StudentOverview';
 import ClassView from './pages/student/Classview';
+import QuizRoomView from './pages/student/QuizRoomView';
 import CourseViewer from './pages/student/CourseViewer';
 import ActivityViewer from './pages/student/ActivityViewer';
 
@@ -89,6 +92,8 @@ function App() {
             <Route path="class/:classId/quiz/:id" element={<QuizBuilder />} />
             <Route path="class/:classId/activity/:activityId" element={<ActivityEditor />} />
             <Route path="class/:classId/activity/:activityId/submissions" element={<ActivityGrading />} />
+            <Route path="class/:classId/activity/:activityId/live" element={<LiveQuizMonitor />} />
+            <Route path="class/:classId/activity/:activityId/results" element={<ActivityResults />} />
           </Route>
 
           
@@ -127,6 +132,16 @@ function App() {
                       <ActivityViewer />
                   </ProtectedRoute>
               } 
+          />
+
+          {/* --- Student Live Quiz Room (Focus Mode - No Main Sidebar) --- */}
+          <Route
+              path="/dashboard/student/class/:classId/quiz/:activityId"
+              element={
+                  <ProtectedRoute allowedRole="student">
+                      <QuizRoomView />
+                  </ProtectedRoute>
+              }
           />
 
 

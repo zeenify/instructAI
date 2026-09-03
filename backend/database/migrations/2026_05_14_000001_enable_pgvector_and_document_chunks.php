@@ -9,17 +9,26 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Enable pgvector extension
-        DB::statement('CREATE EXTENSION IF NOT EXISTS vector');
+        $isPgsql = DB::getDriverName() === 'pgsql';
+
+        // Enable pgvector extension (PostgreSQL only)
+        if ($isPgsql) {
+            DB::statement('CREATE EXTENSION IF NOT EXISTS vector');
+        }
 
         // Document chunks for RAG
-        Schema::create('document_chunks', function (Blueprint $table) {
+        Schema::create('document_chunks', function (Blueprint $table) use ($isPgsql) {
             $table->id();
             $table->foreignId('class_id')->constrained('classes')->onDelete('cascade');
             $table->foreignId('course_id')->nullable()->constrained('courses')->onDelete('cascade');
             $table->foreignId('lesson_id')->nullable()->constrained('lessons')->onDelete('cascade');
             $table->text('chunk_text');
-            $table->vector('embedding', 384);
+            if ($isPgsql) {
+                $table->vector('embedding', 384);
+            } else {
+                // SQLite fallback (local dev / tests): plain column
+                $table->binary('embedding')->nullable();
+            }
             $table->json('metadata')->nullable();
             $table->timestamps();
 

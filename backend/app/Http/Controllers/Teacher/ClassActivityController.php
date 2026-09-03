@@ -10,6 +10,7 @@ use App\Models\ClassActivity;
 use App\Models\Classroom;
 use App\Models\Enrollment;
 use App\Models\User;
+use App\Support\ActivityGrading;
 use Cloudinary\Api\Upload\UploadApi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -80,18 +81,25 @@ class ClassActivityController extends Controller
             'description' => 'nullable|string',
             'activity_type' => 'required|string|in:quiz,activity',
             'grading_method' => 'nullable|string|in:auto,manual,none',
-            'max_points' => 'nullable|numeric|min:0',
+            'max_points' => 'nullable|numeric|min:0|max:99999',
             'deadline_behavior' => 'nullable|string|in:hard,soft',
             'late_submission' => 'nullable|boolean',
             'late_penalty_pct' => 'nullable|numeric|min:0|max:100',
-            'time_limit_minutes' => 'nullable|numeric|min:0',
+            'time_limit_minutes' => 'nullable|numeric|min:0|max:300',
+            'pacing_mode' => 'nullable|string|in:student,teacher',
+            'timer_mode' => 'nullable|string|in:none,entire_quiz,per_question',
+            'per_question_durations' => 'nullable|array|max:10',
+            'per_question_durations.*' => 'nullable|integer|min:5|max:900',
+            'shuffle_questions' => 'nullable|boolean',
+            'show_results' => 'nullable|string|in:immediate,room_close',
         ];
 
         if ($request->activity_type === 'activity') {
             $rules['submission_type'] = 'required|string|in:file,questions,material';
             $rules['deadline_at'] = $request->submission_type === 'material' ? 'nullable|date' : 'required|date';
         } else {
-            $rules['deadline_at'] = 'required|date';
+            // D1: quizzes are live-only — no deadlines
+            $rules['deadline_at'] = 'nullable|date';
         }
 
         $validated = $request->validate($rules);
@@ -112,11 +120,16 @@ class ClassActivityController extends Controller
                 default => null,
             },
             'max_points' => $validated['max_points'] ?? null,
-            'deadline_at' => $validated['deadline_at'] ?? null,
+            'deadline_at' => $validated['activity_type'] === 'quiz' ? null : ($validated['deadline_at'] ?? null),
             'deadline_behavior' => $validated['deadline_behavior'] ?? 'hard',
             'late_submission' => $validated['late_submission'] ?? false,
             'late_penalty_pct' => $validated['late_penalty_pct'] ?? null,
             'time_limit_minutes' => $validated['time_limit_minutes'] ?? null,
+            'pacing_mode' => $validated['pacing_mode'] ?? 'student',
+            'timer_mode' => $validated['timer_mode'] ?? 'none',
+            'per_question_durations' => $validated['per_question_durations'] ?? null,
+            'shuffle_questions' => $validated['shuffle_questions'] ?? false,
+            'show_results' => $validated['show_results'] ?? 'room_close',
             'order_index' => $maxOrder + 1,
         ]);
 
@@ -151,17 +164,35 @@ class ClassActivityController extends Controller
             'activity_type' => 'sometimes|string|in:quiz,activity',
             'submission_type' => 'sometimes|string|in:file,questions,material',
             'grading_method' => 'sometimes|nullable|string|in:auto,manual,none',
-            'max_points' => 'sometimes|nullable|numeric|min:0',
+            'max_points' => 'sometimes|nullable|numeric|min:0|max:99999',
             'deadline_at' => 'sometimes|nullable|date',
             'deadline_behavior' => 'sometimes|string|in:hard,soft',
             'late_submission' => 'sometimes|boolean',
             'late_penalty_pct' => 'sometimes|nullable|numeric|min:0|max:100',
-            'time_limit_minutes' => 'sometimes|nullable|numeric|min:0',
+            'time_limit_minutes' => 'sometimes|nullable|numeric|min:0|max:300',
             'is_published' => 'sometimes|boolean',
             'is_live' => 'sometimes|boolean',
             'live_status' => 'sometimes|string|in:scheduled,active,paused,completed',
             'live_scheduled_at' => 'sometimes|nullable|date',
+            'pacing_mode' => 'sometimes|string|in:student,teacher',
+            'timer_mode' => 'sometimes|string|in:none,entire_quiz,per_question',
+            'per_question_durations' => 'sometimes|nullable|array|max:10',
+            'per_question_durations.*' => 'nullable|integer|min:5|max:900',
+            'shuffle_questions' => 'sometimes|boolean',
+            'show_results' => 'sometimes|string|in:immediate,room_close',
         ]);
+
+        if ($activity->activity_type === 'quiz') {
+            // D1: quizzes are live-only — deadlines are an activity concept
+            $validated['deadline_at'] = null;
+            unset($validated['deadline_behavior'], $validated['late_submission'], $validated['late_penalty_pct']);
+
+            // Lock quiz settings while the room is live
+            if ($activity->is_live) {
+                $quizSettings = ['pacing_mode', 'timer_mode', 'per_question_durations', 'shuffle_questions', 'show_results', 'time_limit_minutes'];
+                $validated = array_diff_key($validated, array_flip($quizSettings));
+            }
+        }
 
         if ($activity->is_published && $activity->submissions()->exists()) {
             $allowed = ['deadline_at', 'deadline_behavior', 'is_published'];
@@ -183,7 +214,11 @@ class ClassActivityController extends Controller
             if ($uploadApi) {
                 foreach ($files as $file) {
                     if (! empty($file['public_id'])) {
-                        try { $uploadApi->destroy($file['public_id']); } catch (\Exception $e) { \Log::warning('Cloudinary cleanup: '.$e->getMessage()); }
+                        try {
+                            $uploadApi->destroy($file['public_id']);
+                        } catch (\Exception $e) {
+                            \Log::warning('Cloudinary cleanup: '.$e->getMessage());
+                        }
                     }
                 }
             }
@@ -200,6 +235,614 @@ class ClassActivityController extends Controller
         $activity->update(['is_published' => ! $activity->is_published]);
 
         return response()->json($activity);
+    }
+
+    // ── Live quiz room (student-paced) ──
+
+    public function startLive($id)
+    {
+        $activity = $this->authorizeActivity($id);
+
+        if ($activity->activity_type !== 'quiz') {
+            return response()->json(['message' => 'Only quizzes can go live'], 422);
+        }
+
+        if (! $activity->is_published) {
+            return response()->json(['message' => 'Publish the quiz before starting the room'], 422);
+        }
+
+        $activity->update([
+            'is_live' => true,
+            'live_status' => 'active',
+            'live_started_at' => now(),
+            'close_room_at' => null,
+            'live_current_q' => -1,
+            'live_question_deadline_at' => null,
+            'live_question_revealed_at' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Quiz is now live',
+            'activity' => $activity->fresh(),
+        ]);
+    }
+
+    public function pauseLive($id)
+    {
+        $activity = $this->authorizeActivity($id);
+
+        if (! $activity->is_live || $activity->live_status !== 'active') {
+            return response()->json(['message' => 'Quiz is not live'], 422);
+        }
+
+        if ($activity->pacing_mode !== 'teacher') {
+            return response()->json(['message' => 'Only teacher-paced quizzes can be paused'], 422);
+        }
+
+        $activity->update(['live_status' => 'paused']);
+
+        return response()->json([
+            'message' => 'Quiz paused',
+            'activity' => $activity->fresh(),
+        ]);
+    }
+
+    public function resumeLive($id)
+    {
+        $activity = $this->authorizeActivity($id);
+
+        if (! $activity->is_live || $activity->live_status !== 'paused') {
+            return response()->json(['message' => 'Quiz is not paused'], 422);
+        }
+
+        $activity->update(['live_status' => 'active']);
+
+        return response()->json([
+            'message' => 'Quiz resumed',
+            'activity' => $activity->fresh(),
+        ]);
+    }
+
+    public function endLive($id)
+    {
+        $activity = $this->authorizeActivity($id);
+
+        $result = DB::transaction(function () use ($activity) {
+            if (! $activity->is_live) {
+                return ['finalized' => 0, 'missed' => 0];
+            }
+
+            $now = now();
+            $submissions = ActivitySubmission::where('activity_id', $activity->id)
+                ->where('status', 'draft')
+                ->get();
+
+            $finalized = 0;
+            $missed = 0;
+
+            foreach ($submissions as $submission) {
+                if ($submission->started_at) {
+                    ActivityGrading::finalizeSubmission($submission, $activity, $now->toDateTimeString());
+                    $finalized++;
+                } else {
+                    $submission->update([
+                        'status' => 'missed',
+                        'submitted_at' => $now,
+                        'room_closed_at' => $now,
+                    ]);
+                    $missed++;
+                }
+            }
+
+            $activity->update([
+                'is_live' => false,
+                'live_status' => 'completed',
+                'close_room_at' => $now,
+                'live_question_deadline_at' => null,
+                'live_question_revealed_at' => null,
+            ]);
+
+            return ['finalized' => $finalized, 'missed' => $missed];
+        });
+
+        return response()->json([
+            'message' => 'Quiz ended',
+            'finalized' => $result['finalized'],
+            'missed' => $result['missed'],
+        ]);
+    }
+
+    // ── Live room board (student-paced) ──
+
+    private function liveRoster(ClassActivity $activity, bool $withProgress = false): array
+    {
+        $submissions = ActivitySubmission::with('answers')
+            ->where('activity_id', $activity->id)
+            ->get()
+            ->keyBy('student_id');
+
+        $questionIds = $activity->questions->pluck('id')->all();
+        $now = now();
+
+        $enrolled = Enrollment::where('class_id', $activity->class_id)
+            ->with('student.studentProfile')
+            ->get()
+            ->map(function ($e) use ($activity, $submissions, $questionIds, $now, $withProgress) {
+                $s = $submissions->get($e->student_id);
+
+                if (! $s) {
+                    $row = [
+                        'student' => $e->student,
+                        'submission_id' => null,
+                        'status' => 'absent',
+                        'current_question_idx' => 0,
+                        'started_at' => null,
+                        'last_seen_at' => null,
+                        'submitted_at' => null,
+                        'idle_seconds' => null,
+                        'answers_count' => 0,
+                        'score' => null,
+                        'running_score' => 0.0,
+                        'max_score' => null,
+                    ];
+                } else {
+                    $finalized = in_array($s->status, ['submitted', 'graded', 'missed']);
+                    $taking = ! $finalized && $s->started_at;
+                    $lastSeen = $s->last_seen_at;
+
+                    if ($finalized) {
+                        $status = 'submitted';
+                    } elseif ($taking) {
+                        $status = $lastSeen && $lastSeen->diffInSeconds($now) > 15 ? 'disconnected' : 'taking';
+                    } else {
+                        $status = 'joined';
+                    }
+
+                    $row = [
+                        'student' => $e->student,
+                        'submission_id' => $s->id,
+                        'status' => $status,
+                        'current_question_idx' => (int) $s->current_question_idx,
+                        'started_at' => $s->started_at,
+                        'last_seen_at' => $s->last_seen_at,
+                        'submitted_at' => $s->submitted_at,
+                        'idle_seconds' => $taking && $lastSeen ? $lastSeen->diffInSeconds($now) : null,
+                        'answers_count' => $s->answers->count(),
+                        'score' => $s->score !== null ? (float) $s->score : null,
+                        'running_score' => $s->answers->sum(fn ($a) => $a->is_correct !== null ? (float) $a->score : 0.0),
+                        'max_score' => $s->max_score !== null ? (float) $s->max_score : null,
+                    ];
+                }
+
+                if ($withProgress) {
+                    $order = $s?->question_order ?? $questionIds;
+                    $answeredIds = $s ? $s->answers->pluck('question_id')->all() : [];
+                    $row['question_order'] = $order;
+                    $row['questions'] = collect($order)
+                        ->map(function ($qid) use ($activity, $answeredIds, $s) {
+                            $q = $activity->questions->firstWhere('id', $qid);
+
+                            return $q ? [
+                                'id' => $q->id,
+                                'order_index' => $q->order_index,
+                                'type' => $q->type,
+                                'points' => $q->points,
+                                'answered' => in_array($q->id, $answeredIds),
+                                'is_current' => $s && (int) $s->current_question_idx === array_search($q->id, array_values($s->question_order ?? []), true) && ! in_array($s->status, ['submitted', 'graded', 'missed']),
+                            ] : null;
+                        })
+                        ->filter()
+                        ->values()
+                        ->all();
+                }
+
+                return $row;
+            });
+
+        $rows = $enrolled->values()->all();
+        $counts = ['enrolled' => count($rows), 'absent' => 0, 'joined' => 0, 'taking' => 0, 'disconnected' => 0, 'submitted' => 0];
+
+        foreach ($rows as $row) {
+            $counts[$row['status']]++;
+        }
+
+        $activity->unsetRelation('questions');
+
+        return ['activity' => $activity, 'counts' => $counts, 'students' => $rows];
+    }
+
+    public function liveBoard($id)
+    {
+        $activity = $this->authorizeActivity($id);
+        $this->syncExpiredQuestion($activity);
+
+        $board = $this->liveRoster($activity);
+
+        $phase = 'waiting';
+        if (! $activity->is_live || $activity->live_status === 'completed') {
+            $phase = 'complete';
+        } elseif ($activity->live_status === 'paused') {
+            $phase = 'paused';
+        } elseif ($activity->live_question_revealed_at) {
+            $phase = 'revealed';
+        } elseif ((int) $activity->live_current_q >= 0 && $activity->questions->count() > (int) $activity->live_current_q) {
+            $phase = 'question';
+        }
+
+        $board['pacing'] = [
+            'mode' => $activity->pacing_mode,
+            'current_q' => (int) $activity->live_current_q,
+            'revealed_at' => $activity->live_question_revealed_at,
+            'deadline_at' => $activity->live_question_deadline_at,
+            'phase' => $phase,
+        ];
+
+        $board['questions'] = $activity->questions->map(fn ($q) => $q->toArray())->all();
+
+        $answers = ActivityAnswer::whereIn('question_id', $activity->questions->pluck('id'))
+            ->get(['question_id', 'submitted_answer'])
+            ->groupBy('question_id');
+
+        $board['distribution'] = $activity->questions->map(function ($q) use ($answers) {
+            $rows = $answers->get($q->id, collect());
+
+            return [
+                'question_id' => $q->id,
+                'answered' => $rows->count(),
+                'per_option' => $rows->countBy(fn ($a) => (string) $a->submitted_answer)->all(),
+            ];
+        })->all();
+
+        return response()->json($board);
+    }
+
+    // ── Live room teacher-paced controls ──
+
+    private function syncExpiredQuestion(ClassActivity $activity): void
+    {
+        if (! $activity->is_live || $activity->live_status !== 'active') {
+            return;
+        }
+
+        if ($activity->live_question_deadline_at
+            && ! $activity->live_question_revealed_at
+            && $activity->live_question_deadline_at->isPast()) {
+            $activity->update([
+                'live_question_revealed_at' => now(),
+                'live_question_deadline_at' => null,
+            ]);
+        }
+    }
+
+    private function perQuestionSeconds(ClassActivity $activity, ?int $questionId, ?int $override): ?int
+    {
+        if ($override !== null) {
+            return $override;
+        }
+
+        if ($activity->timer_mode !== 'per_question') {
+            return null;
+        }
+
+        $question = $activity->questions->firstWhere('id', $questionId);
+        if (! $question) {
+            return null;
+        }
+
+        $durations = $activity->per_question_durations ?? [];
+
+        return isset($durations[$question->type]) ? (int) $durations[$question->type] : null;
+    }
+
+    public function setLiveQuestion(Request $request, $id)
+    {
+        $activity = $this->authorizeActivity($id);
+
+        if ($activity->activity_type !== 'quiz') {
+            return response()->json(['message' => 'Only quizzes can go live'], 422);
+        }
+
+        if (! $activity->is_live || $activity->live_status !== 'active') {
+            return response()->json(['message' => 'Quiz is not live'], 422);
+        }
+
+        $validated = $request->validate([
+            'idx' => 'required|integer|min:0',
+            'duration' => 'sometimes|nullable|integer|min:5|max:900',
+        ]);
+
+        $idx = (int) $validated['idx'];
+        $questionCount = $activity->questions->count();
+
+        if ($idx >= $questionCount) {
+            return response()->json(['message' => 'Question index out of range'], 422);
+        }
+
+        $question = $activity->questions->get($idx);
+        $seconds = $this->perQuestionSeconds($activity, $question?->id, isset($validated['duration']) ? (int) $validated['duration'] : null);
+
+        $activity->update([
+            'live_current_q' => $idx,
+            'live_question_revealed_at' => null,
+            'live_question_deadline_at' => $seconds !== null ? now()->addSeconds($seconds) : null,
+        ]);
+
+        return response()->json([
+            'message' => $question ? 'Question '.($idx + 1).' is now live' : 'Question is now live',
+            'activity' => $activity->fresh(),
+        ]);
+    }
+
+    public function revealLiveQuestion($id)
+    {
+        $activity = $this->authorizeActivity($id);
+
+        if (! $activity->is_live || $activity->live_status !== 'active') {
+            return response()->json(['message' => 'Quiz is not live'], 422);
+        }
+
+        if ($activity->live_question_revealed_at) {
+            return response()->json(['message' => 'Question already revealed'], 422);
+        }
+
+        $current = $activity->questions->get($activity->live_current_q);
+
+        if (! $current) {
+            return response()->json(['message' => 'No question is open'], 422);
+        }
+
+        DB::transaction(function () use ($activity, $current) {
+            $activity->update([
+                'live_question_revealed_at' => now(),
+                'live_question_deadline_at' => null,
+            ]);
+
+            $answers = ActivityAnswer::where('question_id', $current->id)
+                ->whereIn('submission_id', ActivitySubmission::where('activity_id', $activity->id)->select('id'))
+                ->get();
+
+            foreach ($answers as $answer) {
+                $raw = json_decode($answer->submitted_answer, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    $raw = $answer->submitted_answer;
+                }
+
+                $result = ActivityGrading::grade($current, $raw);
+                $answer->update([
+                    'is_correct' => $result['is_correct'],
+                    'score' => $result['score'],
+                ]);
+            }
+        });
+
+        return response()->json(['message' => 'Answers revealed']);
+    }
+
+    public function liveProgress($id)
+    {
+        $activity = $this->authorizeActivity($id);
+
+        return response()->json($this->liveRoster($activity, true));
+    }
+
+    // ── Results analysis ──
+
+    public function resultsAnalysis($id)
+    {
+        $activity = $this->authorizeActivity($id);
+        $activity->load('questions');
+
+        $questions = $activity->questions->sortBy('order_index')->values();
+        $questionIds = $questions->pluck('id')->all();
+
+        $submissions = ActivitySubmission::where('activity_id', $id)
+            ->with(['student.studentProfile', 'answers'])
+            ->get();
+
+        $scored = $submissions->filter(fn ($s) => $s->score !== null && $s->max_score > 0 && $s->status !== 'draft');
+        $scoredSubIds = $scored->pluck('id')->all();
+        $enrolledCount = Enrollment::where('class_id', $activity->class_id)->count();
+
+        $name = function ($submission) {
+            $p = $submission->student->studentProfile;
+            if ($p?->first_name || $p?->last_name) {
+                return trim(($p->first_name ?? '').' '.($p->last_name ?? ''));
+            }
+
+            return $submission->student->name ?? explode('@', $submission->student->email)[0];
+        };
+
+        $pctOf = function ($submission) {
+            return (int) round(($submission->score / $submission->max_score) * 100);
+        };
+
+        $durationOf = function ($submission) {
+            if (! $submission->submitted_at || ! $submission->started_at) {
+                return null;
+            }
+
+            return max(0, abs($submission->submitted_at->diffInSeconds($submission->started_at)));
+        };
+
+        // ── Overall stats ──
+        $scores = $scored->map($pctOf)->sort()->values();
+        $durations = $scored->map($durationOf)->filter(fn ($d) => $d !== null)->values();
+        $answeredCount = $scored->sum(fn ($s) => count($s->answers));
+
+        $stats = [
+            'enrolled' => $enrolledCount,
+            'submitted' => count($scored),
+            'participation_rate' => $enrolledCount ? (int) round(count($scored) / $enrolledCount * 100) : 0,
+            'avg_score_pct' => count($scores) ? (int) round($scores->avg()) : null,
+            'median_score_pct' => count($scores) ? (int) round($scores->median()) : null,
+            'pass_rate' => count($scores) ? (int) round($scores->filter(fn ($p) => $p >= 60)->count() / count($scores) * 100) : null,
+            'highest_score_pct' => count($scores) ? $scores->last() : null,
+            'lowest_score_pct' => count($scores) ? $scores->first() : null,
+            'avg_duration_seconds' => count($durations) ? (int) round($durations->avg()) : null,
+            'avg_answered_pct' => count($scored) && count($questions) ? (int) round($answeredCount / (count($scored) * count($questions)) * 100) : null,
+            'draft_count' => $submissions->filter(fn ($s) => $s->status === 'draft')->count(),
+        ];
+
+        // ── Score histogram (bins of 20%) ──
+        $binDefs = [
+            ['label' => '0-20%', 'min' => 0, 'max' => 20],
+            ['label' => '21-40%', 'min' => 21, 'max' => 40],
+            ['label' => '41-60%', 'min' => 41, 'max' => 60],
+            ['label' => '61-80%', 'min' => 61, 'max' => 80],
+            ['label' => '81-100%', 'min' => 81, 'max' => 100],
+        ];
+        $histogram = collect($binDefs)->map(function ($bin) use ($scores) {
+            return [
+                'label' => $bin['label'],
+                'count' => $scores->filter(fn ($p) => $p >= $bin['min'] && $p <= $bin['max'])->count(),
+            ];
+        })->values();
+
+        // ── Per-question performance ──
+        $perQuestion = [];
+        foreach ($questions as $q) {
+            $qAnswers = $submissions->flatMap(fn ($s) => $s->answers->where('question_id', $q->id));
+            $subsWithAnswer = $qAnswers->pluck('submission_id')->unique()->intersect($scoredSubIds)->count();
+            $correct = $qAnswers->filter(fn ($a) => $a->is_correct === true)->count();
+            $wrong = $qAnswers->filter(fn ($a) => $a->is_correct === false)->count();
+            $pending = $qAnswers->filter(fn ($a) => $a->is_correct === null)->count();
+            $blank = count($scoredSubIds) - $subsWithAnswer;
+            $attempted = $correct + $wrong;
+
+            $distribution = [];
+            if (in_array($q->type, ['multiple_choice', 'true_false']) && is_array($q->options)) {
+                foreach ($q->options as $i => $option) {
+                    $distribution[] = [
+                        'label' => (is_string($option) ? mb_substr($option, 0, 40) : 'Option '.($i + 1)),
+                        'count' => $qAnswers->filter(fn ($a) => $a->submitted_answer === (string) $i)->count(),
+                    ];
+                }
+            }
+
+            $perQuestion[] = [
+                'id' => $q->id,
+                'order' => $q->order_index,
+                'type' => $q->type,
+                'text' => mb_substr($q->question_text, 0, 110),
+                'points' => (float) $q->points,
+                'correct' => $correct,
+                'wrong' => $wrong,
+                'pending' => $pending,
+                'blank' => max(0, $blank),
+                'attempted' => $attempted,
+                'accuracy_pct' => $attempted ? (int) round($correct / $attempted * 100) : null,
+                'distribution' => $distribution,
+            ];
+        }
+
+        // ── Performance by question type ──
+        $perType = $questions->groupBy('type')->map(function ($qs) use ($perQuestion) {
+            $rows = collect($perQuestion)->whereIn('id', $qs->pluck('id')->all());
+
+            return [
+                'type' => $qs->first()->type,
+                'count' => $qs->count(),
+                'attempted' => $rows->sum('attempted'),
+                'correct' => $rows->sum('correct'),
+                'accuracy_pct' => $rows->sum('attempted') ? (int) round($rows->sum('correct') / $rows->sum('attempted') * 100) : null,
+            ];
+        })->values();
+
+        // ── Score vs time scatter ──
+        $scatter = $scored->map(fn ($s) => [
+            'student' => $name($s),
+            'score_pct' => $pctOf($s),
+            'duration_seconds' => $durationOf($s),
+        ])->values();
+
+        // ── Student ranking ──
+        $ranking = $scored->map(fn ($s) => [
+            'student' => $name($s),
+            'score' => (float) $s->score,
+            'max_score' => (float) $s->max_score,
+            'score_pct' => $pctOf($s),
+            'duration_seconds' => $durationOf($s),
+            'submitted_at' => $s->submitted_at?->toIso8601String(),
+            'status' => $s->status,
+            'answered' => $s->answers->count(),
+            'total_questions' => count($questions),
+        ])->sortByDesc('score_pct')->values();
+
+        // ── Student × question matrix ──
+        $matrix = $scored->map(function ($s) use ($questions, $name, $pctOf) {
+            $cells = $questions->map(function ($q) use ($s) {
+                $answer = $s->answers->firstWhere('question_id', $q->id);
+
+                if (! $answer) {
+                    return ['question_id' => $q->id, 'state' => 'blank'];
+                }
+                if ($answer->is_correct === true) {
+                    return ['question_id' => $q->id, 'state' => 'correct'];
+                }
+                if ($answer->is_correct === false) {
+                    return ['question_id' => $q->id, 'state' => 'wrong'];
+                }
+
+                return ['question_id' => $q->id, 'state' => 'pending'];
+            })->values();
+
+            return [
+                'student' => $name($s),
+                'score_pct' => $pctOf($s),
+                'cells' => $cells,
+            ];
+        })->sortByDesc('score_pct')->values();
+
+        // ── Insights ──
+        $attemptedQuestions = collect($perQuestion)->filter(fn ($q) => $q['attempted'] > 0);
+        $hardest = $attemptedQuestions->sortBy('accuracy_pct')->first();
+        $easiest = $attemptedQuestions->sortByDesc('accuracy_pct')->first();
+
+        $insights = [
+            'hardest' => $hardest ? ['text' => $hardest['text'], 'accuracy_pct' => $hardest['accuracy_pct'], 'order' => $hardest['order']] : null,
+            'easiest' => $easiest ? ['text' => $easiest['text'], 'accuracy_pct' => $easiest['accuracy_pct'], 'order' => $easiest['order']] : null,
+            'weak_questions' => $attemptedQuestions->filter(fn ($q) => $q['accuracy_pct'] < 40)->values()->map(fn ($q) => [
+                'text' => $q['text'], 'accuracy_pct' => $q['accuracy_pct'], 'order' => $q['order'],
+            ])->all(),
+            'unanswered_questions' => collect($perQuestion)->filter(fn ($q) => $q['attempted'] === 0 && $q['blank'] > 0)->values()->map(fn ($q) => [
+                'text' => $q['text'], 'order' => $q['order'], 'blank' => $q['blank'],
+            ])->all(),
+            'needs_help' => $ranking->filter(fn ($r) => $r['score_pct'] < 60)->map(fn ($r) => [
+                'student' => $r['student'], 'score_pct' => $r['score_pct'],
+            ])->all(),
+            'not_submitted' => $scored->isEmpty()
+                ? Enrollment::where('class_id', $activity->class_id)
+                    ->with('student.studentProfile')
+                    ->get()
+                    ->map(function ($e) use ($name) {
+                        return $name($e);
+                    })->values()->all()
+                : Enrollment::where('class_id', $activity->class_id)
+                    ->whereNotIn('student_id', $scored->pluck('student_id'))
+                    ->with('student.studentProfile')
+                    ->get()
+                    ->map(fn ($e) => $name($e))->values()->all(),
+        ];
+
+        return response()->json([
+            'activity' => [
+                'id' => $activity->id,
+                'title' => $activity->title,
+                'activity_type' => $activity->activity_type,
+                'grading_method' => $activity->grading_method,
+                'max_points' => $activity->max_points ? (float) $activity->max_points : null,
+                'is_published' => $activity->is_published,
+                'question_count' => count($questions),
+            ],
+            'stats' => $stats,
+            'histogram' => $histogram,
+            'questions' => $perQuestion,
+            'types' => $perType,
+            'scatter' => $scatter,
+            'ranking' => $ranking,
+            'matrix' => $matrix,
+            'insights' => $insights,
+        ]);
     }
 
     // ── Questions ──
@@ -223,7 +866,7 @@ class ClassActivityController extends Controller
             'options.*' => 'string|max:1000',
             'expected_output' => 'nullable|string|max:5000',
             'boilerplate' => 'nullable|string|max:5000',
-            'points' => 'required|numeric|min:0|max:99999',
+            'points' => 'required|numeric|min:1|max:99999',
         ]);
 
         $maxOrder = ActivityQuestion::where('activity_id', $activityId)->max('order_index') ?? 0;
@@ -269,7 +912,7 @@ class ClassActivityController extends Controller
             'options.*' => 'string|max:1000',
             'expected_output' => 'nullable|string|max:5000',
             'boilerplate' => 'nullable|string|max:5000',
-            'points' => 'sometimes|numeric|min:0|max:99999',
+            'points' => 'sometimes|numeric|min:1|max:99999',
             'order_index' => 'sometimes|integer|min:0',
         ]);
 
@@ -365,7 +1008,7 @@ class ClassActivityController extends Controller
             ->firstOrFail();
 
         DB::transaction(function () use ($submission, $validated) {
-            if (!empty($validated['answers'])) {
+            if (! empty($validated['answers'])) {
                 $total = 0;
                 foreach ($validated['answers'] as $a) {
                     ActivityAnswer::where('submission_id', $submission->id)
@@ -406,6 +1049,7 @@ class ClassActivityController extends Controller
             ->get()
             ->map(function ($e) use ($submissions) {
                 $s = $submissions->get($e->student_id);
+
                 return [
                     'student' => $e->student,
                     'submission_id' => $s?->id,
@@ -453,7 +1097,7 @@ class ClassActivityController extends Controller
             ->orderBy('created_at', 'asc')
             ->get(['id', 'title', 'activity_type', 'submission_type', 'max_points', 'deadline_at']);
 
-        $students = User::whereHas('enrollments', fn($q) => $q->where('class_id', $classId))
+        $students = User::whereHas('enrollments', fn ($q) => $q->where('class_id', $classId))
             ->with('studentProfile')
             ->orderBy('email')
             ->get(['id', 'email', 'avatar']);

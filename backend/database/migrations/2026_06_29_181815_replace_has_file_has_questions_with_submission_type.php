@@ -10,22 +10,26 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('class_activities', function (Blueprint $table) {
-            $table->string('submission_type')->nullable()->after('activity_type');
+            if (! Schema::hasColumn('class_activities', 'submission_type')) {
+                $table->string('submission_type')->nullable()->after('activity_type');
+            }
         });
 
-        DB::statement("
-            UPDATE class_activities
-            SET submission_type = CASE
-                WHEN activity_type = 'quiz' THEN NULL
-                WHEN has_file = true THEN 'file'
-                WHEN has_questions = true THEN 'questions'
-                ELSE 'material'
-            END
-        ");
+        if (Schema::hasColumn('class_activities', 'has_file')) {
+            DB::statement("
+                UPDATE class_activities
+                SET submission_type = CASE
+                    WHEN activity_type = 'quiz' THEN NULL
+                    WHEN has_file = true THEN 'file'
+                    WHEN has_questions = true THEN 'questions'
+                    ELSE 'material'
+                END
+            ");
 
-        Schema::table('class_activities', function (Blueprint $table) {
-            $table->dropColumn(['has_file', 'has_questions']);
-        });
+            Schema::table('class_activities', function (Blueprint $table) {
+                $table->dropColumn(['has_file', 'has_questions']);
+            });
+        }
     }
 
     public function down(): void

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Clock, CheckCircle2, Circle, AlertTriangle, Hourglass, FileText, HelpCircle, BookOpen, Loader2 } from 'lucide-react';
+import { Clock, CheckCircle2, Circle, AlertTriangle, Hourglass, FileText, HelpCircle, BookOpen, Loader2, Radio } from 'lucide-react';
 import { format, isPast, parseISO } from 'date-fns';
 
 const submissionConfig = {
@@ -34,6 +34,10 @@ export default function StudentActivityCard({ activity, classId, isActive }) {
   const isOverdue = deadlineDate && isPast(deadlineDate);
 
   const handleClick = () => {
+    if (activity.activity_type === 'quiz') {
+      navigate(`/dashboard/student/class/${classId}/quiz/${activity.id}`);
+      return;
+    }
     navigate(`/dashboard/student/class/${classId}/activity/${activity.id}`);
   };
 
@@ -62,6 +66,11 @@ export default function StudentActivityCard({ activity, classId, isActive }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
           <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activity.title}</h4>
           <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: typeInfo.bg, color: typeInfo.color, flexShrink: 0, whiteSpace: 'nowrap' }}>{typeInfo.label}</span>
+          {activity.is_live && (
+            <span style={{ fontSize: '10px', fontWeight: 900, padding: '3px 8px', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', flexShrink: 0, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Radio size={10} /> LIVE
+            </span>
+          )}
           {activity.submission_type !== 'material' && activity.submission_summary?.status === 'graded' && (
             <span style={{ fontSize: '11px', fontWeight: 700, color: statusInfo.color, flexShrink: 0, whiteSpace: 'nowrap' }}>
               {Number(activity.submission_summary.score).toFixed(0)}/{Number(activity.submission_summary.max_score).toFixed(0)}

@@ -12,7 +12,8 @@ class QuestionController extends Controller
 {
     public function store(Request $request, $quizId)
     {
-        $type = $request->input('type', 'multiple_choice');
+        $allowedTypes = ['multiple_choice', 'true_false', 'identification', 'enumeration', 'short_answer', 'essay', 'coding'];
+        $type = in_array($request->input('type'), $allowedTypes) ? $request->input('type') : 'multiple_choice';
         
         $question = Question::create([
             'quiz_id' => $quizId,
@@ -33,7 +34,22 @@ class QuestionController extends Controller
     {
         try {
             $question = Question::findOrFail($id);
-            $question->update($request->all());
+
+            $validated = $request->validate([
+                'type' => 'sometimes|string|in:multiple_choice,true_false,identification,enumeration,short_answer,essay,coding',
+                'question_text' => 'sometimes|string|max:5000',
+                'options' => 'nullable|array',
+                'options.*' => 'string|max:1000',
+                'expected_output' => 'nullable|string|max:5000',
+                'boilerplate' => 'nullable|string|max:5000',
+                'points' => 'sometimes|numeric|min:1|max:99999',
+                'order_index' => 'sometimes|integer|min:0',
+            ]);
+
+            $question->update($request->only([
+                'type', 'question_text', 'options', 'expected_output', 'boilerplate', 'points', 'order_index',
+            ]));
+
             return response()->json($question);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);

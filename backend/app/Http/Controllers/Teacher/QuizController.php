@@ -68,10 +68,10 @@ class QuizController extends Controller
                 'is_published' => 'sometimes|boolean',
                 'is_randomized' => 'sometimes|boolean',
                 'ai_enabled' => 'sometimes|boolean',
-'time_limit_minutes' => 'sometimes|nullable|numeric|min:0|max:300',
-'passing_score' => 'sometimes|integer|min:0',
+'time_limit_minutes' => 'sometimes|nullable|numeric|min:1|max:300',
+'passing_score' => 'sometimes|integer|min:0|max:99999',
                 'timer_mode' => 'sometimes|string|in:entire_quiz,per_question',
-                'question_limit' => 'sometimes|nullable|integer|min:1'
+                'question_limit' => 'sometimes|nullable|integer|min:1|max:500'
             ]);
 
             $quiz->update($validated);

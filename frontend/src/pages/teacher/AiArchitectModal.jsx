@@ -94,7 +94,7 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
                                                         min="1"
                                                         max="8"
                                                         value={params.moduleCount}
-                                                        onChange={(e) => setParams({...params, moduleCount: e.target.value})}
+                                                        onChange={(e) => setParams({...params, moduleCount: String(Math.max(1, Math.min(20, Number(e.target.value) || 1)))})}
                                                         style={{ padding: '10px 12px' }}
                                                         className="flex-1 bg-white/[0.05] border border-purple-500/40 rounded-lg text-white text-sm outline-none focus:border-purple-500/60 transition-all"
                                                         placeholder="e.g., 6"
@@ -142,7 +142,7 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
                                                         min="1"
                                                         max="8"
                                                         value={params.lessonsPerModule}
-                                                        onChange={(e) => setParams({...params, lessonsPerModule: e.target.value})}
+                                                        onChange={(e) => setParams({...params, lessonsPerModule: String(Math.max(1, Math.min(20, Number(e.target.value) || 1)))})}
                                                         style={{ padding: '10px 12px' }}
                                                         className="flex-1 bg-white/[0.05] border border-purple-500/40 rounded-lg text-white text-sm outline-none focus:border-purple-500/60 transition-all"
                                                         placeholder="e.g., 4"

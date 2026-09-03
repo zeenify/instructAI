@@ -228,8 +228,9 @@ class CourseController extends Controller
 
     public function togglePublish(Request $request, $id)
     {
+        $request->validate(['is_published' => 'required|boolean']);
         $course = Course::findOrFail($id);
-        $course->update(['is_published' => $request->is_published]);
+        $course->update(['is_published' => $request->boolean('is_published')]);
         return response()->json(['success' => true]);
     }
 
@@ -361,14 +362,14 @@ class CourseController extends Controller
     public function generateWithAI(Request $request, $courseId)
     {
         $request->validate([
-            'prompt' => 'required|string',
-            'file' => 'nullable|file',
-            'difficulty' => 'nullable|string',
-            'module_count' => 'nullable|string',
-            'lessons_per_module' => 'nullable|string',
-            'include_quiz' => 'nullable|string',
-            'include_coding' => 'nullable|string',
-            'pacing' => 'nullable|string',
+            'prompt' => 'required|string|max:10000',
+            'file' => 'nullable|file|mimes:pdf,doc,docx,txt|max:10240',
+            'difficulty' => 'nullable|string|max:50',
+            'module_count' => 'nullable|string|max:10|regex:/^[1-9]\d?(-[1-9]\d?)?$/',
+            'lessons_per_module' => 'nullable|string|max:10|regex:/^[1-9]\d?(-[1-9]\d?)?$/',
+            'include_quiz' => 'nullable|string|max:5',
+            'include_coding' => 'nullable|string|max:5',
+            'pacing' => 'nullable|string|max:50',
         ]);
 
         // Get course to access curriculum_text

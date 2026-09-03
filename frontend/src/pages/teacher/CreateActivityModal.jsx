@@ -1,9 +1,24 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, ClipboardList, AlignLeft, Upload, HelpCircle, BookOpen, Clock } from 'lucide-react';
+import { X, Zap, ClipboardList, AlignLeft, Upload, HelpCircle, BookOpen, Clock, UserCheck, Radio } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import api from '../../services/api';
 import { toast } from 'sonner';
+
+const PACING_OPTIONS = [
+  {
+    id: 'student',
+    label: 'Student-paced',
+    description: 'Everyone takes the quiz at their own pace under the same time rules',
+    icon: UserCheck, color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.1)', border: 'rgba(167, 139, 250, 0.3)',
+  },
+  {
+    id: 'teacher',
+    label: 'Teacher-paced',
+    description: 'You control the flow — reveal questions, pause, and pace the room together',
+    icon: Radio, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)',
+  },
+];
 
 const ACTIVITY_TYPES = [
   {
@@ -31,6 +46,7 @@ export default function CreateActivityModal({ isOpen, onClose, classId, onCreate
   const [description, setDescription] = useState('');
   const [selectedType, setSelectedType] = useState(null);
   const [submissionType, setSubmissionType] = useState(null);
+  const [pacingMode, setPacingMode] = useState('student');
   const [deadlineAt, setDeadlineAt] = useState('');
   const [deadlineBehavior, setDeadlineBehavior] = useState('hard');
   const [step, setStep] = useState('type');
@@ -46,6 +62,7 @@ export default function CreateActivityModal({ isOpen, onClose, classId, onCreate
     setTitle('');
     setDescription('');
     setSubmissionType(null);
+    setPacingMode('student');
     setDeadlineAt('');
     setDeadlineBehavior('hard');
   };
@@ -54,7 +71,8 @@ export default function CreateActivityModal({ isOpen, onClose, classId, onCreate
     e.preventDefault();
     if (!title.trim() || !selectedType) return;
     if (selectedType === 'activity' && !submissionType) return;
-    const needsDeadline = selectedType !== 'activity' || submissionType !== 'material';
+    if (selectedType === 'quiz' && !pacingMode) return;
+    const needsDeadline = selectedType === 'activity' && submissionType !== 'material';
     if (needsDeadline && !deadlineAt) {
       toast.error('Deadline is required for this activity type');
       setLoading(false);
@@ -66,11 +84,14 @@ export default function CreateActivityModal({ isOpen, onClose, classId, onCreate
         title: title.trim(),
         description: description.trim() || null,
         activity_type: selectedType,
-        deadline_at: deadlineAt || null,
+        deadline_at: selectedType === 'quiz' ? null : (deadlineAt || null),
         deadline_behavior: deadlineBehavior,
       };
       if (selectedType === 'activity') {
         payload.submission_type = submissionType;
+      }
+      if (selectedType === 'quiz') {
+        payload.pacing_mode = pacingMode;
       }
       const res = await api.post(`/teacher/classes/${classId}/activities`, payload);
       toast.success(selectedType === 'quiz' ? 'Quiz created!' : 'Activity created!');
@@ -89,6 +110,7 @@ export default function CreateActivityModal({ isOpen, onClose, classId, onCreate
     setDescription('');
     setSelectedType(null);
     setSubmissionType(null);
+    setPacingMode('student');
     setDeadlineAt('');
     setDeadlineBehavior('hard');
     onClose();
@@ -143,6 +165,36 @@ export default function CreateActivityModal({ isOpen, onClose, classId, onCreate
                       style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
                   </div>
 
+                  {selectedType === 'quiz' && (
+                    <div style={{ marginBottom: '20px' }}>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>How will the quiz run?</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {PACING_OPTIONS.map((opt) => {
+                          const Icon = opt.icon;
+                          const isSelected = pacingMode === opt.id;
+                          return (
+                            <button key={opt.id} type="button"
+                              onClick={() => setPacingMode(opt.id)}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', borderRadius: '14px', cursor: 'pointer',
+                                textAlign: 'left', opacity: 1,
+                                border: `2px solid ${isSelected ? opt.color : 'var(--border-color)'}`,
+                                background: isSelected ? opt.bg : 'var(--bg-primary)',
+                              }}>
+                              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: opt.bg, border: `1px solid ${opt.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: opt.color, flexShrink: 0 }}><Icon size={18} /></div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                  {opt.label}
+                                </div>
+                                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{opt.description}</div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {selectedType === 'activity' && (
                     <div style={{ marginBottom: '20px' }}>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>Submission Type</label>
@@ -171,7 +223,7 @@ export default function CreateActivityModal({ isOpen, onClose, classId, onCreate
                       style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
                   </div>
 
-                  {!(selectedType === 'activity' && submissionType === 'material') && (
+                  {selectedType === 'activity' && submissionType !== 'material' && (
                   <div style={{ marginBottom: '24px', padding: '16px', borderRadius: '14px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)' }}>
                     <h4 style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Clock size={14} /> Deadline

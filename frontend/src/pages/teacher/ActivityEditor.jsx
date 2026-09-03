@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, Reorder, useDragControls } from 'framer-motion';
-import { ChevronLeft, Plus, Trash2, GripVertical, Clock, Eye, EyeOff, Loader2, HelpCircle, Upload, BookOpen, Edit3, UserCheck, AlertTriangle, FileText } from 'lucide-react';
+import { Reorder, useDragControls } from 'framer-motion';
+import { ChevronLeft, Plus, Trash2, GripVertical, Clock, Eye, EyeOff, Loader2, HelpCircle, Upload, BookOpen, Edit3, UserCheck, AlertTriangle, FileText, Timer, Shuffle, Radio } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
 import ActivityTypeBadge from '../../components/teacher/ActivityTypeBadge';
@@ -18,6 +18,22 @@ const QUESTION_TYPES = [
   { id: 'essay', label: 'Essay' },
   { id: 'coding', label: 'Coding' },
 ];
+
+const TIMER_MODES = [
+  { id: 'none', label: 'No limit' },
+  { id: 'entire_quiz', label: 'Whole quiz' },
+  { id: 'per_question', label: 'Per question' },
+];
+
+const PER_QUESTION_DEFAULTS = {
+  true_false: 20,
+  multiple_choice: 40,
+  identification: 60,
+  short_answer: 60,
+  enumeration: 90,
+  coding: 300,
+  essay: 300,
+};
 
 function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdited }) {
   const isEditMode = !!editQuestion;
@@ -70,7 +86,7 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
       }
     }
 
-    const safePoints = Math.max(0, Number(points) || 0);
+    const safePoints = Math.max(1, Number(points) || 1);
 
     setLoading(true);
     try {
@@ -155,7 +171,7 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
               <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
                 {type === 'enumeration' ? 'Points per correct answer' : 'Points'}
               </label>
-              <input type="number" min={0} step={0.5} value={points} onChange={(e) => setPoints(Math.max(0, Number(e.target.value) || 0))}
+              <input type="number" min={1} step={1} value={points} onChange={(e) => setPoints(Math.max(1, Math.round(Number(e.target.value) || 1)))}
                 style={{ width: '100px', padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
             </div>
             {type === 'enumeration' && options.filter(o => o.trim()).length > 0 && (
@@ -300,6 +316,8 @@ function QuestionBlock({ question, index, onUpdate, onDelete, onEdit, disabled, 
   const setSaving = savingState[1];
 
   const save = async (field) => {
+    if (field === 'text' && text.trim() === question.question_text) return;
+    if (field === 'points' && points === question.points) return;
     setSaving(true);
     try {
       const payload = {};
@@ -331,24 +349,27 @@ function QuestionBlock({ question, index, onUpdate, onDelete, onEdit, disabled, 
               <span style={{ fontSize: '11px', fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase' }}>#{index + 1}</span>
               <span style={{ fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '6px', background: 'rgba(167, 139, 250, 0.1)', color: '#a78bfa', textTransform: 'uppercase' }}>{getTypeLabel(question.type)}</span>
               <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)' }}>{question.points} pt{question.points !== 1 ? 's' : ''}</span>
+              {question.is_temp && (
+                <span style={{ fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '6px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', textTransform: 'uppercase' }}>Saving…</span>
+              )}
             </div>
             {isEditing ? (
               <textarea value={text} onChange={(e) => setText(e.target.value)} onBlur={() => { setIsEditing(false); save('text'); }} autoFocus
                 style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #a78bfa', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
             ) : (
-              <p onClick={() => setIsEditing(true)} style={{ fontSize: '14px', color: 'var(--text-primary)', margin: 0, cursor: 'pointer', lineHeight: '1.4' }}>{question.question_text}</p>
+              <p onClick={() => !question.is_temp && setIsEditing(true)} style={{ fontSize: '14px', color: 'var(--text-primary)', margin: 0, cursor: 'pointer', lineHeight: '1.4' }}>{question.question_text}</p>
             )}
           </div>
         </div>
         <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-          {!disabled && (
+          {!disabled && !question.is_temp && (
             <button onClick={() => onEdit?.(question)}
               style={{ padding: '8px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', borderRadius: '8px', transition: 'all 0.2s' }}
               onMouseEnter={(e) => { e.currentTarget.style.color = '#a78bfa'; e.currentTarget.style.background = 'rgba(167, 139, 250, 0.1)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.background = 'transparent'; }}
               type="button" title="Edit question"><Edit3 size={14} /></button>
           )}
-          {!disabled && (
+          {!disabled && !question.is_temp && (
             <button onClick={() => onDelete(question)}
               style={{ padding: '8px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', borderRadius: '8px', transition: 'all 0.2s' }}
               onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
@@ -375,9 +396,12 @@ export default function ActivityEditor() {
   const navigate = useNavigate();
 
   const [activity, setActivity] = useState(null);
-  const [, setOriginalActivity] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [, setSaving] = useState(false);
+  const originalRef = useRef(null);
+  const dirtyRef = useRef({});
+  const saveTimerRef = useRef(null);
+  const savingRef = useRef(false);
+  const pendingFlushRef = useRef(false);
   const [showAddQuestion, setShowAddQuestion] = useState(false);
   const [editQuestion, setEditQuestion] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -431,7 +455,7 @@ export default function ActivityEditor() {
     try {
       const res = await api.get(`/teacher/activities/${activityId}`);
       setActivity(res.data);
-      setOriginalActivity(res.data);
+      originalRef.current = res.data;
     } catch {
       toast.error('Failed to load activity');
       navigate(`/dashboard/teacher/class/${classId}`);
@@ -442,35 +466,63 @@ export default function ActivityEditor() {
 
   useEffect(() => { fetchActivity(); }, [fetchActivity]);
 
-  const handleFieldChange = (field, value) => {
-    setActivity((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const saveField = async (field, value) => {
-    if (!activity) return;
-    const prevValue = activity[field];
-    const val = value !== undefined ? value : activity[field];
-    setSaving(true);
-    try {
-      await api.put(`/teacher/activities/${activityId}`, { [field]: val });
-      setOriginalActivity((prev) => ({ ...prev, [field]: val }));
-      toast.success('Saved');
-    } catch {
-      if (value !== undefined) {
-        setActivity((prev) => ({ ...prev, [field]: prevValue }));
-      }
-      toast.error('Failed to save');
-    } finally {
-      setSaving(false);
+  const flushSave = useCallback(async () => {
+    if (savingRef.current) {
+      pendingFlushRef.current = true;
+      return;
     }
-  };
+    const dirty = dirtyRef.current;
+    if (Object.keys(dirty).length === 0) return;
+    dirtyRef.current = {};
+    savingRef.current = true;
+    try {
+      await api.put(`/teacher/activities/${activityId}`, dirty);
+      originalRef.current = { ...originalRef.current, ...dirty };
+      toast.success('Saved', { id: 'activity-save' });
+    } catch {
+      dirtyRef.current = { ...dirty, ...dirtyRef.current };
+      toast.error('Failed to save', { id: 'activity-save-error' });
+    } finally {
+      savingRef.current = false;
+      if (pendingFlushRef.current) {
+        pendingFlushRef.current = false;
+        flushSave();
+      }
+    }
+  }, [activityId]);
+
+  const scheduleSave = useCallback(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => { flushSave(); }, 1000);
+  }, [flushSave]);
+
+  const handleFieldChange = useCallback((field, value) => {
+    setActivity((prev) => ({ ...prev, [field]: value }));
+    const original = originalRef.current;
+    if (original && original[field] === value) {
+      if (field in dirtyRef.current) {
+        const next = { ...dirtyRef.current };
+        delete next[field];
+        dirtyRef.current = next;
+      }
+    } else {
+      dirtyRef.current = { ...dirtyRef.current, [field]: value };
+    }
+    scheduleSave();
+  }, [scheduleSave]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      flushSave();
+    };
+  }, [flushSave]);
 
   const handlePublish = async () => {
     setPublishing(true);
     try {
       const res = await api.post(`/teacher/activities/${activityId}/publish`);
       setActivity((prev) => ({ ...prev, is_published: res.data.is_published }));
-      setOriginalActivity((prev) => ({ ...prev, is_published: res.data.is_published }));
       if (res.data.is_published) {
         toast.success('Published!');
       } else {
@@ -484,12 +536,27 @@ export default function ActivityEditor() {
   };
 
   const handleAddQuestion = async (payload) => {
+    const tempId = 'temp-' + Date.now();
+    const tempQuestion = {
+      id: tempId,
+      activity_id: activityId,
+      type: payload.type,
+      question_text: payload.question_text,
+      options: payload.options || [],
+      expected_output: payload.expected_output || '',
+      boilerplate: payload.boilerplate || '',
+      points: payload.points,
+      order_index: (activity?.questions?.length ?? 0) + 1,
+      is_temp: true,
+    };
+    setActivity((prev) => ({ ...prev, questions: [...(prev.questions || []), tempQuestion] }));
     try {
       const res = await api.post(`/teacher/activities/${activityId}/questions`, payload);
-      setActivity((prev) => ({ ...prev, questions: [...(prev.questions || []), res.data] }));
+      setActivity((prev) => ({ ...prev, questions: (prev.questions || []).map((q) => (q.id === tempId ? res.data : q)) }));
       invalidateCache(`get:/teacher/activities/${activityId}`);
       toast.success('Question added');
     } catch {
+      setActivity((prev) => ({ ...prev, questions: (prev.questions || []).filter((q) => q.id !== tempId) }));
       toast.error('Failed to add question');
     }
   };
@@ -542,10 +609,13 @@ export default function ActivityEditor() {
 
   const isQuiz = activity.activity_type === 'quiz';
   const isActivity = activity.activity_type === 'activity';
+  const isLive = activity.is_live;
   const isPastDue = activity.deadline_at && new Date(activity.deadline_at) < new Date();
   const isLocked = activity.is_published && (activity.submissions_count || 0) > 0;
+  const quizSettingsDisabled = isQuiz && (isLive || isLocked);
   const questionsDisabled = isPastDue || isLocked;
   const totalQuestionPoints = (activity.questions || []).reduce((sum, q) => sum + Number(q.points), 0);
+  const perQuestionDurations = { ...PER_QUESTION_DEFAULTS, ...(activity.per_question_durations || {}) };
 
   return (
     <div style={{ maxWidth: '100%', padding: '40px 50px', background: 'var(--bg-primary)', color: 'var(--text-primary)', minHeight: '100vh' }}>
@@ -580,7 +650,7 @@ export default function ActivityEditor() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
             <ActivityTypeBadge type={activity.activity_type} submissionType={activity.submission_type} size="md" />
           </div>
-          <input value={activity.title} onChange={(e) => handleFieldChange('title', e.target.value)} onBlur={() => !(isLocked || isPastDue) && saveField('title')}
+          <input value={activity.title} onChange={(e) => handleFieldChange('title', e.target.value)}
             readOnly={isLocked || isPastDue}
             style={{ fontSize: '28px', fontWeight: 700, color: (isLocked || isPastDue) ? 'var(--text-tertiary)' : 'var(--text-primary)', background: 'transparent', border: 'none', outline: 'none', width: '100%', padding: '4px 0', margin: 0, fontFamily: 'inherit' }} />
         </div>
@@ -603,7 +673,7 @@ export default function ActivityEditor() {
           {/* Instructions */}
           <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
             <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px 0' }}>Instructions</h4>
-            <textarea value={activity.description || ''} onChange={(e) => handleFieldChange('description', e.target.value)} onBlur={() => !(isLocked || isPastDue) && saveField('description')} rows={5} readOnly={isLocked || isPastDue}
+            <textarea value={activity.description || ''} onChange={(e) => handleFieldChange('description', e.target.value)} rows={5} readOnly={isLocked || isPastDue}
               placeholder="Add instructions for students..." style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: (isLocked || isPastDue) ? 'var(--bg-secondary)' : 'var(--bg-primary)', color: (isLocked || isPastDue) ? 'var(--text-tertiary)' : 'var(--text-primary)', fontSize: '13px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
             {!(isLocked || isPastDue) && (
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '10px', border: '1px dashed var(--border-color)', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: '13px', fontWeight: 600, transition: 'all 0.3s' }}>
@@ -629,14 +699,14 @@ export default function ActivityEditor() {
             )}
           </div>
 
-          {activity.submission_type !== 'material' && (
+          {activity.submission_type !== 'material' && !isQuiz && (
           <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
             <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={14} /> Deadline</h4>
-            <DateTimePicker value={activity.deadline_at} onChange={(val) => { handleFieldChange('deadline_at', val); if (activity) api.put(`/teacher/activities/${activityId}`, { deadline_at: val }); }} />
+            <DateTimePicker value={activity.deadline_at} onChange={(val) => handleFieldChange('deadline_at', val)} />
             <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-              <button onClick={() => { handleFieldChange('deadline_behavior', 'hard'); saveField('deadline_behavior', 'hard'); }}
+              <button onClick={() => handleFieldChange('deadline_behavior', 'hard')}
                 style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '12px', border: `1px solid ${activity.deadline_behavior === 'hard' ? '#ef4444' : 'var(--border-color)'}`, background: activity.deadline_behavior === 'hard' ? 'rgba(239, 68, 68, 0.1)' : 'transparent', color: activity.deadline_behavior === 'hard' ? '#ef4444' : 'var(--text-secondary)' }} type="button">Hard Cutoff</button>
-              <button onClick={() => { handleFieldChange('deadline_behavior', 'soft'); saveField('deadline_behavior', 'soft'); }}
+              <button onClick={() => handleFieldChange('deadline_behavior', 'soft')}
                 style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '12px', border: `1px solid ${activity.deadline_behavior === 'soft' ? '#f59e0b' : 'var(--border-color)'}`, background: activity.deadline_behavior === 'soft' ? 'rgba(245, 158, 11, 0.1)' : 'transparent', color: activity.deadline_behavior === 'soft' ? '#f59e0b' : 'var(--text-secondary)' }} type="button">Soft (late OK)</button>
             </div>
           </div>
@@ -661,8 +731,8 @@ export default function ActivityEditor() {
             </div>
           )}
 
-          {/* Grading — depends on submission type */}
-          {activity.submission_type !== 'material' && (
+          {/* Grading — depends on submission type (not for quizzes: derived from question mix) */}
+          {activity.submission_type !== 'material' && !isQuiz && (
             <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
               <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px 0' }}>Grading</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -672,7 +742,7 @@ export default function ActivityEditor() {
                   </div>
                 ) : (
                   ['auto', 'manual'].map((opt) => (
-                    <button key={opt} onClick={() => { handleFieldChange('grading_method', opt); !(isLocked || isPastDue) && saveField('grading_method', opt); }} disabled={isLocked || isPastDue}
+                    <button key={opt} onClick={() => handleFieldChange('grading_method', opt)} disabled={isLocked || isPastDue}
                       style={{ padding: '10px 14px', borderRadius: '10px', cursor: (isLocked || isPastDue) ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '13px', textAlign: 'left', opacity: (isLocked || isPastDue) ? 0.5 : 1, border: `1px solid ${activity.grading_method === opt ? '#a78bfa' : 'var(--border-color)'}`, background: activity.grading_method === opt ? 'rgba(167, 139, 250, 0.1)' : 'transparent', color: activity.grading_method === opt ? '#a78bfa' : 'var(--text-secondary)' }} type="button">
                       {opt === 'manual' ? 'Manual grade' : 'Auto-grade'}
                     </button>
@@ -682,16 +752,105 @@ export default function ActivityEditor() {
             </div>
           )}
 
-          {/* Timer — only for quiz type (locked when past due) */}
+          {/* Quiz settings — pacing, timer mode, shuffle, reveal (quiz only) */}
           {isQuiz && (
             <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
-              <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={14} /> Time Limit</h4>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input type="number" min={0} step={1} value={activity.time_limit_minutes || ''} readOnly={isLocked || isPastDue}
-                  onChange={(e) => handleFieldChange('time_limit_minutes', e.target.value ? Number(e.target.value) : null)} onBlur={() => !(isLocked || isPastDue) && saveField('time_limit_minutes')}
-                  placeholder="No limit"
-                  style={{ width: '100px', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: (isLocked || isPastDue) ? 'var(--bg-secondary)' : 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }} />
-                <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>minutes</span>
+              <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: '6px' }}><Timer size={14} /> Quiz Settings</h4>
+
+              {quizSettingsDisabled && (
+                <div style={{ padding: '10px 12px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', marginBottom: '14px', fontSize: '12px', color: '#f59e0b', fontWeight: 600 }}>
+                  {isLive ? 'This quiz is live. Settings are locked until the room closes.' : 'Settings are locked once students have joined.'}
+                </div>
+              )}
+
+              {/* Pacing */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Pacing</label>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', background: 'rgba(167, 139, 250, 0.15)', color: '#a78bfa', border: '1px solid rgba(167, 139, 250, 0.3)' }}>
+                  <Radio size={14} />
+                  {activity.pacing_mode === 'teacher' ? 'Teacher-paced' : 'Student-paced'}
+                </div>
+              </div>
+
+              {/* Timer mode */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Timer</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {TIMER_MODES.map((m) => (
+                    <button key={m.id} disabled={quizSettingsDisabled}
+                      onClick={() => handleFieldChange('timer_mode', m.id)}
+                      style={{ flex: 1, padding: '10px 12px', borderRadius: '10px', cursor: quizSettingsDisabled ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '12px', textAlign: 'center', opacity: quizSettingsDisabled ? 0.5 : 1, border: `1px solid ${activity.timer_mode === m.id ? '#a78bfa' : 'var(--border-color)'}`, background: activity.timer_mode === m.id ? 'rgba(167, 139, 250, 0.1)' : 'transparent', color: activity.timer_mode === m.id ? '#a78bfa' : 'var(--text-secondary)' }} type="button">
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+
+                {activity.timer_mode === 'entire_quiz' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px' }}>
+                    <input type="number" min={1} max={300} step={1} value={activity.time_limit_minutes || ''} readOnly={quizSettingsDisabled}
+                      onChange={(e) => handleFieldChange('time_limit_minutes', e.target.value ? Number(e.target.value) : null)}
+                      placeholder="Minutes"
+                      style={{ width: '100px', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: quizSettingsDisabled ? 'var(--bg-secondary)' : 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }} />
+                    <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>minutes for the whole quiz</span>
+                  </div>
+                )}
+
+                {activity.timer_mode === 'per_question' && (
+                  <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {QUESTION_TYPES.map((t) => (
+                      <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ flex: 1, fontSize: '13px', color: 'var(--text-secondary)' }}>{t.label}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <input
+                            type="number" min={5} max={900} step={5}
+                            value={perQuestionDurations[t.id] || ''}
+                            readOnly={quizSettingsDisabled}
+                            onChange={(e) => {
+                              const next = { ...perQuestionDurations, [t.id]: e.target.value ? Number(e.target.value) : null };
+                              handleFieldChange('per_question_durations', next);
+                            }}
+                            style={{ width: '72px', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: quizSettingsDisabled ? 'var(--bg-secondary)' : 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', textAlign: 'right' }} />
+                          <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', width: '42px' }}>sec</span>
+                        </div>
+                      </div>
+                    ))}
+                    <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', margin: '6px 0 0 0' }}>Smart defaults per type — adjust any value.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Shuffle */}
+              <div style={{ marginBottom: '16px' }}>
+                <button disabled={quizSettingsDisabled}
+                  onClick={() => handleFieldChange('shuffle_questions', !activity.shuffle_questions)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', borderRadius: '10px', cursor: quizSettingsDisabled ? 'not-allowed' : 'pointer', opacity: quizSettingsDisabled ? 0.5 : 1, border: `1px solid ${activity.shuffle_questions ? '#a78bfa' : 'var(--border-color)'}`, background: activity.shuffle_questions ? 'rgba(167, 139, 250, 0.1)' : 'transparent', textAlign: 'left' }} type="button">
+                  <Shuffle size={16} style={{ color: activity.shuffle_questions ? '#a78bfa' : 'var(--text-tertiary)', flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Randomize question order</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Each student gets a different order, assigned at join</div>
+                  </div>
+                  <div style={{ width: '34px', height: '20px', borderRadius: '999px', background: activity.shuffle_questions ? '#a78bfa' : 'var(--bg-tertiary)', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
+                    <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'white', position: 'absolute', top: '2px', left: activity.shuffle_questions ? '16px' : '2px', transition: 'left 0.2s' }} />
+                  </div>
+                </button>
+              </div>
+
+              {/* Show results */}
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Show results</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {[
+                    { id: 'immediate', label: 'Immediately' },
+                    { id: 'room_close', label: 'When room closes' },
+                  ].map((opt) => (
+                    <button key={opt.id} disabled={quizSettingsDisabled}
+                      onClick={() => handleFieldChange('show_results', opt.id)}
+                      style={{ flex: 1, padding: '10px 12px', borderRadius: '10px', cursor: quizSettingsDisabled ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '12px', textAlign: 'center', opacity: quizSettingsDisabled ? 0.5 : 1, border: `1px solid ${activity.show_results === opt.id ? '#a78bfa' : 'var(--border-color)'}`, background: activity.show_results === opt.id ? 'rgba(167, 139, 250, 0.1)' : 'transparent', color: activity.show_results === opt.id ? '#a78bfa' : 'var(--text-secondary)' }} type="button">
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', margin: '6px 0 0 0' }}>Answers are never revealed mid-quiz.</p>
               </div>
             </div>
           )}
@@ -701,7 +860,7 @@ export default function ActivityEditor() {
             <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
               <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px 0' }}>Max Points</h4>
               <input type="number" min={0} step={0.5} value={activity.max_points ?? ''} disabled={isLocked || isPastDue}
-                onChange={(e) => handleFieldChange('max_points', e.target.value ? Number(e.target.value) : null)} onBlur={() => !(isLocked || isPastDue) && saveField('max_points')}
+                onChange={(e) => handleFieldChange('max_points', e.target.value ? Number(e.target.value) : null)}
                 placeholder="Enter max score"
                 style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: (isLocked || isPastDue) ? 'var(--bg-secondary)' : 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
             </div>

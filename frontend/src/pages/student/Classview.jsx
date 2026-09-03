@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
-import { ChevronRight, Loader2, BookOpen, ClipboardList } from 'lucide-react';
+import { ChevronRight, Loader2, BookOpen, ClipboardList, Radio } from 'lucide-react';
 import { motion } from 'framer-motion';
 import StudentActivityCard from '../../components/student/StudentActivityCard';
 
@@ -47,7 +47,8 @@ export default function ClassView() {
             }
         };
         fetchActivities();
-        return () => { isMounted = false; };
+        const poll = setInterval(fetchActivities, 15000);
+        return () => { isMounted = false; clearInterval(poll); };
     }, [id, activeTab]);
 
     const switchTab = (tab) => {
@@ -175,6 +176,26 @@ export default function ClassView() {
                 <>
                     <h2 style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: 'var(--text-tertiary)', margin: '0 0 32px 0' }}>Class Activities</h2>
 
+                    {activities.some(a => a.is_live) && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            style={{ marginBottom: '24px', padding: '18px 24px', borderRadius: '20px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)', display: 'flex', alignItems: 'center', gap: '14px' }}
+                        >
+                            <span style={{ position: 'relative', display: 'flex', width: '12px', height: '12px', flexShrink: 0 }}>
+                                <span style={{ position: 'absolute', inset: 0, borderRadius: '999px', background: '#ef4444', animation: 'pulse 1.5s infinite' }} />
+                                <span style={{ position: 'absolute', inset: 0, borderRadius: '999px', background: '#ef4444' }} />
+                            </span>
+                            <div style={{ flex: 1 }}>
+                                <p style={{ fontSize: '15px', fontWeight: 800, color: '#ef4444', margin: 0 }}>Quiz in progress</p>
+                                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+                                    {activities.filter(a => a.is_live).map(a => a.title).join(', ')} — click the LIVE badge to join.
+                                </p>
+                            </div>
+                            <Radio size={20} color="#ef4444" style={{ flexShrink: 0 }} />
+                        </motion.div>
+                    )}
+
                     {activitiesLoading ? (
                         <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}>
                             <Loader2 className="animate-spin" size={28} color="var(--text-tertiary)" />
@@ -186,10 +207,27 @@ export default function ClassView() {
                             <p style={{ fontSize: '14px', color: 'var(--text-tertiary)', margin: 0 }}>Your teacher hasn't posted any activities yet.</p>
                         </div>
                     ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '80px' }}>
-                            {activities.map(activity => (
-                                <StudentActivityCard key={activity.id} activity={activity} classId={id} />
-                            ))}
+                        <div style={{ paddingBottom: '80px' }}>
+                            {(() => {
+                                const quizzes = activities.filter(a => a.activity_type === 'quiz');
+                                const others = activities.filter(a => a.activity_type !== 'quiz');
+                                const renderSection = (title, list) => list.length > 0 && (
+                                    <div style={{ marginBottom: '32px' }}>
+                                        <h3 style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: 'var(--text-tertiary)', margin: '0 0 16px 0' }}>{title}</h3>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                            {list.map(activity => (
+                                                <StudentActivityCard key={activity.id} activity={activity} classId={id} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                                return (
+                                    <>
+                                        {renderSection('Quizzes', quizzes)}
+                                        {renderSection('Other Activities', others)}
+                                    </>
+                                );
+                            })()}
                         </div>
                     )}
                 </>

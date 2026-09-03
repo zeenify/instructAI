@@ -3,10 +3,11 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
-use App\Models\ClassActivity;
-use App\Models\ActivitySubmission;
 use App\Models\ActivityAnswer;
+use App\Models\ActivitySubmission;
+use App\Models\ClassActivity;
 use App\Models\Enrollment;
+use App\Support\ActivityGrading;
 use Cloudinary\Api\Upload\UploadApi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -93,7 +94,7 @@ class ClassActivityController extends Controller
     public function show($id)
     {
         $activity = ClassActivity::with([
-            'questions' => fn($q) => $q->orderBy('order_index', 'asc'),
+            'questions' => fn ($q) => $q->orderBy('order_index', 'asc'),
             'class',
         ])->findOrFail($id);
 
@@ -167,41 +168,15 @@ class ClassActivityController extends Controller
 
                 foreach ($activity->questions as $question) {
                     $rawAnswer = $answers[$question->id] ?? null;
-                    if ($rawAnswer === null) continue;
-
-                    $isCorrect = false;
-                    $score = 0;
-
-                    if ($activity->grading_method === 'auto') {
-                        if ($question->type === 'multiple_choice' || $question->type === 'true_false') {
-                            $isCorrect = strtolower(trim((string) $rawAnswer)) === strtolower(trim((string) $question->expected_output));
-                        } elseif (in_array($question->type, ['identification', 'short_answer'])) {
-                            $isCorrect = strtolower(trim((string) $rawAnswer)) === strtolower(trim((string) $question->expected_output));
-                        } elseif ($question->type === 'enumeration') {
-                            $correctItems = array_map(fn($i) => strtolower(trim((string) $i)), $question->options ?? []);
-                            $studentItems = array_map(fn($i) => strtolower(trim((string) $i)), (array) $rawAnswer);
-                            $studentItems = array_values(array_filter($studentItems, fn($i) => $i !== ''));
-
-                            $correctCount = 0;
-                            foreach ($studentItems as $sItem) {
-                                if (in_array($sItem, $correctItems)) {
-                                    $correctCount++;
-                                }
-                            }
-                            $itemPoints = $question->points / max(count($correctItems), 1);
-                            $score = $correctCount * $itemPoints;
-                            $isCorrect = $correctCount === count($correctItems);
-                        }
-
-                        if (! in_array($question->type, ['enumeration'])) {
-                            $score = $isCorrect ? (float) $question->points : 0;
-                        }
+                    if ($rawAnswer === null) {
+                        continue;
                     }
 
-                    if (in_array($question->type, ['essay', 'coding'])) {
-                        $score = 0;
-                        $isCorrect = false;
-                    }
+                    $result = $activity->grading_method === 'auto'
+                        ? ActivityGrading::grade($question, $rawAnswer)
+                        : ['is_correct' => false, 'score' => 0.0];
+                    $isCorrect = $result['is_correct'];
+                    $score = $result['score'];
 
                     ActivityAnswer::updateOrCreate(
                         [
@@ -209,7 +184,7 @@ class ClassActivityController extends Controller
                             'question_id' => $question->id,
                         ],
                         [
-                            'submitted_answer' => is_array($rawAnswer) ? json_encode($rawAnswer) : (string) $rawAnswer,
+                            'submitted_answer' => ActivityGrading::normalizeAnswer($rawAnswer),
                             'is_correct' => $isCorrect,
                             'score' => $score,
                         ]
@@ -219,7 +194,7 @@ class ClassActivityController extends Controller
                 }
 
                 if ($activity->grading_method === 'auto') {
-                    $hasManualTypes = $activity->questions->contains(fn($q) => in_array($q->type, ['essay', 'coding']));
+                    $hasManualTypes = $activity->questions->contains(fn ($q) => in_array($q->type, ['essay', 'coding']));
                     $submission->update([
                         'score' => $totalScore,
                         'status' => $hasManualTypes ? 'submitted' : 'graded',
@@ -236,6 +211,7 @@ class ClassActivityController extends Controller
             }
 
             $submission->load('answers.question');
+
             return response()->json($submission);
         });
     }
@@ -253,7 +229,7 @@ class ClassActivityController extends Controller
             ->where('student_id', auth()->id())
             ->first();
 
-        if (!$submission || $submission->status === 'draft') {
+        if (! $submission || $submission->status === 'draft') {
             return response()->json(['message' => 'No submission to unsubmit'], 422);
         }
 
@@ -360,7 +336,7 @@ class ClassActivityController extends Controller
             ->where('student_id', auth()->id())
             ->firstOrFail();
 
-        $attachments = array_values(array_filter($submission->attachments ?? [], fn($f) => ($f['public_id'] ?? '') !== $publicId));
+        $attachments = array_values(array_filter($submission->attachments ?? [], fn ($f) => ($f['public_id'] ?? '') !== $publicId));
         $submission->update(['attachments' => $attachments]);
 
         return response()->json($attachments);

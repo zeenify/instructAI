@@ -57,6 +57,11 @@ export default function ActivityViewer() {
       setSubmission(res.data.submission);
       setCanSubmit(res.data.can_submit !== false);
 
+      if (res.data.activity.activity_type === 'quiz') {
+        navigate(`/dashboard/student/class/${classId}/quiz/${activityId}`, { replace: true });
+        return;
+      }
+
       if (res.data.submission?.answers) {
         const restored = {};
         res.data.submission.answers.forEach(ans => {
