@@ -4,8 +4,12 @@ import com.instructai.cognify.data.local.dao.CompletedSessionDao
 import com.instructai.cognify.data.local.dao.StudyStatsDao
 import com.instructai.cognify.data.local.entity.CompletedSessionEntity
 import com.instructai.cognify.data.local.entity.StudyStatsEntity
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 import java.time.DayOfWeek
 import java.time.LocalDate
 import javax.inject.Inject
@@ -83,8 +87,18 @@ class StudyStatsRepository @Inject constructor(
         )
     }
 
-    fun observeSessionsCompletedToday(): Flow<Int> =
-        completedSessionDao.observeCountByDate(LocalDate.now().toEpochDay())
+    fun observeSessionsCompletedToday(): Flow<Int> = flow {
+        var lastDay = -1L
+        while (currentCoroutineContext().isActive) {
+            val today = LocalDate.now().toEpochDay()
+            if (today != lastDay) {
+                lastDay = today
+                completedSessionDao.observeCountByDate(today).collect { emit(it) }
+            } else {
+                delay(60_000L)
+            }
+        }
+    }
 
     private fun currentStreak(activeDays: List<Long>): Int {
         if (activeDays.isEmpty()) return 0
