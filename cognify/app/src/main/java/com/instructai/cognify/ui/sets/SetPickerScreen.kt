@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.QuestionAnswer
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material3.AlertDialog
@@ -75,17 +74,14 @@ fun SetPickerScreen(
     }
 
     val icon = when (type) {
-        "cloze" -> Icons.Filled.Lightbulb
         "practice" -> Icons.Filled.QuestionAnswer
         else -> Icons.Filled.Style
     }
     val gradient = when (type) {
-        "cloze" -> Brush.horizontalGradient(listOf(CognifyColors.ElectricViolet, CognifyColors.Gold))
         "practice" -> CognifyGradients.gold
         else -> CognifyGradients.primary
     }
     val title = when (type) {
-        "cloze" -> "Cloze Sets"
         "practice" -> "Practice Sets"
         else -> "Flashcard Sets"
     }

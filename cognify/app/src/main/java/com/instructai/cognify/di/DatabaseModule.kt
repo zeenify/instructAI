@@ -6,7 +6,6 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.instructai.cognify.data.local.CognifyDatabase
 import com.instructai.cognify.data.local.dao.ClassDao
-import com.instructai.cognify.data.local.dao.ClozeDao
 import com.instructai.cognify.data.local.dao.CompletedSessionDao
 import com.instructai.cognify.data.local.dao.CourseDao
 import com.instructai.cognify.data.local.dao.FlashcardDao
@@ -169,6 +168,15 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("DROP TABLE IF EXISTS `cloze_items`")
+            db.execSQL("DROP INDEX IF EXISTS `index_cloze_items_review_id`")
+            db.execSQL("DROP INDEX IF EXISTS `index_cloze_items_review_id_set_id`")
+            db.execSQL("DELETE FROM `review_sets` WHERE `type` = 'cloze'")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): CognifyDatabase {
@@ -177,7 +185,7 @@ object DatabaseModule {
             CognifyDatabase::class.java,
             "cognify_db",
         )
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -187,7 +195,6 @@ object DatabaseModule {
     @Provides fun provideReviewTtsDao(db: CognifyDatabase): ReviewTtsDao = db.reviewTtsDao()
     @Provides fun provideTtsClipDao(db: CognifyDatabase): TtsClipDao = db.ttsClipDao()
     @Provides fun provideFlashcardDao(db: CognifyDatabase): FlashcardDao = db.flashcardDao()
-    @Provides fun provideClozeDao(db: CognifyDatabase): ClozeDao = db.clozeDao()
     @Provides fun providePracticeQuestionDao(db: CognifyDatabase): PracticeQuestionDao = db.practiceQuestionDao()
     @Provides fun provideCompletedSessionDao(db: CognifyDatabase): CompletedSessionDao = db.completedSessionDao()
     @Provides fun provideStudyStatsDao(db: CognifyDatabase): StudyStatsDao = db.studyStatsDao()

@@ -147,7 +147,6 @@ fun CognifyNavGraph(
                     onNavigateToMode = { mode, id ->
                         when (mode) {
                             "flashcards" -> navController.navigate(Routes.setPicker(id, "flashcards", reviewTitle))
-                            "cloze" -> navController.navigate(Routes.setPicker(id, "cloze", reviewTitle))
                             "practice" -> navController.navigate(Routes.setPicker(id, "practice", reviewTitle))
                             "summary" -> navController.navigate(Routes.summary(id))
                         }
@@ -175,7 +174,6 @@ fun CognifyNavGraph(
                     onStartSet = { setId ->
                         when (type) {
                             "flashcards" -> navController.navigate(Routes.flashcardDeck(reviewId, setId))
-                            "cloze" -> navController.navigate(Routes.cloze(reviewId, setId))
                             "practice" -> navController.navigate(Routes.practiceTest(reviewId, setId))
                         }
                     },
@@ -192,22 +190,6 @@ fun CognifyNavGraph(
                 val reviewId = backStackEntry.arguments?.getLong("reviewId") ?: return@composable
                 val setId = backStackEntry.arguments?.getLong("setId")?.takeIf { it > 0L }
                 com.instructai.cognify.ui.flashcards.FlashcardDeckScreen(
-                    reviewId = reviewId,
-                    setId = setId,
-                    onBack = { navController.popBackStack() },
-                )
-            }
-
-            composable(
-                route = Routes.CLOZE,
-                arguments = listOf(
-                    navArgument("reviewId") { type = NavType.LongType },
-                    navArgument("setId") { type = NavType.LongType; defaultValue = -1L },
-                ),
-            ) { backStackEntry ->
-                val reviewId = backStackEntry.arguments?.getLong("reviewId") ?: return@composable
-                val setId = backStackEntry.arguments?.getLong("setId")?.takeIf { it > 0L }
-                com.instructai.cognify.ui.cloze.ClozeScreen(
                     reviewId = reviewId,
                     setId = setId,
                     onBack = { navController.popBackStack() },

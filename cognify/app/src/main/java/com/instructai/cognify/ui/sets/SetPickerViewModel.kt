@@ -83,7 +83,6 @@ class SetPickerViewModel @Inject constructor(
 
             val count = when (type) {
                 "flashcards" -> 10
-                "cloze" -> 5
                 else -> 5
             }
             val items = mutableListOf<Map<String, Any>>()
@@ -119,11 +118,6 @@ class SetPickerViewModel @Inject constructor(
                         "flashcards" -> reviewRepository.generateFlashcards(
                             reviewId,
                             items.map { Pair(it["front"]?.toString() ?: "", it["back"]?.toString() ?: "") },
-                            setId,
-                        )
-                        "cloze" -> reviewRepository.generateClozeItems(
-                            reviewId,
-                            items.map { Triple(it["before"]?.toString() ?: "", it["blank"]?.toString() ?: "", it["after"]?.toString() ?: "") },
                             setId,
                         )
                         "practice" -> reviewRepository.generatePracticeQuestions(

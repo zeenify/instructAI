@@ -1,11 +1,9 @@
 package com.instructai.cognify.data.repository
 
-import com.instructai.cognify.data.local.dao.ClozeDao
 import com.instructai.cognify.data.local.dao.FlashcardDao
 import com.instructai.cognify.data.local.dao.PracticeQuestionDao
 import com.instructai.cognify.data.local.dao.ReviewDao
 import com.instructai.cognify.data.local.dao.ReviewSetDao
-import com.instructai.cognify.data.local.entity.ClozeEntity
 import com.instructai.cognify.data.local.entity.FlashcardEntity
 import com.instructai.cognify.data.local.entity.FlashcardReviewEntity
 import com.instructai.cognify.data.local.entity.PracticeQuestionEntity
@@ -24,7 +22,6 @@ class ReviewRepository @Inject constructor(
     private val reviewDao: ReviewDao,
     private val reviewSetDao: ReviewSetDao,
     private val flashcardDao: FlashcardDao,
-    private val clozeDao: ClozeDao,
     private val practiceQuestionDao: PracticeQuestionDao,
     private val logger: AppLogger,
 ) {
@@ -107,30 +104,6 @@ class ReviewRepository @Inject constructor(
         }
     }
 
-    suspend fun generateClozeItems(
-        reviewId: Long,
-        items: List<Triple<String, String, String>>,
-        setId: Long? = null,
-    ) {
-        try {
-            if (setId == null) clozeDao.deleteByReview(reviewId)
-            else clozeDao.deleteByReviewAndSet(reviewId, setId)
-            val entities = items.mapIndexed { index, (before, answer, after) ->
-                ClozeEntity(
-                    reviewId = reviewId,
-                    setId = setId,
-                    sentenceBefore = before,
-                    blankAnswer = answer,
-                    sentenceAfter = after,
-                    orderIndex = index,
-                )
-            }
-            clozeDao.insertAll(entities)
-        } catch (e: Exception) {
-            logger.log("ReviewRepository", "generateClozeItems failed for review $reviewId", e)
-        }
-    }
-
     suspend fun generatePracticeQuestions(
         reviewId: Long,
         questions: List<PracticeQuestionEntity>,
@@ -163,7 +136,6 @@ class ReviewRepository @Inject constructor(
         try {
             when (type) {
                 "flashcards" -> flashcardDao.deleteByReviewAndSet(reviewId, setId)
-                "cloze" -> clozeDao.deleteByReviewAndSet(reviewId, setId)
                 "practice" -> practiceQuestionDao.deleteByReviewAndSet(reviewId, setId)
             }
             reviewSetDao.deleteById(setId)
@@ -199,10 +171,6 @@ class ReviewRepository @Inject constructor(
     suspend fun getFlashcardReview(flashcardId: Long): FlashcardReviewEntity? =
         flashcardDao.getReviewByFlashcardId(flashcardId)
 
-    fun getClozeItems(reviewId: Long, setId: Long? = null): Flow<List<ClozeEntity>> =
-        if (setId == null) clozeDao.getClozeByReview(reviewId)
-        else clozeDao.getClozeByReviewAndSet(reviewId, setId)
-
     fun getPracticeQuestions(reviewId: Long, setId: Long? = null): Flow<List<PracticeQuestionEntity>> =
         if (setId == null) practiceQuestionDao.getQuestionsByReview(reviewId)
         else practiceQuestionDao.getQuestionsByReviewAndSet(reviewId, setId)
@@ -214,7 +182,6 @@ class ReviewRepository @Inject constructor(
     suspend fun getItemCount(reviewId: Long, type: String, setId: Long? = null): Int =
         when (type) {
             "flashcards" -> flashcardDao.getCountByReviewAndSet(reviewId, setId)
-            "cloze" -> clozeDao.getCountByReviewAndSet(reviewId, setId)
             "practice" -> practiceQuestionDao.getCountByReviewAndSet(reviewId, setId)
             else -> 0
         }

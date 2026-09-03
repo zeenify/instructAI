@@ -268,7 +268,6 @@ private fun ProgressTypeSkeleton() {
 
 private fun formatTypeName(type: String): String = when (type) {
     "flashcards" -> "Flashcards"
-    "cloze" -> "Cloze Test"
     "practice" -> "Practice Questions"
     "summary" -> "Summary Notes"
     else -> type.replaceFirstChar { it.uppercase() }

@@ -18,7 +18,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.QuestionAnswer
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material3.Card
@@ -102,15 +101,6 @@ fun ReviewDetailScreen(
                     icon = Icons.Filled.Style,
                     gradient = CognifyGradients.primary,
                     route = "flashcards",
-                ),
-                StudyModeItem(
-                    title = "Cloze Test",
-                    description = "Fill in the blanks to test recall of key terms",
-                    icon = Icons.Filled.Lightbulb,
-                    gradient = Brush.horizontalGradient(
-                        listOf(CognifyColors.ElectricViolet, CognifyColors.Gold),
-                    ),
-                    route = "cloze",
                 ),
                 StudyModeItem(
                     title = "Practice Test",

@@ -68,8 +68,6 @@ data class ReviewCreationState(
     val photos: List<PhotoItem> = emptyList(),
     val flashcardEnabled: Boolean = true,
     val flashcardCount: Int = 10,
-    val clozeEnabled: Boolean = true,
-    val clozeCount: Int = 5,
     val practiceEnabled: Boolean = true,
     val practiceCount: Int = 5,
     val summaryEnabled: Boolean = true,
@@ -89,7 +87,6 @@ data class GenProgressItem(
 
 data class ReviewerResultState(
     val flashcards: List<Map<String, String>> = emptyList(),
-    val clozeItems: List<Map<String, String>> = emptyList(),
     val practiceQuestions: List<Map<String, Any>> = emptyList(),
     val summarySections: List<Map<String, Any>> = emptyList(),
 )
@@ -306,11 +303,9 @@ class CreateReviewViewModel @Inject constructor(
     }
 
     fun toggleFlashcard() { _state.update { it.copy(flashcardEnabled = !it.flashcardEnabled) } }
-    fun toggleCloze() { _state.update { it.copy(clozeEnabled = !it.clozeEnabled) } }
     fun togglePractice() { _state.update { it.copy(practiceEnabled = !it.practiceEnabled) } }
     fun toggleSummary() { _state.update { it.copy(summaryEnabled = !it.summaryEnabled) } }
     fun setFlashcardCount(c: Int) { _state.update { it.copy(flashcardCount = c) } }
-    fun setClozeCount(c: Int) { _state.update { it.copy(clozeCount = c) } }
     fun setPracticeCount(c: Int) { _state.update { it.copy(practiceCount = c) } }
 
     fun generate() {
@@ -431,14 +426,6 @@ class CreateReviewViewModel @Inject constructor(
                 result.flashcards.map { Pair(it["front"] ?: "", it["back"] ?: "") },
             )
         }
-        if (result.clozeItems.isNotEmpty()) {
-            reviewRepository.generateClozeItems(
-                reviewId,
-                result.clozeItems.map {
-                    Triple(it["before"] ?: "", it["blank"] ?: "", it["after"] ?: "")
-                },
-            )
-        }
         if (result.practiceQuestions.isNotEmpty()) {
             reviewRepository.generatePracticeQuestions(
                 reviewId,
@@ -535,7 +522,6 @@ class CreateReviewViewModel @Inject constructor(
     private fun buildReviewerTypes(state: ReviewCreationState): List<String> {
         return buildList {
             if (state.flashcardEnabled) add("flashcards")
-            if (state.clozeEnabled) add("cloze")
             if (state.practiceEnabled) add("practice")
             if (state.summaryEnabled) add("summary")
         }
@@ -544,7 +530,6 @@ class CreateReviewViewModel @Inject constructor(
     private fun buildCounts(state: ReviewCreationState): Map<String, Int> {
         return mapOf(
             "flashcards" to state.flashcardCount,
-            "cloze" to state.clozeCount,
             "practice" to state.practiceCount,
         )
     }
@@ -561,18 +546,6 @@ class CreateReviewViewModel @Inject constructor(
                     mapOf("front" to (it["front"]?.toString() ?: ""), "back" to (it["back"]?.toString() ?: ""))
                 }
                 current.copy(flashcards = current.flashcards + items)
-            }
-            "cloze" -> {
-                val items = event.items.mapNotNull {
-                    it as? Map<*, *>
-                }.map {
-                    mapOf(
-                        "before" to (it["before"]?.toString() ?: ""),
-                        "blank" to (it["blank"]?.toString() ?: ""),
-                        "after" to (it["after"]?.toString() ?: ""),
-                    )
-                }
-                current.copy(clozeItems = current.clozeItems + items)
             }
             "practice" -> {
                 val items = event.items.mapNotNull {

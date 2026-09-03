@@ -37,7 +37,6 @@ data class ReviewerItem(
 
 data class ReviewerResult(
     val flashcards: List<Map<String, String>> = emptyList(),
-    val clozeItems: List<Map<String, String>> = emptyList(),
     val practiceQuestions: List<Map<String, Any>> = emptyList(),
     val summarySections: List<Map<String, Any>> = emptyList(),
 )
@@ -529,7 +528,6 @@ class ReviewerRepository @Inject constructor(
 
     private fun getPromptTemplate(rtype: String): String = when (rtype) {
         "flashcards" -> FLASHCARD_PROMPT
-        "cloze" -> CLOZE_PROMPT
         "practice" -> PRACTICE_PROMPT
         "summary" -> SUMMARY_PROMPT
         else -> FLASHCARD_PROMPT
@@ -537,7 +535,6 @@ class ReviewerRepository @Inject constructor(
 
     private fun getDefaultCount(rtype: String): Int = when (rtype) {
         "flashcards" -> 10
-        "cloze" -> 5
         "practice" -> 5
         else -> 1
     }
@@ -550,14 +547,6 @@ class ReviewerRepository @Inject constructor(
             reviewRepository.generateFlashcards(
                 reviewId,
                 result.flashcards.map { Pair(it["front"] ?: "", it["back"] ?: "") },
-            )
-        }
-        if (result.clozeItems.isNotEmpty()) {
-            reviewRepository.generateClozeItems(
-                reviewId,
-                result.clozeItems.map {
-                    Triple(it["before"] ?: "", it["blank"] ?: "", it["after"] ?: "")
-                },
             )
         }
         if (result.practiceQuestions.isNotEmpty()) {
@@ -654,28 +643,6 @@ Lesson content:
 
 Generate exactly {count} flashcards. Return ONLY a valid JSON array:
 [{"front": "Question text here?", "back": "Short answer here."}]"""
-
-        private const val CLOZE_PROMPT = """You are a world-class study material creator. Generate fill-in-the-blank exercises from the given lesson content.
-
-NOISE NOTICE: The content may contain extraction noise — headers, footers, page numbers, presenter/author names, dates, IDs, signature lines, template/slide-deck text, and OCR typos. IGNORE all non-study content and base cloze items ONLY on the actual educational material.
-
-RULES:
-- Identify KEY TERMS and IMPORTANT CONCEPTS
-- Each blank should be a single important word or short phrase (1-3 words)
-- The surrounding text must provide enough context to infer the answer
-- Vary the position of the blank
-
-DIFFICULTY: {difficulty}
-- easy: blanks on the most prominent terms only
-- medium: mix of prominent terms and supporting concepts
-- hard: blanks on less obvious terms requiring deeper context
-
-Lesson title: {title}
-Lesson content:
-{content}
-
-Generate exactly {count} cloze items. Return ONLY a valid JSON array:
-[{"before": "Text before blank...", "blank": "correctAnswer", "after": "...text after blank."}]"""
 
         private const val PRACTICE_PROMPT = """You are a world-class assessment creator. Generate practice questions from the given lesson content.
 

@@ -12,6 +12,5 @@ data class Review(
     val updatedAt: Long = System.currentTimeMillis(),
     val synced: Boolean = false,
     val flashcardCount: Int = 0,
-    val clozeCount: Int = 0,
     val questionCount: Int = 0,
 )

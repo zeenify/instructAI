@@ -265,13 +265,6 @@ private fun CreationForm(state: ReviewCreationState, viewModel: CreateReviewView
         )
         Spacer(Modifier.height(6.dp))
         ReviewTypeToggle(
-            icon = Icons.Filled.Edit, label = "Cloze Test", desc = "Fill-in-the-blank exercises",
-            color = Color(0xFF00BCD4), enabled = state.clozeEnabled, count = state.clozeCount,
-            onToggle = { viewModel.toggleCloze() },
-            onCountChange = { viewModel.setClozeCount(it) },
-        )
-        Spacer(Modifier.height(6.dp))
-        ReviewTypeToggle(
             icon = Icons.Filled.CheckCircle, label = "Practice Questions", desc = "MCQs, true/false, short answer",
             color = Color(0xFFFF9800), enabled = state.practiceEnabled, count = state.practiceCount,
             onToggle = { viewModel.togglePractice() },
@@ -779,7 +772,6 @@ private fun ReviewTypeToggle(
 fun ReviewerPreviewContent(result: ReviewerResultState, modifier: Modifier = Modifier) {
     val tabs = listOfNotNull(
         PreviewTab("flashcards", "Flashcards", result.flashcards.size).takeIf { result.flashcards.isNotEmpty() },
-        PreviewTab("cloze", "Cloze", result.clozeItems.size).takeIf { result.clozeItems.isNotEmpty() },
         PreviewTab("practice", "Practice", result.practiceQuestions.size).takeIf { result.practiceQuestions.isNotEmpty() },
         PreviewTab("summary", "Summary", result.summarySections.size).takeIf { result.summarySections.isNotEmpty() },
     )
@@ -802,7 +794,6 @@ fun ReviewerPreviewContent(result: ReviewerResultState, modifier: Modifier = Mod
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 when (tabs.getOrNull(safeIndex)?.id) {
                     "flashcards" -> FlashcardList(result.flashcards)
-                    "cloze" -> ClozeList(result.clozeItems)
                     "practice" -> PracticeList(result.practiceQuestions)
                     "summary" -> SummaryList(result.summarySections)
                 }
@@ -841,31 +832,6 @@ private fun FlashcardList(flashcards: List<Map<String, String>>) {
                         Spacer(Modifier.height(8.dp))
                         Text(back, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ClozeList(items: List<Map<String, String>>) {
-    Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        items.forEachIndexed { i, it ->
-            val before = it["before"] ?: ""
-            val blank = it["blank"] ?: ""
-            val after = it["after"] ?: ""
-            var show by remember { mutableStateOf(false) }
-            Card(Modifier.fillMaxWidth().clickable { show = !show },
-                colors = CardDefaults.cardColors(containerColor = if (show) Color(0xFF00BCD4).copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                shape = RoundedCornerShape(10.dp)) {
-                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(26.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFF00BCD4).copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center) {
-                        Text("${i + 1}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, color = Color(0xFF00BCD4))
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    val blankDisplay = if (show) "[$blank]" else "[...]"
-                    Text("$before $blankDisplay $after", style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
