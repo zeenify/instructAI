@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.instructai.cognify.BuildConfig
+import com.instructai.cognify.data.local.ai.ModelRegistry
 import com.instructai.cognify.data.repository.ApiMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -18,6 +19,7 @@ private val API_MODE_KEY = stringPreferencesKey("api_mode")
 private val DIRECT_KEY_KEY = stringPreferencesKey("direct_api_key")
 private val SERVER_URL_KEY = stringPreferencesKey("resolved_server_url")
 private val MANUAL_SERVER_URL_KEY = stringPreferencesKey("manual_server_url")
+private val LOCAL_MODEL_ID_KEY = stringPreferencesKey("local_model_id")
 
 @Singleton
 class TokenManager @Inject constructor(
@@ -50,6 +52,7 @@ class TokenManager @Inject constructor(
     val apiMode: Flow<ApiMode> = dataStore.data.map { prefs ->
         when (prefs[API_MODE_KEY]) {
             "gemini" -> ApiMode.GEMINI
+            "local" -> ApiMode.LOCAL
             else -> ApiMode.BACKEND
         }
     }
@@ -64,6 +67,16 @@ class TokenManager @Inject constructor(
 
     val manualServerUrlFlow: Flow<String?> = dataStore.data.map { prefs ->
         prefs[MANUAL_SERVER_URL_KEY]
+    }
+
+    val localModelId: Flow<String> = dataStore.data.map { prefs ->
+        prefs[LOCAL_MODEL_ID_KEY] ?: ModelRegistry.DEFAULT.id
+    }
+
+    suspend fun setLocalModelId(id: String) {
+        dataStore.edit { prefs ->
+            prefs[LOCAL_MODEL_ID_KEY] = id
+        }
     }
 
     suspend fun saveToken(newToken: String) {
@@ -90,6 +103,7 @@ class TokenManager @Inject constructor(
         dataStore.edit { prefs ->
             prefs[API_MODE_KEY] = when (mode) {
                 ApiMode.GEMINI -> "gemini"
+                ApiMode.LOCAL -> "local"
                 ApiMode.BACKEND -> "backend"
             }
         }

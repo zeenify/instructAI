@@ -13,3 +13,8 @@
 # Room
 -keep class * extends androidx.room.RoomDatabase
 -keep @androidx.room.Entity class *
+
+# MediaPipe on-device LLM (Local AI) — native bridge classes must not be stripped
+-keep class com.google.mediapipe.** { *; }
+-keep class com.google.protobuf.** { *; }
+-dontwarn com.google.mediapipe.**

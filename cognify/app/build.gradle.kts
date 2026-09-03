@@ -111,6 +111,9 @@ dependencies {
     // ML Kit text recognition
     implementation(libs.mlkit.text.recognition)
 
+    // On-device LLM (Local AI mode)
+    implementation(libs.mediapipe.genai)
+
     // Core
     implementation(libs.core.ktx)
 }

@@ -10,6 +10,7 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.instructai.cognify.data.logging.AppLogger
+import com.instructai.cognify.data.local.ai.LocalAiEngine
 import com.instructai.cognify.data.remote.ApiService
 import com.instructai.cognify.data.remote.TokenManager
 import com.instructai.cognify.data.remote.ai.GeminiApi
@@ -55,7 +56,7 @@ sealed class ReviewerEvent {
     data object Complete : ReviewerEvent()
 }
 
-enum class ApiMode { BACKEND, GEMINI }
+enum class ApiMode { BACKEND, GEMINI, LOCAL }
 
 @Singleton
 class ReviewerRepository @Inject constructor(
@@ -63,6 +64,7 @@ class ReviewerRepository @Inject constructor(
     private val geminiApi: GeminiApi,
     private val tokenManager: TokenManager,
     private val reviewRepository: ReviewRepository,
+    private val localAiEngine: LocalAiEngine,
     private val logger: AppLogger,
     @ApplicationContext private val context: Context,
 ) {
@@ -258,9 +260,15 @@ class ReviewerRepository @Inject constructor(
         personaHint: String,
     ): Result<List<String>> = withContext(Dispatchers.IO) {
         try {
-            val mode = tokenManager.apiMode.first()
-            val paragraphs = when (mode) {
+            // Voice Lab scripts stay cloud-based even in LOCAL mode (local
+            // models aren't used for TTS); prefer the BYOK key, else server.
+            val paragraphs = when (tokenManager.apiMode.first()) {
                 ApiMode.GEMINI -> transformViaGeminiDirect(sections, characterName, personaHint)
+                ApiMode.LOCAL -> {
+                    val apiKey = tokenManager.directApiKey.first()
+                    if (apiKey.isBlank()) transformViaBackend(sections, characterName, personaHint)
+                    else transformViaGeminiDirect(sections, characterName, personaHint)
+                }
                 ApiMode.BACKEND -> transformViaBackend(sections, characterName, personaHint)
             }
             Result.success(paragraphs)
@@ -366,6 +374,9 @@ class ReviewerRepository @Inject constructor(
                 lessonContent, lessonTitle, reviewerTypes, counts, difficulty
             )
             ApiMode.BACKEND -> generateViaBackend(
+                lessonContent, lessonTitle, reviewerTypes, counts, difficulty
+            )
+            ApiMode.LOCAL -> generateViaLocal(
                 lessonContent, lessonTitle, reviewerTypes, counts, difficulty
             )
         }
@@ -521,6 +532,80 @@ class ReviewerRepository @Inject constructor(
             completed.add(rtype)
             emit(ReviewerEvent.Chunk(rtype, items, completed.size, total))
             kotlinx.coroutines.delay(600)
+        }
+
+        emit(ReviewerEvent.Complete)
+    }
+
+    /** Local models have a much smaller context budget than cloud Gemini. */
+    private val MAX_LOCAL_CONTENT_CHARS = 16_000
+
+    private val LOCAL_SYSTEM_INSTRUCTION = """You are a world-class study material creator. Return ONLY valid JSON. No markdown, no code fences, no explanations.
+
+NOISE NOTICE: The lesson content may have been extracted from documents, slides, or OCR and can contain noise — page headers/footers, page numbers, presenter or author names, dates, IDs/registration numbers, signature lines, template/slide-deck text (e.g. 'Thank you', 'Course outline', institution names), and OCR typos. IGNORE all such non-study content. Base your materials ONLY on actual educational content. Correct minor OCR typos using context; skip fragments that are unreadable or clearly administrative/metadata."""
+
+    private fun generateViaLocal(
+        lessonContent: String,
+        lessonTitle: String,
+        reviewerTypes: List<String>,
+        counts: Map<String, Int>,
+        difficulty: String,
+    ): Flow<ReviewerEvent> = flow {
+        // Auto power-on: if LOCAL is selected but the engine is off, this
+        // generation is the trigger (download/load progress surfaces via
+        // engine state while the UI shows "generating").
+        val started = localAiEngine.ensureStarted()
+        if (started.isFailure) {
+            val msg = started.exceptionOrNull()?.message ?: "Local AI failed to start"
+            logger.log("ReviewerRepository", "[local] power-on failed: $msg")
+            emit(ReviewerEvent.Error("local", msg))
+            emit(ReviewerEvent.Complete)
+            return@flow
+        }
+
+        val model = localAiEngine.currentModel
+        val trimmedContent = lessonContent.take(MAX_LOCAL_CONTENT_CHARS)
+        logger.log("ReviewerRepository", "Starting local generation | model=${model.id} | title=$lessonTitle | content=${trimmedContent.length} chars | types=$reviewerTypes")
+
+        val completed = mutableListOf<String>()
+        val total = reviewerTypes.size
+
+        typeLoop@ for (rtype in reviewerTypes) {
+            emit(ReviewerEvent.Progress(rtype, "generating"))
+
+            val promptTemplate = getPromptTemplate(rtype)
+            val count = counts[rtype] ?: getDefaultCount(rtype)
+            val prompt = LOCAL_SYSTEM_INSTRUCTION + "\n\n" + promptTemplate
+                .replace("{title}", lessonTitle)
+                .replace("{content}", trimmedContent)
+                .replace("{count}", count.toString())
+                .replace("{difficulty}", difficulty)
+
+            // First attempt, then one retry with a stricter format reminder —
+            // small models are more prone to breaking JSON than cloud Gemini.
+            var items: List<Map<String, Any>> = emptyList()
+            var lastError: String? = null
+            for (attempt in 1..2) {
+                val result = localAiEngine.generate(prompt)
+                val content = result.getOrNull()
+                if (content == null) {
+                    lastError = result.exceptionOrNull()?.message ?: "Generation failed"
+                    logger.log("ReviewerRepository", "[$rtype] local attempt $attempt failed: $lastError")
+                    continue
+                }
+                items = parseGroqResponseToMaps(content, rtype)
+                if (items.isNotEmpty()) break
+                lastError = "Failed to parse model JSON output"
+                logger.log("ReviewerRepository", "[$rtype] local attempt $attempt unparsable | raw=${content.take(300)}")
+            }
+
+            if (items.isEmpty()) {
+                emit(ReviewerEvent.Error(rtype, lastError ?: "Generation failed"))
+                continue@typeLoop
+            }
+
+            completed.add(rtype)
+            emit(ReviewerEvent.Chunk(rtype, items, completed.size, total))
         }
 
         emit(ReviewerEvent.Complete)
