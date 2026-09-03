@@ -2,24 +2,46 @@ import psycopg2
 from psycopg2 import pool
 from pgvector.psycopg2 import register_vector
 import os
+import time
+
+MAX_CONNECT_RETRIES = 5
+CONNECT_RETRY_DELAY = 3
 
 class RetrievalService:
     def __init__(self):
-        self.conn_pool = pool.SimpleConnectionPool(1, 5, os.getenv('DATABASE_URL'))
+        self.conn_pool = None
+
+    def _get_pool(self):
+        if self.conn_pool is None or self.conn_pool.closed:
+            self.conn_pool = pool.SimpleConnectionPool(1, 5, os.getenv('DATABASE_URL'))
+        return self.conn_pool
 
     def get_connection(self):
-        """Get a connection from the pool, with automatic reconnection"""
-        try:
-            conn = self.conn_pool.getconn()
-            # Test connection is still alive
-            conn.isolation_level
-            register_vector(conn)
-            return conn, True
-        except (psycopg2.OperationalError, pool.PoolError):
-            # Reconnect if connection is dead
-            conn = psycopg2.connect(os.getenv('DATABASE_URL'))
-            register_vector(conn)
-            return conn, False
+        """Get a connection from the pool, with automatic reconnection and retry"""
+        last_error = None
+        for attempt in range(MAX_CONNECT_RETRIES):
+            try:
+                if self.conn_pool is None or self.conn_pool.closed:
+                    self._get_pool()
+                conn = self.conn_pool.getconn()
+                # Test connection is still alive
+                conn.isolation_level
+                register_vector(conn)
+                return conn, True
+            except (psycopg2.OperationalError, pool.PoolError) as e:
+                last_error = e
+                # Reconnect if connection is dead
+                self.conn_pool = None
+                try:
+                    conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+                    register_vector(conn)
+                    return conn, False
+                except psycopg2.OperationalError as e2:
+                    last_error = e2
+                    if attempt < MAX_CONNECT_RETRIES - 1:
+                        print(f"[RETRIEVAL] DB connection attempt {attempt + 1} failed, retrying in {CONNECT_RETRY_DELAY}s: {e2}")
+                        time.sleep(CONNECT_RETRY_DELAY)
+        raise psycopg2.OperationalError(f"DB unreachable after {MAX_CONNECT_RETRIES} attempts: {last_error}")
 
     def search(self, course_id: int, query_embedding: list, top_k: int = 5, lesson_id: int = None) -> list:
         """Semantic search in course materials"""
