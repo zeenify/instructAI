@@ -51,6 +51,14 @@ android {
 }
 
 dependencies {
+    // litertlm-android 0.17.0 transitively pulls coroutines 1.11.0 (Kotlin 2.2
+    // metadata, unreadable by our Kotlin 2.0.21 compiler). The coroutine APIs
+    // it uses are stable, so hold the whole family at our pinned version.
+    constraints {
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    }
+
     // Compose
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
@@ -113,6 +121,7 @@ dependencies {
 
     // On-device LLM (Local AI mode)
     implementation(libs.mediapipe.genai)
+    implementation(libs.litertlm.android)
 
     // Core
     implementation(libs.core.ktx)

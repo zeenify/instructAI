@@ -1,6 +1,13 @@
 package com.instructai.cognify.data.local.ai
 
 import android.content.Context
+import com.google.ai.edge.litertlm.Backend
+import com.google.ai.edge.litertlm.Content
+import com.google.ai.edge.litertlm.Contents
+import com.google.ai.edge.litertlm.ConversationConfig
+import com.google.ai.edge.litertlm.Engine
+import com.google.ai.edge.litertlm.EngineConfig
+import com.google.ai.edge.litertlm.SamplerConfig
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
 import com.instructai.cognify.data.logging.AppLogger
@@ -71,6 +78,11 @@ class LocalAiEngine @Inject constructor(
         get() = selectedModelRef.get()
 
     private val inferenceRef = AtomicReference<LlmInference?>(null)
+    private val litertEngineRef = AtomicReference<Engine?>(null)
+
+    /** The spec whose engine is currently loaded — null when off. */
+    @Volatile
+    private var loadedSpec: ModelSpec? = null
 
     /** Serializes power-on attempts and prompt execution. */
     private val loadMutex = Mutex()
@@ -162,24 +174,42 @@ class LocalAiEngine @Inject constructor(
             }
 
             _state.value = LocalAiState.Loading(spec.id)
-            logger.log("LocalAiEngine", "Loading model ${spec.id} into RAM")
+            logger.log("LocalAiEngine", "Loading model ${spec.id} (${spec.runtime}) into RAM")
 
-            val loaded = withContext(Dispatchers.IO) {
-                runCatching {
-                    LlmInference.createFromOptions(
-                        context,
-                        LlmInference.LlmInferenceOptions.builder()
-                            .setModelPath(downloadManager.modelFile(spec).absolutePath)
-                            .setMaxTokens(spec.maxTokens)
-                            .build(),
-                    )
+            val loadResult = withContext(Dispatchers.IO) {
+                when (spec.runtime) {
+                    ModelSpec.Runtime.MEDIAPIPE_TASK -> runCatching {
+                        val inference = LlmInference.createFromOptions(
+                            context,
+                            LlmInference.LlmInferenceOptions.builder()
+                                .setModelPath(downloadManager.modelFile(spec).absolutePath)
+                                .setMaxTokens(spec.maxTokens)
+                                .build(),
+                        )
+                        inferenceRef.getAndSet(null)?.close()
+                        inferenceRef.set(inference)
+                    }
+                    ModelSpec.Runtime.LITERT_LM -> runCatching {
+                        val engine = Engine(
+                            EngineConfig(
+                                modelPath = downloadManager.modelFile(spec).absolutePath,
+                                backend = Backend.CPU(),
+                                visionBackend = null,
+                                audioBackend = null,
+                                maxNumTokens = spec.maxTokens,
+                                cacheDir = null,
+                            )
+                        )
+                        engine.initialize()
+                        litertEngineRef.getAndSet(null)?.close()
+                        litertEngineRef.set(engine)
+                    }
                 }
             }
 
-            loaded.fold(
-                onSuccess = { inference ->
-                    inferenceRef.getAndSet(null)?.close()
-                    inferenceRef.set(inference)
+            loadResult.fold(
+                onSuccess = {
+                    loadedSpec = spec
                     _state.value = LocalAiState.On(spec.id, spec.displayName)
                     markActivity()
                     scheduleIdleWatchdog()
@@ -213,8 +243,8 @@ class LocalAiEngine @Inject constructor(
             .take(160)
 
     /**
-     * Power OFF / universal cancel: unloads the model (freeing all RAM) and
-     * cancels any in-flight download or load. Immediate.
+     * Power OFF / universal cancel: unloads whichever runtime engine is
+     * loaded (freeing all RAM) and cancels any in-flight download or load.
      */
     suspend fun stop() {
         powerOnJob?.cancel()
@@ -226,34 +256,31 @@ class LocalAiEngine @Inject constructor(
             runCatching { withContext(Dispatchers.IO) { inference.close() } }
                 .onFailure { logger.log("LocalAiEngine", "close() failed: ${it.message}") }
         }
+        val litertEngine = litertEngineRef.getAndSet(null)
+        if (litertEngine != null) {
+            runCatching { withContext(Dispatchers.IO) { litertEngine.close() } }
+                .onFailure { logger.log("LocalAiEngine", "litert close() failed: ${it.message}") }
+        }
+        loadedSpec = null
         _state.value = LocalAiState.Off
         logger.log("LocalAiEngine", "Engine OFF — RAM freed")
     }
 
     /**
-     * Run one prompt through the loaded model. On-device generation is
-     * one-prompt-at-a-time (MediaPipe engine is not thread-safe), so this
-     * serializes concurrent callers. Sampling runs at temperature 0.7 —
-     * tiny models go lazy/short under greedy decoding.
+     * Run one prompt through the loaded model, dispatching on whichever
+     * runtime is powered. Serializes concurrent callers (both engines are
+     * single-prompt-at-a-time). Sampling at temperature 0.7 — tiny models
+     * go lazy/short under greedy decoding.
      */
     suspend fun generate(prompt: String): Result<String> = generateMutex.withLock {
-        val inference = inferenceRef.get()
+        val spec = loadedSpec
             ?: return@withLock Result.failure(IllegalStateException("Local AI is off"))
 
         markActivity()
         val output = withContext(Dispatchers.IO) {
-            runCatching {
-                LlmInferenceSession.createFromOptions(
-                    inference,
-                    LlmInferenceSession.LlmInferenceSessionOptions.builder()
-                        .setTemperature(0.7f)
-                        .setTopK(40)
-                        .build(),
-                ).use { session ->
-                    runCatching { logger.log("LocalAiEngine", "Prompt tokens: ${session.sizeInTokens(prompt)}") }
-                    session.addQueryChunk(prompt)
-                    session.generateResponse()
-                }
+            when (spec.runtime) {
+                ModelSpec.Runtime.MEDIAPIPE_TASK -> generateMediaPipe(prompt)
+                ModelSpec.Runtime.LITERT_LM -> generateLiteRt(prompt)
             }
         }
         markActivity()
@@ -264,8 +291,41 @@ class LocalAiEngine @Inject constructor(
         output
     }
 
+    private fun generateMediaPipe(prompt: String): Result<String> {
+        val inference = inferenceRef.get()
+            ?: return Result.failure(IllegalStateException("Local AI is off"))
+        return runCatching {
+            LlmInferenceSession.createFromOptions(
+                inference,
+                LlmInferenceSession.LlmInferenceSessionOptions.builder()
+                    .setTemperature(0.7f)
+                    .setTopK(40)
+                    .build(),
+            ).use { session ->
+                runCatching { logger.log("LocalAiEngine", "Prompt tokens: ${session.sizeInTokens(prompt)}") }
+                session.addQueryChunk(prompt)
+                session.generateResponse()
+            }
+        }
+    }
+
+    private fun generateLiteRt(prompt: String): Result<String> {
+        val engine = litertEngineRef.get()
+            ?: return Result.failure(IllegalStateException("Local AI is off"))
+        return runCatching {
+            engine.createConversation(
+                ConversationConfig(
+                    samplerConfig = SamplerConfig(topK = 40, topP = 0.95, temperature = 0.7),
+                ),
+            ).use { conversation ->
+                val reply = conversation.sendMessage(Contents.of(listOf(Content.Text(prompt))))
+                reply.toString()
+            }
+        }
+    }
+
     /** True when the engine is loaded and prompts can run right now. */
-    fun isOn(): Boolean = _state.value is LocalAiState.On
+    fun isOn(): Boolean = loadedSpec != null
 
     private fun markActivity() {
         lastActivityMs = System.currentTimeMillis()
@@ -289,6 +349,8 @@ class LocalAiEngine @Inject constructor(
     fun shutdown() {
         val inference = inferenceRef.getAndSet(null)
         runCatching { inference?.close() }
+        val litertEngine = litertEngineRef.getAndSet(null)
+        runCatching { litertEngine?.close() }
         scope.cancel()
     }
 }
