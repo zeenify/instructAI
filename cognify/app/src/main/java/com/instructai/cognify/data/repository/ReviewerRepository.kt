@@ -367,21 +367,40 @@ class ReviewerRepository @Inject constructor(
         reviewerTypes: List<String>,
         counts: Map<String, Int>,
         difficulty: String,
+        extraInstruction: String? = null,
+        avoidItems: List<String> = emptyList(),
     ): Flow<ReviewerEvent> = flow {
         val mode = tokenManager.apiMode.first()
         val flow = when (mode) {
             ApiMode.GEMINI -> generateViaGeminiDirect(
-                lessonContent, lessonTitle, reviewerTypes, counts, difficulty
+                lessonContent, lessonTitle, reviewerTypes, counts, difficulty, extraInstruction, avoidItems
             )
             ApiMode.BACKEND -> generateViaBackend(
-                lessonContent, lessonTitle, reviewerTypes, counts, difficulty
+                lessonContent, lessonTitle, reviewerTypes, counts, difficulty, extraInstruction, avoidItems
             )
             ApiMode.LOCAL -> generateViaLocal(
-                lessonContent, lessonTitle, reviewerTypes, counts, difficulty
+                lessonContent, lessonTitle, reviewerTypes, counts, difficulty, extraInstruction, avoidItems
             )
         }
         flow.collect { emit(it) }
     }.flowOn(Dispatchers.IO)
+
+    /**
+     * Shared prompt additions: optional student instructions and an
+     * exclusion list of items already used in other sets.
+     */
+    private fun buildPromptSuffix(extraInstruction: String?, avoidItems: List<String>): String {
+        val sb = StringBuilder()
+        if (!extraInstruction.isNullOrBlank()) {
+            sb.append("\n\nADDITIONAL INSTRUCTIONS from the student — follow them closely:\n")
+                .append(extraInstruction.trim())
+        }
+        if (avoidItems.isNotEmpty()) {
+            sb.append("\n\nThese items already exist in other sets — do NOT repeat or slightly rephrase any of them:\n")
+            avoidItems.forEach { sb.append("- ").append(it).append('\n') }
+        }
+        return sb.toString()
+    }
 
     private fun generateViaGeminiDirect(
         lessonContent: String,
@@ -389,6 +408,8 @@ class ReviewerRepository @Inject constructor(
         reviewerTypes: List<String>,
         counts: Map<String, Int>,
         difficulty: String,
+        extraInstruction: String? = null,
+        avoidItems: List<String> = emptyList(),
     ): Flow<ReviewerEvent> = flow {
         val apiKey = tokenManager.directApiKey.first()
         if (apiKey.isBlank()) {
@@ -414,7 +435,8 @@ class ReviewerRepository @Inject constructor(
                     .replace("{title}", lessonTitle)
                     .replace("{content}", lessonContent)
                     .replace("{count}", count.toString())
-                    .replace("{difficulty}", difficulty)
+                    .replace("{difficulty}", difficulty) +
+                    buildPromptSuffix(extraInstruction, avoidItems)
 
                 val response = geminiApi.generateContent(
                     apiKey = apiKey,
@@ -476,9 +498,17 @@ class ReviewerRepository @Inject constructor(
         reviewerTypes: List<String>,
         counts: Map<String, Int>,
         difficulty: String,
+        extraInstruction: String? = null,
+        avoidItems: List<String> = emptyList(),
     ): Flow<ReviewerEvent> = flow {
+        // The backend contract has no field for extra instructions, so
+        // prepend them into the content it already receives.
+        val suffix = buildPromptSuffix(extraInstruction, avoidItems)
+        val contentForBackend = if (suffix.isEmpty()) lessonContent
+        else "Note to the generator:$suffix\n\n$lessonContent"
+
         val request = mapOf<String, Any>(
-            "lesson_content" to lessonContent,
+            "lesson_content" to contentForBackend,
             "lesson_title" to lessonTitle,
             "reviewer_types" to reviewerTypes,
             "counts" to counts,
@@ -550,10 +580,13 @@ NOISE NOTICE: The lesson content may have been extracted from documents, slides,
         reviewerTypes: List<String>,
         counts: Map<String, Int>,
         difficulty: String,
+        extraInstruction: String? = null,
+        avoidItems: List<String> = emptyList(),
     ): Flow<ReviewerEvent> = flow {
         // Auto power-on: if LOCAL is selected but the engine is off, this
         // generation is the trigger (download/load progress surfaces via
         // engine state while the UI shows "generating").
+        for (rtype in reviewerTypes) emit(ReviewerEvent.Progress(rtype, "preparing"))
         val started = localAiEngine.ensureStarted()
         if (started.isFailure) {
             val msg = started.exceptionOrNull()?.message ?: "Local AI failed to start"
@@ -581,7 +614,10 @@ NOISE NOTICE: The lesson content may have been extracted from documents, slides,
             var items: List<Map<String, Any>> = emptyList()
             var lastError: String? = null
             for (attempt in 1..2) {
-                val result = localAiEngine.generate(buildLocalPrompt(promptTemplate, lessonTitle, trimmedContent, count, difficulty))
+                val result = localAiEngine.generate(
+                    buildLocalPrompt(promptTemplate, lessonTitle, trimmedContent, count, difficulty) +
+                        buildPromptSuffix(extraInstruction, avoidItems)
+                )
                 val content = result.getOrNull()
                 if (content == null) {
                     lastError = result.exceptionOrNull()?.message ?: "Generation failed"
@@ -597,18 +633,28 @@ NOISE NOTICE: The lesson content may have been extracted from documents, slides,
                 logger.log("ReviewerRepository", "[$rtype] local attempt $attempt unparsable | raw=${content.take(300)}")
             }
 
+            if (items.isEmpty()) {
+                emit(ReviewerEvent.Error(rtype, lastError ?: "Generation failed"))
+                continue@typeLoop
+            }
+
+            // Emit the first batch immediately so the UI can show items
+            // while the (slow) top-up rounds continue.
+            completed.add(rtype)
+            emit(ReviewerEvent.Chunk(rtype, items, completed.size, total))
+
             // Small models often stop early (2-3 items instead of the asked
             // count, or output cut by the context ceiling). Top up with
             // follow-up passes using a lean prompt asking only for the
             // missing remainder — short prompts are easier for tiny models
             // to follow and leave more output budget.
-            if (items.isNotEmpty() && rtype != "summary") {
-                val seenKeys = items.mapTo(mutableSetOf()) { localItemKey(it) }
-                var topUpRounds = 0
-                while (items.size < count && topUpRounds < 3) {
-                    topUpRounds++
-                    val need = count - items.size
-                    val avoid = seenKeys.take(15).joinToString("; ")
+            val seenKeys = avoidItems.mapTo(mutableSetOf()) { it.trim().lowercase() }
+            items.forEach { seenKeys.add(localItemKey(it)) }
+            var topUpRounds = 0
+            while (items.size < count && topUpRounds < 3) {
+                topUpRounds++
+                val need = count - items.size
+                val avoid = seenKeys.take(15).joinToString("; ")
                     val itemSpec = if (rtype == "practice") {
                         """{"type": "multiple_choice", "question": "...", "options": ["A) ...", "B) ...", "C) ...", "D) ..."], "correct_answer": "A) ...", "explanation": "..."}"""
                     } else {
@@ -635,16 +681,9 @@ $itemSpec"""
                     more.forEach { seenKeys.add(localItemKey(it)) }
                     items = items + more
                     logger.log("ReviewerRepository", "[$rtype] top-up round $topUpRounds added ${more.size} (total ${items.size}/$count)")
-                }
+                    // Stream the new items to the UI as they arrive.
+                    emit(ReviewerEvent.Chunk(rtype, more, completed.size, total))
             }
-
-            if (items.isEmpty()) {
-                emit(ReviewerEvent.Error(rtype, lastError ?: "Generation failed"))
-                continue@typeLoop
-            }
-
-            completed.add(rtype)
-            emit(ReviewerEvent.Chunk(rtype, items, completed.size, total))
         }
 
         emit(ReviewerEvent.Complete)
