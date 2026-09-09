@@ -192,6 +192,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/teacher/activities/{id}/live-progress', [ClassActivityController::class, 'liveProgress']);
 
     Route::get('/teacher/activities/{id}/results-analysis', [ClassActivityController::class, 'resultsAnalysis']);
+
+    // Live code monitoring + similarity flags
+    Route::get('/teacher/activities/{id}/live-drafts', [ClassActivityController::class, 'liveDrafts']);
+    Route::get('/teacher/activities/{id}/similarity', [ClassActivityController::class, 'similarity']);
     // Activity Questions
     Route::post('/teacher/activities/{activityId}/questions', [ClassActivityController::class, 'storeQuestion']);
     Route::put('/teacher/activities/{activityId}/questions/{questionId}', [ClassActivityController::class, 'updateQuestion']);

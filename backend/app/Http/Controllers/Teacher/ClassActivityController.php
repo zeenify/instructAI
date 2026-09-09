@@ -12,6 +12,7 @@ use App\Models\Enrollment;
 use App\Models\User;
 use App\Support\ActivityGrading;
 use App\Support\CodeRunner;
+use App\Support\CodeSimilarity;
 use Cloudinary\Api\Upload\UploadApi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -712,6 +713,153 @@ class ClassActivityController extends Controller
         $activity = $this->authorizeActivity($id);
 
         return response()->json($this->liveRoster($activity, true));
+    }
+
+    /**
+     * Live code monitoring: the current draft each student has typed for a
+     * coding question (defaults to the live current question in a teacher-
+     * paced room). Lets the teacher spot who's stuck mid-class.
+     */
+    public function liveDrafts(Request $request, $id)
+    {
+        $activity = $this->authorizeActivity($id);
+
+        if ($activity->activity_type !== 'quiz') {
+            return response()->json(['message' => 'Live code is only available for quiz activities'], 422);
+        }
+
+        $activity->load(['questions' => fn ($q) => $q->orderBy('order_index')->with('testCases')]);
+
+        $question = null;
+        if ($request->filled('question_id')) {
+            $question = $activity->questions->firstWhere('id', (int) $request->input('question_id'));
+        } elseif ($activity->live_current_q !== null) {
+            $question = $activity->questions->get((int) $activity->live_current_q);
+        } elseif ($activity->questions->isNotEmpty()) {
+            $question = $activity->questions->first();
+        }
+
+        if (! $question) {
+            return response()->json(['message' => 'No question found'], 404);
+        }
+
+        if ($question->type !== 'coding') {
+            return response()->json(['message' => 'Live code view is only for coding questions'], 422);
+        }
+
+        $submissions = ActivitySubmission::where('activity_id', $activity->id)
+            ->whereIn('status', ['draft', 'submitted', 'graded'])
+            ->with(['student.studentProfile', 'answers'])
+            ->get();
+
+        $name = function ($submission) {
+            $p = $submission->student->studentProfile;
+            if ($p?->first_name || $p?->last_name) {
+                return trim(($p->first_name ?? '').' '.($p->last_name ?? ''));
+            }
+
+            return $submission->student->email ?? 'Student';
+        };
+
+        $drafts = $submissions->map(function ($submission) use ($question, $name) {
+            $answer = $submission->answers->firstWhere('question_id', $question->id);
+
+            return [
+                'student_id' => $submission->student_id,
+                'student_name' => $name($submission),
+                'status' => $submission->status,
+                'code' => $answer ? (string) ActivityGrading::decodeAnswer($answer->submitted_answer) : null,
+                'updated_at' => $answer?->updated_at?->toIso8601String(),
+            ];
+        })->values();
+
+        return response()->json([
+            'question_id' => $question->id,
+            'question_text' => $question->question_text,
+            'language' => $question->language ?: 'java',
+            'drafts' => $drafts,
+        ]);
+    }
+
+    /**
+     * Pairwise similarity of students' coding answers (token Jaccard). Flags
+     * suspicious pairs for the teacher — a signal to investigate, not proof.
+     */
+    public function similarity(Request $request, $id)
+    {
+        $activity = $this->authorizeActivity($id);
+        $threshold = min(1.0, max(0.1, (float) $request->query('threshold', '0.6')));
+
+        $activity->load('questions');
+        $codingQuestions = $activity->questions->where('type', 'coding')->values();
+
+        if ($codingQuestions->isEmpty()) {
+            return response()->json([
+                'pairs' => [],
+                'questions_checked' => 0,
+                'message' => 'No coding questions in this activity',
+            ]);
+        }
+
+        $submissions = ActivitySubmission::where('activity_id', $activity->id)
+            ->whereIn('status', ['submitted', 'graded'])
+            ->with(['student.studentProfile', 'answers'])
+            ->get();
+
+        $name = function ($submission) {
+            $p = $submission->student->studentProfile;
+            if ($p?->first_name || $p?->last_name) {
+                return trim(($p->first_name ?? '').' '.($p->last_name ?? ''));
+            }
+
+            return $submission->student->email ?? 'Student';
+        };
+
+        $pairs = [];
+        foreach ($codingQuestions as $question) {
+            $answers = [];
+            foreach ($submissions as $submission) {
+                $answer = $submission->answers->firstWhere('question_id', $question->id);
+                if (! $answer) {
+                    continue;
+                }
+                $code = (string) ActivityGrading::decodeAnswer($answer->submitted_answer);
+                if (trim($code) === '') {
+                    continue;
+                }
+                $answers[] = ['submission' => $submission, 'code' => $code];
+            }
+
+            for ($i = 0; $i < count($answers); $i++) {
+                for ($j = $i + 1; $j < count($answers); $j++) {
+                    $score = CodeSimilarity::similarity($answers[$i]['code'], $answers[$j]['code']);
+                    if ($score >= $threshold) {
+                        $pairs[] = [
+                            'question_id' => $question->id,
+                            'question_text' => $question->question_text,
+                            'student_a' => [
+                                'id' => $answers[$i]['submission']->student_id,
+                                'name' => $name($answers[$i]['submission']),
+                            ],
+                            'student_b' => [
+                                'id' => $answers[$j]['submission']->student_id,
+                                'name' => $name($answers[$j]['submission']),
+                            ],
+                            'similarity' => $score,
+                        ];
+                    }
+                }
+            }
+        }
+
+        usort($pairs, fn ($a, $b) => $b['similarity'] <=> $a['similarity']);
+
+        return response()->json([
+            'pairs' => $pairs,
+            'questions_checked' => $codingQuestions->count(),
+            'submissions_checked' => $submissions->count(),
+            'threshold' => $threshold,
+        ]);
     }
 
     // ── Results analysis ──

@@ -53,6 +53,16 @@ class ActivityGrading
         return is_array($rawAnswer) ? json_encode($rawAnswer) : (string) $rawAnswer;
     }
 
+    /**
+     * Inverse of normalizeAnswer: stored strings are raw, arrays are JSON.
+     */
+    public static function decodeAnswer(string $stored)
+    {
+        $decoded = json_decode($stored, true);
+
+        return json_last_error() === JSON_ERROR_NONE ? $decoded : $stored;
+    }
+
     public static function finalizeSubmission(ActivitySubmission $submission, ClassActivity $activity, ?string $roomClosedAt = null): ActivitySubmission
     {
         $totalScore = 0;

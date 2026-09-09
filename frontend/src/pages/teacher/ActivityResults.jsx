@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
+import SimilarityPanel from '../../components/teacher/SimilarityPanel';
 
 const C = {
     green: '#10b981',
@@ -572,6 +573,7 @@ export default function ActivityResults() {
                                 </div>
                             </div>
                         )}
+                        <SimilarityPanel activityId={activityId} />
                     </>
                 )}
             </div>

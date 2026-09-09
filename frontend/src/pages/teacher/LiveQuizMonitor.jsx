@@ -15,6 +15,7 @@ import {
   Radio,
   RotateCw,
   Square,
+  SquareTerminal,
   Users,
   X,
   Zap,
@@ -503,6 +504,7 @@ export default function LiveQuizMonitor() {
   const [busy, setBusy] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [showLiveCode, setShowLiveCode] = useState(false);
   const [progress, setProgress] = useState(null);
   const [progressLoading, setProgressLoading] = useState(false);
 
@@ -922,6 +924,29 @@ export default function LiveQuizMonitor() {
                         Pause
                       </>
                     )}
+                  </button>
+                )}
+                {(isLive || isPaused) && activity?.pacing_mode === "teacher" && (
+                  <button
+                    onClick={() => setShowLiveCode(true)}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "12px 20px",
+                      backgroundColor: "rgba(139,92,246,0.12)",
+                      border: "1px solid rgba(139,92,246,0.4)",
+                      borderRadius: "8px",
+                      color: "#8b5cf6",
+                      fontWeight: "600",
+                      fontSize: "14px",
+                      cursor: "pointer",
+                      transition: "all 200ms ease-in-out",
+                    }}
+                    title="Watch students' code as they type on the current coding question"
+                  >
+                    <SquareTerminal size={16} />
+                    Live Code
                   </button>
                 )}
                 {(isLive || isPaused) && (
@@ -1709,6 +1734,13 @@ export default function LiveQuizMonitor() {
           </div>
         )}
       </div>
+
+      {showLiveCode && (
+        <LiveCodeModal
+          activityId={activityId}
+          onClose={() => setShowLiveCode(false)}
+        />
+      )}
 
       <style>{`
                 @keyframes livePulse {

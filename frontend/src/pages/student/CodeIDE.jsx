@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
-import { Play, CheckCircle, AlertCircle, RefreshCw, Terminal as TerminalIcon, Eye, Code2, ChevronDown, ChevronUp, Square } from 'lucide-react';
+import { Play, CheckCircle, AlertCircle, RefreshCw, Terminal as TerminalIcon, Eye, Code2, ChevronDown, ChevronUp, Square, SquareTerminal } from 'lucide-react';
 import api from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -47,7 +47,6 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
     const [isWrong, setIsWrong] = useState(false);
     const [activeTab, setActiveTab] = useState('editor');
     const [errorType, setErrorType] = useState(null);
-    const [showTerminal, setShowTerminal] = useState(false);
     const [previewSrcDoc, setPreviewSrcDoc] = useState('');
     const [consoleLines, setConsoleLines] = useState([]);
     const [showStdin, setShowStdin] = useState(false);
@@ -61,11 +60,16 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         }
     }, [block.data.is_solved]);
 
-    // Programs that read stdin open the input panel themselves — never make a
-    // beginner decode a bare EOFError traceback.
+    // Interactive-first: playground code that reads stdin defaults to the live
+    // shell (type input while it runs — like a real terminal). Challenges keep
+    // the deterministic batch path with the stdin box pre-opened.
     useEffect(() => {
         if (!isHtml && detectStdinUsage(languageId, code)) {
-            setShowStdin(true);
+            if (mode === 'challenge') {
+                setShowStdin(true);
+            } else {
+                setActiveTab('shell');
+            }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -222,9 +226,15 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         if (isRunning) return;
         if (isHtml) {
             handleHtmlRun();
-        } else {
-            handleCodeRun();
+            return;
         }
+        if (readsInput && mode !== 'challenge') {
+            // Interactive run: the program blocks waiting for live input
+            setActiveTab('shell');
+            shellRef.current?.triggerRun();
+            return;
+        }
+        handleCodeRun();
     };
 
     const handleRun = () => runRef.current();
@@ -260,7 +270,11 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
     const colors = getModeColor();
     const tabs = isHtml
         ? [{ id: 'editor', label: 'Code', icon: Code2 }, { id: 'preview', label: 'Preview', icon: Eye }, { id: 'console', label: 'Console', icon: TerminalIcon }]
-        : [{ id: 'editor', label: 'Code Editor', icon: Code2 }, { id: 'terminal', label: 'Terminal Output', icon: TerminalIcon }];
+        : [
+            { id: 'editor', label: 'Code Editor', icon: Code2 },
+            { id: 'terminal', label: 'Terminal Output', icon: TerminalIcon },
+            { id: 'shell', label: 'Interactive Shell', icon: SquareTerminal },
+        ];
 
     const renderOutput = () => (
         <div style={{
@@ -456,6 +470,33 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
 
                 {!isHtml && activeTab === 'terminal' && renderOutput()}
 
+                {!isHtml && activeTab === 'shell' && (
+                    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: '#050120' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px', flexShrink: 0 }}>
+                            <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#a855f7' }}>
+                                Interactive Shell — the program waits for your input, like a real terminal
+                            </span>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                    onClick={() => shellRef.current?.stop()}
+                                    style={{ padding: '8px 14px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', color: '#f87171', cursor: 'pointer', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '5px' }}
+                                >
+                                    <Square size={10} /> Stop
+                                </button>
+                                <button
+                                    onClick={() => shellRef.current?.triggerRun()}
+                                    style={{ padding: '8px 14px', background: 'rgba(168, 85, 247, 0.12)', border: '1px solid rgba(168, 85, 247, 0.3)', borderRadius: '8px', color: '#c084fc', cursor: 'pointer', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '5px' }}
+                                >
+                                    <Play size={10} /> Run
+                                </button>
+                            </div>
+                        </div>
+                        <div style={{ flex: 1, minHeight: 0 }}>
+                            <InteractiveTerminal ref={shellRef} code={code} language={languageId} compact />
+                        </div>
+                    </div>
+                )}
+
                 {!isHtml && activeTab === 'editor' && showStdin && (
                     <div style={{ borderTop: '1px solid var(--border-color)', background: '#0d0d1a' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 20px 4px' }}>
@@ -504,14 +545,14 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                             {readsInput ? 'Input needed' : 'Stdin'}
                         </button>
                     )}
-                    {!isHtml && (
+                    {!isHtml && readsInput && mode !== 'challenge' && (
                         <button
-                            onClick={() => setShowTerminal((v) => !v)}
+                            onClick={() => { setActiveTab('shell'); shellRef.current?.triggerRun(); }}
                             style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '10px', color: 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', transition: 'all 0.3s' }}
-                            title="Interactive shell — type input while the program runs"
+                            title="Type input live while the program runs"
                         >
-                            <TerminalIcon size={12} />
-                            {showTerminal ? 'Hide Shell' : 'Shell'}
+                            <SquareTerminal size={12} />
+                            Run Interactive
                         </button>
                     )}
                     <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
@@ -570,33 +611,6 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 </div>
             </div>
 
-            {/* Interactive shell for server-side languages */}
-            {!isHtml && showTerminal && (
-                <div style={{ borderTop: '1px solid var(--border-color)', background: '#050120', display: 'flex', flexDirection: 'column', height: '360px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px', flexShrink: 0 }}>
-                        <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#a855f7' }}>
-                            Interactive Shell — type input while the program runs
-                        </span>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                                onClick={() => shellRef.current?.stop()}
-                                style={{ padding: '8px 14px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', color: '#f87171', cursor: 'pointer', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '5px' }}
-                            >
-                                <Square size={10} /> Stop
-                            </button>
-                            <button
-                                onClick={() => shellRef.current?.triggerRun()}
-                                style={{ padding: '8px 14px', background: 'rgba(168, 85, 247, 0.12)', border: '1px solid rgba(168, 85, 247, 0.3)', borderRadius: '8px', color: '#c084fc', cursor: 'pointer', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '5px' }}
-                            >
-                                <Play size={10} /> Run
-                            </button>
-                        </div>
-                    </div>
-                    <div style={{ flex: 1, minHeight: 0 }}>
-                        <InteractiveTerminal ref={shellRef} code={code} language={languageId} compact />
-                    </div>
-                </div>
-            )}
 
             {/* Expected Output - For Challenge Mode */}
             {mode === 'challenge' && (
