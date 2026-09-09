@@ -60,6 +60,38 @@ class ClassActivityController extends Controller
         return $activity;
     }
 
+    /**
+     * A whole-quiz timer without minutes yields a zero-second limit, which
+     * instantly expires every submission. Block it wherever a quiz can be
+     * created, edited, published, or launched.
+     */
+    private function entireQuizTimerError(?ClassActivity $activity, array $validated = []): ?string
+    {
+        if ($activity ? $activity->activity_type !== 'quiz' : ($validated['activity_type'] ?? 'quiz') !== 'quiz') {
+            return null;
+        }
+
+        $timerMode = $validated['timer_mode'] ?? ($activity->timer_mode ?? 'none');
+        $minutes = array_key_exists('time_limit_minutes', $validated)
+            ? $validated['time_limit_minutes']
+            : ($activity->time_limit_minutes ?? null);
+
+        if ($timerMode === 'entire_quiz' && (! $minutes || (int) $minutes < 1)) {
+            return 'Set the minutes for the whole-quiz timer before publishing';
+        }
+
+        return null;
+    }
+
+    private function quizQuestionsError(ClassActivity $activity): ?string
+    {
+        if ($activity->activity_type === 'quiz' && $activity->questions()->count() === 0) {
+            return 'Add at least one question before publishing the quiz';
+        }
+
+        return null;
+    }
+
     public function index($classId)
     {
         $this->authorizeTeacher($classId);
@@ -68,6 +100,9 @@ class ClassActivityController extends Controller
             ->withCount(['submissions', 'questions'])
             ->orderBy('order_index', 'asc')
             ->get();
+
+        $enrolledCount = Enrollment::where('class_id', $classId)->count();
+        $activities->each->setAttribute('enrolled_count', $enrolledCount);
 
         return response()->json($activities);
     }
@@ -104,6 +139,10 @@ class ClassActivityController extends Controller
 
         $validated = $request->validate($rules);
 
+        if ($error = $this->entireQuizTimerError(null, $validated)) {
+            return response()->json(['message' => $error], 422);
+        }
+
         $maxOrder = ClassActivity::where('class_id', $classId)->max('order_index') ?? 0;
 
         $activity = ClassActivity::create([
@@ -126,9 +165,13 @@ class ClassActivityController extends Controller
             'late_penalty_pct' => $validated['late_penalty_pct'] ?? null,
             'time_limit_minutes' => $validated['time_limit_minutes'] ?? null,
             'pacing_mode' => $validated['pacing_mode'] ?? 'student',
-            'timer_mode' => $validated['timer_mode'] ?? 'none',
+            'timer_mode' => ($validated['pacing_mode'] ?? 'student') === 'teacher'
+                ? 'none'
+                : ($validated['timer_mode'] ?? 'none'),
             'per_question_durations' => $validated['per_question_durations'] ?? null,
-            'shuffle_questions' => $validated['shuffle_questions'] ?? false,
+            'shuffle_questions' => ($validated['pacing_mode'] ?? 'student') === 'teacher'
+                ? false
+                : ($validated['shuffle_questions'] ?? false),
             'show_results' => $validated['show_results'] ?? 'room_close',
             'order_index' => $maxOrder + 1,
         ]);
@@ -192,6 +235,22 @@ class ClassActivityController extends Controller
                 $quizSettings = ['pacing_mode', 'timer_mode', 'per_question_durations', 'shuffle_questions', 'show_results', 'time_limit_minutes'];
                 $validated = array_diff_key($validated, array_flip($quizSettings));
             }
+
+            // Teacher-paced quizzes have no whole-quiz clock — the teacher controls pace
+            $effectivePacing = $validated['pacing_mode'] ?? $activity->pacing_mode;
+            if ($effectivePacing === 'teacher' && ($validated['timer_mode'] ?? $activity->timer_mode) === 'entire_quiz') {
+                return response()->json(['message' => 'Teacher-paced quizzes cannot use a whole-quiz timer'], 422);
+            }
+
+            // A whole-quiz timer with no minutes expires every submission instantly
+            if ($error = $this->entireQuizTimerError($activity, $validated)) {
+                return response()->json(['message' => $error], 422);
+            }
+
+            // Shuffle defeats teacher pacing (the teacher reads questions in order)
+            if ($effectivePacing === 'teacher' && array_key_exists('shuffle_questions', $validated)) {
+                $validated['shuffle_questions'] = false;
+            }
         }
 
         if ($activity->is_published && $activity->submissions()->exists()) {
@@ -232,6 +291,17 @@ class ClassActivityController extends Controller
     public function togglePublish($id)
     {
         $activity = $this->authorizeActivity($id);
+
+        if (! $activity->is_published) {
+            // Guardrails so a broken quiz can never reach students
+            if ($error = $this->quizQuestionsError($activity)) {
+                return response()->json(['message' => $error], 422);
+            }
+            if ($error = $this->entireQuizTimerError($activity)) {
+                return response()->json(['message' => $error], 422);
+            }
+        }
+
         $activity->update(['is_published' => ! $activity->is_published]);
 
         return response()->json($activity);
@@ -249,6 +319,10 @@ class ClassActivityController extends Controller
 
         if (! $activity->is_published) {
             return response()->json(['message' => 'Publish the quiz before starting the room'], 422);
+        }
+
+        if ($error = $this->entireQuizTimerError($activity)) {
+            return response()->json(['message' => $error], 422);
         }
 
         $activity->update([
@@ -486,10 +560,24 @@ class ClassActivityController extends Controller
         $board['distribution'] = $activity->questions->map(function ($q) use ($answers) {
             $rows = $answers->get($q->id, collect());
 
+            $perOption = $rows->countBy(fn ($a) => (string) $a->submitted_answer)->all();
+
+            // MC answers are stored as option indexes — relabel chips with option text
+            // so the board reads "56: 1" instead of "1: 1".
+            if ($q->type === 'multiple_choice' && is_array($q->options)) {
+                $perOption = collect($perOption)->mapWithKeys(function ($count, $key) use ($q) {
+                    $label = is_numeric($key) && isset($q->options[(int) $key])
+                        ? (string) $q->options[(int) $key]
+                        : $key;
+
+                    return [$label => $count];
+                })->all();
+            }
+
             return [
                 'question_id' => $q->id,
                 'answered' => $rows->count(),
-                'per_option' => $rows->countBy(fn ($a) => (string) $a->submitted_answer)->all(),
+                'per_option' => $perOption,
             ];
         })->all();
 
@@ -712,9 +800,13 @@ class ClassActivityController extends Controller
             $distribution = [];
             if (in_array($q->type, ['multiple_choice', 'true_false']) && is_array($q->options)) {
                 foreach ($q->options as $i => $option) {
+                    // MC answers are stored as option indexes; true_false answers as
+                    // the option text itself — count both representations.
+                    $optionText = is_string($option) ? $option : 'Option '.($i + 1);
                     $distribution[] = [
-                        'label' => (is_string($option) ? mb_substr($option, 0, 40) : 'Option '.($i + 1)),
-                        'count' => $qAnswers->filter(fn ($a) => $a->submitted_answer === (string) $i)->count(),
+                        'label' => is_string($option) ? mb_substr($option, 0, 40) : $optionText,
+                        'count' => $qAnswers->filter(fn ($a) => $a->submitted_answer === (string) $i
+                            || $a->submitted_answer === $optionText)->count(),
                     ];
                 }
             }
@@ -1011,13 +1103,17 @@ class ClassActivityController extends Controller
             if (! empty($validated['answers'])) {
                 $total = 0;
                 foreach ($validated['answers'] as $a) {
-                    ActivityAnswer::where('submission_id', $submission->id)
+                    // Questions the student skipped have no answer row — never
+                    // let a client-supplied score for them inflate the total.
+                    $updated = ActivityAnswer::where('submission_id', $submission->id)
                         ->where('question_id', $a['question_id'])
                         ->update([
                             'score' => $a['score'],
                             'is_correct' => $a['score'] > 0,
                         ]);
-                    $total += $a['score'];
+                    if ($updated) {
+                        $total += $a['score'];
+                    }
                 }
                 $validated['score'] = $total;
             }

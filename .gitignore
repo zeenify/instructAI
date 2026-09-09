@@ -9,9 +9,10 @@ proxy.js
 opencode.json
 TOOLKIT.md
 
-# Opencode / Claude config
+# Opencode / Claude / ZCode config
 .claude/
 .opencode/
+.zcode/
 
 # Browser smoke test
 .browser-smoke/

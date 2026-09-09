@@ -83,6 +83,7 @@ class ClassActivityController extends Controller
                 'max_score' => $submission->max_score,
                 'status' => $submission->status,
                 'submitted_at' => $submission->submitted_at,
+                'started_at' => $submission->started_at,
             ] : null;
 
             return $activity;

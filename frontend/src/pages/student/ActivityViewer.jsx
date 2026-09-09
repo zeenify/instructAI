@@ -45,7 +45,9 @@ export default function ActivityViewer() {
   const fetchSidebar = useCallback(async () => {
     try {
       const res = await api.get(`/student/classes/${classId}/activities`);
-      setSidebarActivities(res.data);
+      // This viewer is for assignments/materials — quizzes live in their own
+      // focus-mode room, so keep them out of the sidebar.
+      setSidebarActivities(res.data.filter((a) => a.activity_type !== 'quiz'));
     } catch { /* ignore */ } finally { setSidebarLoading(false); }
   }, [classId]);
 

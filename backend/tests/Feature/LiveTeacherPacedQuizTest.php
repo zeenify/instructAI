@@ -568,7 +568,8 @@ class LiveTeacherPacedQuizTest extends TestCase
         $this->assertSame(0, $board->json('pacing.current_q'));
         $this->assertSame('question', $board->json('pacing.phase'));
         $this->assertSame(1, $board->json('distribution.0.answered'));
-        $this->assertSame(1, $board->json('distribution.0.per_option.1'));
+        // per_option keys are the option TEXT (not raw indices) so chips read as labels
+        $this->assertSame(1, $board->json('distribution.0.per_option.Beta'));
         $this->assertCount(3, $board->json('questions'));
         $this->assertSame(0, $board->json('students.0.running_score'));
 

@@ -136,7 +136,6 @@ export default function ActivityGrading() {
   useEffect(() => { fetchActivity(); }, [fetchActivity]);
   useEffect(() => { fetchSubmissions(); }, [fetchSubmissions]);
 
-  const hasQuestions = activity?.submission_type === 'questions';
   const isMaterial = activity?.submission_type === 'material';
 
   const handleGradeSubmission = async (submissionId) => {
@@ -146,8 +145,11 @@ export default function ActivityGrading() {
         score: gradingForm.score,
         teacher_notes: gradingForm.feedback || '',
       };
-      if (hasQuestions && Object.keys(gradingForm.answers || {}).length > 0) {
-        body.answers = gradingForm.answers;
+      if (gradingTarget.questions && gradingTarget.questions.length > 0) {
+        body.answers = gradingTarget.questions.map((q) => ({
+          question_id: q.id,
+          score: Number(gradingForm.answers?.[q.id]?.score ?? 0) || 0,
+        }));
       }
       await api.post(`/teacher/activities/${activityId}/submissions/${submissionId}/grade`, body);
       invalidateCache(`get:/teacher/activities/${activityId}/submissions`);
@@ -164,22 +166,30 @@ export default function ActivityGrading() {
   };
 
   const openGrading = (submission) => {
+    // Quiz submissions carry questions nested inside each answer row; surface them
+    // as a top-level list so the per-question grading UI can render.
+    const questions = (submission.answers || [])
+      .map((a) => a.question)
+      .filter(Boolean);
+    const target = questions.length > 0 ? { ...submission, questions } : submission;
+
     const form = {
       score: submission.score ?? '',
       feedback: submission.feedback || '',
       answers: {},
     };
-    if (submission.answers && submission.questions) {
-      submission.questions.forEach((q) => {
-        const ans = submission.answers.find((a) => a.question_id === q.id);
+    if (target.answers && target.questions) {
+      target.questions.forEach((q) => {
+        const ans = target.answers.find((a) => a.question_id === q.id);
+        // A question the student skipped has no answer row — it starts at 0,
+        // never at full points.
         form.answers[q.id] = {
-          score: ans?.score ?? q.points,
-          feedback: ans?.feedback || '',
+          score: ans?.score ?? 0,
         };
       });
     }
     setGradingForm(form);
-    setGradingTarget(submission);
+    setGradingTarget(target);
   };
 
   const notSubmitted = enrolledStudents
@@ -275,53 +285,118 @@ export default function ActivityGrading() {
               </div>
             )}
 
-            {/* Per-answer grading for questions */}
-            {gradingTarget.questions && gradingTarget.questions.length > 0 && (
-              <div style={{ marginBottom: '16px' }}>
-                <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px 0' }}>Answers</p>
-                {gradingTarget.questions.map((q) => {
-                  const answer = gradingTarget.answers?.find((a) => a.question_id === q.id);
-                  return (
-                    <div key={q.id} style={{ padding: '14px', borderRadius: '12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', marginBottom: '10px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', gap: '8px' }}>
-                        <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', margin: 0, flex: 1 }}>{q.question_text}</p>
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>{q.points} pts</span>
+            {/* Per-answer grading — manual questions first, auto-graded below */}
+            {gradingTarget.questions && gradingTarget.questions.length > 0 && (() => {
+              const manual = gradingTarget.questions.filter((q) => q.type === 'essay' || q.type === 'coding');
+              const auto = gradingTarget.questions.filter((q) => q.type !== 'essay' && q.type !== 'coding');
+              const answerOf = (q) => gradingTarget.answers?.find((a) => a.question_id === q.id);
+              const questionNumber = (q) => gradingTarget.questions.indexOf(q) + 1;
+
+              const answerSummary = (q, answer) => {
+                if (!answer?.submitted_answer) return <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>No answer</span>;
+                if (q.type === 'multiple_choice') return (q.options?.[parseInt(answer.submitted_answer)] ?? answer.submitted_answer);
+                if (q.type === 'enumeration') {
+                  try { const items = JSON.parse(answer.submitted_answer); return Array.isArray(items) ? items.join(', ') : answer.submitted_answer; }
+                  catch { return answer.submitted_answer; }
+                }
+                return answer.submitted_answer;
+              };
+
+              return (
+                <>
+                  {manual.length > 0 && (
+                    <div style={{ marginBottom: '20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '5px 12px', borderRadius: '999px', background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.35)' }}>
+                          Needs grading · {manual.length}
+                        </span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>score these first — the total updates when you submit</span>
                       </div>
-                      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 8px 0', padding: '8px 10px', borderRadius: '6px', background: 'var(--bg-secondary)', fontFamily: q.type === 'coding' ? 'monospace' : 'inherit' }}>
-                        {answer?.submitted_answer
-                          ? q.type === 'multiple_choice'
-                            ? (q.options?.[parseInt(answer.submitted_answer)] ?? answer.submitted_answer)
-                            : q.type === 'enumeration'
-                              ? (() => { try { const items = JSON.parse(answer.submitted_answer); return Array.isArray(items) ? items.join(', ') : answer.submitted_answer; } catch { return answer.submitted_answer; } })()
-                              : answer.submitted_answer
-                          : <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>No answer</span>}
-                      </p>
-                      {q.type !== 'essay' && q.type !== 'coding' && answer?.is_auto_graded && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                          <span style={{ fontSize: '12px', fontWeight: 600, color: answer?.is_correct ? '#22c55e' : '#ef4444' }}>
-                            {answer?.is_correct ? 'Correct (auto)' : 'Incorrect (auto)'}
-                          </span>
-                          {answer?.auto_score != null && <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>({answer.auto_score}/{q.points})</span>}
-                        </div>
-                      )}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>Score:</label>
-                        <input type="number" min={0} max={q.points} step={0.5} value={gradingForm.answers?.[q.id]?.score ?? q.points}
-                          onChange={(e) => { const v = Math.min(Math.max(Number(e.target.value) || 0, 0), q.points); setGradingForm((prev) => ({ ...prev, answers: { ...prev.answers, [q.id]: { ...(prev.answers?.[q.id] || {}), score: v } } })); }}
-                          style={{ width: '70px', padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }} />
-                        <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>/ {q.points}</span>
-                      </div>
-                      <div style={{ marginTop: '8px' }}>
-                        <input type="text" value={gradingForm.answers?.[q.id]?.feedback || ''}
-                          onChange={(e) => setGradingForm((prev) => ({ ...prev, answers: { ...prev.answers, [q.id]: { ...(prev.answers?.[q.id] || {}), feedback: e.target.value } } }))}
-                          placeholder="Feedback (optional)"
-                          style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }} />
-                      </div>
+                      {manual.map((q) => {
+                        const answer = answerOf(q);
+                        const code = q.type === 'coding';
+                        return (
+                          <div key={q.id} style={{ padding: '16px', borderRadius: '12px', background: 'var(--bg-primary)', border: '1px solid rgba(245, 158, 11, 0.25)', marginBottom: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                                Question {questionNumber(q)} · {code ? 'Coding' : 'Essay'}
+                              </span>
+                              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)' }}>{q.points} pts</span>
+                            </div>
+                            <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 10px 0', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{q.question_text}</p>
+                            {code && q.boilerplate && (
+                              <div style={{ marginBottom: '10px' }}>
+                                <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px 0' }}>Starter code</p>
+                                <pre style={{ margin: 0, padding: '10px 12px', borderRadius: '8px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontFamily: 'Consolas, Monaco, "Courier New", monospace', fontSize: '12px', lineHeight: 1.55, whiteSpace: 'pre', overflowX: 'auto' }}>{q.boilerplate}</pre>
+                              </div>
+                            )}
+                            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px 0' }}>Student answer</p>
+                            {answer?.submitted_answer ? (
+                              <pre style={code
+                                ? { margin: '0 0 12px 0', padding: '12px 14px', borderRadius: '8px', background: '#0b1120', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontFamily: 'Consolas, Monaco, "Courier New", monospace', fontSize: '12.5px', lineHeight: 1.6, whiteSpace: 'pre', overflowX: 'auto', overflowY: 'auto', maxHeight: '380px', tabSize: 4 }
+                                : { margin: '0 0 12px 0', padding: '12px 14px', borderRadius: '8px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: '13.5px', lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                {answer.submitted_answer}
+                              </pre>
+                            ) : (
+                              <p style={{ margin: '0 0 12px 0', padding: '12px 14px', borderRadius: '8px', background: 'var(--bg-secondary)', border: '1px dashed var(--border-color)', color: 'var(--text-tertiary)', fontStyle: 'italic', fontSize: '13px' }}>No answer submitted</p>
+                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>Score:</label>
+                              <input type="number" min={0} max={q.points} step={0.5} value={gradingForm.answers?.[q.id]?.score ?? 0}
+                                onChange={(e) => { const v = Math.min(Math.max(Number(e.target.value) || 0, 0), q.points); setGradingForm((prev) => ({ ...prev, answers: { ...prev.answers, [q.id]: { score: v } } })); }}
+                                style={{ width: '70px', padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }} />
+                              <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>/ {q.points}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  )}
+
+                  {auto.length > 0 && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '5px 12px', borderRadius: '999px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                          Auto-graded · {auto.length}
+                        </span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>scored automatically — override if needed</span>
+                      </div>
+                      {auto.map((q) => {
+                        const answer = answerOf(q);
+                        return (
+                          <div key={q.id} style={{ padding: '12px 14px', borderRadius: '12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', marginBottom: '8px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
+                              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', margin: 0, flex: 1 }}>
+                                <span style={{ color: 'var(--text-tertiary)', fontWeight: 600 }}>Q{questionNumber(q)} · </span>
+                                {q.question_text}
+                              </p>
+                              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>{q.points} pts</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', padding: '5px 10px', borderRadius: '6px', background: 'var(--bg-secondary)', maxWidth: '55%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {answerSummary(q, answer)}
+                              </span>
+                              {answer?.is_correct !== null && answer?.is_correct !== undefined && (
+                                <span style={{ fontSize: '12px', fontWeight: 600, color: answer?.is_correct ? '#22c55e' : '#ef4444', whiteSpace: 'nowrap' }}>
+                                  {answer?.is_correct ? 'Correct (auto)' : 'Incorrect (auto)'}
+                                </span>
+                              )}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
+                                <input type="number" min={0} max={q.points} step={0.5} value={gradingForm.answers?.[q.id]?.score ?? 0}
+                                  onChange={(e) => { const v = Math.min(Math.max(Number(e.target.value) || 0, 0), q.points); setGradingForm((prev) => ({ ...prev, answers: { ...prev.answers, [q.id]: { score: v } } })); }}
+                                  title="Override the auto score if needed"
+                                  style={{ width: '60px', padding: '5px 7px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none' }} />
+                                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>/ {q.points}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             {/* Material: just show marked as read */}
             {isMaterial ? (
@@ -360,10 +435,12 @@ export default function ActivityGrading() {
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
                 </div>
 
-                <button onClick={() => handleGradeSubmission(gradingTarget.id)} disabled={gradingSaving || gradingTarget.is_auto_graded}
-                  style={{ padding: '12px 24px', borderRadius: '10px', border: 'none', cursor: gradingSaving || gradingTarget.is_auto_graded ? 'not-allowed' : 'pointer', background: gradingTarget.is_auto_graded ? 'var(--bg-tertiary)' : 'linear-gradient(to right, #9333ea, #7e22ce)', color: gradingTarget.is_auto_graded ? 'var(--text-tertiary)' : 'white', fontWeight: 700, fontSize: '14px', opacity: gradingSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '6px' }} type="button">
+                <button onClick={() => handleGradeSubmission(gradingTarget.id)} disabled={gradingSaving}
+                  style={{ padding: '12px 24px', borderRadius: '10px', border: 'none', cursor: gradingSaving ? 'not-allowed' : 'pointer', background: 'linear-gradient(to right, #9333ea, #7e22ce)', color: 'white', fontWeight: 700, fontSize: '14px', opacity: gradingSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '6px' }} type="button">
                   {gradingSaving ? <><Loader2 size={16} className="animate-spin" /> Submitting...</> : <CheckSquare size={16} />}
-                  {gradingTarget.is_auto_graded ? 'Auto-graded (no changes)' : 'Submit Grade'}
+                  {gradingTarget.questions?.some((q) => q.type === 'essay' || q.type === 'coding')
+                    ? 'Submit Grade'
+                    : 'Save Score Overrides'}
                 </button>
               </>
             )}

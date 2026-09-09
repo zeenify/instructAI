@@ -23,6 +23,7 @@ class ActivityGrading
             $correctItems = array_values(array_filter($correctItems, fn ($i) => $i !== ''));
             $studentItems = array_map(fn ($i) => strtolower(trim((string) $i)), (array) $rawAnswer);
             $studentItems = array_values(array_filter($studentItems, fn ($i) => $i !== ''));
+            $studentItems = array_values(array_unique($studentItems));
 
             $correctCount = 0;
             foreach ($studentItems as $sItem) {

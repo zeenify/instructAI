@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import { ChevronRight, Loader2, BookOpen, ClipboardList, Radio } from 'lucide-react';
+// eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
 import StudentActivityCard from '../../components/student/StudentActivityCard';
+import { deriveState as activityCardState } from '../../utils/activityState';
 
 export default function ClassView() {
     const { id } = useParams();
@@ -189,7 +191,7 @@ export default function ClassView() {
                             <div style={{ flex: 1 }}>
                                 <p style={{ fontSize: '15px', fontWeight: 800, color: '#ef4444', margin: 0 }}>Quiz in progress</p>
                                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                                    {activities.filter(a => a.is_live).map(a => a.title).join(', ')} — click the LIVE badge to join.
+                                    {activities.filter(a => a.is_live).map(a => a.title).join(', ')} — tap "Join now" to start.
                                 </p>
                             </div>
                             <Radio size={20} color="#ef4444" style={{ flexShrink: 0 }} />
@@ -209,22 +211,48 @@ export default function ClassView() {
                     ) : (
                         <div style={{ paddingBottom: '80px' }}>
                             {(() => {
-                                const quizzes = activities.filter(a => a.activity_type === 'quiz');
-                                const others = activities.filter(a => a.activity_type !== 'quiz');
-                                const renderSection = (title, list) => list.length > 0 && (
-                                    <div style={{ marginBottom: '32px' }}>
-                                        <h3 style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: 'var(--text-tertiary)', margin: '0 0 16px 0' }}>{title}</h3>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                            {list.map(activity => (
-                                                <StudentActivityCard key={activity.id} activity={activity} classId={id} />
-                                            ))}
+                                // Status-first grouping: a student should see in one
+                                // glance what's live, what's coming, what's done, what's missed.
+                                const buckets = { live: [], todo: [], done: [], missed: [] };
+                                activities.forEach((a) => {
+                                    const s = activityCardState(a);
+                                    if (s === 'live' || s === 'in_progress') buckets.live.push(a);
+                                    else if (s === 'waiting' || s === 'todo') buckets.todo.push(a);
+                                    else if (s === 'graded' || s === 'submitted') buckets.done.push(a);
+                                    else buckets.missed.push(a);
+                                });
+                                const sectionMeta = {
+                                    live: { title: 'Live now', color: '#ef4444' },
+                                    todo: { title: 'To do', color: 'var(--text-tertiary)' },
+                                    done: { title: 'Completed', color: 'var(--text-tertiary)' },
+                                    missed: { title: 'Missed', color: '#ef4444' },
+                                };
+                                const renderSection = (key, list) => {
+                                    if (!list.length) return null;
+                                    const meta = sectionMeta[key];
+                                    return (
+                                        <div style={{ marginBottom: '32px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+                                                {key === 'live' && (
+                                                    <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: meta.color, animation: 'livePulse 1.1s ease-in-out infinite' }} />
+                                                )}
+                                                <h3 style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: meta.color, margin: 0 }}>{meta.title}</h3>
+                                                <span style={{ fontSize: '11px', fontWeight: 700, color: meta.color, background: key === 'live' ? 'rgba(239, 68, 68, 0.12)' : 'var(--bg-tertiary)', padding: '2px 10px', borderRadius: '999px' }}>{list.length}</span>
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                {list.map(activity => (
+                                                    <StudentActivityCard key={activity.id} activity={activity} classId={id} />
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                );
+                                    );
+                                };
                                 return (
                                     <>
-                                        {renderSection('Quizzes', quizzes)}
-                                        {renderSection('Other Activities', others)}
+                                        {renderSection('live', buckets.live)}
+                                        {renderSection('todo', buckets.todo)}
+                                        {renderSection('done', buckets.done)}
+                                        {renderSection('missed', buckets.missed)}
                                     </>
                                 );
                             })()}

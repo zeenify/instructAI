@@ -519,6 +519,23 @@ export default function ActivityEditor() {
   }, [flushSave]);
 
   const handlePublish = async () => {
+    // Client-side guardrails mirroring the backend, so teachers get an
+    // actionable message instead of a failed publish.
+    if (activity && !activity.is_published) {
+      if (activity.activity_type === 'quiz' && (activity.questions?.length ?? 0) === 0) {
+        toast.error('Add at least one question before publishing the quiz');
+        return;
+      }
+      if (
+        activity.activity_type === 'quiz' &&
+        activity.pacing_mode !== 'teacher' &&
+        activity.timer_mode === 'entire_quiz' &&
+        !(Number(activity.time_limit_minutes) >= 1)
+      ) {
+        toast.error('Set the minutes for the whole-quiz timer before publishing');
+        return;
+      }
+    }
     setPublishing(true);
     try {
       const res = await api.post(`/teacher/activities/${activityId}/publish`);
@@ -528,8 +545,8 @@ export default function ActivityEditor() {
       } else {
         toast.warning('Unpublished');
       }
-    } catch {
-      toast.error('Failed to toggle publish');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to toggle publish');
     } finally {
       setPublishing(false);
     }
@@ -776,7 +793,7 @@ export default function ActivityEditor() {
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Timer</label>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  {TIMER_MODES.map((m) => (
+                  {TIMER_MODES.filter((m) => !(activity.pacing_mode === 'teacher' && m.id === 'entire_quiz')).map((m) => (
                     <button key={m.id} disabled={quizSettingsDisabled}
                       onClick={() => handleFieldChange('timer_mode', m.id)}
                       style={{ flex: 1, padding: '10px 12px', borderRadius: '10px', cursor: quizSettingsDisabled ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '12px', textAlign: 'center', opacity: quizSettingsDisabled ? 0.5 : 1, border: `1px solid ${activity.timer_mode === m.id ? '#a78bfa' : 'var(--border-color)'}`, background: activity.timer_mode === m.id ? 'rgba(167, 139, 250, 0.1)' : 'transparent', color: activity.timer_mode === m.id ? '#a78bfa' : 'var(--text-secondary)' }} type="button">
@@ -821,13 +838,15 @@ export default function ActivityEditor() {
 
               {/* Shuffle */}
               <div style={{ marginBottom: '16px' }}>
-                <button disabled={quizSettingsDisabled}
+                <button disabled={quizSettingsDisabled || activity.pacing_mode === 'teacher'}
                   onClick={() => handleFieldChange('shuffle_questions', !activity.shuffle_questions)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', borderRadius: '10px', cursor: quizSettingsDisabled ? 'not-allowed' : 'pointer', opacity: quizSettingsDisabled ? 0.5 : 1, border: `1px solid ${activity.shuffle_questions ? '#a78bfa' : 'var(--border-color)'}`, background: activity.shuffle_questions ? 'rgba(167, 139, 250, 0.1)' : 'transparent', textAlign: 'left' }} type="button">
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', borderRadius: '10px', cursor: quizSettingsDisabled || activity.pacing_mode === 'teacher' ? 'not-allowed' : 'pointer', opacity: quizSettingsDisabled || activity.pacing_mode === 'teacher' ? 0.5 : 1, border: `1px solid ${activity.shuffle_questions ? '#a78bfa' : 'var(--border-color)'}`, background: activity.shuffle_questions ? 'rgba(167, 139, 250, 0.1)' : 'transparent', textAlign: 'left' }} type="button">
                   <Shuffle size={16} style={{ color: activity.shuffle_questions ? '#a78bfa' : 'var(--text-tertiary)', flexShrink: 0 }} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Randomize question order</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Each student gets a different order, assigned at join</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                      {activity.pacing_mode === 'teacher' ? 'Not available in teacher-paced mode — the teacher reads questions in order' : 'Each student gets a different order, assigned at join'}
+                    </div>
                   </div>
                   <div style={{ width: '34px', height: '20px', borderRadius: '999px', background: activity.shuffle_questions ? '#a78bfa' : 'var(--bg-tertiary)', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
                     <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'white', position: 'absolute', top: '2px', left: activity.shuffle_questions ? '16px' : '2px', transition: 'left 0.2s' }} />
@@ -840,8 +859,8 @@ export default function ActivityEditor() {
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Show results</label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   {[
-                    { id: 'immediate', label: 'Immediately' },
-                    { id: 'room_close', label: 'When room closes' },
+                    { id: 'immediate', label: activity.pacing_mode === 'teacher' ? 'After each question' : 'Immediately' },
+                    { id: 'room_close', label: activity.pacing_mode === 'teacher' ? 'At the end' : 'When room closes' },
                   ].map((opt) => (
                     <button key={opt.id} disabled={quizSettingsDisabled}
                       onClick={() => handleFieldChange('show_results', opt.id)}
@@ -850,7 +869,11 @@ export default function ActivityEditor() {
                     </button>
                   ))}
                 </div>
-                <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', margin: '6px 0 0 0' }}>Answers are never revealed mid-quiz.</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', margin: '6px 0 0 0' }}>
+                  {activity.pacing_mode === 'teacher'
+                    ? 'After each question: correctness appears when you reveal it. At the end: results only when the room closes.'
+                    : 'Answers are never revealed mid-quiz.'}
+                </p>
               </div>
             </div>
           )}

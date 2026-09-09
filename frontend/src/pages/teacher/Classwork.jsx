@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, BookOpen, Clock, CheckCircle, DraftingCompass, Loader2, TrendingUp, ListOrdered } from 'lucide-react';
+import { Plus, BookOpen, Radio, Play, DraftingCompass, Loader2, TrendingUp, ListOrdered } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
 import cache from '../../utils/cache';
@@ -9,21 +9,30 @@ import CreateActivityModal from './CreateActivityModal';
 import DeleteModal from '../../components/ui/DeleteModal';
 import GradebookTable from '../../components/teacher/GradebookTable';
 
-const GROUP_ORDER = ['draft', 'open', 'past'];
+const GROUP_ORDER = ['live', 'ready', 'draft', 'closed'];
 
 function groupActivities(activities) {
-  const now = new Date();
-  const groups = { draft: [], open: [], past: [] };
+  const groups = { live: [], ready: [], draft: [], closed: [] };
 
   activities.forEach((a) => {
     if (!a.is_published) {
       groups.draft.push(a);
       return;
     }
-    if (!a.deadline_at || new Date(a.deadline_at) >= now) {
-      groups.open.push(a);
+    if (a.activity_type === 'quiz') {
+      if (a.is_live) {
+        groups.live.push(a);
+      } else if (a.close_room_at || a.live_status === 'completed') {
+        groups.closed.push(a);
+      } else {
+        groups.ready.push(a);
+      }
+      return;
+    }
+    if (a.deadline_at && new Date(a.deadline_at) < new Date()) {
+      groups.closed.push(a);
     } else {
-      groups.past.push(a);
+      groups.ready.push(a);
     }
   });
 
@@ -31,9 +40,10 @@ function groupActivities(activities) {
 }
 
 const groupMeta = {
+  live: { label: 'Live now', icon: Radio, color: '#ef4444', countColor: 'rgba(239, 68, 68, 0.12)' },
+  ready: { label: 'Ready', icon: Play, color: '#60a5fa', countColor: 'rgba(59, 130, 246, 0.12)' },
   draft: { label: 'Drafts', icon: DraftingCompass, color: '#a78bfa', countColor: 'rgba(167, 139, 250, 0.15)' },
-  open: { label: 'Open', icon: CheckCircle, color: '#10b981', countColor: 'rgba(16, 185, 129, 0.15)' },
-  past: { label: 'Past', icon: Clock, color: '#64748b', countColor: 'rgba(100, 116, 139, 0.15)' },
+  closed: { label: 'Closed', icon: BookOpen, color: '#94a3b8', countColor: 'rgba(148, 163, 184, 0.12)' },
 };
 
 export default function Classwork({ classId }) {
@@ -79,6 +89,9 @@ export default function Classwork({ classId }) {
     } else {
       fetchActivities();
     }
+    // Keep LIVE / Closed states fresh while the teacher is on this page
+    const poll = setInterval(fetchActivities, 15000);
+    return () => clearInterval(poll);
   }, [classId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

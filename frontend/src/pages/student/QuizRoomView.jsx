@@ -171,10 +171,9 @@ export default function QuizRoomView() {
           return;
         }
         if (!data.room_live) {
-          setErrorMsg(
-            "This quiz is not live yet. Wait for your teacher to start the room.",
-          );
-          setPhase("error");
+          // Published quiz whose room hasn't opened yet — hold the student in
+          // a waiting room and enter automatically once the teacher starts it.
+          setPhase("waiting");
           return;
         }
         setErrorMsg(message);
@@ -189,6 +188,35 @@ export default function QuizRoomView() {
   useEffect(() => {
     loadQuiz();
   }, [loadQuiz]);
+
+  // Waiting room: poll until the teacher opens the room, then walk in.
+  useEffect(() => {
+    if (phase !== "waiting") return;
+    const t = setInterval(async () => {
+      try {
+        const res = await api.get(
+          `/student/activities/${activityId}/quiz/state`,
+          { bypassCache: true },
+        );
+        const data = res.data;
+        if (data.finalized) {
+          applyPayload(data);
+          return;
+        }
+        if (data.room_closed) {
+          setErrorMsg("This quiz was closed before it started.");
+          setPhase("error");
+          return;
+        }
+        if (data.room_live) {
+          loadQuiz();
+        }
+      } catch {
+        /* keep waiting — transient network errors shouldn't kick the student out */
+      }
+    }, 5000);
+    return () => clearInterval(t);
+  }, [phase, activityId, applyPayload, loadQuiz]);
 
   const saveAnswer = useCallback(
     async (questionId, value, idx) => {
@@ -275,6 +303,14 @@ export default function QuizRoomView() {
         setTeacherPacing(true);
         setRoomPaused(!!data.room_paused);
         if (data.teacher_phase) setTeacherPhase(data.teacher_phase);
+        setPayload((prev) =>
+          prev
+            ? {
+                ...prev,
+                current_question_feedback: data.current_question_feedback ?? null,
+              }
+            : prev,
+        );
         if (data.live_current_q !== undefined && data.live_current_q !== null) {
           setCurrentIdx(data.live_current_q);
         }
@@ -575,6 +611,93 @@ export default function QuizRoomView() {
         >
           Opening quiz room…
         </p>
+      </div>
+    );
+  }
+
+  if (phase === "waiting") {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "14px",
+          padding: "24px",
+          background: "var(--bg-primary)",
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{
+            width: "72px",
+            height: "72px",
+            borderRadius: "50%",
+            background: "rgba(239, 68, 68, 0.1)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: "8px",
+          }}
+        >
+          <Radio size={30} color="#ef4444" />
+        </div>
+        <h2
+          style={{
+            fontSize: "22px",
+            fontWeight: 800,
+            color: "var(--text-primary)",
+            margin: 0,
+          }}
+        >
+          Waiting for your teacher
+        </h2>
+        <p
+          style={{
+            fontSize: "14px",
+            color: "var(--text-secondary)",
+            margin: 0,
+            maxWidth: "420px",
+            lineHeight: 1.6,
+          }}
+        >
+          The quiz hasn't been opened yet. Keep this page open — it will enter
+          the quiz automatically the moment your teacher starts it.
+        </p>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginTop: "4px",
+            fontSize: "12px",
+            color: "var(--text-tertiary)",
+          }}
+        >
+          <Loader2 className="animate-spin" size={13} />
+          Checking every 5 seconds
+        </div>
+        <button
+          onClick={backToClass}
+          style={{
+            padding: "12px 24px",
+            borderRadius: "12px",
+            border: "1px solid var(--border-color)",
+            background: "transparent",
+            color: "var(--text-secondary)",
+            fontWeight: 700,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginTop: "8px",
+          }}
+        >
+          <ChevronLeft size={16} /> Back to Class
+        </button>
       </div>
     );
   }
