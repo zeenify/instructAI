@@ -8,8 +8,7 @@ import {
     Bot, Lock, Target, Timer
 } from 'lucide-react';
 import { toast } from 'sonner';
-import CodeMirror from '@uiw/react-codemirror';
-import { java } from '@codemirror/lang-java';
+import InlineCodeAnswer from '../../components/student/InlineCodeAnswer';
 import { motion, AnimatePresence } from 'framer-motion';
 import AITutor from '../../components/student/AITutor';
 import './QuizDisplay.css';
@@ -30,8 +29,6 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
 
     const [timeLeft, setTimeLeft] = useState(null);
     const timerRef = useRef(null);
-    const [codeOutput, setCodeOutput] = useState("");
-    const [isRunning, setIsRunning] = useState(false);
 
     useEffect(() => {
         if (!quizId) return;
@@ -100,16 +97,6 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
 
     const saveAnswer = (qId, val) => {
         setAnswers(prev => ({ ...prev, [qId]: val }));
-    };
-
-    const runCodeTest = async (code) => {
-        setIsRunning(true);
-        setCodeOutput("Compiling logic...");
-        try {
-            const res = await api.post('/student/execute', { code, language: 'java' });
-            setCodeOutput(res.data.stdout || res.data.stderr || res.data.compile_output || "Execution finished.");
-        } catch (err) { setCodeOutput("Logic execution failure."); }
-        finally { setIsRunning(false); }
     };
 
     const submitQuiz = async () => {
@@ -606,106 +593,14 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
                     )}
 
                     {q.type === 'coding' && (
-                        <div style={{ gap: '24px', display: 'flex', flexDirection: 'column' }}>
-                            {/* Code Editor */}
-                            <div style={{ borderRadius: '28px', border: '1.5px solid var(--accent-glow)', background: 'var(--bg-secondary)', overflow: 'hidden', boxShadow: '0 20px 50px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(10px)' }}>
-                                {/* Header */}
-                                <div style={{ padding: '16px 24px', background: 'var(--accent-light)', borderBottom: '1.5px solid var(--accent-glow)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'linear-gradient(135deg, var(--accent-glow) 0%, var(--accent-light) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', boxShadow: '0 0 20px var(--accent-glow)' }}>
-                                        <CodeIcon size={18} />
-                                    </div>
-                                    <div>
-                                        <p style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--text-tertiary)', margin: '0' }}>Java Source Code</p>
-                                        <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>Write and test your solution</p>
-                                    </div>
-                                </div>
-                                {/* Editor - stays dark */}
-                                <div style={{ position: 'relative' }}>
-                                    <CodeMirror
-                                        value={answers[q.id] || q.boilerplate || ""}
-                                        height="450px"
-                                        theme="dark"
-                                        extensions={[java()]}
-                                        onChange={(val) => saveAnswer(q.id, val)}
-                                        className="rounded-none"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Test Button */}
-                            <button
-                                onClick={() => runCodeTest(answers[q.id] || q.boilerplate)}
-                                disabled={isRunning}
-                                style={{
-                                    padding: '18px 32px',
-                                    background: isRunning ? 'linear-gradient(135deg, var(--accent-light) 0%, rgba(6, 182, 212, 0.08) 100%)' : 'var(--accent)',
-                                    border: '1.5px solid' + (isRunning ? ' var(--accent-glow)' : ' var(--accent-glow)'),
-                                    borderRadius: '24px',
-                                    fontWeight: 900,
-                                    fontSize: '12px',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.15em',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '12px',
-                                    cursor: isRunning ? 'not-allowed' : 'pointer',
-                                    color: isRunning ? 'var(--text-tertiary)' : '#fff',
-                                    transition: 'all 0.3s',
-                                    boxShadow: isRunning ? '0 8px 20px var(--accent-glow)' : '0 12px 32px var(--accent-glow)',
-                                    opacity: isRunning ? 0.7 : 1
-                                }}
-                                onMouseEnter={(e) => {
-                                    if (!isRunning) {
-                                        e.currentTarget.style.transform = 'translateY(-2px)';
-                                        e.currentTarget.style.boxShadow = '0 16px 40px var(--accent-glow)';
-                                    }
-                                }}
-                                onMouseLeave={(e) => {
-                                    if (!isRunning) {
-                                        e.currentTarget.style.transform = 'translateY(0)';
-                                        e.currentTarget.style.boxShadow = '0 12px 32px var(--accent-glow)';
-                                    }
-                                }}
-                            >
-                                {isRunning ? (
-                                    <>
-                                        <Loader2 size={18} className="animate-spin" />
-                                        <span>Executing...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Play size={18} fill="currentColor" />
-                                        <span>Test Logic</span>
-                                    </>
-                                )}
-                            </button>
-
-                            {/* Output Console - stays dark terminal style regardless of theme */}
-                            {codeOutput && (
-                                <div style={{
-                                    borderRadius: '24px',
-                                    border: '1.5px solid rgba(34, 211, 238, 0.2)',
-                                    background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(15, 23, 42, 0.7) 100%)',
-                                    padding: '20px 24px',
-                                    fontFamily: 'monospace',
-                                    fontSize: '13px',
-                                    color: '#22d3ee',
-                                    whiteSpace: 'pre-wrap',
-                                    wordBreak: 'break-word',
-                                    maxHeight: '280px',
-                                    overflowY: 'auto',
-                                    boxShadow: '0 12px 32px rgba(34, 211, 238, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
-                                    backdropFilter: 'blur(10px)'
-                                }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(34, 211, 238, 0.15)' }}>
-                                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22d3ee', boxShadow: '0 0 10px #22d3ee' }} />
-                                        <span style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b' }}>Output</span>
-                                    </div>
-                                    {codeOutput}
-                                </div>
-                            )}
-                        </div>
+                        <InlineCodeAnswer
+                            language={q.language}
+                            value={answers[q.id] || q.boilerplate || ""}
+                            onChange={(val) => saveAnswer(q.id, val)}
+                            boilerplate={q.boilerplate || ""}
+                            challengeExpected={q.expected_output || null}
+                            height="450px"
+                        />
                     )}
                 </div>
                 </motion.div>

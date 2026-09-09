@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Support\CodeRunner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -12,14 +13,25 @@ class CodeExecutionController extends Controller
     {
         $request->validate([
             'code' => 'required|string',
-            'language' => 'sometimes|string',
+            'language' => 'sometimes|string|in:'.implode(',', CodeRunner::LANGUAGES),
             'input' => 'nullable|string',
         ]);
 
-        // Use 'java' as default if not provided
         $language = $request->input('language', 'java');
         $input = $request->input('input');
         $code = $request->code;
+
+        // HTML/CSS/JS has no server runtime — the sandboxed browser preview is
+        // the runtime. Tell the client explicitly instead of round-tripping.
+        if ($language === 'html') {
+            return response()->json([
+                'preview_only' => true,
+                'message' => 'HTML runs in the browser preview.',
+                'stdout' => '',
+                'stderr' => '',
+                'compile_output' => '',
+            ]);
+        }
 
         // For Java: preprocess to work with execution engine
         if ($language === 'java') {
@@ -27,64 +39,15 @@ class CodeExecutionController extends Controller
             $code = preg_replace('/\bpublic\s+class\b/', 'class', $code);
 
             // 2. Rename first class to 'Main' so execution engine can find it
-            // Match: class ClassName { and replace with class Main {
             $code = preg_replace('/\bclass\s+\w+\s*\{/', 'class Main {', $code, 1);
         }
 
-        // Try local first, then fallback to deployment
-        $localUrl = 'http://localhost:3000/execute';
-        $deployedUrl = env('EXECUTION_ENGINE_URL');
+        $result = CodeRunner::execute($language, $code, $input);
 
-        $payload = [
-            'language' => $language,
-            'code' => $code,
-        ];
+        $status = (str_contains($result['stderr'], 'No available execution engine')
+            || str_contains($result['stderr'], 'temporarily unavailable')) ? 503 : 200;
 
-        if ($input) {
-            $payload['input'] = $input;
-        }
-
-        // Try localhost first
-        try {
-            \Log::info('CodeExecution: Trying local engine', ['url' => $localUrl]);
-            $response = Http::timeout(20)->post($localUrl, $payload);
-
-            if ($response->successful()) {
-                \Log::info('CodeExecution: Local engine succeeded');
-
-                return response()->json($response->json());
-            }
-        } catch (\Exception $localError) {
-            \Log::warning('CodeExecution: Local engine failed', ['error' => $localError->getMessage()]);
-        }
-
-        // Fallback to deployed engine
-        try {
-            \Log::info('CodeExecution: Falling back to deployed engine', ['url' => $deployedUrl]);
-            $response = Http::timeout(20)->post($deployedUrl, $payload);
-
-            if ($response->successful()) {
-                \Log::info('CodeExecution: Deployed engine succeeded');
-
-                return response()->json($response->json());
-            }
-
-            return response()->json([
-                'stderr' => 'The execution engine is temporarily unavailable.',
-                'stdout' => '',
-            ], 503);
-
-        } catch (\Exception $deployedError) {
-            \Log::error('CodeExecution: Both engines failed', [
-                'local_error' => $localError->getMessage() ?? 'Not attempted',
-                'deployed_error' => $deployedError->getMessage(),
-            ]);
-
-            return response()->json([
-                'stderr' => 'Engine Connection Error: No available execution engine.',
-                'stdout' => '',
-            ], 500);
-        }
+        return response()->json($result, $status);
     }
 
     public function verifyCodeChallenge(Request $request)
@@ -93,6 +56,7 @@ class CodeExecutionController extends Controller
             'question_text' => 'required|string',
             'code' => 'required|string',
             'expected_output' => 'required|string',
+            'language' => 'sometimes|string|in:'.implode(',', CodeRunner::LANGUAGES),
         ]);
 
         try {
@@ -103,6 +67,7 @@ class CodeExecutionController extends Controller
                 'question_text' => $request->question_text,
                 'code' => $request->code,
                 'expected_output' => $request->expected_output,
+                'language' => $request->input('language', 'java'),
             ]);
 
             if ($response->successful()) {

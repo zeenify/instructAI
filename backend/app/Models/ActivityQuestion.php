@@ -14,6 +14,7 @@ class ActivityQuestion extends Model
         'expected_output',
         'points',
         'boilerplate',
+        'language',
         'order_index',
     ];
 

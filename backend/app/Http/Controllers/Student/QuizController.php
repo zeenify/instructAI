@@ -6,10 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\StudentAnswer;
+use App\Support\CodeRunner;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log; 
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class QuizController extends Controller
 {
@@ -19,7 +20,7 @@ class QuizController extends Controller
         $user = $request->user();
         $quiz = Quiz::with('module.course')->findOrFail($id);
 
-        $query = $quiz->questions()->select('id', 'quiz_id', 'question_text', 'type', 'options', 'points', 'boilerplate');
+        $query = $quiz->questions()->select('id', 'quiz_id', 'question_text', 'type', 'options', 'points', 'boilerplate', 'language');
 
         // Apply Pool Randomization logic
         if ($quiz->is_randomized) {
@@ -44,7 +45,7 @@ class QuizController extends Controller
 
         $existingResult = null;
 
-if ($completedAttempt) {
+        if ($completedAttempt) {
             // Load ALL answers once, then look them up from memory (fixes N+1)
             $allAnswers = $completedAttempt->answers()
                 ->whereIn('question_id', $quiz->questions->pluck('id'))
@@ -54,7 +55,7 @@ if ($completedAttempt) {
             $existingResult = [
                 'score' => $completedAttempt->total_score,
                 'max_score' => $completedAttempt->max_score,
-                'details' => $quiz->questions->map(function($q) use ($allAnswers) {
+                'details' => $quiz->questions->map(function ($q) use ($allAnswers) {
                     $ans = $allAnswers->get($q->id);
                     $correctAnswer = $q->type === 'multiple_choice'
                         ? ($q->options[$q->expected_output] ?? 'N/A')
@@ -81,9 +82,9 @@ if ($completedAttempt) {
                         'type' => $q->type,
                         'is_correct' => $ans ? $ans->is_correct : false,
                         'correct_answer' => $correctAnswer,
-                        'student_answer_text' => $studentAnswerText
+                        'student_answer_text' => $studentAnswerText,
                     ];
-                })->values() // <-- Ensures previous results are also flat arrays
+                })->values(), // <-- Ensures previous results are also flat arrays
             ];
         }
 
@@ -102,11 +103,11 @@ if ($completedAttempt) {
             'student_id' => $request->user()->id,
             'quiz_id' => $id,
             'status' => 'in_progress',
-            'total_score' => 0
+            'total_score' => 0,
         ]);
 
         return response()->json([
-            'attempt_id' => $attempt->id
+            'attempt_id' => $attempt->id,
         ]);
     }
 
@@ -114,22 +115,22 @@ if ($completedAttempt) {
     {
         $request->validate([
             'question_id' => 'required|exists:questions,id',
-            'answer' => 'required|string|max:5000'
+            'answer' => 'required|string|max:5000',
         ]);
 
         StudentAnswer::updateOrCreate(
             [
                 'attempt_id' => $attemptId,
-                'question_id' => $request->question_id
+                'question_id' => $request->question_id,
             ],
             [
                 'submitted_answer' => $request->answer,
-                'answered_at' => now()
+                'answered_at' => now(),
             ]
         );
 
         return response()->json([
-            'message' => 'Draft saved'
+            'message' => 'Draft saved',
         ]);
     }
 
@@ -147,10 +148,10 @@ if ($completedAttempt) {
             $quiz = Quiz::with('questions')->findOrFail($quizId);
             $submittedAnswers = $request->answers ?? [];
 
-// Filter questions to ONLY the ones the frontend actually showed the student
+            // Filter questions to ONLY the ones the frontend actually showed the student
             $subsetIds = $request->input('question_ids', []);
             $activeQuestions = $quiz->questions->whereIn('id', $subsetIds);
-            
+
             $attemptMaxScore = $activeQuestions->sum('points');
 
             $attempt = QuizAttempt::create([
@@ -159,7 +160,7 @@ if ($completedAttempt) {
                 'status' => 'completed',
                 'total_score' => 0,
                 'max_score' => $attemptMaxScore,
-                'finished_at' => now()
+                'finished_at' => now(),
             ]);
 
             $totalScore = 0;
@@ -175,9 +176,9 @@ if ($completedAttempt) {
 
                     if ($question->type === 'enumeration') {
                         if ($rawAnswer && is_array($rawAnswer)) {
-                            $studentItems = array_filter((array)$rawAnswer);
-                            $correctItems = array_map(fn($item) => strtolower(trim((string)$item)), $question->options);
-                            $studentItems = array_map(fn($item) => strtolower(trim((string)$item)), $studentItems);
+                            $studentItems = array_filter((array) $rawAnswer);
+                            $correctItems = array_map(fn ($item) => strtolower(trim((string) $item)), $question->options);
+                            $studentItems = array_map(fn ($item) => strtolower(trim((string) $item)), $studentItems);
                             sort($correctItems);
                             sort($studentItems);
 
@@ -189,54 +190,63 @@ if ($completedAttempt) {
                                     'question_text' => $question->question_text,
                                     'type' => 'enumeration',
                                     'correct_answer' => $question->options,
-                                    'student_answer' => $studentItems
+                                    'student_answer' => $studentItems,
                                 ];
                                 $aiQuestionMap[count($questionsForAI)] = $question->id;
                             }
                         }
                     } elseif ($question->type === 'identification') {
-                        if ($rawAnswer && strtolower(trim((string)$rawAnswer)) !== strtolower(trim((string)$question->expected_output))) {
+                        if ($rawAnswer && strtolower(trim((string) $rawAnswer)) !== strtolower(trim((string) $question->expected_output))) {
                             $questionsForAI[] = [
                                 'question_num' => count($questionsForAI) + 1,
                                 'question_id' => $question->id,
                                 'question_text' => $question->question_text,
                                 'type' => 'identification',
                                 'correct_answer' => $question->expected_output,
-                                'student_answer' => (string)$rawAnswer
+                                'student_answer' => (string) $rawAnswer,
                             ];
                             $aiQuestionMap[count($questionsForAI)] = $question->id;
                         }
                     } elseif ($question->type === 'coding') {
-                        // Coding: stage 1 check (output match), only forward to AI for stage 2 if passed
-                        if ($rawAnswer) {
-                            try {
-                                $engineUrl = env('EXECUTION_ENGINE_URL');
-                                $response = Http::timeout(20)->post($engineUrl, [
-                                    'language' => 'java',
+                        $lang = $question->language ?: 'java';
+
+                        if ($rawAnswer && $lang === 'html') {
+                            // HTML has no server runtime — skip the output-match
+                            // stage and let the AI judge the markup directly.
+                            $questionsForAI[] = [
+                                'question_num' => count($questionsForAI) + 1,
+                                'question_id' => $question->id,
+                                'question_text' => $question->question_text,
+                                'type' => 'coding',
+                                'language' => 'html',
+                                'code' => (string) $rawAnswer,
+                                'expected_output' => trim((string) $question->expected_output),
+                                'output_matched' => false,
+                            ];
+                            $aiQuestionMap[count($questionsForAI)] = $question->id;
+                        } elseif ($rawAnswer) {
+                            // Coding: stage 1 check (output match), only forward to AI for stage 2 if passed
+                            $result = CodeRunner::execute($lang, (string) $rawAnswer);
+
+                            $output = trim($result['stdout']);
+                            // Normalize line endings: convert \r\n to \n
+                            $output = str_replace("\r\n", "\n", $output);
+                            $expected = trim($question->expected_output);
+                            $expected = str_replace("\r\n", "\n", $expected);
+
+                            // Only forward to AI if output matches (stage 2 verification)
+                            if ($output === $expected && $expected !== '') {
+                                $questionsForAI[] = [
+                                    'question_num' => count($questionsForAI) + 1,
+                                    'question_id' => $question->id,
+                                    'question_text' => $question->question_text,
+                                    'type' => 'coding',
+                                    'language' => $lang,
                                     'code' => $rawAnswer,
-                                ]);
-
-                                $output = trim($response->json()['stdout'] ?? '');
-                                // Normalize line endings: convert \r\n to \n
-                                $output = str_replace("\r\n", "\n", $output);
-                                $expected = trim($question->expected_output);
-                                $expected = str_replace("\r\n", "\n", $expected);
-
-                                // Only forward to AI if output matches (stage 2 verification)
-                                if ($output === $expected && $expected !== "") {
-                                    $questionsForAI[] = [
-                                        'question_num' => count($questionsForAI) + 1,
-                                        'question_id' => $question->id,
-                                        'question_text' => $question->question_text,
-                                        'type' => 'coding',
-                                        'code' => $rawAnswer,
-                                        'expected_output' => $expected,
-                                        'output_matched' => true
-                                    ];
-                                    $aiQuestionMap[count($questionsForAI)] = $question->id;
-                                }
-                            } catch (\Exception $e) {
-                                Log::warning('QuizController: Code execution failed', ['error' => $e->getMessage()]);
+                                    'expected_output' => $expected,
+                                    'output_matched' => true,
+                                ];
+                                $aiQuestionMap[count($questionsForAI)] = $question->id;
                             }
                         }
                     }
@@ -245,13 +255,13 @@ if ($completedAttempt) {
 
             // Call AI batch endpoint if there are questions to check
             $aiResults = [];
-            if (!empty($questionsForAI)) {
+            if (! empty($questionsForAI)) {
                 Log::info('QuizController: Sending questions to AI', ['count' => count($questionsForAI), 'questions' => $questionsForAI]);
                 try {
                     $aiUrl = env('AI_SERVICE_URL', 'http://localhost:8001');
                     Log::info('QuizController: AI Service URL', ['url' => $aiUrl]);
                     $aiResponse = Http::timeout(10)->post("{$aiUrl}/ai/check-answers-batch", [
-                        'questions' => $questionsForAI
+                        'questions' => $questionsForAI,
                     ]);
 
                     Log::info('QuizController: AI response received', ['status' => $aiResponse->status(), 'body' => $aiResponse->body()]);
@@ -296,22 +306,20 @@ if ($completedAttempt) {
                         // Output didn't match, so it's wrong (won't reach here if it did match)
                         $isCorrect = false;
                     }
-                } 
-                elseif ($question->type === 'multiple_choice') {
-                    $isCorrect = (string)$rawAnswer === (string)$question->expected_output;
-                } 
-                elseif ($question->type === 'enumeration') {
-                    if (!$rawAnswer || (is_array($rawAnswer) && empty(array_filter($rawAnswer)))) {
+                } elseif ($question->type === 'multiple_choice') {
+                    $isCorrect = (string) $rawAnswer === (string) $question->expected_output;
+                } elseif ($question->type === 'enumeration') {
+                    if (! $rawAnswer || (is_array($rawAnswer) && empty(array_filter($rawAnswer)))) {
                         $isCorrect = false;
                     } else {
                         $correctItems = $question->options;
-                        $studentItems = array_filter((array)$rawAnswer);
+                        $studentItems = array_filter((array) $rawAnswer);
 
-                        $correctItems = array_map(function($item) {
-                            return strtolower(trim((string)$item));
+                        $correctItems = array_map(function ($item) {
+                            return strtolower(trim((string) $item));
                         }, $correctItems);
-                        $studentItems = array_map(function($item) {
-                            return strtolower(trim((string)$item));
+                        $studentItems = array_map(function ($item) {
+                            return strtolower(trim((string) $item));
                         }, $studentItems);
 
                         sort($correctItems);
@@ -320,35 +328,33 @@ if ($completedAttempt) {
                         $isCorrect = $correctItems === $studentItems && count($studentItems) > 0;
 
                         // If exact match failed, check AI results
-                        if (!$isCorrect && isset($aiCheckedQuestions[$question->id])) {
+                        if (! $isCorrect && isset($aiCheckedQuestions[$question->id])) {
                             $oldCorrect = $isCorrect;
                             $isCorrect = $aiCheckedQuestions[$question->id];
                             Log::info('QuizController: Enumeration - AI override', ['question_id' => $question->id, 'before' => $oldCorrect, 'after' => $isCorrect]);
                         }
                     }
-                }
-                elseif ($question->type === 'identification') {
-                    $isCorrect = strtolower(trim((string)$rawAnswer)) === strtolower(trim((string)$question->expected_output));
+                } elseif ($question->type === 'identification') {
+                    $isCorrect = strtolower(trim((string) $rawAnswer)) === strtolower(trim((string) $question->expected_output));
 
                     // If exact match failed, check AI results
-                    if (!$isCorrect && isset($aiCheckedQuestions[$question->id])) {
+                    if (! $isCorrect && isset($aiCheckedQuestions[$question->id])) {
                         $oldCorrect = $isCorrect;
                         $isCorrect = $aiCheckedQuestions[$question->id];
                         Log::info('QuizController: Identification - AI override', ['question_id' => $question->id, 'expected' => $question->expected_output, 'student' => $rawAnswer, 'before' => $oldCorrect, 'after' => $isCorrect]);
                     }
-                }
-                else {
+                } else {
                     // True/False and any other types
-                    $isCorrect = strtolower(trim((string)$rawAnswer)) === strtolower(trim((string)$question->expected_output));
+                    $isCorrect = strtolower(trim((string) $rawAnswer)) === strtolower(trim((string) $question->expected_output));
                 }
 
                 // Save the Answer (Exactly one row per question)
                 StudentAnswer::create([
                     'attempt_id' => $attempt->id,
                     'question_id' => $question->id,
-                    'submitted_answer' => is_array($rawAnswer) ? json_encode($rawAnswer) : (string)$rawAnswer,
+                    'submitted_answer' => is_array($rawAnswer) ? json_encode($rawAnswer) : (string) $rawAnswer,
                     'is_correct' => $isCorrect,
-                    'answered_at' => now()
+                    'answered_at' => now(),
                 ]);
 
                 // Store detail for response
@@ -369,20 +375,21 @@ if ($completedAttempt) {
                     'type' => $question->type,
                     'is_correct' => $isCorrect,
                     'correct_answer' => $correctAnswer,
-                    'student_answer_text' => $studentAnswerText // For multiple choice display
+                    'student_answer_text' => $studentAnswerText, // For multiple choice display
                 ];
 
-                if ($isCorrect) $totalScore += $question->points;
+                if ($isCorrect) {
+                    $totalScore += $question->points;
+                }
             }
 
-$attempt->update(['total_score' => $totalScore]);
+            $attempt->update(['total_score' => $totalScore]);
 
-return response()->json([
+            return response()->json([
                 'score' => $totalScore,
                 'max_score' => $attemptMaxScore,
-                'details' => $detailedResults
+                'details' => $detailedResults,
             ]);
         });
     }
-
 }

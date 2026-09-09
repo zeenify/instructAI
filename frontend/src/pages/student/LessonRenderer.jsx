@@ -24,7 +24,9 @@ export default function LessonRenderer({ lessonId, onProgressUpdate, isCompleted
         setLoading(true);
         setSolvedChallenges([]);
 
-        api.get(`/student/lessons/${lessonId}`).then(res => {
+        // bypassCache: is_solved flags change as the student solves challenges,
+        // so a 5-minute-old cached copy would show stale progress.
+        api.get(`/student/lessons/${lessonId}`, { bypassCache: true }).then(res => {
             if (!isMounted) return;
 
             const lessonData = res.data.lesson;

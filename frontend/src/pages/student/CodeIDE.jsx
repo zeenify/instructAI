@@ -1,23 +1,55 @@
 import { useState, useEffect, useRef } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
-import { java } from '@codemirror/lang-java';
-import { Play, CheckCircle, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { Play, CheckCircle, AlertCircle, RefreshCw, Terminal as TerminalIcon, Eye, Code2, ChevronDown, ChevronUp, Square } from 'lucide-react';
 import api from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import InteractiveTerminal from '../../components/student/InteractiveTerminal';
+import {
+    injectPreviewBridge,
+    languageOf,
+    resolveLanguage,
+    cmExtension,
+    normalizePageText,
+} from '../../utils/codeLanguages';
 
-export default function CodeIDE({ block, onSolve, lessonId  }) {
-    const { mode, code: initialCode, expected } = block.data;
-    const [code, setCode] = useState(initialCode || "");
-    const [output, setOutput] = useState("");
-    const [input, setInput] = useState("");
+const OUTPUT_COLORS = {
+    compile: { bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.3)', text: '#ef4444', label: '⚠️ COMPILATION ERROR' },
+    runtime: { bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.3)', text: '#f97316', label: '⚠️ RUNTIME ERROR' },
+    timeout: { bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.3)', text: '#ef4444', label: '⏱️ EXECUTION TIMED OUT' },
+    system: { bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.3)', text: '#a855f7', label: '⚠️ SYSTEM ERROR' },
+};
+
+export default function CodeIDE({ block, onSolve, lessonId }) {
+    const { mode, code: initialCode } = block.data;
+    const languageId = resolveLanguage(block.data.language, initialCode);
+    const lang = languageOf(languageId);
+    const isHtml = lang.preview;
+
+    const draftKey = `instructai-code-draft-${block.id}`;
+    const [code, setCode] = useState(() => {
+        if (initialCode) return initialCode;
+        try {
+            return localStorage.getItem(draftKey) || lang.template;
+        } catch {
+            return lang.template;
+        }
+    });
+    const [output, setOutput] = useState('');
+    const [stdin, setStdin] = useState('');
+    const [resultMeta, setResultMeta] = useState(null);
     const [isRunning, setIsRunning] = useState(false);
     const [isCorrect, setIsCorrect] = useState(false);
     const [isWrong, setIsWrong] = useState(false);
     const [activeTab, setActiveTab] = useState('editor');
     const [errorType, setErrorType] = useState(null);
-    const terminalRef = useRef(null); 
+    const [showTerminal, setShowTerminal] = useState(false);
+    const [previewSrcDoc, setPreviewSrcDoc] = useState('');
+    const [consoleLines, setConsoleLines] = useState([]);
+    const [showStdin, setShowStdin] = useState(false);
+    const pendingCheckRef = useRef(null);
+    const shellRef = useRef(null);
+    const containerRef = useRef(null);
 
     useEffect(() => {
         if (block.data.is_solved) {
@@ -25,23 +57,111 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
         }
     }, [block.data.is_solved]);
 
-    const handleRun = async () => {
+    // Persist drafts so a refresh never loses a student's work
+    useEffect(() => {
+        try { localStorage.setItem(draftKey, code); } catch { /* storage full/blocked */ }
+    }, [code, draftKey]);
+
+    // Listen for console output + rendered text from the preview iframe
+    useEffect(() => {
+        if (!isHtml) return undefined;
+        const handler = (event) => {
+            if (!event.data || !event.data.__instructai_preview) return;
+            if (event.data.type === 'console') {
+                setConsoleLines((prev) => [...prev.slice(-199), { level: event.data.level, message: event.data.message }]);
+            } else if (event.data.type === 'page-text' && pendingCheckRef.current) {
+                const check = pendingCheckRef.current;
+                pendingCheckRef.current = null;
+                const rendered = normalizePageText(event.data.text);
+                const expected = normalizePageText(check.expected);
+                if (expected && rendered.includes(expected)) {
+                    check.onPass();
+                } else {
+                    check.onFail();
+                }
+            }
+        };
+        window.addEventListener('message', handler);
+        return () => window.removeEventListener('message', handler);
+    }, [isHtml]);
+
+    const markSolved = async () => {
+        setIsCorrect(true);
+        setIsWrong(false);
+        try {
+            await api.post(`/student/lessons/${lessonId}/submit-code`, {
+                block_id: block.id,
+                code,
+            });
+        } catch {
+            /* keep the local solve state even if persistence hiccups */
+        }
+        onSolve();
+        toast.success('Challenge Solved!');
+    };
+
+    const handleHtmlRun = () => {
         setIsRunning(true);
-        setIsWrong(false); 
-        setOutput("Compiling...");
-        
+        setIsWrong(false);
+        setErrorType(null);
+        setConsoleLines([]);
+        setActiveTab('preview');
+
+        const check = mode === 'challenge'
+            ? {
+                expected: block.data.expected,
+                onPass: () => markSolved(),
+                onFail: () => {
+                    setIsWrong(true);
+                    toast.error('The page does not contain the expected text yet.');
+                    setTimeout(() => setIsWrong(false), 8000);
+                },
+            }
+            : null;
+
+        setPreviewSrcDoc(injectPreviewBridge(code));
+        // Give the iframe a beat to boot; long-running scripts resolve the check
+        pendingCheckRef.current = check;
+        setTimeout(() => {
+            setIsRunning(false);
+            if (check && pendingCheckRef.current === check) {
+                pendingCheckRef.current = null;
+                check.onFail();
+            }
+        }, 2500);
+    };
+
+    const handleCodeRun = async () => {
+        setIsRunning(true);
+        setIsWrong(false);
+        setErrorType(null);
+        setOutput('');
+        setResultMeta(null);
+
         try {
             const res = await api.post('/student/execute', {
-                code: code,
-                language: 'java',
-                input: input || undefined
+                code,
+                language: languageId,
+                input: stdin || undefined,
             });
 
             const data = res.data;
+            setResultMeta({
+                duration_ms: data.duration_ms,
+                exit_code: data.exit_code,
+                timed_out: data.timed_out,
+            });
 
             if (data.compile_output) {
                 setErrorType('compile');
                 setOutput(data.compile_output);
+                setIsCorrect(false);
+                return;
+            }
+
+            if (data.timed_out || (data.stderr && data.stderr.includes('Execution Timed Out'))) {
+                setErrorType('timeout');
+                setOutput(data.stderr || 'Execution Timed Out');
                 setIsCorrect(false);
                 return;
             }
@@ -53,40 +173,66 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                 return;
             }
 
-            const rawOutput = (data.stdout || "").trim();
+            const rawOutput = (data.stdout || '').trim();
             const cleanOutput = rawOutput.replace(/\r\n/g, '\n');
 
             setErrorType(null);
-            setOutput(cleanOutput || "> Program executed successfully (No output).");
+            setOutput(cleanOutput || '> Program executed successfully (No output).');
 
-            if (block.data.mode === 'challenge') {
-                const expected = (block.data.expected || "").trim().replace(/\r\n/g, '\n');
+            if (mode === 'challenge') {
+                const expected = (block.data.expected || '').trim().replace(/\r\n/g, '\n');
 
-                if (cleanOutput === expected) {
-                    setIsCorrect(true);
-                    setIsWrong(false);
-
-                    await api.post(`/student/lessons/${lessonId}/submit-code`, {
-                        block_id: block.id,
-                        code: code
-                    });
-
-                    onSolve();
-                    toast.success("Challenge Solved!");
+                if (cleanOutput === expected && expected !== '') {
+                    await markSolved();
                 } else {
                     setIsCorrect(false);
                     setIsWrong(true);
-                    toast.error("Incorrect. Look closely at the expected output.");
+                    toast.error('Incorrect. Look closely at the expected output.');
                     setTimeout(() => setIsWrong(false), 8000);
                 }
             }
-
         } catch (err) {
             console.error(err);
-            setOutput("System Error: Could not reach the execution engine. Please check your internet.");
+            setErrorType('system');
+            setOutput('System Error: Could not reach the execution engine. Please check your internet.');
         } finally {
             setIsRunning(false);
         }
+    };
+
+    // Latest run logic lives in a ref so the Ctrl+Enter listener below can
+    // bind once without going stale.
+    const runRef = useRef(null);
+    runRef.current = () => {
+        if (isRunning) return;
+        if (isHtml) {
+            handleHtmlRun();
+        } else {
+            handleCodeRun();
+        }
+    };
+
+    const handleRun = () => runRef.current();
+
+    // Ctrl/Cmd + Enter runs from anywhere inside the IDE
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return undefined;
+        const onKey = (event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                event.preventDefault();
+                runRef.current();
+            }
+        };
+        el.addEventListener('keydown', onKey);
+        return () => el.removeEventListener('keydown', onKey);
+    }, []);
+
+    const handleReset = () => {
+        const base = block.data.code || lang.template;
+        setCode(base);
+        try { localStorage.removeItem(draftKey); } catch { /* noop */ }
+        toast.info('Code reset');
     };
 
     const getModeColor = () => {
@@ -97,9 +243,60 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
     };
 
     const colors = getModeColor();
+    const tabs = isHtml
+        ? [{ id: 'editor', label: 'Code', icon: Code2 }, { id: 'preview', label: 'Preview', icon: Eye }, { id: 'console', label: 'Console', icon: TerminalIcon }]
+        : [{ id: 'editor', label: 'Code Editor', icon: Code2 }, { id: 'terminal', label: 'Terminal Output', icon: TerminalIcon }];
+
+    const renderOutput = () => (
+        <div style={{
+            flex: 1,
+            overflow: 'auto',
+            padding: '20px 24px',
+            fontFamily: 'monospace',
+            fontSize: '13px',
+            lineHeight: '1.6',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            background: '#0d0d1a',
+        }}>
+            {errorType && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px',
+                    padding: '12px 16px', borderRadius: '12px',
+                    background: OUTPUT_COLORS[errorType].bg,
+                    border: `1px solid ${OUTPUT_COLORS[errorType].border}`,
+                    color: OUTPUT_COLORS[errorType].text,
+                }}>
+                    <AlertCircle size={18} />
+                    <span style={{ fontWeight: 900, textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.1em' }}>
+                        {OUTPUT_COLORS[errorType].label}
+                    </span>
+                </div>
+            )}
+            {resultMeta && (
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
+                    {resultMeta.duration_ms != null && (
+                        <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '0.1em', color: '#94a3b8', background: 'rgba(148, 163, 184, 0.12)', padding: '4px 10px', borderRadius: '999px' }}>
+                            {(resultMeta.duration_ms / 1000).toFixed(2)}s
+                        </span>
+                    )}
+                    {resultMeta.exit_code != null && (
+                        <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '0.1em', color: resultMeta.exit_code === 0 ? '#34d399' : '#f87171', background: resultMeta.exit_code === 0 ? 'rgba(52, 211, 153, 0.12)' : 'rgba(248, 113, 113, 0.12)', padding: '4px 10px', borderRadius: '999px' }}>
+                            EXIT {resultMeta.exit_code}
+                        </span>
+                    )}
+                </div>
+            )}
+            <div style={{ color: errorType ? OUTPUT_COLORS[errorType].text : 'var(--accent)' }}>
+                {output || (isRunning ? 'Running...' : 'Click "Run Program" to see output...')}
+            </div>
+        </div>
+    );
 
     return (
         <motion.div
+            ref={containerRef}
+            tabIndex={-1}
             animate={isWrong ? { x: [-4, 4, -4, 4, 0] } : {}}
             transition={{ duration: 0.4 }}
             style={{
@@ -109,11 +306,12 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                 overflow: 'hidden',
                 background: 'var(--bg-secondary)',
                 boxShadow: `0 0 30px ${colors.border}20`,
-                transition: 'all 0.5s ease'
+                transition: 'all 0.5s ease',
+                outline: 'none',
             }}
         >
             {/* Header */}
-            <div style={{ padding: '20px 24px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+            <div style={{ padding: '20px 24px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ padding: '8px 10px', borderRadius: '10px', background: `${colors.bg}`, color: colors.text, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.5s' }}>
                         <Play size={14} />
@@ -121,15 +319,29 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                     <span style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: colors.text, transition: 'all 0.5s' }}>
                         {isWrong ? 'Logic Error' : `${mode.toUpperCase()} Mode`}
                     </span>
+                    <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '6px',
+                        padding: '5px 12px', borderRadius: '999px',
+                        background: `${lang.color}1f`, border: `1px solid ${lang.color}55`,
+                        fontSize: '10px', fontWeight: 900, letterSpacing: '0.1em',
+                        textTransform: 'uppercase', color: lang.color,
+                    }}>
+                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: lang.color, boxShadow: `0 0 6px ${lang.color}` }} />
+                        {lang.label}
+                    </span>
                 </div>
 
                 <AnimatePresence mode="wait">
                     {isCorrect ? (
-                        <motion.div key="success" initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                        // initial={false}: the badge must render at full size when the
+                        // block mounts already-solved (hydration), not stuck at scale 0.
+                        <motion.div key="success" initial={false} animate={{ scale: 1 }} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                             <CheckCircle size={14} /> Challenge Solved
                         </motion.div>
                     ) : isWrong ? (
-                        <motion.div key="error" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                        // initial={false}: scale-0 enter animations don't run reliably in
+                        // this tree — render the badge at full size immediately.
+                        <motion.div key="error" initial={false} animate={{ scale: 1 }} exit={{ scale: 0 }} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                             <AlertCircle size={14} /> Incorrect Output
                         </motion.div>
                     ) : null}
@@ -141,112 +353,116 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                 display: 'flex',
                 borderBottom: '1px solid var(--border-color)',
                 background: 'var(--bg-tertiary)',
-                gap: '0'
             }}>
-                <button
-                    onClick={() => setActiveTab('editor')}
-                    style={{
-                        flex: 1,
-                        padding: '16px 24px',
-                        fontSize: '10px',
-                        fontWeight: 900,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.1em',
-                        border: 'none',
-                        background: activeTab === 'editor' ? 'rgba(168, 85, 247, 0.1)' : 'transparent',
-                        color: activeTab === 'editor' ? '#a855f7' : 'var(--text-tertiary)',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s',
-                        borderBottom: activeTab === 'editor' ? '2px solid #a855f7' : 'none'
-                    }}
-                >
-                    Code Editor
-                </button>
-                <button
-                    onClick={() => setActiveTab('terminal')}
-                    style={{
-                        flex: 1,
-                        padding: '16px 24px',
-                        fontSize: '10px',
-                        fontWeight: 900,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.1em',
-                        border: 'none',
-                        background: activeTab === 'terminal' ? 'rgba(168, 85, 247, 0.1)' : 'transparent',
-                        color: activeTab === 'terminal' ? '#a855f7' : 'var(--text-tertiary)',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s',
-                        borderBottom: activeTab === 'terminal' ? '2px solid #a855f7' : 'none'
-                    }}
-                >
-                    Terminal Output
-                </button>
+                {tabs.map((tab) => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        style={{
+                            flex: 1,
+                            padding: tab.id === 'editor' ? '16px 24px' : '16px 24px',
+                            fontSize: '10px',
+                            fontWeight: 900,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.1em',
+                            border: 'none',
+                            background: activeTab === tab.id ? 'rgba(168, 85, 247, 0.1)' : 'transparent',
+                            color: activeTab === tab.id ? '#a855f7' : 'var(--text-tertiary)',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s',
+                            borderBottom: activeTab === tab.id ? '2px solid #a855f7' : 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                        }}
+                    >
+                        <tab.icon size={13} />
+                        {tab.label}
+                        {tab.id === 'console' && consoleLines.length > 0 && (
+                            <span style={{ background: '#a855f7', color: '#fff', borderRadius: '999px', fontSize: '9px', padding: '1px 7px', fontWeight: 900 }}>{consoleLines.length}</span>
+                        )}
+                    </button>
+                ))}
             </div>
 
             {/* Tab Content */}
-            <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                height: '500px'
-            }}>
-                {/* Code Editor Tab */}
-                {activeTab === 'editor' && (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '500px' }}>
+                {(activeTab === 'editor' || (!isHtml && activeTab === 'preview') || (!isHtml && activeTab === 'console')) && (
                     <div style={{ flex: 1, overflow: 'auto' }}>
                         <CodeMirror
                             value={code}
                             height="100%"
                             theme="dark"
-                            extensions={[java()]}
+                            extensions={[cmExtension(languageId)]}
                             onChange={(value) => setCode(value)}
                             className="text-sm"
                         />
                     </div>
                 )}
 
-                {/* Terminal Tab */}
-                {activeTab === 'terminal' && (
-                    <div style={{
-                        flex: 1,
-                        overflow: 'auto',
-                        padding: '20px 24px',
-                        fontFamily: 'monospace',
-                        fontSize: '13px',
-                        lineHeight: '1.6',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word',
-                        background: '#0d0d1a'
-                    }}>
-                        {output ? (
-                            <>
-                                {errorType && (
-                                    <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '12px',
-                                        marginBottom: '16px',
-                                        padding: '12px 16px',
-                                        borderRadius: '12px',
-                                        background: errorType === 'compile' ? 'rgba(239, 68, 68, 0.1)' : errorType === 'runtime' ? 'rgba(249, 115, 22, 0.1)' : 'rgba(168, 85, 247, 0.1)',
-                                        border: `1px solid ${errorType === 'compile' ? 'rgba(239, 68, 68, 0.3)' : errorType === 'runtime' ? 'rgba(249, 115, 22, 0.3)' : 'rgba(168, 85, 247, 0.3)'}`,
-                                        color: errorType === 'compile' ? '#ef4444' : errorType === 'runtime' ? '#f97316' : '#a855f7'
-                                    }}>
-                                        <AlertCircle size={18} />
-                                        <span style={{ fontWeight: 900, textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.1em' }}>
-                                            {errorType === 'compile' ? '⚠️ COMPILATION ERROR' : errorType === 'runtime' ? '⚠️ RUNTIME ERROR' : '⚠️ VERIFICATION ERROR'}
-                                        </span>
-                                    </div>
-                                )}
-                                <div style={{
-                                    color: errorType === 'compile' ? '#fca5a5' : errorType === 'runtime' ? '#fdba74' : errorType === 'verification' ? '#d8b4fe' : 'var(--accent)'
-                                }}>
-                                    {output}
-                                </div>
-                            </>
+                {isHtml && activeTab === 'preview' && (
+                    <div style={{ flex: 1, background: '#fff', position: 'relative' }}>
+                        {previewSrcDoc ? (
+                            <iframe
+                                title="HTML Preview"
+                                srcDoc={previewSrcDoc}
+                                sandbox="allow-scripts allow-forms allow-modals allow-popups"
+                                style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+                            />
                         ) : (
-                            <div style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
-                                Click "Run Program" to see output...
+                            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontFamily: 'monospace', fontSize: '13px' }}>
+                                Click "Run" to render your page
                             </div>
                         )}
+                    </div>
+                )}
+
+                {isHtml && activeTab === 'console' && (
+                    <div style={{
+                        flex: 1, overflow: 'auto', padding: '20px 24px',
+                        fontFamily: 'monospace', fontSize: '13px', lineHeight: '1.7',
+                        whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: '#0d0d1a',
+                    }}>
+                        {consoleLines.length === 0 ? (
+                            <div style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                                console.log() output from your page will appear here...
+                            </div>
+                        ) : (
+                            consoleLines.map((line, i) => (
+                                <div key={i} style={{ color: line.level === 'error' ? '#f87171' : line.level === 'warn' ? '#fbbf24' : '#7dd3fc' }}>
+                                    <span style={{ color: '#64748b', marginRight: '8px' }}>›</span>
+                                    {line.message}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                )}
+
+                {!isHtml && activeTab === 'terminal' && renderOutput()}
+
+                {!isHtml && activeTab === 'editor' && showStdin && (
+                    <div style={{ borderTop: '1px solid var(--border-color)', background: '#0d0d1a' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 20px 4px' }}>
+                            <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#94a3b8' }}>
+                                Stdin — text fed to your program
+                            </span>
+                            <button onClick={() => setShowStdin(false)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                                Hide <ChevronDown size={12} />
+                            </button>
+                        </div>
+                        <textarea
+                            value={stdin}
+                            onChange={(e) => setStdin(e.target.value)}
+                            placeholder="Lines of input for your program (e.g. answers to input()/Scanner)..."
+                            rows={3}
+                            style={{
+                                width: 'calc(100% - 40px)', margin: '4px 20px 14px', boxSizing: 'border-box',
+                                background: '#111127', border: '1px solid rgba(168, 85, 247, 0.25)', borderRadius: '10px',
+                                color: '#e2e8f0', fontFamily: 'monospace', fontSize: '12px', padding: '10px 12px', resize: 'vertical',
+                                outline: 'none',
+                            }}
+                        />
                     </div>
                 )}
             </div>
@@ -257,70 +473,127 @@ export default function CodeIDE({ block, onSolve, lessonId  }) {
                 background: 'var(--bg-tertiary)',
                 borderTop: '1px solid var(--border-color)',
                 display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '12px'
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '12px',
+                flexWrap: 'wrap',
             }}>
-                <button
-                    onClick={() => {
-                        setActiveTab('terminal');
-                        setTimeout(() => {
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    {!isHtml && !showStdin && (
+                        <button
+                            onClick={() => { setShowStdin(true); setActiveTab('editor'); }}
+                            style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '10px', color: 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', transition: 'all 0.3s' }}
+                            title="Provide standard input"
+                        >
+                            <ChevronUp size={13} />
+                            Stdin
+                        </button>
+                    )}
+                    {!isHtml && (
+                        <button
+                            onClick={() => setShowTerminal((v) => !v)}
+                            style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '10px', color: 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', transition: 'all 0.3s' }}
+                            title="Interactive shell — type input while the program runs"
+                        >
+                            <TerminalIcon size={12} />
+                            {showTerminal ? 'Hide Shell' : 'Shell'}
+                        </button>
+                    )}
+                    <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
+                        ⌘/Ctrl + Enter to run
+                    </span>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px' }}>
+                    <button
+                        onClick={handleReset}
+                        style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '10px', color: 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '10px', fontWeight: 900 }}
+                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.color = 'var(--accent)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
+                        title="Reset Code"
+                    >
+                        <RefreshCw size={14} />
+                        Reset
+                    </button>
+                    <button
+                        onClick={() => {
+                            if (!isHtml) setActiveTab('terminal');
                             handleRun();
-                        }, 100);
-                    }}
-                    style={{
-                        padding: '12px 28px',
-                        borderRadius: '14px',
-                        fontWeight: 900,
-                        fontSize: '10px',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.2em',
-                        border: 'none',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        background: 'rgba(168, 85, 247, 0.15)',
-                        color: '#a855f7',
-                        boxShadow: '0 10px 30px rgba(168, 85, 247, 0.2)',
-                        transition: 'all 0.3s'
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 15px 40px rgba(168, 85, 247, 0.3)';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 10px 30px rgba(168, 85, 247, 0.2)';
-                    }}
-                >
-                    <Play size={16} fill="currentColor" />
-                    Run Program
-                </button>
+                        }}
+                        disabled={isRunning}
+                        style={{
+                            padding: '12px 28px',
+                            borderRadius: '14px',
+                            fontWeight: 900,
+                            fontSize: '10px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.2em',
+                            border: 'none',
+                            cursor: isRunning ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            background: 'rgba(168, 85, 247, 0.15)',
+                            color: '#a855f7',
+                            boxShadow: '0 10px 30px rgba(168, 85, 247, 0.2)',
+                            transition: 'all 0.3s',
+                            opacity: isRunning ? 0.6 : 1,
+                        }}
+                        onMouseEnter={(e) => {
+                            if (isRunning) return;
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 15px 40px rgba(168, 85, 247, 0.3)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 10px 30px rgba(168, 85, 247, 0.2)';
+                        }}
+                    >
+                        <Play size={16} fill="currentColor" />
+                        {isHtml ? 'Run Page' : 'Run Program'}
+                    </button>
+                </div>
             </div>
+
+            {/* Interactive shell for server-side languages */}
+            {!isHtml && showTerminal && (
+                <div style={{ borderTop: '1px solid var(--border-color)', background: '#050120', display: 'flex', flexDirection: 'column', height: '360px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px', flexShrink: 0 }}>
+                        <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#a855f7' }}>
+                            Interactive Shell — type input while the program runs
+                        </span>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                                onClick={() => shellRef.current?.stop()}
+                                style={{ padding: '8px 14px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', color: '#f87171', cursor: 'pointer', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '5px' }}
+                            >
+                                <Square size={10} /> Stop
+                            </button>
+                            <button
+                                onClick={() => shellRef.current?.triggerRun()}
+                                style={{ padding: '8px 14px', background: 'rgba(168, 85, 247, 0.12)', border: '1px solid rgba(168, 85, 247, 0.3)', borderRadius: '8px', color: '#c084fc', cursor: 'pointer', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '5px' }}
+                            >
+                                <Play size={10} /> Run
+                            </button>
+                        </div>
+                    </div>
+                    <div style={{ flex: 1, minHeight: 0 }}>
+                        <InteractiveTerminal ref={shellRef} code={code} language={languageId} compact />
+                    </div>
+                </div>
+            )}
 
             {/* Expected Output - For Challenge Mode */}
             {mode === 'challenge' && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ padding: '20px 24px', borderTop: '1px solid var(--accent-glow)', background: 'var(--accent-light)' }}>
-                    <p style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 900, textTransform: 'uppercase', margin: '0 0 12px 0' }}>Expected Output:</p>
+                    <p style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 900, textTransform: 'uppercase', margin: '0 0 12px 0' }}>
+                        {isHtml ? 'Expected On Page:' : 'Expected Output:'}
+                    </p>
                     <div style={{ background: 'var(--accent-light)', border: '1px solid var(--accent-glow)', padding: '16px', borderRadius: '12px', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'Courier New, monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                         {block.data.expected}
                     </div>
                 </motion.div>
             )}
-
-            {/* Reset Button */}
-            <div style={{ padding: '16px 24px', background: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
-                <button
-                    onClick={() => setCode(initialCode)}
-                    style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '10px', color: 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '10px', fontWeight: 900 }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.color = 'var(--accent)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
-                    title="Reset Code"
-                >
-                    <RefreshCw size={14} />
-                    Reset Code
-                </button>
-            </div>
         </motion.div>
     );
 }

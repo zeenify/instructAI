@@ -4,6 +4,9 @@ import { ChevronLeft, Clock, Loader2, CheckSquare, Download, MessageSquare, Sear
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
 import ActivityTypeBadge from '../../components/teacher/ActivityTypeBadge';
+import CodeMirror from '@uiw/react-codemirror';
+import { cmExtension, languageOf } from '../../utils/codeLanguages';
+import { Eye, Code2 } from 'lucide-react';
 
 function studentName(s) {
   const p = s?.student_profile || s?.student?.student_profile;
@@ -332,11 +335,13 @@ export default function ActivityGrading() {
                             )}
                             <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px 0' }}>Student answer</p>
                             {answer?.submitted_answer ? (
-                              <pre style={code
-                                ? { margin: '0 0 12px 0', padding: '12px 14px', borderRadius: '8px', background: '#0b1120', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontFamily: 'Consolas, Monaco, "Courier New", monospace', fontSize: '12.5px', lineHeight: 1.6, whiteSpace: 'pre', overflowX: 'auto', overflowY: 'auto', maxHeight: '380px', tabSize: 4 }
-                                : { margin: '0 0 12px 0', padding: '12px 14px', borderRadius: '8px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: '13.5px', lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                              code
+                                ? <CodingAnswerView language={q.language} code={answer.submitted_answer} />
+                                : (
+                              <pre style={{ margin: '0 0 12px 0', padding: '12px 14px', borderRadius: '8px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: '13.5px', lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                                 {answer.submitted_answer}
                               </pre>
+                                )
                             ) : (
                               <p style={{ margin: '0 0 12px 0', padding: '12px 14px', borderRadius: '8px', background: 'var(--bg-secondary)', border: '1px dashed var(--border-color)', color: 'var(--text-tertiary)', fontStyle: 'italic', fontSize: '13px' }}>No answer submitted</p>
                             )}
@@ -542,6 +547,48 @@ export default function ActivityGrading() {
               })}
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Teacher-side view of a student's code: syntax highlighted in the question's
+// language, with a sandboxed live preview for HTML submissions.
+function CodingAnswerView({ language, code }) {
+  const lang = languageOf(language);
+  const isHtml = lang.preview;
+  const [tab, setTab] = useState('code');
+  const [previewDoc, setPreviewDoc] = useState('');
+
+  const runPreview = () => {
+    setPreviewDoc(code);
+    setTab('preview');
+  };
+
+  return (
+    <div style={{ margin: '0 0 12px 0', borderRadius: '10px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+      <div style={{ padding: '8px 12px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '3px 10px', borderRadius: '999px', background: `${lang.color}1f`, border: `1px solid ${lang.color}55`, fontSize: '9px', fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase', color: lang.color }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: lang.color }} />
+          {lang.label}
+        </span>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button onClick={() => setTab('code')} type="button" style={{ padding: '5px 10px', borderRadius: '7px', border: 'none', background: tab === 'code' ? 'rgba(124, 58, 237, 0.14)' : 'transparent', color: tab === 'code' ? '#a78bfa' : 'var(--text-tertiary)', cursor: 'pointer', fontWeight: 800, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <Code2 size={10} /> Code
+          </button>
+          {isHtml && (
+            <button onClick={runPreview} type="button" style={{ padding: '5px 10px', borderRadius: '7px', border: 'none', background: tab === 'preview' ? 'rgba(124, 58, 237, 0.14)' : 'transparent', color: tab === 'preview' ? '#a78bfa' : 'var(--text-tertiary)', cursor: 'pointer', fontWeight: 800, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <Eye size={10} /> Render Page
+            </button>
+          )}
+        </div>
+      </div>
+      {tab === 'code' ? (
+        <CodeMirror value={code} editable={false} height="320px" extensions={[cmExtension(lang.id)]} theme="dark" basicSetup={{ foldGutter: false, highlightActiveLine: false }} />
+      ) : (
+        <div style={{ height: '320px', background: '#fff' }}>
+          <iframe title="Student HTML Preview" srcDoc={previewDoc} sandbox="allow-scripts allow-forms allow-modals allow-popups" style={{ width: '100%', height: '100%', border: 'none', display: 'block' }} />
         </div>
       )}
     </div>

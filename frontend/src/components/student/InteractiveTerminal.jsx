@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { Play, Loader2, AlertCircle } from 'lucide-react';
+import { Play, Loader2, Square } from 'lucide-react';
+import { languageOf } from '../../utils/codeLanguages';
 
-const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code, onComplete, lessonId, blockId, mode, expected, compact = false, onRun }, ref) {
+const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code, language = 'java', onComplete, lessonId, blockId, mode, expected, compact = false, onRun }, ref) {
     const terminalRef = useRef(null);
     const wsRef = useRef(null);
     const termRef = useRef(null);
@@ -63,7 +64,12 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
     }, []);
 
     React.useImperativeHandle(ref, () => ({
-        triggerRun: handleRun
+        triggerRun: handleRun,
+        stop: () => {
+            try {
+                wsRef.current?.send(JSON.stringify({ type: 'stop' }));
+            } catch { /* socket already gone */ }
+        },
     }));
 
     const handleRun = async () => {
@@ -76,7 +82,9 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
         setIsRunning(true);
         setHasError(false);
         termRef.current?.clear();
-        termRef.current?.write('> Connecting to execution engine...\r\n');
+        const langLabel = languageOf(language).label;
+        const compiling = ['java', 'cpp'].includes(language);
+        termRef.current?.write(`> ${compiling ? 'Compiling' : 'Starting'} ${langLabel} program...\r\n`);
 
         const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3000';
         const ws = new WebSocket(wsUrl);
@@ -84,10 +92,9 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
         wsRef.current = ws;
 
         ws.onopen = () => {
-            termRef.current?.write('> Compiling...\r\n');
             ws.send(JSON.stringify({
                 type: 'execute',
-                language: 'java',
+                language: language,
                 code: code
             }));
         };

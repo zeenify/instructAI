@@ -8,6 +8,8 @@ import ActivityTypeBadge from '../../components/teacher/ActivityTypeBadge';
 import DateTimePicker from '../../components/teacher/DateTimePicker';
 import DeleteModal from '../../components/ui/DeleteModal';
 import Button from '../../components/ui/Button';
+import CodeMirror from '@uiw/react-codemirror';
+import { CODE_LANGUAGES, cmExtension, languageOf } from '../../utils/codeLanguages';
 
 const QUESTION_TYPES = [
   { id: 'multiple_choice', label: 'Multiple Choice' },
@@ -44,6 +46,7 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
   const [correctOption, setCorrectOption] = useState(0);
   const [expectedOutput, setExpectedOutput] = useState('');
   const [boilerplate, setBoilerplate] = useState('');
+  const [language, setLanguage] = useState('java');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -63,6 +66,7 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
       }
       setExpectedOutput(editQuestion.expected_output || '');
       setBoilerplate(editQuestion.boilerplate || '');
+      setLanguage(editQuestion.language || 'java');
     } else {
       setType('multiple_choice');
       setQuestionText('');
@@ -71,6 +75,7 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
       setCorrectOption(0);
       setExpectedOutput('');
       setBoilerplate('');
+      setLanguage('java');
     }
   }, [editQuestion]);
 
@@ -107,6 +112,7 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
       } else if (type === 'coding') {
         payload.expected_output = expectedOutput;
         payload.boilerplate = boilerplate;
+        payload.language = language;
       } else {
         payload.expected_output = expectedOutput;
       }
@@ -123,9 +129,9 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
     }
   };
 
-  const JAVA_BOILERPLATE = 'public class Main {\n    public static void main(String[] args) {\n        // Your code here\n    }\n}';
-  const insertJavaBoilerplate = () => {
-    setBoilerplate(JAVA_BOILERPLATE);
+  const activeLang = languageOf(language);
+  const insertTemplate = () => {
+    setBoilerplate(activeLang.template);
   };
 
   if (!isOpen) return null;
@@ -270,19 +276,36 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
           {type === 'coding' && (
             <div style={{ marginBottom: '20px' }}>
               <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Boilerplate Code</label>
-                  <button type="button" onClick={insertJavaBoilerplate}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Language</label>
+                    <div style={{ display: 'flex', gap: '4px', padding: '4px', background: 'var(--bg-tertiary)', borderRadius: '12px', flexWrap: 'wrap' }}>
+                      {Object.values(CODE_LANGUAGES).map((l) => (
+                        <button key={l.id} type="button" onClick={() => setLanguage(l.id)}
+                          title={l.preview ? 'Student pages render in a browser preview' : 'Runs on the execution engine'}
+                          style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 10px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.08em', transition: 'all 0.2s',
+                            background: language === l.id ? '#7c3aed' : 'transparent',
+                            color: language === l.id ? '#fff' : 'var(--text-tertiary)' }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: l.color }} />
+                          {l.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <button type="button" onClick={insertTemplate}
                     style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.3)', background: 'rgba(59, 130, 246, 0.08)', color: '#3b82f6', cursor: 'pointer', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    + Java Boilerplate
+                    + {activeLang.label} Template
                   </button>
                 </div>
-                <textarea value={boilerplate} onChange={(e) => setBoilerplate(e.target.value)} rows={7} placeholder="// Starter code for students..."
-                  style={{ width: '100%', padding: '14px 16px', borderRadius: '10px', border: '1px solid var(--border-color)', background: '#1a1a2e', color: '#e2e8f0', fontSize: '13px', fontFamily: 'monospace', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
+                <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                  <CodeMirror value={boilerplate} onChange={(val) => setBoilerplate(val)} height="180px" extensions={[cmExtension(language)]} theme="dark" />
+                </div>
               </div>
               <div style={{ padding: '20px', borderRadius: '16px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Expected Output</label>
-                <input type="text" value={expectedOutput} onChange={(e) => setExpectedOutput(e.target.value)} placeholder="What the program should output"
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
+                  {activeLang.preview ? 'Expected Content On The Page' : 'Expected Output'}
+                </label>
+                <input type="text" value={expectedOutput} onChange={(e) => setExpectedOutput(e.target.value)} placeholder={activeLang.preview ? 'Text that must appear on the rendered page' : 'What the program should output'}
                   style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
               </div>
             </div>
@@ -562,6 +585,7 @@ export default function ActivityEditor() {
       options: payload.options || [],
       expected_output: payload.expected_output || '',
       boilerplate: payload.boilerplate || '',
+      language: payload.language || 'java',
       points: payload.points,
       order_index: (activity?.questions?.length ?? 0) + 1,
       is_temp: true,

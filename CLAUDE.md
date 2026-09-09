@@ -38,7 +38,7 @@ Classroom (teacher creates, students join via 6-digit code)
 - **Student Monitoring**: Teacher drill-down into student progress per course (stats, flags, profiles)
 - **RAG Vector Store**: PostgreSQL pgvector for semantic search across course content (embeddings via `all-MiniLM-L6-v2`)
 - **AI Tutor**: 4 character personas (Professor Oak, Buddy, Coach Taylor, Master Yuki) with RAG-powered chat
-- **Code Execution**: Node.js service for compiling/running Java code with 10s timeout (in `instruct-execute/`)
+- **Code Execution**: Node.js service for compiling/running Java, Python, JavaScript and C++ with 10s timeout; HTML/CSS/JS runs in a sandboxed browser preview (in `instruct-execute/`)
 - **Curriculum Indexing**: Searchable index of course content for the AI tutor's RAG pipeline
 
 ### User Roles
@@ -256,11 +256,12 @@ cd frontend && npm run format:check          # Prettier check
 - **Metrics**: `MetricsTracker` per-endpoint/per-model token/duration/error tracking
 
 ### Code Execution Engine (`instruct-execute/`)
-- **Purpose**: Node.js Express 5 server for compiling and running student Java code
-- **Supported Language**: Java only (JDK 22)
+- **Purpose**: Node.js Express 5 server for compiling and running student code
+- **Supported Languages**: Java (JDK), Python 3, JavaScript (Node), C++ (g++, Docker image); `html` is preview-only (the browser is its runtime). `GET /languages` reports availability; toolchains missing on the host answer with a clear error instead of crashing
 - **Protocols**:
-  - **REST** `POST /execute` — `{ language, code, input? }` → `{ stdout, stderr, compile_output }`
-  - **WebSocket** `ws://host:3000` — Interactive terminal with stdin support via `{ type: "execute" }` / `{ type: "input" }`
+  - **REST** `POST /execute` — `{ language, code, input? }` → `{ stdout, stderr, compile_output, exit_code, duration_ms, timed_out }`
+  - **Capabilities** `GET /languages` — supported languages with per-host availability
+  - **WebSocket** `ws://host:3000` — Interactive terminal with stdin support via `{ type: "execute" }` / `{ type: "input" }` / `{ type: "stop" }`; input typed while compiling is buffered until the run starts
 - **Security**: UUID temp dir per execution, auto-cleanup, 10s (REST) / 30s (WS) timeout
 - **Deployment**: Docker (Dockerfile) or Railway (nixpacks.toml)
 - **Port**: 3000 (configurable via `PORT` env)
@@ -520,7 +521,7 @@ PORT=3000                               # Server port (default)
 - **Interactive terminal**: WebSocket-based using `@xterm/xterm` frontend → instruct-execute WebSocket → spawns Java process with stdin pipe
 - **Fallback**: Backend tries localhost:3000 first, then `EXECUTION_ENGINE_URL` (deployed)
 - **Challenge verification**: `POST /api/ai/verify-code-challenge` sends code + expected_output to AI service for correctness checking
-- **Current limitation**: Java only. No stdin support in REST mode (only via WebSocket).
+- **Multi-language**: coding questions/lesson blocks carry a `language` (`java` default; `python`, `javascript`, `cpp`, `html`). HTML never reaches the engine — student IDEs render it in a sandboxed iframe with a console bridge, and HTML challenges check that the rendered page contains the expected text. Quiz grading stage-1 runs the code in the question's language via `App\Support\CodeRunner` (local→deployed fallback shared with the student execute proxy); HTML skips stage-1 and goes straight to AI grading.
 
 ### Frontend State Management
 - **AuthContext**: Manages user session, loads user data on mount via `GET /api/user`, provides login/logout

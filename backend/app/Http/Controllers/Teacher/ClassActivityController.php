@@ -11,6 +11,7 @@ use App\Models\Classroom;
 use App\Models\Enrollment;
 use App\Models\User;
 use App\Support\ActivityGrading;
+use App\Support\CodeRunner;
 use Cloudinary\Api\Upload\UploadApi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -958,6 +959,7 @@ class ClassActivityController extends Controller
             'options.*' => 'string|max:1000',
             'expected_output' => 'nullable|string|max:5000',
             'boilerplate' => 'nullable|string|max:5000',
+            'language' => 'nullable|string|in:'.implode(',', CodeRunner::LANGUAGES),
             'points' => 'required|numeric|min:1|max:99999',
         ]);
 
@@ -974,6 +976,7 @@ class ClassActivityController extends Controller
             'options' => $validated['options'] ?? [],
             'expected_output' => $validated['expected_output'] ?? '',
             'boilerplate' => $validated['boilerplate'] ?? '',
+            'language' => $validated['language'] ?? 'java',
             'points' => $validated['points'],
             'order_index' => $maxOrder + 1,
         ]);
@@ -1004,6 +1007,7 @@ class ClassActivityController extends Controller
             'options.*' => 'string|max:1000',
             'expected_output' => 'nullable|string|max:5000',
             'boilerplate' => 'nullable|string|max:5000',
+            'language' => 'nullable|string|in:'.implode(',', CodeRunner::LANGUAGES),
             'points' => 'sometimes|numeric|min:1|max:99999',
             'order_index' => 'sometimes|integer|min:0',
         ]);

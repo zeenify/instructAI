@@ -14,7 +14,7 @@ import Button from '../../components/ui/Button';
 import DeleteModal from '../../components/ui/DeleteModal';
 
 import CodeMirror from '@uiw/react-codemirror';
-import { java } from '@codemirror/lang-java';
+import { CODE_LANGUAGES, cmExtension, resolveLanguage, languageOf } from '../../utils/codeLanguages';
 
 function DraggableQuestion({ q, index, quiz, deleteModalOpen, setDeleteModalOpen, isSyncingId, updateQuestion }) {
     const dragControls = useDragControls();
@@ -172,25 +172,48 @@ function DraggableQuestion({ q, index, quiz, deleteModalOpen, setDeleteModalOpen
                         </div>
                     )}
 
-                    {q.type === 'coding' && (
+                    {q.type === 'coding' && (() => {
+                        const qLang = languageOf(resolveLanguage(q.language, q.boilerplate || q.expected_output));
+                        return (
                         <div style={{ gap: '24px' }} className="flex flex-col">
                             <div style={{ gap: '12px' }} className="flex flex-col">
-                                <div style={{ gap: '12px', paddingLeft: '4px' }} className="flex justify-between items-end">
-                                    <label style={{ gap: '8px' }} className={`text-[10px] font-black uppercase tracking-[0.3em] flex items-center ${
-                                        theme === 'dark' ? 'text-slate-500' : 'text-slate-600'
-                                    }`}><Code size={14}/> Student Sandbox Starter</label>
-                                    <button onClick={() => updateQuestion(q.id, { boilerplate: `public class Main {\n    public static void main(String[] args) {\n        // Your logic here\n\n    }\n}` })} style={{ padding: '6px 12px' }} className={`text-[9px] font-black rounded-lg border-none cursor-pointer transition-colors ${
+                                <div style={{ gap: '12px', paddingLeft: '4px' }} className="flex justify-between items-end flex-wrap">
+                                    <div style={{ gap: '10px', flexWrap: 'wrap' }} className="flex items-center">
+                                        <label style={{ gap: '8px' }} className={`text-[10px] font-black uppercase tracking-[0.3em] flex items-center ${
+                                            theme === 'dark' ? 'text-slate-500' : 'text-slate-600'
+                                        }`}><Code size={14}/> Language</label>
+                                        <div style={{ padding: '4px', gap: '4px' }} className="flex rounded-xl flex-wrap bg-slate-500/10">
+                                            {Object.values(CODE_LANGUAGES).map(l => (
+                                                <button
+                                                    key={l.id}
+                                                    onClick={() => updateQuestion(q.id, { language: l.id })}
+                                                    type="button"
+                                                    title={l.preview ? 'Student pages render in a browser preview' : 'Runs on the execution engine'}
+                                                    style={{ padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                                    className={`rounded-lg text-[9px] font-black uppercase transition-all border-none cursor-pointer ${
+                                                        qLang.id === l.id
+                                                            ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30'
+                                                            : theme === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-800'
+                                                    }`}
+                                                >
+                                                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: l.color }} />
+                                                    {l.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <button onClick={() => updateQuestion(q.id, { boilerplate: qLang.template })} style={{ padding: '6px 12px' }} className={`text-[9px] font-black rounded-lg border-none cursor-pointer transition-colors ${
                                         theme === 'dark'
                                             ? 'text-purple-400 bg-purple-500/10 hover:bg-purple-500/20'
                                             : 'text-purple-600 bg-purple-100 hover:bg-purple-200'
-                                    }`}>+ Inject Java Template</button>
+                                    }`}>+ Inject {qLang.label} Template</button>
                                 </div>
                                 <div className={`rounded-3xl border overflow-hidden shadow-inner ${
                                     theme === 'dark'
                                         ? 'border-white/10 bg-[#020202]'
                                         : 'border-slate-300 bg-slate-50'
                                 }`}>
-                                    <CodeMirror value={q.boilerplate || ""} height="250px" theme={theme === 'dark' ? 'dark' : 'light'} extensions={[java()]} onChange={(val) => updateQuestion(q.id, { boilerplate: val })} />
+                                    <CodeMirror value={q.boilerplate || ""} height="250px" theme={theme === 'dark' ? 'dark' : 'light'} extensions={[cmExtension(qLang.id)]} onChange={(val) => updateQuestion(q.id, { boilerplate: val })} />
                                 </div>
                             </div>
                             <div style={{ padding: '16px 20px', gap: '12px' }} className={`rounded-3xl group focus-within:transition-all flex flex-col ${
@@ -200,15 +223,21 @@ function DraggableQuestion({ q, index, quiz, deleteModalOpen, setDeleteModalOpen
                             }`}>
                                 <div style={{ gap: '8px' }} className={`flex items-center font-black text-[10px] uppercase tracking-[0.2em] ${
                                     theme === 'dark' ? 'text-cyan-500' : 'text-cyan-600'
-                                }`}><Target size={14} /> Expected Console Output Validation</div>
+                                }`}><Target size={14} /> {qLang.preview ? 'Expected Content On The Page' : 'Expected Console Output Validation'}</div>
                                 <input value={q.expected_output ?? ""} onChange={(e) => updateQuestion(q.id, { expected_output: e.target.value })} className={`w-full bg-transparent border-none outline-none font-mono text-base ${
                                     theme === 'dark'
                                         ? 'text-cyan-400 placeholder:text-cyan-900'
                                         : 'text-cyan-700 placeholder:text-cyan-400'
-                                }`} placeholder="Required system output string..." />
+                                }`} placeholder={qLang.preview ? 'Text that must appear on the rendered page...' : 'Required system output string...'} />
+                                {qLang.preview && (
+                                    <p className={`text-[10px] font-medium ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`} style={{ margin: 0 }}>
+                                        HTML questions are graded by AI (and reviewed by you) — students see a live preview of their page while answering.
+                                    </p>
+                                )}
                             </div>
                         </div>
-                    )}
+                        );
+                    })()}
                 </div>
 
                 <div style={{ marginTop: '24px', paddingTop: '24px' }} className={`border-t flex justify-end relative z-10 ${
@@ -319,6 +348,7 @@ export default function QuizBuilder() {
         try {
             const res = await api.post(`/teacher/quizzes/${id}/questions`, {
                 type,
+                language: type === 'coding' ? 'java' : undefined,
                 order_index: questions.length + 1
             });
             setQuestions(prev => [...prev, res.data]);

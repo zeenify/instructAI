@@ -21,7 +21,7 @@ import Button from '../../components/ui/Button';
 import { useTheme } from '../../context/ThemeContext';
 
 import CodeMirror from '@uiw/react-codemirror';
-import { java } from '@codemirror/lang-java';
+import { CODE_LANGUAGES, cmExtension, resolveLanguage, languageOf } from '../../utils/codeLanguages';
 
 /**
  * TIPTAP CONFIGURATION
@@ -91,7 +91,7 @@ export default function LessonEditor() {
         const newBlock = {
             id: crypto.randomUUID(),
             type,
-            data: type === 'code' ? { mode: 'playground', code: '', expected: '', boilerplate: '' } : 
+            data: type === 'code' ? { mode: 'playground', language: 'java', code: '', expected: '', boilerplate: '' } : 
                   type === 'image' ? { url: '', caption: '' } : 
                   type === 'video' ? { url: '', title: '' } :
                   type === 'link' ? { url: '', title: '' } : { text: '' }
@@ -380,32 +380,59 @@ case 'link': return (
                 )}
             </div>
         );
-case 'code': return (
+case 'code': {
+            const langId = resolveLanguage(block.data.language, block.data.code);
+            const lang = languageOf(langId);
+            return (
             <div style={{ padding: '32px 40px', backgroundColor: theme === 'dark' ? '#020202' : '#ffffff', border: '1px solid var(--border-color)' }} className="rounded-[40px] shadow-2xl relative overflow-hidden">
-                <div style={{ marginBottom: '24px', justifyContent: 'space-between' }} className="flex items-center">
-                    <div style={{ padding: '4px', gap: '4px', backgroundColor: 'var(--bg-tertiary)' }} className="flex rounded-xl">
-                        {['playground', 'challenge'].map(m => (
-                            <button key={m} onClick={() => update(block.id, { mode: m })} style={{ padding: '8px 12px' }} className={`rounded-lg text-[10px] font-black uppercase transition-all border-none cursor-pointer ${block.data.mode === m ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' : 'text-slate-600 hover:text-slate-400'}`}>{m}</button>
-                        ))}
+                <div style={{ marginBottom: '24px', justifyContent: 'space-between' }} className="flex items-center flex-wrap gap-3">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                        <div style={{ padding: '4px', gap: '4px', backgroundColor: 'var(--bg-tertiary)' }} className="flex rounded-xl">
+                            {['playground', 'challenge'].map(m => (
+                                <button key={m} onClick={() => update(block.id, { mode: m })} style={{ padding: '8px 12px' }} className={`rounded-lg text-[10px] font-black uppercase transition-all border-none cursor-pointer ${block.data.mode === m ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' : 'text-slate-600 hover:text-slate-400'}`}>{m}</button>
+                            ))}
+                        </div>
+                        <div style={{ padding: '4px', gap: '4px', backgroundColor: 'var(--bg-tertiary)' }} className="flex rounded-xl flex-wrap">
+                            {Object.values(CODE_LANGUAGES).map(l => (
+                                <button
+                                    key={l.id}
+                                    onClick={() => update(block.id, { language: l.id })}
+                                    title={l.preview ? 'Runs in the browser preview' : 'Runs on the execution engine'}
+                                    style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                    className={`rounded-lg text-[10px] font-black uppercase transition-all border-none cursor-pointer ${langId === l.id ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' : 'text-slate-600 hover:text-slate-400'}`}
+                                >
+                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: l.color, boxShadow: langId === l.id ? `0 0 6px ${l.color}` : 'none' }} />
+                                    {l.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                     <button
-                        onClick={() => update(block.id, { code: 'public class Main {\n    public static void main(String[] args) {\n        // Code here\n    }\n}' })}
+                        onClick={() => update(block.id, { code: lang.template })}
                         className="text-[9px] font-bold text-purple-400 bg-transparent border-none cursor-pointer"
                     >
-                        + Java Template
+                        + {lang.label} Template
                     </button>
                 </div>
 <div className="rounded-2xl border border-white/5 overflow-hidden" style={{ marginBottom: '24px' }}>
-                    <CodeMirror value={block.data.code || ""} height="300px" theme={theme === 'dark' ? 'dark' : 'light'} extensions={[java()]} onChange={(val) => update(block.id, { code: val })} options={{ fontSize: 16 }} />
+                    <CodeMirror value={block.data.code || ""} height="300px" theme={theme === 'dark' ? 'dark' : 'light'} extensions={[cmExtension(langId)]} onChange={(val) => update(block.id, { code: val })} options={{ fontSize: 16 }} />
                 </div>
                 {block.data.mode === 'challenge' && (
                     <div style={{ marginTop: '24px', paddingTop: '24px', gap: '12px' }} className="border-t border-white/5 text-cyan-500 flex flex-col">
-                        <label className="text-[10px] font-black uppercase tracking-widest">Required Output</label>
+                        <label className="text-[10px] font-black uppercase tracking-widest">
+                            {lang.preview ? 'Text That Must Appear On The Page' : 'Required Output'}
+                        </label>
                         <input style={{ padding: '10px 12px' }} className="w-full bg-white/5 border border-white/10 rounded-2xl text-sm font-mono text-cyan-400" value={block.data.expected || ""} onChange={(e) => update(block.id, { expected: e.target.value })} />
+                        {lang.preview && (
+                            <p className="text-[10px] text-slate-500 font-medium" style={{ margin: 0 }}>
+                                The student's rendered page must contain this text (case-insensitive, ignores extra whitespace). Use the Console tab idea — students see console.log output too.
+                            </p>
+                        )}
                     </div>
                 )}
             </div>
         );
+        }
         default: return null;
     }
 }

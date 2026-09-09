@@ -13,7 +13,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@codemirror/lang-cpp": "^6.0.3",
+    "@codemirror/lang-html": "^6.4.12",
     "@codemirror/lang-java": "^6.0.2",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/lang-python": "^6.2.1",
     "@pixiv/three-vrm": "^3.5.2",
     "@react-oauth/google": "^0.13.4",
     "@react-three/drei": "^10.7.7",

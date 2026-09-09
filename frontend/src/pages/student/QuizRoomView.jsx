@@ -20,8 +20,7 @@ import {
   Wifi,
 } from "lucide-react";
 import { toast } from "sonner";
-import CodeMirror from "@uiw/react-codemirror";
-import { java } from "@codemirror/lang-java";
+import InlineCodeAnswer from "../../components/student/InlineCodeAnswer";
 import ConfirmModal from "../../components/ui/ConfirmModal";
 import "../../pages/student/Student.css";
 
@@ -1713,29 +1712,6 @@ function ShuffleIcon() {
 }
 
 function QuestionRenderer({ question, value, onChange, disabled = false }) {
-  const [codeOutput, setCodeOutput] = useState("");
-  const [isRunning, setIsRunning] = useState(false);
-
-  const runCode = async () => {
-    setIsRunning(true);
-    setCodeOutput("");
-    try {
-      const res = await api.post("/student/execute", {
-        language: "java",
-        code: value || question.boilerplate || "",
-      });
-      setCodeOutput(
-        res.data.stdout ||
-          res.data.stderr ||
-          res.data.compile_output ||
-          "No output",
-      );
-    } catch {
-      setCodeOutput("Error executing code");
-    } finally {
-      setIsRunning(false);
-    }
-  };
 
   if (question.type === "multiple_choice") {
     return (
@@ -2115,84 +2091,13 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
             {question.question_text}
           </h2>
         </div>
-        <div
-          style={{
-            borderRadius: "12px",
-            overflow: "hidden",
-            border: "1px solid var(--border-color)",
-          }}
-        >
-          <CodeMirror
-            value={value || question.boilerplate || ""}
-            onChange={onChange}
-            editable={!disabled}
-            height="240px"
-            extensions={[java()]}
-            theme="dark"
-          />
-        </div>
-        <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
-          <button
-            onClick={runCode}
-            disabled={isRunning}
-            type="button"
-            style={{
-              padding: "10px 18px",
-              borderRadius: "10px",
-              border: "none",
-              background: "#10b981",
-              color: "white",
-              cursor: isRunning ? "not-allowed" : "pointer",
-              fontWeight: 700,
-              fontSize: "12px",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              opacity: isRunning ? 0.6 : 1,
-            }}
-          >
-            {isRunning ? (
-              <Loader2 className="animate-spin" size={14} />
-            ) : (
-              <CodeIcon size={14} />
-            )}{" "}
-            Run
-          </button>
-          <button
-            onClick={() => onChange(question.boilerplate || "")}
-            type="button"
-            style={{
-              padding: "10px 16px",
-              borderRadius: "10px",
-              border: "1px solid rgba(59, 130, 246, 0.3)",
-              background: "rgba(59, 130, 246, 0.08)",
-              color: "#3b82f6",
-              cursor: "pointer",
-              fontWeight: 600,
-              fontSize: "12px",
-            }}
-          >
-            Reset Boilerplate
-          </button>
-        </div>
-        {codeOutput && (
-          <div
-            style={{
-              marginTop: "10px",
-              padding: "14px",
-              borderRadius: "10px",
-              background: "#1a1a2e",
-              color: "#e2e8f0",
-              fontSize: "13px",
-              fontFamily: "monospace",
-              whiteSpace: "pre-wrap",
-              maxHeight: "160px",
-              overflow: "auto",
-            }}
-          >
-            {codeOutput}
-          </div>
-        )}
+        <InlineCodeAnswer
+          language={question.language}
+          value={value}
+          onChange={onChange}
+          boilerplate={question.boilerplate || ""}
+          disabled={disabled}
+        />
       </div>
     );
   }

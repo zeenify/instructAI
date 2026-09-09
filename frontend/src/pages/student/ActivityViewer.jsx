@@ -8,8 +8,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow, parseISO, isPast, format } from 'date-fns';
-import CodeMirror from '@uiw/react-codemirror';
-import { java } from '@codemirror/lang-java';
+import InlineCodeAnswer from '../../components/student/InlineCodeAnswer';
 import StudentActivityCard from '../../components/student/StudentActivityCard';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import '../../pages/student/Student.css';
@@ -522,8 +521,6 @@ export default function ActivityViewer() {
 }
 
 function QuestionRenderer({ question, index, value, onChange }) {
-  const [codeOutput, setCodeOutput] = useState('');
-  const [isRunning, setIsRunning] = useState(false);
 
   if (question.type === 'multiple_choice') {
     return (
@@ -608,48 +605,15 @@ function QuestionRenderer({ question, index, value, onChange }) {
   }
 
   if (question.type === 'coding') {
-    const runCode = async () => {
-      setIsRunning(true);
-      setCodeOutput('');
-      try {
-        const res = await api.post('/student/execute', {
-          language: 'java',
-          code: value || question.boilerplate || '',
-        });
-        setCodeOutput(res.data.stdout || res.data.stderr || res.data.compile_output || 'No output');
-      } catch {
-        setCodeOutput('Error executing code');
-      } finally { setIsRunning(false); }
-    };
-
-    const insertBoilerplate = () => {
-      const bp = question.boilerplate || 'public class Main {\n  public static void main(String[] args) {\n    System.out.println("Hello");\n  }\n}';
-      onChange(bp);
-    };
-
     return (
       <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
         <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. {question.question_text}</p>
-        <div style={{ marginBottom: '8px', display: 'flex', gap: '8px' }}>
-          <button onClick={insertBoilerplate} type="button"
-            style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.3)', background: 'rgba(59, 130, 246, 0.08)', color: '#3b82f6', cursor: 'pointer', fontWeight: 600, fontSize: '11px' }}>
-            <CodeIcon size={14} style={{ marginRight: '4px' }} /> Reset Boilerplate
-          </button>
-        </div>
-        <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
-          <CodeMirror value={value || question.boilerplate || ''} onChange={onChange} height="200px" extensions={[java()]} theme="dark" />
-        </div>
-        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-          <button onClick={runCode} disabled={isRunning} type="button"
-            style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#10b981', color: 'white', cursor: isRunning ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', opacity: isRunning ? 0.6 : 1 }}>
-            {isRunning ? <Loader2 className="animate-spin" size={14} /> : <Play size={14} />} Run
-          </button>
-        </div>
-        {codeOutput && (
-          <div style={{ marginTop: '8px', padding: '12px', borderRadius: '8px', background: '#1a1a2e', color: '#e2e8f0', fontSize: '13px', fontFamily: 'monospace', whiteSpace: 'pre-wrap', maxHeight: '150px', overflow: 'auto' }}>
-            {codeOutput}
-          </div>
-        )}
+        <InlineCodeAnswer
+          language={question.language}
+          value={value}
+          onChange={onChange}
+          boilerplate={question.boilerplate || ''}
+        />
       </div>
     );
   }

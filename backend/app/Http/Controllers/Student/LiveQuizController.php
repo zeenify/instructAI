@@ -8,6 +8,7 @@ use App\Models\ActivitySubmission;
 use App\Models\ClassActivity;
 use App\Models\Enrollment;
 use App\Support\ActivityGrading;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -234,6 +235,7 @@ class LiveQuizController extends Controller
                 'question_id' => $question->id,
                 'question_text' => $question->question_text,
                 'type' => $question->type,
+                'language' => $question->language,
                 'points' => $question->points,
                 'submitted_answer' => $answer ? $answer->submitted_answer : null,
                 'is_correct' => $answer ? (bool) $answer->is_correct : null,
@@ -314,7 +316,7 @@ class LiveQuizController extends Controller
                     'question_order' => $this->buildQuestionOrder($activity),
                     'current_question_idx' => $activity->pacing_mode === 'teacher' ? max((int) $activity->live_current_q, 0) : 0,
                 ]);
-            } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            } catch (UniqueConstraintViolationException $e) {
                 $submission = $this->getSubmission($id);
 
                 if (! $submission) {

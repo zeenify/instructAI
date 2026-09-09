@@ -8,19 +8,20 @@ class Question extends Model
 {
     // 1. Allow these fields to be saved
     protected $fillable = [
-        'quiz_id', 
-        'type', 
-        'question_text', 
-        'options', 
-'expected_output', 
+        'quiz_id',
+        'type',
+        'question_text',
+        'options',
+        'expected_output',
         'points',
         'boilerplate',
-        'order_index'
+        'language',
+        'order_index',
     ];
 
     // 2. CRITICAL: Tell Laravel that 'options' is an array/JSON
     protected $casts = [
-        'options' => 'array', 
+        'options' => 'array',
     ];
 
     public function quiz()
