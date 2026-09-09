@@ -8,7 +8,7 @@ const WebSocket = require('ws');
 const http = require('http');
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '256kb' }));
 
 // Create HTTP server for both Express and WebSocket
 const server = http.createServer(app);
@@ -20,6 +20,42 @@ const REST_TIMEOUT_MS = 10 * 1000;
 const WS_TIMEOUT_MS = 30 * 1000;
 const COMPILE_TIMEOUT_MS = 20 * 1000;
 const AVAILABILITY_TTL_MS = 30 * 1000;
+const MAX_CONCURRENT_JOBS = Math.max(2, os.cpus().length * 2);
+const RATE_WINDOW_MS = 60 * 1000;
+const RATE_MAX_PER_WINDOW = 60;           // per IP per minute
+const GRACE_MS = 150;                     // pipe-drain grace after the process exits
+
+// --- AUTH (optional) ---
+// Set ENGINE_TOKEN to lock the engine down; the Laravel backend then sends the
+// same value as EXECUTION_ENGINE_TOKEN (header) / VITE_WS_TOKEN (WS query).
+const ENGINE_TOKEN = process.env.ENGINE_TOKEN || '';
+
+function requestAuthorized(req) {
+    if (!ENGINE_TOKEN) return true;
+    if (req.headers['x-engine-token'] === ENGINE_TOKEN) return true;
+    try {
+        return new URL(req.url, 'http://localhost').searchParams.get('token') === ENGINE_TOKEN;
+    } catch {
+        return false;
+    }
+}
+
+// --- RATE LIMIT + CONCURRENCY ---
+const ipHits = new Map(); // ip -> array of timestamps inside the window
+function rateLimited(ip) {
+    const now = Date.now();
+    if (ipHits.size > 5000) ipHits.clear(); // crude memory guard
+    const hits = (ipHits.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
+    if (hits.length >= RATE_MAX_PER_WINDOW) {
+        ipHits.set(ip, hits);
+        return true;
+    }
+    hits.push(now);
+    ipHits.set(ip, hits);
+    return false;
+}
+
+let activeJobs = 0;
 
 // --- RUNTIME DETECTION ---
 // Windows ships `python`, most Linux images ship `python3` — probe once, remember.
@@ -39,6 +75,20 @@ const RUNTIMES = {
     gpp: probe('g++', ['--version']) ? 'g++' : null,
 };
 
+// --- PROCESS-TREE KILL ---
+// The direct child is spawned detached (its own process group on POSIX), so a
+// group signal takes grandchildren with it. Windows needs taskkill /T.
+function killTree(child) {
+    if (!child || child.pid == null) return;
+    if (process.platform === 'win32') {
+        try { spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' }); } catch { /* noop */ }
+    } else {
+        try { process.kill(-child.pid, 'SIGKILL'); } catch {
+            try { child.kill('SIGKILL'); } catch { /* already gone */ }
+        }
+    }
+}
+
 // --- LANGUAGE REGISTRY ---
 // Each language knows how to materialize sources into a temp folder, optionally
 // compile, and produce the run command. `available()` gates execution so a box
@@ -56,10 +106,10 @@ const LANGS = {
             return { className };
         },
         compile(folder, meta) {
-            return spawn('javac', [path.join(folder, `${meta.className}.java`)]);
+            return spawn('javac', [path.join(folder, `${meta.className}.java`)], { detached: true });
         },
         run(folder, meta) {
-            return spawn('java', ['-cp', folder, meta.className]);
+            return spawn('java', ['-cp', folder, meta.className], { detached: true });
         },
     },
     python: {
@@ -70,7 +120,12 @@ const LANGS = {
             return {};
         },
         run(folder) {
-            return spawn(RUNTIMES.python, ['main.py'], { cwd: folder });
+            // -u / PYTHONUNBUFFERED so print() prompts appear in pipes immediately
+            return spawn(RUNTIMES.python, ['-u', 'main.py'], {
+                cwd: folder,
+                detached: true,
+                env: { ...process.env, PYTHONUNBUFFERED: '1' },
+            });
         },
     },
     javascript: {
@@ -81,7 +136,7 @@ const LANGS = {
             return {};
         },
         run(folder) {
-            return spawn('node', ['main.js'], { cwd: folder });
+            return spawn('node', ['main.js'], { cwd: folder, detached: true });
         },
     },
     cpp: {
@@ -93,11 +148,11 @@ const LANGS = {
         },
         compile(folder) {
             const exe = process.platform === 'win32' ? 'main.exe' : 'main';
-            return spawn(RUNTIMES.gpp, ['-std=c++17', '-O2', '-o', exe, 'main.cpp'], { cwd: folder });
+            return spawn(RUNTIMES.gpp, ['-std=c++17', '-O2', '-o', exe, 'main.cpp'], { cwd: folder, detached: true });
         },
         run(folder) {
             const exe = process.platform === 'win32' ? 'main.exe' : 'main';
-            return spawn(path.join(folder, exe), [], { cwd: folder });
+            return spawn(path.join(folder, exe), [], { cwd: folder, detached: true });
         },
     },
     // Web pages never touch the server — the browser sandbox IS the runtime.
@@ -125,9 +180,17 @@ function isAvailable(id) {
     return ok;
 }
 
-const cap = (s) => (Buffer.byteLength(s) > MAX_OUTPUT_BYTES
-    ? s.slice(0, MAX_OUTPUT_BYTES) + '\n...[output truncated]'
-    : s);
+// Truncate on a code-point boundary so multi-byte UTF-8 never splits mid-glyph.
+function cap(value) {
+    if (Buffer.byteLength(value, 'utf8') <= MAX_OUTPUT_BYTES) return value;
+    const sliced = Buffer.from(value, 'utf8').subarray(0, MAX_OUTPUT_BYTES).toString('utf8');
+    return `${sliced}\n...[output truncated]`;
+}
+
+// Normalize CRLF pasted by Windows students into LF before feeding stdin.
+function normalizeInput(input) {
+    return String(input).replace(/\r\n/g, '\n');
+}
 
 /**
  * Run one job to completion: temp dir -> sources -> optional compile -> run.
@@ -153,6 +216,11 @@ function executeJob({ language, code, input, interactive = false, timeoutMs, onE
             settled = true;
             clearTimeout(runTimer);
             clearTimeout(compileTimer);
+            // Group-kill anything still alive (grandchildren can hold the stdio
+            // pipes open — without this the job slot leaks).
+            killTree(runChild);
+            killTree(compileChild);
+            activeJobs = Math.max(0, activeJobs - 1);
             try { fs.rmSync(folderPath, { recursive: true, force: true }); } catch { /* best effort */ }
             resolve({
                 stdout: '',
@@ -167,6 +235,7 @@ function executeJob({ language, code, input, interactive = false, timeoutMs, onE
 
         try {
             fs.mkdirSync(folderPath, { recursive: true });
+            activeJobs += 1;
             const meta = lang.files(code, folderPath) || {};
 
             const startRun = () => {
@@ -181,11 +250,12 @@ function executeJob({ language, code, input, interactive = false, timeoutMs, onE
 
                 if (input != null && input !== '') {
                     try {
-                        runChild.stdin.write(input.endsWith('\n') ? input : `${input}\n`);
+                        const normalized = normalizeInput(input);
+                        runChild.stdin.write(normalized.endsWith('\n') ? normalized : `${normalized}\n`);
                     } catch { /* process may have closed stdin itself */ }
                 }
                 // Batch mode signals EOF after piping input; interactive mode keeps
-                // stdin open so the WebSocket terminal can feed it later.
+                // stdin open so the WebSocket terminal can feed it (or send EOF).
                 if (!interactive) {
                     try { runChild.stdin.end(); } catch { /* noop */ }
                 }
@@ -193,27 +263,31 @@ function executeJob({ language, code, input, interactive = false, timeoutMs, onE
                 runTimer = setTimeout(() => {
                     timedOut = true;
                     emit({ type: 'error', message: 'Execution Timed Out' });
-                    try { runChild.kill('SIGKILL'); } catch { /* noop */ }
+                    killTree(runChild);
                 }, timeoutMs);
 
-                runChild.on('close', (exitCode) => {
+                // 'exit' (not 'close') completes the job even when a grandchild
+                // keeps the stdio pipes open; a short grace collects late output.
+                runChild.on('exit', (exitCode) => {
                     emit({ type: 'exit', code: exitCode ?? -1 });
-                    if (timedOut) {
+                    setTimeout(() => {
+                        if (timedOut) {
+                            finish({
+                                stdout: cap(stdout),
+                                stderr: 'Execution Timed Out (Possible Infinite Loop)',
+                                compile_output: '',
+                                exit_code: exitCode ?? -1,
+                                timed_out: true,
+                            });
+                            return;
+                        }
                         finish({
                             stdout: cap(stdout),
-                            stderr: 'Execution Timed Out (Possible Infinite Loop)',
+                            stderr: cap(stderr),
                             compile_output: '',
                             exit_code: exitCode ?? -1,
-                            timed_out: true,
                         });
-                        return;
-                    }
-                    finish({
-                        stdout: cap(stdout),
-                        stderr: cap(stderr),
-                        compile_output: '',
-                        exit_code: exitCode ?? -1,
-                    });
+                    }, GRACE_MS);
                 });
 
                 runChild.on('error', (err) => {
@@ -230,7 +304,7 @@ function executeJob({ language, code, input, interactive = false, timeoutMs, onE
                 compileChild.stdout?.on('data', (d) => { compileOutput += d; });
 
                 compileTimer = setTimeout(() => {
-                    try { compileChild.kill('SIGKILL'); } catch { /* noop */ }
+                    killTree(compileChild);
                 }, COMPILE_TIMEOUT_MS);
 
                 compileChild.on('close', (cc) => {
@@ -259,8 +333,34 @@ function executeJob({ language, code, input, interactive = false, timeoutMs, onE
     });
 }
 
-// --- 1. REQUEST LOGGER ---
+// --- STALE TEMP SWEEP ---
+// A crashed/restarted engine leaves exec-* dirs behind; sweep them hourly.
+function sweepTempDirs() {
+    try {
+        const cutoff = Date.now() - 60 * 60 * 1000;
+        for (const entry of fs.readdirSync(os.tmpdir())) {
+            if (!entry.startsWith('exec-')) continue;
+            const full = path.join(os.tmpdir(), entry);
+            try {
+                if (fs.statSync(full).mtimeMs < cutoff) {
+                    fs.rmSync(full, { recursive: true, force: true });
+                }
+            } catch { /* gone already */ }
+        }
+    } catch { /* tmpdir unreadable — nothing to do */ }
+}
+sweepTempDirs();
+setInterval(sweepTempDirs, 60 * 60 * 1000).unref();
+
+// --- 1. AUTH + REQUEST LOGGER ---
 app.use((req, res, next) => {
+    if (!requestAuthorized(req)) {
+        return res.status(401).json({ error: 'Unauthorized.' });
+    }
+    const ip = req.socket.remoteAddress || 'unknown';
+    if (rateLimited(ip)) {
+        return res.status(429).json({ error: 'Too many requests — slow down and try again in a minute.' });
+    }
     console.log(`>>> Incoming: ${req.method} ${req.url}`);
     next();
 });
@@ -307,17 +407,30 @@ app.post('/execute', async (req, res) => {
             compile_output: '',
         });
     }
+    if (activeJobs >= MAX_CONCURRENT_JOBS) {
+        return res.status(429).json({
+            error: 'The engine is busy right now — try again in a few seconds.',
+            stdout: '',
+            stderr: '',
+            compile_output: '',
+        });
+    }
 
     const result = await executeJob({ language, code, input, timeoutMs: REST_TIMEOUT_MS });
     res.json(result);
 });
 
 // --- 4. WEBSOCKET INTERACTIVE EXECUTION ---
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
+    if (!requestAuthorized(req)) {
+        ws.close();
+        return;
+    }
     console.log('[WS] New client connected');
     let activeChild = null;
     let activePhase = null;
     let folderPath = null;
+    let jobRunning = false;
     // Keystrokes that arrive while the job is still compiling — flushed once the
     // run process starts, so fast typers never lose input to a slow javac.
     let pendingInput = [];
@@ -327,6 +440,10 @@ wss.on('connection', (ws) => {
             const data = JSON.parse(message);
 
             if (data.type === 'execute') {
+                if (jobRunning) {
+                    ws.send(JSON.stringify({ type: 'error', message: 'A program is already running — press Stop first.' }));
+                    return;
+                }
                 const language = data.language || 'java';
                 const lang = LANGS[language];
 
@@ -342,7 +459,12 @@ wss.on('connection', (ws) => {
                     ws.send(JSON.stringify({ type: 'error', message: `${lang.label} runtime is not installed on this execution server.` }));
                     return;
                 }
+                if (activeJobs >= MAX_CONCURRENT_JOBS) {
+                    ws.send(JSON.stringify({ type: 'error', message: 'The engine is busy right now — try again in a few seconds.' }));
+                    return;
+                }
 
+                jobRunning = true;
                 executeJob({
                     language,
                     code: data.code,
@@ -365,6 +487,10 @@ wss.on('connection', (ws) => {
                             ws.send(JSON.stringify({ type: 'ready', message: 'Ready for input' }));
                         }
                     },
+                }).finally(() => {
+                    jobRunning = false;
+                    activeChild = null;
+                    activePhase = null;
                 });
             } else if (data.type === 'input') {
                 const value = data.value === '\r' ? '\n' : data.value;
@@ -373,8 +499,13 @@ wss.on('connection', (ws) => {
                 } else {
                     pendingInput.push(value);
                 }
+            } else if (data.type === 'eof') {
+                // Ctrl+D equivalent: close stdin so read-until-EOF programs finish
+                if (activeChild && activePhase === 'run' && activeChild.stdin && activeChild.stdin.writable) {
+                    try { activeChild.stdin.end(); } catch { /* noop */ }
+                }
             } else if (data.type === 'stop') {
-                try { activeChild && activeChild.kill('SIGKILL'); } catch { /* noop */ }
+                killTree(activeChild);
             }
         } catch (err) {
             console.error('[WS] Parse error:', err);
@@ -384,7 +515,7 @@ wss.on('connection', (ws) => {
 
     ws.on('close', () => {
         console.log('[WS] Client disconnected');
-        try { activeChild && activeChild.kill('SIGKILL'); } catch { /* noop */ }
+        killTree(activeChild);
         if (folderPath) {
             try { fs.rmSync(folderPath, { recursive: true, force: true }); } catch { /* best effort */ }
         }
@@ -401,5 +532,6 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`[SUCCESS] Instruct-Execute live on port ${PORT}`);
     console.log(`[REST] HTTP API on :${PORT}/execute`);
     console.log(`[WS] WebSocket on ws://0.0.0.0:${PORT}`);
+    console.log(`[AUTH] ${ENGINE_TOKEN ? 'token required' : 'open (set ENGINE_TOKEN to lock down)'}`);
     console.log(`[LANGS] ${SUPPORTED_IDS.map((id) => `${LANGS[id].label}${isAvailable(id) ? '' : ' (runtime missing)'}`).join(' | ')}`);
 });

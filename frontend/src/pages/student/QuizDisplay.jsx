@@ -77,6 +77,10 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
         setAnswers({});
         setCurrentIdx(0);
 
+        if (restoreDraft()) {
+            toast.info('Restored your saved answers from this device.');
+        }
+
         if (quizData.timer_mode === 'entire_quiz') {
             setTimeLeft(Math.floor(quizData.time_limit_minutes * 60));
         }
@@ -99,6 +103,34 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
         setAnswers(prev => ({ ...prev, [qId]: val }));
     };
 
+    // ---- Local draft: homework quizzes had NO persistence — a refresh lost
+    // every answer including code. Saved alongside the drawn question set.
+    const draftKey = `quiz-draft-${quizId}`;
+    useEffect(() => {
+        if (!quizId || !answers || Object.keys(answers).length === 0 || result || questions.length === 0) return;
+        try {
+            localStorage.setItem(draftKey, JSON.stringify({
+                answers,
+                question_ids: questions.map(q => q.id),
+            }));
+        } catch { /* storage full/blocked */ }
+    }, [answers, questions, quizId, draftKey, result]);
+
+    const restoreDraft = () => {
+        try {
+            const raw = localStorage.getItem(draftKey);
+            if (!raw) return false;
+            const draft = JSON.parse(raw);
+            const currentIds = (quizData?.questions || []).map(q => q.id);
+            const sameSet = JSON.stringify([...(draft.question_ids || [])].sort()) === JSON.stringify([...currentIds].sort());
+            if (!sameSet) return false;
+            setAnswers(draft.answers || {});
+            return Object.keys(draft.answers || {}).length > 0;
+        } catch {
+            return false;
+        }
+    };
+
     const submitQuiz = async () => {
         setSubmitting(true);
         setShowReview(false);
@@ -113,6 +145,7 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
             setTimeout(() => {
                 setResult(res.data);
                 setPreviousResult(res.data);
+                try { localStorage.removeItem(draftKey); } catch { /* noop */ }
                 if (res.data.score >= quizData.passing_score) onPass();
                 setSubmitting(false);
                 clearInterval(interval);
@@ -213,6 +246,27 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
                                     <span style={{ padding: '10px 12px', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 900, border: `1.5px solid ${detail.is_correct ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`, color: detail.is_correct ? '#10b981' : '#ef4444', background: detail.is_correct ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', flexShrink: 0 }}>{i + 1}</span>
                                     <div style={{ gap: '16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
                                         <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', margin: '0', lineHeight: '1.5' }}>{detail.question_text}</p>
+
+                                        {/* TEST-CASE RESULT (coding questions graded by tests) */}
+                                        {detail.test_results && (
+                                            <div style={{ paddingTop: '8px' }}>
+                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: '12px', background: detail.test_results.passed === detail.test_results.total ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', border: `1px solid ${detail.test_results.passed === detail.test_results.total ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}` }}>
+                                                    {detail.test_results.passed === detail.test_results.total
+                                                        ? <CheckCircle2 size={14} style={{ color: '#10b981' }} />
+                                                        : <AlertCircle size={14} style={{ color: '#f59e0b' }} />}
+                                                    <span style={{ fontSize: '12px', fontWeight: 800, color: detail.test_results.passed === detail.test_results.total ? '#10b981' : '#f59e0b' }}>
+                                                        {detail.test_results.passed}/{detail.test_results.total} test cases passed{detail.score != null ? ` · ${detail.score} pts` : ''}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {detail.ai_unavailable && (
+                                            <div style={{ paddingTop: '8px' }}>
+                                                <span style={{ fontSize: '11px', fontWeight: 700, color: '#f59e0b', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '6px 12px', borderRadius: '10px', display: 'inline-block' }}>
+                                                    This code answer couldn't be auto-graded (grading service offline) — your teacher will review it.
+                                                </span>
+                                            </div>
+                                        )}
 
                                         {/* STUDENT ANSWER */}
                                         <div style={{ gap: '8px', display: 'flex', flexDirection: 'column', paddingTop: '8px' }}>
@@ -599,6 +653,7 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
                             onChange={(val) => saveAnswer(q.id, val)}
                             boilerplate={q.boilerplate || ""}
                             challengeExpected={q.expected_output || null}
+                            sampleTests={q.sample_tests || []}
                             height="450px"
                         />
                     )}

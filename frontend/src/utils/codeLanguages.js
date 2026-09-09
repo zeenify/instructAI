@@ -78,6 +78,23 @@ export function cmExtension(languageId) {
     return languageOf(languageId).extension();
 }
 
+// Heuristic: does this program read from stdin? Used to auto-open the input
+// UI instead of letting students hit a bare EOFError with no hint.
+export function detectStdinUsage(languageId, code = '') {
+    switch (languageId) {
+        case 'python':
+            return /\binput\s*\(|\bsys\.stdin\b|\bstdin\b/.test(code);
+        case 'java':
+            return /new\s+Scanner|System\.in|\.readLine\s*\(|Console\.reader\s*\(/.test(code);
+        case 'javascript':
+            return /process\.stdin|\breadline\b|node:readline/.test(code);
+        case 'cpp':
+            return /\bcin\b|\bgetline\s*\(|\bscanf\s*\(|\bfgets\s*\(/.test(code);
+        default:
+            return false;
+    }
+}
+
 // Normalize rendered/expected text for HTML challenge matching: collapse all
 // whitespace runs and case-fold, so <h1> HELLO </h1> matches "hello".
 export function normalizePageText(text) {

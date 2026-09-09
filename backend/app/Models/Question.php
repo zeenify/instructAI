@@ -16,6 +16,7 @@ class Question extends Model
         'points',
         'boilerplate',
         'language',
+        'reference_code',
         'order_index',
     ];
 
@@ -27,5 +28,10 @@ class Question extends Model
     public function quiz()
     {
         return $this->belongsTo(Quiz::class);
+    }
+
+    public function testCases()
+    {
+        return $this->morphMany(QuestionTestCase::class, 'testable')->orderBy('order_index');
     }
 }

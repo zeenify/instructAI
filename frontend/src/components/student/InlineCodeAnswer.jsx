@@ -4,13 +4,14 @@
 // richer CodeIDE instead; this one is trimmed to fit inside question cards.
 import { useState, useEffect, useRef } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
-import { Play, Loader2, RotateCcw, Eye, Code2, Terminal as TerminalIcon, AlertCircle } from 'lucide-react';
+import { Play, Loader2, RotateCcw, Eye, Code2, Terminal as TerminalIcon, AlertCircle, ChevronUp, ArrowRight } from 'lucide-react';
 import api from '../../services/api';
 import {
     languageOf,
     cmExtension,
     injectPreviewBridge,
     normalizePageText,
+    detectStdinUsage,
 } from '../../utils/codeLanguages';
 
 const ERROR_STYLES = {
@@ -28,6 +29,7 @@ export default function InlineCodeAnswer({
     disabled = false,
     height = '240px',
     challengeExpected = null, // when set, a matching page/output shows a success chip
+    sampleTests = [],         // teacher-provided (input -> expected) pairs shown to students
 }) {
     const lang = languageOf(language);
     const isHtml = lang.preview;
@@ -36,12 +38,25 @@ export default function InlineCodeAnswer({
     const [errorType, setErrorType] = useState(null);
     const [meta, setMeta] = useState(null);
     const [tab, setTab] = useState('code');
+    const [stdin, setStdin] = useState('');
+    const [showStdin, setShowStdin] = useState(false);
     const [previewDoc, setPreviewDoc] = useState('');
     const [consoleLines, setConsoleLines] = useState([]);
     const [passed, setPassed] = useState(false);
+    const [actualOutput, setActualOutput] = useState(null); // for expected-vs-actual display
     const pendingCheckRef = useRef(null);
+    const containerRef = useRef(null);
 
-    useEffect(() => { setPassed(false); }, [language]);
+    useEffect(() => { setPassed(false); setActualOutput(null); }, [language]);
+
+    // Auto-open the stdin box when the code reads input — a bare EOFError
+    // traceback teaches a beginner nothing.
+    useEffect(() => {
+        if (!isHtml && detectStdinUsage(language, value || boilerplate)) {
+            setShowStdin(true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         if (!isHtml) return undefined;
@@ -67,6 +82,7 @@ export default function InlineCodeAnswer({
         setErrorType(null);
         setMeta(null);
         setPassed(false);
+        setActualOutput(null);
 
         if (isHtml) {
             setConsoleLines([]);
@@ -87,7 +103,8 @@ export default function InlineCodeAnswer({
             const res = await api.post('/student/execute', {
                 code: value || boilerplate,
                 language: lang.id,
-            });
+                input: stdin || undefined,
+            }, { timeout: 45000 });
             const data = res.data;
             setMeta({ duration_ms: data.duration_ms, exit_code: data.exit_code });
 
@@ -103,6 +120,7 @@ export default function InlineCodeAnswer({
             } else {
                 const clean = (data.stdout || '').trim().replace(/\r\n/g, '\n');
                 setOutput(clean || '> Program executed successfully (No output).');
+                setActualOutput(clean);
                 if (challengeExpected) {
                     setPassed(clean === String(challengeExpected).trim().replace(/\r\n/g, '\n'));
                 }
@@ -116,10 +134,25 @@ export default function InlineCodeAnswer({
         }
     };
 
+    // Ctrl/Cmd + Enter runs from anywhere inside the card
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return undefined;
+        const onKey = (event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                event.preventDefault();
+                handleRun();
+            }
+        };
+        el.addEventListener('keydown', onKey);
+        return () => el.removeEventListener('keydown', onKey);
+    });
+
     const headerLabel = isHtml ? 'Web Page' : `${lang.label} Source Code`;
+    const readsInput = !isHtml && detectStdinUsage(language, value || boilerplate);
 
     return (
-        <div style={{ borderRadius: '14px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', overflow: 'hidden' }}>
+        <div ref={containerRef} tabIndex={-1} style={{ borderRadius: '14px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', overflow: 'hidden', outline: 'none' }}>
             {/* Header */}
             <div style={{ padding: '10px 16px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -159,6 +192,28 @@ export default function InlineCodeAnswer({
                     )}
                 </div>
             </div>
+
+            {/* Sample tests: show the I/O contract for input-dependent problems */}
+            {!isHtml && sampleTests.length > 0 && tab === 'code' && (
+                <div style={{ padding: '10px 16px', background: 'rgba(56, 189, 248, 0.05)', borderBottom: '1px solid var(--border-color)' }}>
+                    <p style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#38bdf8', margin: '0 0 6px 0' }}>
+                        Sample tests — your program must produce the expected output for the given input
+                    </p>
+                    {sampleTests.map((t, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'monospace', fontSize: '11px', padding: '4px 0', flexWrap: 'wrap' }}>
+                            <span style={{ color: '#94a3b8' }}>Input:</span>
+                            <span style={{ background: '#111127', color: '#7dd3fc', padding: '2px 8px', borderRadius: '6px', whiteSpace: 'pre-wrap', maxWidth: '40%', overflowWrap: 'anywhere' }}>
+                                {t.input === '' ? '(none)' : t.input}
+                            </span>
+                            <ArrowRight size={12} style={{ color: '#64748b' }} />
+                            <span style={{ color: '#94a3b8' }}>Expected:</span>
+                            <span style={{ background: '#111127', color: '#86efac', padding: '2px 8px', borderRadius: '6px', whiteSpace: 'pre-wrap', maxWidth: '40%', overflowWrap: 'anywhere' }}>
+                                {t.expected_output}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Body */}
             {tab === 'code' && (
@@ -211,6 +266,11 @@ export default function InlineCodeAnswer({
                             <span style={{ color: ERROR_STYLES[errorType].color, fontWeight: 900, textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.1em' }}>
                                 {ERROR_STYLES[errorType].label}
                             </span>
+                            {errorType === 'system' && (
+                                <button onClick={handleRun} type="button" style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid rgba(216, 180, 254, 0.4)', borderRadius: '6px', color: '#d8b4fe', cursor: 'pointer', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '3px 8px' }}>
+                                    Retry
+                                </button>
+                            )}
                         </div>
                     )}
                     {meta && (
@@ -220,11 +280,28 @@ export default function InlineCodeAnswer({
                                     {(meta.duration_ms / 1000).toFixed(2)}s
                                 </span>
                             )}
-                            {meta.exit_code != null && (
-                                <span style={{ fontSize: '9px', fontWeight: 800, color: meta.exit_code === 0 ? '#34d399' : '#f87171', background: meta.exit_code === 0 ? 'rgba(52, 211, 153, 0.12)' : 'rgba(248, 113, 113, 0.12)', padding: '2px 8px', borderRadius: '999px' }}>
+                            {meta.exit_code != null && meta.exit_code !== 0 && (
+                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#f87171', background: 'rgba(248, 113, 113, 0.12)', padding: '2px 8px', borderRadius: '999px' }}>
                                     EXIT {meta.exit_code}
                                 </span>
                             )}
+                        </div>
+                    )}
+                    {/* Expected vs actual when the teacher defined an output contract */}
+                    {challengeExpected != null && actualOutput !== null && !errorType && (
+                        <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                            <div style={{ flex: 1, minWidth: '45%' }}>
+                                <p style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', margin: '0 0 4px 0' }}>Expected</p>
+                                <div style={{ background: '#111127', border: '1px solid rgba(134, 239, 172, 0.3)', borderRadius: '8px', padding: '8px 10px', color: '#86efac', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                                    {String(challengeExpected)}
+                                </div>
+                            </div>
+                            <div style={{ flex: 1, minWidth: '45%' }}>
+                                <p style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', margin: '0 0 4px 0' }}>Your output</p>
+                                <div style={{ background: '#111127', border: `1px solid ${passed ? 'rgba(134, 239, 172, 0.3)' : 'rgba(248, 113, 113, 0.3)'}`, borderRadius: '8px', padding: '8px 10px', color: passed ? '#86efac' : '#fca5a5', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                                    {actualOutput || '(no output)'}
+                                </div>
+                            </div>
                         </div>
                     )}
                     <span style={{ color: errorType ? ERROR_STYLES[errorType].color : '#a5f3fc' }}>
@@ -233,11 +310,49 @@ export default function InlineCodeAnswer({
                 </div>
             )}
 
+            {/* Stdin panel */}
+            {!isHtml && showStdin && tab === 'code' && (
+                <div style={{ borderTop: '1px solid var(--border-color)', background: '#0d0d1a' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 16px 2px' }}>
+                        <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#94a3b8' }}>
+                            {readsInput ? 'This program reads input — one line per read:' : 'Input (stdin) — one line per read:'}
+                        </span>
+                        <button onClick={() => setShowStdin(false)} type="button" style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                            Hide
+                        </button>
+                    </div>
+                    <textarea
+                        value={stdin}
+                        onChange={(e) => setStdin(e.target.value)}
+                        placeholder={readsInput ? 'e.g. first input, second input...' : 'Lines fed to your program...'}
+                        rows={3}
+                        style={{
+                            width: 'calc(100% - 32px)', margin: '4px 16px 12px', boxSizing: 'border-box',
+                            background: '#111127', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '8px',
+                            color: '#e2e8f0', fontFamily: 'monospace', fontSize: '12px', padding: '8px 10px', resize: 'vertical', outline: 'none',
+                        }}
+                    />
+                </div>
+            )}
+
             {/* Footer */}
             <div style={{ padding: '10px 16px', background: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
-                    {isHtml ? 'Renders in a sandboxed preview' : 'Runs on the InstructAI engine'}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {!isHtml && !showStdin && (
+                        <button
+                            onClick={() => { setShowStdin(true); setTab('code'); }}
+                            type="button"
+                            style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: readsInput ? '#38bdf8' : 'var(--text-tertiary)', cursor: 'pointer', fontWeight: 800, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                            title="Provide standard input"
+                        >
+                            <ChevronUp size={12} />
+                            {readsInput ? 'Input needed' : 'Stdin'}
+                        </button>
+                    )}
+                    <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
+                        {isHtml ? 'Renders in a sandboxed preview' : '⌘/Ctrl + Enter to run'}
+                    </span>
+                </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     {!disabled && (
                         <button

@@ -10,6 +10,7 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
     const termRef = useRef(null);
     const [isRunning, setIsRunning] = useState(false);
     const [hasError, setHasError] = useState(false);
+    const isRunningRef = useRef(false);
 
     useEffect(() => {
         const term = new Terminal({
@@ -31,11 +32,22 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
 
         let inputBuffer = '';
         term.onData((data) => {
-            if (data === '' || data === '\b') {
+            // \x7f is DEL — some terminals send it for backspace
+            if (data === '\x7f' || data === '\b') {
                 if (inputBuffer.length > 0) {
                     inputBuffer = inputBuffer.slice(0, -1);
                     term.write('\b \b');
                 }
+                return;
+            }
+
+            // Ctrl+D = EOF: closes stdin so read-until-EOF programs finish
+            if (data === '\u0004') {
+                term.write('\r\n[stdin closed - Ctrl+D]\r\n');
+                if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(JSON.stringify({ type: 'eof' }));
+                }
+                inputBuffer = '';
                 return;
             }
 
@@ -79,6 +91,7 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
         }
 
         onRun?.();
+        isRunningRef.current = true;
         setIsRunning(true);
         setHasError(false);
         termRef.current?.clear();
@@ -86,7 +99,9 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
         const compiling = ['java', 'cpp'].includes(language);
         termRef.current?.write(`> ${compiling ? 'Compiling' : 'Starting'} ${langLabel} program...\r\n`);
 
-        const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3000';
+        const wsBase = import.meta.env.VITE_WS_URL || 'ws://localhost:3000';
+        const wsToken = import.meta.env.VITE_WS_TOKEN;
+        const wsUrl = wsToken ? `${wsBase}${wsBase.includes('?') ? '&' : '?'}token=${encodeURIComponent(wsToken)}` : wsBase;
         const ws = new WebSocket(wsUrl);
 
         wsRef.current = ws;
@@ -119,6 +134,7 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
 
                     case 'exit':
                         termRef.current?.write(`\r\n> Process exited with code ${data.code}\r\n`);
+                        isRunningRef.current = false;
                         setIsRunning(false);
 
                         if (mode === 'challenge' && onComplete) {
@@ -137,12 +153,14 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
         ws.onerror = (err) => {
             setHasError(true);
             termRef.current?.write(`\r\n[CONNECTION ERROR] ${err.message}\r\n`);
-            setIsRunning(false);
+            isRunningRef.current = false;
+                        setIsRunning(false);
         };
 
         ws.onclose = () => {
-            if (isRunning) {
+            if (isRunningRef.current) {
                 termRef.current?.write('\r\n> Connection closed\r\n');
+                isRunningRef.current = false;
                 setIsRunning(false);
             }
         };

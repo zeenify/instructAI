@@ -27,7 +27,7 @@ class LiveQuizController extends Controller
 
     private function findQuiz($id): ClassActivity
     {
-        $activity = ClassActivity::with('questions')->findOrFail($id);
+        $activity = ClassActivity::with(['questions' => fn ($q) => $q->with('testCases')])->findOrFail($id);
 
         if ($activity->activity_type !== 'quiz') {
             abort(422, 'Not a quiz');
@@ -205,9 +205,15 @@ class LiveQuizController extends Controller
             ->values()
             ->map(function ($question) {
                 $data = $question->toArray();
-                if ($question->type !== 'coding') {
-                    unset($data['expected_output']);
-                }
+                // Students never see the expected answer mid-room — the old guard
+                // was inverted and leaked it for coding questions.
+                unset($data['expected_output'], $data['reference_code']);
+
+                // Sample (non-hidden) test cases show the I/O contract for coding
+                $data['sample_tests'] = $question->testCases
+                    ->filter(fn ($t) => ! $t->hidden)
+                    ->map(fn ($t) => ['input' => (string) $t->input, 'expected_output' => (string) $t->expected_output])
+                    ->values();
 
                 return $data;
             });

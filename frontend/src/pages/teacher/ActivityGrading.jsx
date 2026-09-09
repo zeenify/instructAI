@@ -554,16 +554,52 @@ export default function ActivityGrading() {
 }
 
 // Teacher-side view of a student's code: syntax highlighted in the question's
-// language, with a sandboxed live preview for HTML submissions.
+// language, a sandboxed live preview for HTML submissions, and a run-it-
+// yourself pane (with stdin) so the teacher sees what the code actually did.
 function CodingAnswerView({ language, code }) {
   const lang = languageOf(language);
   const isHtml = lang.preview;
   const [tab, setTab] = useState('code');
   const [previewDoc, setPreviewDoc] = useState('');
+  const [stdin, setStdin] = useState('');
+  const [runOutput, setRunOutput] = useState('');
+  const [runError, setRunError] = useState(false);
+  const [running, setRunning] = useState(false);
 
   const runPreview = () => {
     setPreviewDoc(code);
     setTab('preview');
+  };
+
+  const runCode = async () => {
+    if (running) return;
+    setRunning(true);
+    setRunOutput('');
+    setRunError(false);
+    setTab('output');
+    try {
+      const res = await api.post('/teacher/run-code', {
+        language: lang.id,
+        code,
+        input: stdin || undefined,
+      }, { timeout: 45000 });
+      const data = res.data;
+      if (data.compile_output) {
+        setRunOutput(data.compile_output);
+        setRunError(true);
+      } else if (data.stderr) {
+        setRunOutput(data.stderr);
+        setRunError(true);
+      } else {
+        const clean = (data.stdout || '').trim().replace(/\r\n/g, '\n');
+        setRunOutput(clean || '> Program executed successfully (No output).');
+      }
+    } catch {
+      setRunOutput('Could not reach the execution engine.');
+      setRunError(true);
+    } finally {
+      setRunning(false);
+    }
   };
 
   return (
@@ -577,6 +613,11 @@ function CodingAnswerView({ language, code }) {
           <button onClick={() => setTab('code')} type="button" style={{ padding: '5px 10px', borderRadius: '7px', border: 'none', background: tab === 'code' ? 'rgba(124, 58, 237, 0.14)' : 'transparent', color: tab === 'code' ? '#a78bfa' : 'var(--text-tertiary)', cursor: 'pointer', fontWeight: 800, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
             <Code2 size={10} /> Code
           </button>
+          {!isHtml && (
+            <button onClick={() => setTab('output')} type="button" style={{ padding: '5px 10px', borderRadius: '7px', border: 'none', background: tab === 'output' ? 'rgba(124, 58, 237, 0.14)' : 'transparent', color: tab === 'output' ? '#a78bfa' : 'var(--text-tertiary)', cursor: 'pointer', fontWeight: 800, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <Play size={10} /> Run
+            </button>
+          )}
           {isHtml && (
             <button onClick={runPreview} type="button" style={{ padding: '5px 10px', borderRadius: '7px', border: 'none', background: tab === 'preview' ? 'rgba(124, 58, 237, 0.14)' : 'transparent', color: tab === 'preview' ? '#a78bfa' : 'var(--text-tertiary)', cursor: 'pointer', fontWeight: 800, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
               <Eye size={10} /> Render Page
@@ -586,9 +627,30 @@ function CodingAnswerView({ language, code }) {
       </div>
       {tab === 'code' ? (
         <CodeMirror value={code} editable={false} height="320px" extensions={[cmExtension(lang.id)]} theme="dark" basicSetup={{ foldGutter: false, highlightActiveLine: false }} />
-      ) : (
+      ) : tab === 'preview' ? (
         <div style={{ height: '320px', background: '#fff' }}>
           <iframe title="Student HTML Preview" srcDoc={previewDoc} sandbox="allow-scripts allow-forms allow-modals allow-popups" style={{ width: '100%', height: '100%', border: 'none', display: 'block' }} />
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border-color)', background: '#0d0d1a' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94a3b8' }}>Input (stdin)</span>
+              <button onClick={runCode} type="button" disabled={running} style={{ padding: '6px 16px', borderRadius: '8px', border: 'none', background: '#10b981', color: '#fff', cursor: running ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'inline-flex', alignItems: 'center', gap: '5px', opacity: running ? 0.6 : 1 }}>
+                {running ? 'Running...' : 'Run student code'}
+              </button>
+            </div>
+            <textarea
+              value={stdin}
+              onChange={(e) => setStdin(e.target.value)}
+              rows={2}
+              placeholder="Lines fed to the program (one per read)..."
+              style={{ width: '100%', boxSizing: 'border-box', background: '#111127', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '8px', color: '#e2e8f0', fontFamily: 'monospace', fontSize: '12px', padding: '8px 10px', resize: 'vertical', outline: 'none' }}
+            />
+          </div>
+          <div style={{ height: '220px', overflow: 'auto', padding: '12px 16px', background: '#0d0d1a', fontFamily: 'monospace', fontSize: '12.5px', lineHeight: '1.6', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: runError ? '#fca5a5' : '#a5f3fc' }}>
+            {runOutput || (running ? 'Running...' : 'Click "Run student code" to execute with the input above.')}
+          </div>
         </div>
       )}
     </div>

@@ -33,14 +33,9 @@ class CodeExecutionController extends Controller
             ]);
         }
 
-        // For Java: preprocess to work with execution engine
-        if ($language === 'java') {
-            // 1. Remove 'public' from class declarations
-            $code = preg_replace('/\bpublic\s+class\b/', 'class', $code);
-
-            // 2. Rename first class to 'Main' so execution engine can find it
-            $code = preg_replace('/\bclass\s+\w+\s*\{/', 'class Main {', $code, 1);
-        }
+        // Java: preprocess so the engine can find an entry class — shared with
+        // the quiz grading path so the same code behaves identically in both.
+        $code = CodeRunner::preprocessForEngine($language, $code);
 
         $result = CodeRunner::execute($language, $code, $input);
 

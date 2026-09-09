@@ -11,6 +11,7 @@ import {
     resolveLanguage,
     cmExtension,
     normalizePageText,
+    detectStdinUsage,
 } from '../../utils/codeLanguages';
 
 const OUTPUT_COLORS = {
@@ -25,15 +26,18 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
     const languageId = resolveLanguage(block.data.language, initialCode);
     const lang = languageOf(languageId);
     const isHtml = lang.preview;
+    const readsInput = !isHtml && detectStdinUsage(languageId, code);
 
     const draftKey = `instructai-code-draft-${block.id}`;
     const [code, setCode] = useState(() => {
-        if (initialCode) return initialCode;
+        // Solved blocks show the server-submitted code; otherwise the local
+        // draft wins over the starter so a refresh really never loses work.
+        if (block.data.is_solved && initialCode) return initialCode;
         try {
-            return localStorage.getItem(draftKey) || lang.template;
-        } catch {
-            return lang.template;
-        }
+            const draft = localStorage.getItem(draftKey);
+            if (!block.data.is_solved && draft !== null) return draft;
+        } catch { /* storage blocked */ }
+        return initialCode || lang.template;
     });
     const [output, setOutput] = useState('');
     const [stdin, setStdin] = useState('');
@@ -56,6 +60,15 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             setIsCorrect(true);
         }
     }, [block.data.is_solved]);
+
+    // Programs that read stdin open the input panel themselves — never make a
+    // beginner decode a bare EOFError traceback.
+    useEffect(() => {
+        if (!isHtml && detectStdinUsage(languageId, code)) {
+            setShowStdin(true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Persist drafts so a refresh never loses a student's work
     useEffect(() => {
@@ -93,6 +106,8 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 block_id: block.id,
                 code,
             });
+            // The server now holds the final code — drop the stale local draft
+            try { localStorage.removeItem(draftKey); } catch { /* noop */ }
         } catch {
             /* keep the local solve state even if persistence hiccups */
         }
@@ -444,8 +459,8 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 {!isHtml && activeTab === 'editor' && showStdin && (
                     <div style={{ borderTop: '1px solid var(--border-color)', background: '#0d0d1a' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 20px 4px' }}>
-                            <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#94a3b8' }}>
-                                Stdin — text fed to your program
+                            <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: readsInput ? '#38bdf8' : '#94a3b8' }}>
+                                {readsInput ? 'This program reads input — one line per read:' : 'Stdin — text fed to your program'}
                             </span>
                             <button onClick={() => setShowStdin(false)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                                 Hide <ChevronDown size={12} />
@@ -486,7 +501,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                             title="Provide standard input"
                         >
                             <ChevronUp size={13} />
-                            Stdin
+                            {readsInput ? 'Input needed' : 'Stdin'}
                         </button>
                     )}
                     {!isHtml && (

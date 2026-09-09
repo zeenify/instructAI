@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
 import Button from '../../components/ui/Button';
 import DeleteModal from '../../components/ui/DeleteModal';
+import TestCaseEditor from '../../components/teacher/TestCaseEditor';
 
 import CodeMirror from '@uiw/react-codemirror';
 import { CODE_LANGUAGES, cmExtension, resolveLanguage, languageOf } from '../../utils/codeLanguages';
@@ -235,6 +236,7 @@ function DraggableQuestion({ q, index, quiz, deleteModalOpen, setDeleteModalOpen
                                     </p>
                                 )}
                             </div>
+                            <TestCaseEditor question={q} />
                         </div>
                         );
                     })()}

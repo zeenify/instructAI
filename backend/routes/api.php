@@ -15,6 +15,7 @@ use App\Http\Controllers\Student\TtsController;
 use App\Http\Controllers\Teacher\AnalyticsController;
 use App\Http\Controllers\Teacher\ClassActivityController;
 // --- ADD STUDENT CONTROLLERS ---
+use App\Http\Controllers\Teacher\CodeRunController;
 use App\Http\Controllers\Teacher\ClassroomController;
 use App\Http\Controllers\Teacher\CourseController;
 use App\Http\Controllers\Teacher\IndexingController;
@@ -80,6 +81,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/teacher/quizzes/{id}/reorder-questions', [QuestionController::class, 'reorder']);
     Route::delete('/teacher/questions/{id}', [QuestionController::class, 'destroy']);
 
+    // Test cases + challenge verification (teacher-authored coding challenges)
+    Route::get('/teacher/questions/{id}/test-cases', [QuestionController::class, 'testCases']);
+    Route::put('/teacher/questions/{id}/test-cases', [QuestionController::class, 'updateTestCases']);
+    Route::post('/teacher/questions/{id}/verify', [QuestionController::class, 'verify']);
+    Route::post('/teacher/run-code', [CodeRunController::class, 'run'])->middleware('throttle:code-execution');
+
     // delete
     Route::post('/teacher/courses/{id}/publish-all', [CourseController::class, 'publishAll']);
     Route::delete('/teacher/modules/{id}', [ModuleController::class, 'destroy']);
@@ -116,13 +123,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/student/lessons/{id}/complete', [StudentLessonController::class, 'complete']);
 
     Route::get('/student/quizzes/{id}', [StudentQuizController::class, 'show']);
-    Route::post('/student/attempts/{attemptId}/submit', [StudentQuizController::class, 'submitAttempt']);
+    Route::post('/student/attempts/{attemptId}/answer', [StudentQuizController::class, 'saveAnswer']);
     Route::post('/student/lessons/{id}/submit-code', [StudentLessonController::class, 'submitCode']);
     Route::post('/student/quizzes/{id}/submit', [StudentQuizController::class, 'submit']);
 
-    // Remote Code Execution Proxy
-    Route::post('/student/execute', [CodeExecutionController::class, 'execute']);
-    Route::post('/ai/verify-code-challenge', [CodeExecutionController::class, 'verifyCodeChallenge']);
+    // Remote Code Execution Proxy — throttled: each run spawns a process
+    Route::post('/student/execute', [CodeExecutionController::class, 'execute'])->middleware('throttle:code-execution');
+    Route::post('/ai/verify-code-challenge', [CodeExecutionController::class, 'verifyCodeChallenge'])->middleware('throttle:code-execution');
 
     // AI Chat (Student)
     Route::post('/student/ai/chat', [AIChatController::class, 'chat']);

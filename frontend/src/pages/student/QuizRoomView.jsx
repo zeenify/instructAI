@@ -2097,6 +2097,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
           onChange={onChange}
           boilerplate={question.boilerplate || ""}
           disabled={disabled}
+          sampleTests={question.sample_tests || []}
         />
       </div>
     );

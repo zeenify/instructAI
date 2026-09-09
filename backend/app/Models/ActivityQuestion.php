@@ -28,6 +28,11 @@ class ActivityQuestion extends Model
         return $this->belongsTo(ClassActivity::class, 'activity_id');
     }
 
+    public function testCases()
+    {
+        return $this->morphMany(QuestionTestCase::class, 'testable')->orderBy('order_index');
+    }
+
     public function answers()
     {
         return $this->hasMany(ActivityAnswer::class, 'question_id');
