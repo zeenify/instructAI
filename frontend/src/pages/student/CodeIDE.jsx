@@ -26,7 +26,6 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
     const languageId = resolveLanguage(block.data.language, initialCode);
     const lang = languageOf(languageId);
     const isHtml = lang.preview;
-    const readsInput = !isHtml && detectStdinUsage(languageId, code);
 
     const draftKey = `instructai-code-draft-${block.id}`;
     const [code, setCode] = useState(() => {
@@ -39,6 +38,9 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         } catch { /* storage blocked */ }
         return initialCode || lang.template;
     });
+    // Reads stdin? Drives the interactive-first defaults below. Must come
+    // after `code` — it reads it.
+    const readsInput = !isHtml && detectStdinUsage(languageId, code);
     const [output, setOutput] = useState('');
     const [stdin, setStdin] = useState('');
     const [resultMeta, setResultMeta] = useState(null);
