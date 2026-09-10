@@ -12,7 +12,22 @@ import {
     cmExtension,
     normalizePageText,
     detectStdinUsage,
+    composeWebProject,
+    normalizeFiles,
+    parseStoredFiles,
+    webFileKind,
 } from '../../utils/codeLanguages';
+import { html as htmlExt } from '@codemirror/lang-html';
+import { css as cssExt } from '@codemirror/lang-css';
+import { javascript as jsExt } from '@codemirror/lang-javascript';
+
+function cmExtensionForFile(name, languageId) {
+    const kind = webFileKind(name);
+    if (kind === 'css') return cssExt();
+    if (kind === 'js') return jsExt();
+    if (kind === 'html') return htmlExt();
+    return cmExtension(languageId);
+}
 
 const OUTPUT_COLORS = {
     compile: { bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.3)', text: '#ef4444', label: '⚠️ COMPILATION ERROR' },
@@ -28,19 +43,34 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
     const isHtml = lang.preview;
 
     const draftKey = `instructai-code-draft-${block.id}`;
-    const [code, setCode] = useState(() => {
+    const starterFiles = normalizeFiles(block.data.files, initialCode || lang.template);
+    const [files, setFiles] = useState(() => {
         // Solved blocks show the server-submitted code; otherwise the local
         // draft wins over the starter so a refresh really never loses work.
-        if (block.data.is_solved && initialCode) return initialCode;
+        if (block.data.is_solved && initialCode) {
+            return parseStoredFiles(initialCode) || normalizeFiles(block.data.files, initialCode);
+        }
         try {
             const draft = localStorage.getItem(draftKey);
-            if (!block.data.is_solved && draft !== null) return draft;
+            if (!block.data.is_solved && draft !== null) {
+                return parseStoredFiles(draft) || normalizeFiles(block.data.files, draft);
+            }
         } catch { /* storage blocked */ }
-        return initialCode || lang.template;
+        return starterFiles;
     });
+    const [activeFileIdx, setActiveFileIdx] = useState(0);
+    const safeActiveFileIdx = Math.min(activeFileIdx, files.length - 1);
+    const activeFile = files[safeActiveFileIdx] || files[0];
+    // `code` mirrors the active html/main file so the run, challenge and
+    // submission paths keep working for both single- and multi-file blocks.
+    const code = activeFile ? activeFile.content : '';
+    const setActiveFileContent = (value) => {
+        setFiles((prev) => prev.map((f, i) => (i === safeActiveFileIdx ? { ...f, content: value } : f)));
+    };
     // Reads stdin? Drives the interactive-first defaults below. Must come
     // after `code` — it reads it.
     const readsInput = !isHtml && detectStdinUsage(languageId, code);
+    const isMultiFileHtml = isHtml && files.length > 1;
     const [output, setOutput] = useState('');
     const [stdin, setStdin] = useState('');
     const [resultMeta, setResultMeta] = useState(null);
@@ -78,8 +108,10 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
 
     // Persist drafts so a refresh never loses a student's work
     useEffect(() => {
-        try { localStorage.setItem(draftKey, code); } catch { /* storage full/blocked */ }
-    }, [code, draftKey]);
+        try {
+            localStorage.setItem(draftKey, isHtml && files.length > 0 ? JSON.stringify(files) : code);
+        } catch { /* storage full/blocked */ }
+    }, [files, code, draftKey, isHtml]);
 
     // Listen for console output + rendered text from the preview iframe
     useEffect(() => {
@@ -110,7 +142,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         try {
             await api.post(`/student/lessons/${lessonId}/submit-code`, {
                 block_id: block.id,
-                code,
+                code: isHtml && files.length > 0 ? JSON.stringify(files) : code,
             });
             // The server now holds the final code — drop the stale local draft
             try { localStorage.removeItem(draftKey); } catch { /* noop */ }
@@ -140,7 +172,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             }
             : null;
 
-        setPreviewSrcDoc(injectPreviewBridge(code));
+        setPreviewSrcDoc(injectPreviewBridge(composeWebProject(files)));
         // Give the iframe a beat to boot; long-running scripts resolve the check
         pendingCheckRef.current = check;
         setTimeout(() => {
@@ -256,8 +288,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
     }, []);
 
     const handleReset = () => {
-        const base = block.data.code || lang.template;
-        setCode(base);
+        setFiles(normalizeFiles(block.data.files, block.data.code || lang.template));
         try { localStorage.removeItem(draftKey); } catch { /* noop */ }
         toast.info('Code reset');
     };
@@ -420,13 +451,37 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             {/* Tab Content */}
             <div style={{ display: 'flex', flexDirection: 'column', height: '500px' }}>
                 {(activeTab === 'editor' || (!isHtml && activeTab === 'preview') || (!isHtml && activeTab === 'console')) && (
-                    <div style={{ flex: 1, overflow: 'auto' }}>
+                    <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+                        {isMultiFileHtml && (
+                            <div style={{ display: 'flex', gap: '2px', padding: '8px 12px 0', background: '#0d0d1a', flexWrap: 'wrap' }}>
+                                {files.map((f, i) => (
+                                    <button
+                                        key={f.name + i}
+                                        onClick={() => setActiveFileIdx(i)}
+                                        style={{
+                                            padding: '7px 14px',
+                                            fontSize: '10px',
+                                            fontWeight: 800,
+                                            fontFamily: 'monospace',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            borderRadius: '8px 8px 0 0',
+                                            background: safeActiveFileIdx === i ? '#1a1a2e' : 'transparent',
+                                            color: safeActiveFileIdx === i ? (webFileKind(f.name) === 'css' ? '#7dd3fc' : webFileKind(f.name) === 'js' ? '#fbbf24' : '#fb923c') : '#64748b',
+                                            transition: 'all 0.2s',
+                                        }}
+                                    >
+                                        {f.name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         <CodeMirror
-                            value={code}
-                            height="100%"
+                            value={activeFile ? activeFile.content : ''}
+                            height={isMultiFileHtml ? 'calc(100% - 37px)' : '100%'}
                             theme="dark"
-                            extensions={[cmExtension(languageId)]}
-                            onChange={(value) => setCode(value)}
+                            extensions={[cmExtensionForFile(activeFile ? activeFile.name : 'index.html', languageId)]}
+                            onChange={(value) => setActiveFileContent(value)}
                             className="text-sm"
                         />
                     </div>

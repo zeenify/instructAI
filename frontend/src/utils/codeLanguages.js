@@ -112,6 +112,72 @@ export function injectPreviewBridge(source) {
     return bridge + source;
 }
 
+// ---------- Multi-file web projects ----------
+// A web block can hold several files (index.html + style.css + script.js).
+// `files` is an array of { name, content }; a block without `files` is single
+// file and keeps using its `code` string.
+
+export function isMultiFile(files) {
+    return Array.isArray(files) && files.length > 0;
+}
+
+export function normalizeFiles(files, fallbackCode = '') {
+    if (isMultiFile(files)) {
+        return files.map((f) => ({ name: String(f.name || 'index.html'), content: String(f.content || '') }));
+    }
+    return [{ name: 'index.html', content: String(fallbackCode || '') }];
+}
+
+export function webFileKind(name) {
+    if (/\.css$/i.test(name)) return 'css';
+    if (/\.js$/i.test(name)) return 'js';
+    return 'html';
+}
+
+// Parses a stored `code` string back into a files array when it holds a
+// multi-file JSON snapshot; returns null for plain single-file code.
+export function parseStoredFiles(code) {
+    try {
+        const parsed = JSON.parse(code);
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed.every((f) => f && typeof f.name === 'string' && typeof f.content === 'string')) {
+            return normalizeFiles(parsed);
+        }
+    } catch { /* plain code */ }
+    return null;
+}
+
+// Compose the files into one document: CSS is injected before </head>, JS
+// before </body>, so student pages work exactly like a real folder served
+// to a browser.
+export function composeWebProject(files) {
+    const normalized = normalizeFiles(files);
+    const htmlFile = normalized.find((f) => webFileKind(f.name) === 'html') || normalized[0];
+    const css = normalized.filter((f) => webFileKind(f.name) === 'css').map((f) => f.content).join('\n\n');
+    const js = normalized.filter((f) => webFileKind(f.name) === 'js').map((f) => f.content).join('\n\n');
+
+    let doc = htmlFile.content || '<!DOCTYPE html>\n<html>\n<body></body>\n</html>';
+
+    if (css.trim()) {
+        doc = /<\/head>/i.test(doc)
+            ? doc.replace(/<\/head>/i, `<style>\n${css}\n</style>\n</head>`)
+            : `<style>\n${css}\n</style>\n` + doc;
+    }
+    if (js.trim()) {
+        doc = /<\/body>/i.test(doc)
+            ? doc.replace(/<\/body>/i, `<script>\n${js}\n</script>\n</body>`)
+            : doc + `\n<script>\n${js}\n</script>`;
+    }
+
+    return doc;
+}
+
+// Starter file sets for the teacher's "+ file" action in the lesson editor.
+export const WEB_FILE_TEMPLATES = {
+    html: { name: 'page.html', content: '<!DOCTYPE html>\n<html>\n<head>\n</head>\n<body>\n</body>\n</html>' },
+    css: { name: 'style.css', content: '/* styles shared by every page */\n' },
+    js: { name: 'script.js', content: '// scripts shared by every page\n' },
+};
+
 // The script injected into every preview iframe: bridges console output and
 // the rendered page text back to the IDE through postMessage. Runs inside the
 // sandbox — the parent can never touch the frame's document directly.

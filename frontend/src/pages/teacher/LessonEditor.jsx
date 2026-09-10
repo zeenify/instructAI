@@ -21,7 +21,18 @@ import Button from '../../components/ui/Button';
 import { useTheme } from '../../context/ThemeContext';
 
 import CodeMirror from '@uiw/react-codemirror';
-import { CODE_LANGUAGES, cmExtension, resolveLanguage, languageOf } from '../../utils/codeLanguages';
+import { CODE_LANGUAGES, cmExtension, resolveLanguage, languageOf, normalizeFiles, webFileKind, WEB_FILE_TEMPLATES } from '../../utils/codeLanguages';
+import { html as htmlExt } from '@codemirror/lang-html';
+import { css as cssExt } from '@codemirror/lang-css';
+import { javascript as jsExt } from '@codemirror/lang-javascript';
+
+function cmExtensionForFile(name, languageId) {
+    const kind = webFileKind(name);
+    if (kind === 'css') return cssExt();
+    if (kind === 'js') return jsExt();
+    if (kind === 'html') return htmlExt();
+    return cmExtension(languageId);
+}
 
 /**
  * TIPTAP CONFIGURATION
@@ -414,9 +425,12 @@ case 'code': {
                         + {lang.label} Template
                     </button>
                 </div>
-<div className="rounded-2xl border border-white/5 overflow-hidden" style={{ marginBottom: '24px' }}>
-                    <CodeMirror value={block.data.code || ""} height="300px" theme={theme === 'dark' ? 'dark' : 'light'} extensions={[cmExtension(langId)]} onChange={(val) => update(block.id, { code: val })} options={{ fontSize: 16 }} />
-                </div>
+<MultiFileEditor
+                    block={block}
+                    langId={langId}
+                    theme={theme}
+                    update={update}
+                />
                 {block.data.mode === 'challenge' && (
                     <div style={{ marginTop: '24px', paddingTop: '24px', gap: '12px' }} className="border-t border-white/5 text-cyan-500 flex flex-col">
                         <label className="text-[10px] font-black uppercase tracking-widest">
@@ -505,5 +519,112 @@ function AddBlockBtn({ icon: Icon, label, onClick }) {
             <div style={{ backgroundColor: 'var(--bg-tertiary)' }} className="w-12 h-12 rounded-2xl flex items-center justify-center text-slate-500 group-hover:text-purple-600 group-hover:scale-110 transition-all shadow-sm"><Icon size={24} /></div>
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-700 transition-colors">{label}</span>
         </button>
+    );
+}
+
+// Multi-file authoring for web blocks: index.html plus any number of
+// .css/.js files. Files are stored on block.data.files; block.data.code
+// stays synced to the html file for backward compatibility.
+function MultiFileEditor({ block, langId, theme, update }) {
+    const [activeIdx, setActiveIdx] = useState(0);
+    const isHtml = langId === 'html';
+    const files = normalizeFiles(block.data.files, block.data.code || '');
+    const safeIdx = Math.min(activeIdx, files.length - 1);
+    const active = files[safeIdx] || files[0];
+
+    const setFiles = (next) => {
+        const htmlFile = next.find((f) => webFileKind(f.name) === 'html') || next[0];
+        update(block.id, { files: next, code: htmlFile.content });
+    };
+
+    const updateContent = (value) => {
+        setFiles(files.map((f, i) => (i === safeIdx ? { ...f, content: value } : f)));
+    };
+
+    const addFile = (kind) => {
+        const tpl = WEB_FILE_TEMPLATES[kind];
+        let name = tpl.name;
+        let n = 2;
+        while (files.some((f) => f.name === name)) {
+            name = tpl.name.replace(/(\.[a-z]+)$/i, `-${n}$1`);
+            n++;
+        }
+        setFiles([...files, { name, content: tpl.content }]);
+        setActiveIdx(files.length);
+    };
+
+    const removeFile = (idx) => {
+        if (webFileKind(files[idx].name) === 'html') return; // the html entry page is required
+        const next = files.filter((_, i) => i !== idx);
+        setFiles(next);
+        setActiveIdx(Math.max(0, Math.min(safeIdx, next.length - 1)));
+    };
+
+    if (!isHtml) {
+        return (
+            <div className="rounded-2xl border border-white/5 overflow-hidden" style={{ marginBottom: '24px' }}>
+                <CodeMirror value={block.data.code || ""} height="300px" theme={theme === 'dark' ? 'dark' : 'light'} extensions={[cmExtension(langId)]} onChange={(val) => update(block.id, { code: val })} options={{ fontSize: 16 }} />
+            </div>
+        );
+    }
+
+    const kindColor = (name) => (webFileKind(name) === 'css' ? '#7dd3fc' : webFileKind(name) === 'js' ? '#fbbf24' : '#fb923c');
+
+    return (
+        <div style={{ marginBottom: '24px' }}>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px' }}>
+                {files.map((f, i) => (
+                    <button
+                        key={f.name + i}
+                        type="button"
+                        onClick={() => setActiveIdx(i)}
+                        style={{
+                            padding: '8px 14px', fontSize: '11px', fontWeight: 800, fontFamily: 'monospace',
+                            border: `1px solid ${safeIdx === i ? kindColor(f.name) : 'rgba(255,255,255,0.08)'}`,
+                            borderRadius: '10px', cursor: 'pointer',
+                            background: safeIdx === i ? 'rgba(255,255,255,0.06)' : 'transparent',
+                            color: safeIdx === i ? kindColor(f.name) : '#94a3b8',
+                            display: 'inline-flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s',
+                        }}
+                    >
+                        {f.name}
+                        {files.length > 1 && webFileKind(f.name) !== 'html' && (
+                            <span
+                                role="button"
+                                tabIndex={-1}
+                                onClick={(e) => { e.stopPropagation(); removeFile(i); }}
+                                style={{ color: '#f87171', fontWeight: 900, padding: '0 2px', cursor: 'pointer' }}
+                                title="Remove file"
+                            >
+                                ×
+                            </span>
+                        )}
+                    </button>
+                ))}
+                {!files.some((f) => webFileKind(f.name) === 'css') && (
+                    <button type="button" onClick={() => addFile('css')} className="text-[10px] font-bold text-sky-400 bg-transparent border border-sky-400/30 rounded-lg px-3 py-2 cursor-pointer">
+                        + style.css
+                    </button>
+                )}
+                {!files.some((f) => webFileKind(f.name) === 'js') && (
+                    <button type="button" onClick={() => addFile('js')} className="text-[10px] font-bold text-amber-400 bg-transparent border border-amber-400/30 rounded-lg px-3 py-2 cursor-pointer">
+                        + script.js
+                    </button>
+                )}
+            </div>
+            <p className="text-[10px] text-slate-500 font-medium" style={{ margin: '0 0 8px 0' }}>
+                CSS and JS files are injected into every page automatically — students see them as file tabs.
+            </p>
+            <div className="rounded-2xl border border-white/5 overflow-hidden">
+                <CodeMirror
+                    value={active ? active.content : ''}
+                    height="300px"
+                    theme={theme === 'dark' ? 'dark' : 'light'}
+                    extensions={[cmExtensionForFile(active ? active.name : 'index.html', langId)]}
+                    onChange={updateContent}
+                    options={{ fontSize: 16 }}
+                />
+            </div>
+        </div>
     );
 }
