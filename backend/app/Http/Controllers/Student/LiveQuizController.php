@@ -343,6 +343,10 @@ class LiveQuizController extends Controller
         $activity = $this->findQuiz($id);
         $this->checkEnrollment($activity->class_id);
 
+        if ($this->roomPaused($activity)) {
+            abort(422, 'Quiz is paused');
+        }
+
         if (! $this->roomLive($activity)) {
             abort(422, 'Quiz is not live');
         }
@@ -441,6 +445,7 @@ class LiveQuizController extends Controller
         $submission = $this->getSubmission($id);
         abort_if(! $submission, 422, 'Join the quiz first');
         abort_if($this->isFinalized($submission), 422, 'Quiz already finalized');
+        abort_if($this->roomPaused($activity), 422, 'Quiz is paused');
         abort_if($activity->pacing_mode === 'teacher', 422, 'Teacher controls the pace');
 
         $submission->update([
@@ -459,6 +464,7 @@ class LiveQuizController extends Controller
         $submission = $this->getSubmission($id);
         abort_if(! $submission, 422, 'Join the quiz first');
         abort_if($this->isFinalized($submission), 422, 'Quiz already finalized');
+        abort_if($this->roomPaused($activity), 422, 'Quiz is paused');
         abort_if($activity->pacing_mode === 'teacher' && ! $this->roomClosed($activity), 422, 'The teacher will end the quiz');
 
         return DB::transaction(function () use ($submission, $activity) {

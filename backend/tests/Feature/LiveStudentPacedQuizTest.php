@@ -546,4 +546,97 @@ class LiveStudentPacedQuizTest extends TestCase
         $this->assertEquals(4.0, (float) $graded->json('score')); // 2 + essay 2 — skipped ignored
         $this->assertSame('graded', $graded->json('status'));
     }
+
+    public function test_teacher_can_pause_and_resume_student_paced_quiz(): void
+    {
+        $t = $this->teacher();
+        $c = $this->classroomFor($t);
+        $a = $this->quiz($c, $t);
+        $s = $this->student();
+        $this->enroll($s, $c);
+        $this->startRoom($a, $t);
+        $this->join($s, $a)->assertStatus(200);
+
+        Sanctum::actingAs($s);
+        $this->postJson("/api/student/activities/{$a->id}/quiz/start")->assertStatus(200);
+
+        Sanctum::actingAs($t);
+        $this->postJson("/api/teacher/activities/{$a->id}/pause-live")
+            ->assertStatus(200)
+            ->assertJsonPath('activity.live_status', 'paused');
+
+        Sanctum::actingAs($s);
+        $this->getJson("/api/student/activities/{$a->id}/quiz/state")
+            ->assertStatus(200)
+            ->assertJsonPath('room_paused', true)
+            ->assertJsonPath('room_live', false);
+
+        // Everything is frozen: answering, advancing, finishing, starting
+        $qid = $this->questionId($a, 0);
+        $this->postJson("/api/student/activities/{$a->id}/quiz/answers", [
+            'question_id' => $qid,
+            'submitted_answer' => '1',
+        ])->assertStatus(422)->assertJson(['message' => 'Quiz is paused']);
+        $this->postJson("/api/student/activities/{$a->id}/quiz/advance", [
+            'current_question_idx' => 2,
+        ])->assertStatus(422)->assertJson(['message' => 'Quiz is paused']);
+        $this->postJson("/api/student/activities/{$a->id}/quiz/finish")
+            ->assertStatus(422)->assertJson(['message' => 'Quiz is paused']);
+
+        // A student who joined but hasn't started yet can't start either
+        $latecomer = $this->student();
+        $this->enroll($latecomer, $c);
+        $this->join($latecomer, $a)->assertStatus(200);
+        $this->postJson("/api/student/activities/{$a->id}/quiz/start")
+            ->assertStatus(422)->assertJson(['message' => 'Quiz is paused']);
+
+        Sanctum::actingAs($t);
+        $this->postJson("/api/teacher/activities/{$a->id}/resume-live")
+            ->assertStatus(200)
+            ->assertJsonPath('activity.live_status', 'active');
+
+        Sanctum::actingAs($s);
+        $this->getJson("/api/student/activities/{$a->id}/quiz/state")
+            ->assertStatus(200)
+            ->assertJsonPath('room_paused', false)
+            ->assertJsonPath('room_live', true);
+
+        $this->postJson("/api/student/activities/{$a->id}/quiz/answers", [
+            'question_id' => $qid,
+            'submitted_answer' => '1',
+        ])->assertStatus(200);
+    }
+
+    public function test_pause_freezes_whole_quiz_timer_for_paused_duration(): void
+    {
+        $t = $this->teacher();
+        $c = $this->classroomFor($t);
+        $a = $this->quiz($c, $t, ['timer_mode' => 'entire_quiz', 'time_limit_minutes' => 10]);
+        $s = $this->student();
+        $this->enroll($s, $c);
+        $this->startRoom($a, $t);
+        $this->join($s, $a)->assertStatus(200);
+
+        Sanctum::actingAs($s);
+        $this->postJson("/api/student/activities/{$a->id}/quiz/start")->assertStatus(200);
+
+        // Pretend the student has been working for 100s of the 600s limit
+        $submission = $a->submissions()->where('student_id', $s->id)->first();
+        $originalStart = now()->subSeconds(100);
+        $submission->update(['started_at' => $originalStart]);
+
+        Sanctum::actingAs($t);
+        $this->postJson("/api/teacher/activities/{$a->id}/pause-live")->assertStatus(200);
+        sleep(2);
+        $this->postJson("/api/teacher/activities/{$a->id}/resume-live")->assertStatus(200);
+
+        // started_at was shifted forward by the pause (~2s), so the student
+        // still has ~500s — not 500 minus the time spent paused.
+        Sanctum::actingAs($s);
+        $remaining = $this->getJson("/api/student/activities/{$a->id}/quiz/state")
+            ->assertStatus(200)
+            ->json('remaining_seconds');
+
+        $this->assertEqualsWithDelta(500, $remaining, 2.5);
+    }
 }

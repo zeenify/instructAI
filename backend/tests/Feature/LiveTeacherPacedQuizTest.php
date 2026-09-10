@@ -487,12 +487,11 @@ class LiveTeacherPacedQuizTest extends TestCase
             ->assertJsonPath('teacher_phase', 'paused');
     }
 
-    public function test_pause_rejected_when_not_live_or_not_teacher_paced(): void
+    public function test_pause_rejected_when_not_live(): void
     {
         $t = $this->teacher();
         $c = $this->classroomFor($t);
-        $a = $this->quiz($c, $t, ['pacing_mode' => 'student']);
-        $this->startRoom($a, $t);
+        $a = $this->quiz($c, $t);
 
         Sanctum::actingAs($t);
         $this->postJson("/api/teacher/activities/{$a->id}/pause-live")->assertStatus(422);
@@ -500,6 +499,30 @@ class LiveTeacherPacedQuizTest extends TestCase
         $a2 = $this->quiz($c, $t);
         Sanctum::actingAs($t);
         $this->postJson("/api/teacher/activities/{$a2->id}/pause-live")->assertStatus(422);
+    }
+
+    public function test_resume_extends_current_question_deadline_for_pause_duration(): void
+    {
+        $t = $this->teacher();
+        $c = $this->classroomFor($t);
+        $a = $this->quiz($c, $t);
+        $this->startRoom($a, $t);
+        Sanctum::actingAs($t);
+        $this->setQuestion($a, 0)->assertStatus(200);
+
+        $a->update(['live_question_deadline_at' => now()->addSeconds(60)]);
+        $deadlineBeforePause = $a->fresh()->live_question_deadline_at;
+
+        $this->postJson("/api/teacher/activities/{$a->id}/pause-live")->assertStatus(200);
+        sleep(2);
+        $this->postJson("/api/teacher/activities/{$a->id}/resume-live")->assertStatus(200);
+
+        $deadlineAfterResume = $a->fresh()->live_question_deadline_at;
+        $this->assertTrue(
+            $deadlineAfterResume->gt($deadlineBeforePause),
+            'Resume should push the deadline forward by the paused duration'
+        );
+        $this->assertNull($a->fresh()->live_paused_at);
     }
 
     public function test_live_board_reports_paused_phase(): void

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Trash2,
@@ -13,6 +14,9 @@ import {
   BarChart3,
   Play,
   Timer,
+  Copy,
+  Loader2,
+  X,
 } from "lucide-react";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
@@ -93,6 +97,9 @@ export default function ActivityCard({
   onDelete,
 }) {
   const navigate = useNavigate();
+  const [repostOpen, setRepostOpen] = useState(false);
+  const [classes, setClasses] = useState(null);
+  const [repostingTo, setRepostingTo] = useState(null);
 
   const typeKey =
     activity.activity_type === "quiz"
@@ -158,6 +165,39 @@ export default function ActivityCard({
       navigate(`/dashboard/teacher/class/${classId}/activity/${activity.id}/live`);
     } catch (err) {
       toast.error(err.response?.data?.message || "Could not resume the quiz");
+    }
+  };
+
+  const openRepost = async (e) => {
+    e.stopPropagation();
+    setRepostOpen(true);
+    setClasses(null);
+    try {
+      const res = await api.get("/teacher/classes", { bypassCache: true });
+      setClasses(res.data || []);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Could not load your classes");
+      setRepostOpen(false);
+    }
+  };
+
+  const handleRepost = async (targetClassId, targetClassName) => {
+    if (repostingTo) return;
+    setRepostingTo(targetClassId);
+    try {
+      const res = await api.post(`/teacher/activities/${activity.id}/repost`, {
+        class_id: targetClassId,
+      });
+      invalidateCache(`get:/teacher/classes/${targetClassId}/activities`);
+      toast.success(res.data?.message || `Posted to ${targetClassName}`);
+      setRepostOpen(false);
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message ||
+          "Could not post it to that class",
+      );
+    } finally {
+      setRepostingTo(null);
     }
   };
 
@@ -468,6 +508,25 @@ export default function ActivityCard({
           }}
         >
           {primaryAction}
+          <button
+            onClick={openRepost}
+            style={{
+              padding: "8px",
+              borderRadius: "10px",
+              border: "1px solid var(--border-color)",
+              background: "transparent",
+              cursor: "pointer",
+              color: "#64748b",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.15s",
+            }}
+            type="button"
+            title="Post to another class"
+          >
+            <Copy size={15} />
+          </button>
           {state !== "closed" && (
             <button
               onClick={handleTogglePublish}
@@ -538,6 +597,178 @@ export default function ActivityCard({
           </button>
         </div>
       </div>
+      {/* Post-to-another-class modal */}
+      {repostOpen && (
+        <div
+          onClick={() => setRepostOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            background: "rgba(2, 6, 23, 0.65)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "24px",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: "440px",
+              maxHeight: "70vh",
+              display: "flex",
+              flexDirection: "column",
+              background: "var(--bg-secondary)",
+              border: "1px solid var(--border-color)",
+              borderRadius: "16px",
+              boxShadow: "0 24px 64px rgba(0, 0, 0, 0.45)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "10px",
+                padding: "18px 20px 0",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: "17px",
+                  fontWeight: 800,
+                  color: "var(--text-primary)",
+                  margin: 0,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                <Copy size={16} color="#a78bfa" /> Post to another class
+              </h3>
+              <button
+                onClick={() => setRepostOpen(false)}
+                type="button"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--text-tertiary)",
+                  padding: "4px",
+                  display: "flex",
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p
+              style={{
+                fontSize: "13px",
+                color: "var(--text-secondary)",
+                lineHeight: 1.5,
+                margin: "8px 20px 14px",
+              }}
+            >
+              “{activity.title}” will be copied into the class you pick as a
+              draft — questions, settings and points included. Publish it there
+              when you're ready.
+            </p>
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                padding: "0 12px 14px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+              }}
+            >
+              {classes === null ? (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    padding: "28px 0",
+                    color: "var(--text-tertiary)",
+                  }}
+                >
+                  <Loader2 size={20} className="animate-spin" />
+                </div>
+              ) : classes.filter((c) => c.id !== Number(classId)).length ===
+                0 ? (
+                <p
+                  style={{
+                    textAlign: "center",
+                    fontSize: "13px",
+                    color: "var(--text-tertiary)",
+                    padding: "24px 8px",
+                    margin: 0,
+                  }}
+                >
+                  No other classes yet — create another class first.
+                </p>
+              ) : (
+                classes
+                  .filter((c) => c.id !== Number(classId))
+                  .map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => handleRepost(c.id, c.name)}
+                      disabled={repostingTo !== null}
+                      type="button"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "10px",
+                        padding: "13px 14px",
+                        borderRadius: "12px",
+                        border: "1px solid var(--border-color)",
+                        background: "var(--bg-primary)",
+                        cursor:
+                          repostingTo !== null ? "wait" : "pointer",
+                        textAlign: "left",
+                        transition: "all 0.15s",
+                        opacity: repostingTo !== null && repostingTo !== c.id ? 0.5 : 1,
+                      }}
+                    >
+                      <span>
+                        <span
+                          style={{
+                            display: "block",
+                            fontSize: "14px",
+                            fontWeight: 700,
+                            color: "var(--text-primary)",
+                          }}
+                        >
+                          {c.name}
+                        </span>
+                        <span
+                          style={{
+                            display: "block",
+                            fontSize: "12px",
+                            color: "var(--text-tertiary)",
+                            marginTop: "2px",
+                          }}
+                        >
+                          {c.students_count ?? 0} student
+                          {(c.students_count ?? 0) !== 1 ? "s" : ""}
+                        </span>
+                      </span>
+                      {repostingTo === c.id ? (
+                        <Loader2 size={16} className="animate-spin" color="#a78bfa" />
+                      ) : (
+                        <Copy size={15} color="var(--text-tertiary)" />
+                      )}
+                    </button>
+                  ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }

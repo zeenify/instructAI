@@ -889,7 +889,7 @@ export default function LiveQuizMonitor() {
                     Start Room
                   </button>
                 )}
-                {(isLive || isPaused) && activity?.pacing_mode === "teacher" && (
+                {(isLive || isPaused) && (
                   <button
                     onClick={isLive ? handlePause : handleResume}
                     disabled={busy}
@@ -912,6 +912,11 @@ export default function LiveQuizMonitor() {
                       transition: "all 200ms ease-in-out",
                       opacity: busy ? 0.6 : 1,
                     }}
+                    title={
+                      isPaused
+                        ? "Resume the quiz — students can answer again"
+                        : "Temporarily pause the quiz — students can't answer and timers are on hold"
+                    }
                   >
                     {isPaused ? (
                       <>

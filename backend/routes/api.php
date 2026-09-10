@@ -181,6 +181,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('/teacher/activities/{id}', [ClassActivityController::class, 'update']);
     Route::delete('/teacher/activities/{id}', [ClassActivityController::class, 'destroy']);
     Route::post('/teacher/activities/{id}/publish', [ClassActivityController::class, 'togglePublish']);
+    Route::post('/teacher/activities/{id}/repost', [ClassActivityController::class, 'repost']);
     Route::post('/teacher/activities/{id}/start-live', [ClassActivityController::class, 'startLive']);
     Route::post('/teacher/activities/{id}/pause-live', [ClassActivityController::class, 'pauseLive']);
     Route::post('/teacher/activities/{id}/resume-live', [ClassActivityController::class, 'resumeLive']);

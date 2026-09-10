@@ -309,6 +309,67 @@ class ClassActivityController extends Controller
         return response()->json($activity);
     }
 
+    /**
+     * Post a copy of this activity into another class the teacher owns.
+     * Content (title, settings, questions, test cases) is duplicated; live
+     * state and student submissions stay with the original.
+     */
+    public function repost(Request $request, $id)
+    {
+        $activity = $this->authorizeActivity($id);
+
+        $validated = $request->validate([
+            'class_id' => 'required|integer',
+        ]);
+
+        if ((int) $validated['class_id'] === (int) $activity->class_id) {
+            return response()->json(['message' => 'This activity is already posted in that class'], 422);
+        }
+
+        $targetClass = $this->authorizeTeacher($validated['class_id']);
+
+        $clone = DB::transaction(function () use ($activity, $targetClass) {
+            $copy = $activity->replicate();
+            $copy->class_id = $targetClass->id;
+            $copy->teacher_id = auth()->id();
+            $copy->is_published = false;
+            $copy->is_live = false;
+            $copy->live_status = 'scheduled';
+            $copy->live_scheduled_at = null;
+            $copy->live_started_at = null;
+            $copy->live_paused_at = null;
+            $copy->live_current_q = 0;
+            $copy->live_question_deadline_at = null;
+            $copy->live_question_revealed_at = null;
+            $copy->close_room_at = null;
+            $copy->order_index = (ClassActivity::where('class_id', $targetClass->id)->max('order_index') ?? 0) + 1;
+            // Instruction files live on Cloudinary under the original — a clone
+            // would dangle once the original (and its uploads) are deleted.
+            $copy->instruction_files = [];
+            $copy->save();
+
+            foreach ($activity->questions()->with('testCases')->get() as $question) {
+                $questionCopy = $question->replicate();
+                $questionCopy->activity_id = $copy->id;
+                $questionCopy->save();
+
+                foreach ($question->testCases as $testCase) {
+                    $caseCopy = $testCase->replicate();
+                    $caseCopy->testable_type = ActivityQuestion::class;
+                    $caseCopy->testable_id = $questionCopy->id;
+                    $caseCopy->save();
+                }
+            }
+
+            return $copy;
+        });
+
+        return response()->json([
+            'message' => "Posted to {$targetClass->name} as a draft — review and publish it there",
+            'activity' => $clone->fresh(['questions']),
+        ], 201);
+    }
+
     // ── Live quiz room (student-paced) ──
 
     public function startLive($id)
@@ -331,6 +392,7 @@ class ClassActivityController extends Controller
             'is_live' => true,
             'live_status' => 'active',
             'live_started_at' => now(),
+            'live_paused_at' => null,
             'close_room_at' => null,
             'live_current_q' => -1,
             'live_question_deadline_at' => null,
@@ -351,11 +413,10 @@ class ClassActivityController extends Controller
             return response()->json(['message' => 'Quiz is not live'], 422);
         }
 
-        if ($activity->pacing_mode !== 'teacher') {
-            return response()->json(['message' => 'Only teacher-paced quizzes can be paused'], 422);
-        }
-
-        $activity->update(['live_status' => 'paused']);
+        $activity->update([
+            'live_status' => 'paused',
+            'live_paused_at' => now(),
+        ]);
 
         return response()->json([
             'message' => 'Quiz paused',
@@ -371,7 +432,38 @@ class ClassActivityController extends Controller
             return response()->json(['message' => 'Quiz is not paused'], 422);
         }
 
-        $activity->update(['live_status' => 'active']);
+        $pausedSeconds = $activity->live_paused_at
+            ? max(0, (int) $activity->live_paused_at->diffInSeconds(now()))
+            : 0;
+
+        $updates = [
+            'live_status' => 'active',
+            'live_paused_at' => null,
+        ];
+
+        // The current question's countdown continues where it paused instead of
+        // silently expiring during the pause.
+        if ($pausedSeconds > 0
+            && $activity->live_question_deadline_at
+            && ! $activity->live_question_revealed_at) {
+            $updates['live_question_deadline_at'] =
+                $activity->live_question_deadline_at->copy()->addSeconds($pausedSeconds);
+        }
+
+        $activity->update($updates);
+
+        // Whole-quiz timers run off started_at, so shift every running
+        // submission forward by the pause length — nobody loses time while
+        // the room was paused.
+        if ($pausedSeconds > 0 && $activity->timer_mode === 'entire_quiz') {
+            ActivitySubmission::where('activity_id', $activity->id)
+                ->where('status', 'draft')
+                ->whereNotNull('started_at')
+                ->get()
+                ->each(fn (ActivitySubmission $s) => $s->update([
+                    'started_at' => $s->started_at->copy()->addSeconds($pausedSeconds),
+                ]));
+        }
 
         return response()->json([
             'message' => 'Quiz resumed',

@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  Pause,
   Play,
   Send,
   CheckCircle2,
@@ -81,6 +82,7 @@ export default function QuizRoomView() {
   const idxRef = useRef(currentIdx);
   const payloadRef = useRef(payload);
   const phaseRef = useRef(phase);
+  const roomPausedRef = useRef(roomPaused);
   const saveTimerRef = useRef(null);
   const pendingSaveRef = useRef(null);
   const heartbeaterRef = useRef(null);
@@ -98,6 +100,9 @@ export default function QuizRoomView() {
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
+  useEffect(() => {
+    roomPausedRef.current = roomPaused;
+  }, [roomPaused]);
 
   const backToClass = useCallback(() => {
     invalidateCache(`get:/student/classes/${classId}/activities`);
@@ -142,6 +147,10 @@ export default function QuizRoomView() {
             Math.floor((data.activity?.time_limit_minutes || 0) * 60),
         );
       }
+    } else if (data.room_paused) {
+      // Room is paused before the student started — hold them in the waiting
+      // room (it polls and walks them in once the teacher resumes).
+      setPhase("waiting");
     } else {
       setPhase("start");
     }
@@ -300,7 +309,6 @@ export default function QuizRoomView() {
       }
       if (data.activity?.pacing_mode === "teacher") {
         setTeacherPacing(true);
-        setRoomPaused(!!data.room_paused);
         if (data.teacher_phase) setTeacherPhase(data.teacher_phase);
         setPayload((prev) =>
           prev
@@ -321,7 +329,12 @@ export default function QuizRoomView() {
           setTimeLeft(null);
         }
       }
+      setRoomPaused(!!data.room_paused);
+      // While paused the server-side whole-quiz clock keeps running until the
+      // teacher resumes (then it's credited back) — don't let polls shrink the
+      // frozen countdown in the meantime.
       if (
+        !data.room_paused &&
         data.remaining_seconds !== null &&
         payloadRef.current?.activity?.timer_mode === "entire_quiz"
       ) {
@@ -451,6 +464,7 @@ export default function QuizRoomView() {
     }
 
     const interval = setInterval(() => {
+      if (roomPausedRef.current) return; // paused — countdown frozen in place
       const current = timeLeftRef.current;
       if (current === null) return;
       const next = Math.max(0, current - 1);
@@ -487,6 +501,7 @@ export default function QuizRoomView() {
     if (timeLeft === null || timeLeft === undefined) return;
 
     const interval = setInterval(() => {
+      if (roomPausedRef.current) return; // paused — countdown frozen in place
       const current = timeLeftRef.current;
       if (current === null || current === undefined) {
         clearInterval(interval);
@@ -510,12 +525,12 @@ export default function QuizRoomView() {
     }, 10000);
     pollerRef.current = setInterval(() => {
       pollState();
-    }, teacherPacing ? 5000 : 20000);
+    }, teacherPacing ? 5000 : roomPaused ? 3000 : 20000);
     return () => {
       clearInterval(heartbeaterRef.current);
       clearInterval(pollerRef.current);
     };
-  }, [phase, activityId, pollState, teacherPacing]);
+  }, [phase, activityId, pollState, teacherPacing, roomPaused]);
 
   useEffect(() => {
     if (phase === "results" && payload?.reveal === "summary") {
@@ -652,7 +667,7 @@ export default function QuizRoomView() {
             margin: 0,
           }}
         >
-          Waiting for your teacher
+          {roomPaused ? "Quiz paused" : "Waiting for your teacher"}
         </h2>
         <p
           style={{
@@ -663,8 +678,9 @@ export default function QuizRoomView() {
             lineHeight: 1.6,
           }}
         >
-          The quiz hasn't been opened yet. Keep this page open — it will enter
-          the quiz automatically the moment your teacher starts it.
+          {roomPaused
+            ? "Your teacher paused the quiz before you started. Keep this page open — you'll be able to start the moment it resumes."
+            : "The quiz hasn't been opened yet. Keep this page open — it will enter the quiz automatically the moment your teacher starts it."}
         </p>
         <div
           style={{
@@ -1503,7 +1519,7 @@ export default function QuizRoomView() {
           padding: "40px 24px 120px",
         }}
       >
-        {teacherPacing && (teacherPhase === "waiting" || roomPaused) ? (
+        {(teacherPacing && teacherPhase === "waiting") || roomPaused ? (
           <div
             style={{
               textAlign: "center",
@@ -1514,10 +1530,14 @@ export default function QuizRoomView() {
               gap: "12px",
             }}
           >
-            <Loader2
-              className="animate-spin"
+            <Pause
               size={36}
-              color={roomPaused ? "#f59e0b" : "#a78bfa"}
+              color="#f59e0b"
+              style={
+                roomPaused
+                  ? { animation: "pulse 1.6s infinite" }
+                  : undefined
+              }
             />
             <h2
               style={{
@@ -1538,7 +1558,7 @@ export default function QuizRoomView() {
               }}
             >
               {roomPaused
-                ? "Your teacher paused the quiz. It will resume automatically."
+                ? "Your teacher paused the quiz. Your answers are safe and your time is on hold — it will resume automatically."
                 : "Your teacher hasn't opened a question yet. It will appear here automatically."}
             </p>
           </div>
@@ -1585,6 +1605,23 @@ export default function QuizRoomView() {
                 }}
               >
                 <Radio size={14} /> Your teacher controls the pace — sit tight
+              </p>
+            </>
+          ) : roomPaused ? (
+            <>
+              <div style={{ flex: 1 }} />
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "#f59e0b",
+                  margin: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontWeight: 700,
+                }}
+              >
+                <Pause size={14} /> Quiz paused — navigation is on hold
               </p>
             </>
           ) : (
