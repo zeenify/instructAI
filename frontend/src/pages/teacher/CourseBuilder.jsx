@@ -506,8 +506,11 @@ export default function CourseBuilder() {
             await api.post(`/teacher/courses/${id}/ai-commit`, finalData);
             toast.success('Structure saved!', { id: toastId });
 
-            // Fetch the saved course with real module/lesson/quiz IDs
-            const courseData = await api.get(`/teacher/courses/${id}`);
+            // Fetch the saved course with real module/lesson/quiz IDs.
+            // bypassCache is REQUIRED: this GET was cached when the page loaded
+            // (before any modules existed), so the cached response would hand
+            // content generation an empty structure.
+            const courseData = await api.get(`/teacher/courses/${id}`, { bypassCache: true });
             setSavedModulesData(courseData.data.modules || []);
 
             // Invalidate cache so new modules appear
@@ -584,7 +587,7 @@ export default function CourseBuilder() {
 
         // Add initial logs
         addLog('start', 'Initializing AI content generation pipeline...');
-        addLog('info', 'Connecting to Groq API (llama-3.3-70b-versatile)');
+        addLog('info', 'Connecting to AI service (gemini-3.5-flash-lite)');
 
         // Add artificial delay to show streaming UI
         await new Promise(resolve => setTimeout(resolve, 800));

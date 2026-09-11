@@ -169,7 +169,7 @@ export default function GenerationConsole({
                     AI Content Generator
                   </h1>
                   <p className="text-sm text-slate-500 font-mono">
-                    llama-3.3-70b-versatile
+                    gemini-3.5-flash-lite
                   </p>
                 </div>
               </div>
