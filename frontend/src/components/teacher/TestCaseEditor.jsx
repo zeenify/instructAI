@@ -6,7 +6,7 @@ import { Plus, Trash2, Save, ShieldCheck, Eye, EyeOff, Loader2, CheckCircle2, XC
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
 
-export default function TestCaseEditor({ question }) {
+export default function TestCaseEditor({ question, apiBase = '/teacher/questions' }) {
     const [tests, setTests] = useState(null); // null while loading
     const [savedSnapshot, setSavedSnapshot] = useState('');
     const [saving, setSaving] = useState(false);
@@ -19,10 +19,11 @@ export default function TestCaseEditor({ question }) {
         setTests(null);
         setVerifyResults(null);
         setReferenceCode(question.reference_code || '');
-        api.get(`/teacher/questions/${question.id}/test-cases`).then((res) => {
+        api.get(`${apiBase}/${question.id}/test-cases`).then((res) => {
             if (!mounted) return;
             const loaded = res.data.test_cases || [];
             setTests(loaded);
+            if (res.data.reference_code != null) setReferenceCode(res.data.reference_code);
             setSavedSnapshot(JSON.stringify(loaded));
         }).catch(() => {
             if (mounted) setTests([]);
@@ -47,7 +48,7 @@ export default function TestCaseEditor({ question }) {
     const save = async () => {
         setSaving(true);
         try {
-            const res = await api.put(`/teacher/questions/${question.id}/test-cases`, {
+            const res = await api.put(`${apiBase}/${question.id}/test-cases`, {
                 test_cases: (tests || []).map((t, i) => ({
                     input: t.input || '',
                     expected_output: t.expected_output || '',
@@ -78,7 +79,7 @@ export default function TestCaseEditor({ question }) {
         setVerifying(true);
         setVerifyResults(null);
         try {
-            const res = await api.post(`/teacher/questions/${question.id}/verify`, {
+            const res = await api.post(`${apiBase}/${question.id}/verify`, {
                 reference_code: referenceCode,
             }, { timeout: 120000 });
             setVerifyResults(res.data);
@@ -114,13 +115,11 @@ export default function TestCaseEditor({ question }) {
             </div>
 
             {question.language === 'html' ? (
-                <p className="text-[11px] text-slate-500 font-medium" style={{ margin: 0 }}>
-                    HTML questions are graded by the AI service — test cases don't apply. Describe the expected content in the field below the starter code.
-                </p>
+                null
             ) : (
                 <>
                     <p className="text-[10px] text-slate-500 font-medium" style={{ margin: 0 }}>
-                        Each test runs the student's code with the given input and compares stdout. Partial credit = points × tests passed. Hidden tests aren't shown to students.
+                        Each test runs the student's code with the given input and compares stdout. All tests must pass for full points unless “Allow partial credit” is on. Hidden tests aren't shown to students.
                     </p>
 
                     {tests === null ? (

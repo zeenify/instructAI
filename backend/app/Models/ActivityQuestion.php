@@ -15,11 +15,16 @@ class ActivityQuestion extends Model
         'points',
         'boilerplate',
         'language',
+        'partial_credit',
+        'html_checks',
+        'reference_code',
         'order_index',
     ];
 
     protected $casts = [
         'options' => 'array',
+        'html_checks' => 'array',
+        'partial_credit' => 'boolean',
         'points' => 'decimal:2',
     ];
 

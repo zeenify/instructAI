@@ -12,6 +12,7 @@ class ActivityAnswer extends Model
         'submitted_answer',
         'is_correct',
         'score',
+        'test_results',
         'ai_evaluated',
     ];
 
@@ -19,6 +20,7 @@ class ActivityAnswer extends Model
         'is_correct' => 'boolean',
         'ai_evaluated' => 'boolean',
         'score' => 'decimal:2',
+        'test_results' => 'array',
     ];
 
     public function submission()

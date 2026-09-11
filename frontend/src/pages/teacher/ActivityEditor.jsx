@@ -10,6 +10,8 @@ import DeleteModal from '../../components/ui/DeleteModal';
 import Button from '../../components/ui/Button';
 import CodeMirror from '@uiw/react-codemirror';
 import { CODE_LANGUAGES, cmExtension, languageOf } from '../../utils/codeLanguages';
+import TestCaseEditor from '../../components/teacher/TestCaseEditor';
+import HtmlChecksEditor from '../../components/teacher/HtmlChecksEditor';
 
 const QUESTION_TYPES = [
   { id: 'multiple_choice', label: 'Multiple Choice' },
@@ -355,6 +357,15 @@ function QuestionBlock({ question, index, onUpdate, onDelete, onEdit, disabled, 
     }
   };
 
+  const patchQuestion = async (payload) => {
+    try {
+      await api.put('/teacher/activities/' + question.activity_id + '/questions/' + question.id, payload);
+      onUpdate({ ...question, ...payload });
+    } catch {
+      toast.error('Failed to save');
+    }
+  };
+
   const getTypeLabel = (t) => QUESTION_TYPES.find(qt => qt.id === t)?.label || t;
 
   return (
@@ -401,6 +412,46 @@ function QuestionBlock({ question, index, onUpdate, onDelete, onEdit, disabled, 
           )}
         </div>
       </div>
+
+      {question.type === 'coding' && !question.is_temp && (
+        <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <button
+            type="button"
+            onClick={() => patchQuestion({ partial_credit: !question.partial_credit })}
+            style={{ padding: '8px 12px', gap: '10px', alignSelf: 'flex-start' }}
+            className={`flex items-center rounded-xl border text-[11px] font-bold transition-all cursor-pointer ${
+              question.partial_credit
+                ? 'bg-amber-500/10 border-amber-500/40 text-amber-400'
+                : 'border-white/10 text-slate-400'
+            }`}
+            title="Off: every test must pass for full points. On: points × tests passed."
+          >
+            <span
+              style={{
+                width: '30px', height: '16px', borderRadius: '999px', display: 'inline-flex',
+                alignItems: 'center', padding: '2px', transition: 'all .2s',
+                background: question.partial_credit ? '#f59e0b' : 'rgba(148,163,184,.4)',
+                justifyContent: question.partial_credit ? 'flex-end' : 'flex-start',
+              }}
+            >
+              <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#fff', display: 'block' }} />
+            </span>
+            Allow partial credit
+          </button>
+
+          {(question.language || 'java') === 'html' ? (
+            <HtmlChecksEditor
+              title="Page Checks"
+              checks={question.html_checks || []}
+              onChange={(next) => patchQuestion({ html_checks: next })}
+              referenceHtml={question.reference_code || ''}
+              onReferenceChange={(text) => patchQuestion({ reference_code: text })}
+            />
+          ) : (
+            <TestCaseEditor question={question} apiBase="/teacher/activity-questions" />
+          )}
+        </div>
+      )}
     </div>
   );
 }

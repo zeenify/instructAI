@@ -10,7 +10,8 @@ import {
     languageOf,
     resolveLanguage,
     cmExtension,
-    normalizePageText,
+    normalizeHtmlChecks,
+    htmlCheckLabel,
     detectStdinUsage,
     composeWebProject,
     normalizeFiles,
@@ -82,7 +83,14 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
     const [previewSrcDoc, setPreviewSrcDoc] = useState('');
     const [consoleLines, setConsoleLines] = useState([]);
     const [showStdin, setShowStdin] = useState(false);
+    // Challenges for HTML pages grade against structured checks (element /
+    // attribute / style / text assertions) run inside the preview iframe.
+    const htmlChecks = isHtml && mode === 'challenge'
+        ? normalizeHtmlChecks(block.data.html_checks, block.data.expected)
+        : [];
+    const [checkResults, setCheckResults] = useState(null);
     const pendingCheckRef = useRef(null);
+    const runCountRef = useRef(0);
     const shellRef = useRef(null);
     const containerRef = useRef(null);
 
@@ -113,22 +121,23 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         } catch { /* storage full/blocked */ }
     }, [files, code, draftKey, isHtml]);
 
-    // Listen for console output + rendered text from the preview iframe
+    // Listen for console output + page-check results from the preview iframe
     useEffect(() => {
         if (!isHtml) return undefined;
         const handler = (event) => {
             if (!event.data || !event.data.__instructai_preview) return;
             if (event.data.type === 'console') {
                 setConsoleLines((prev) => [...prev.slice(-199), { level: event.data.level, message: event.data.message }]);
-            } else if (event.data.type === 'page-text' && pendingCheckRef.current) {
+            } else if (event.data.type === 'check-results' && pendingCheckRef.current) {
                 const check = pendingCheckRef.current;
                 pendingCheckRef.current = null;
-                const rendered = normalizePageText(event.data.text);
-                const expected = normalizePageText(check.expected);
-                if (expected && rendered.includes(expected)) {
+                const results = event.data.results || [];
+                setCheckResults(results);
+                const allPassed = results.length > 0 && results.every((r) => r.passed);
+                if (allPassed) {
                     check.onPass();
                 } else {
-                    check.onFail();
+                    check.onFail(results);
                 }
             }
         };
@@ -162,26 +171,31 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
 
         const check = mode === 'challenge'
             ? {
-                expected: block.data.expected,
                 onPass: () => markSolved(),
-                onFail: () => {
+                onFail: (results) => {
                     setIsWrong(true);
-                    toast.error('The page does not contain the expected text yet.');
+                    const failed = (results || []).filter((r) => !r.passed);
+                    const first = failed[0];
+                    toast.error(first && first.detail ? `Check failed: ${first.detail}` : 'The page does not pass every check yet.');
                     setTimeout(() => setIsWrong(false), 8000);
                 },
             }
             : null;
 
-        setPreviewSrcDoc(injectPreviewBridge(composeWebProject(files)));
+        setCheckResults(null);
+        // Identical srcDoc strings don't reload the iframe (no fresh document,
+        // no check run) — a per-run marker forces the reload every time.
+        runCountRef.current += 1;
+        setPreviewSrcDoc(injectPreviewBridge(composeWebProject(files), htmlChecks) + '<!--run-' + runCountRef.current + '-->');
         // Give the iframe a beat to boot; long-running scripts resolve the check
         pendingCheckRef.current = check;
         setTimeout(() => {
             setIsRunning(false);
             if (check && pendingCheckRef.current === check) {
                 pendingCheckRef.current = null;
-                check.onFail();
+                check.onFail([]);
             }
-        }, 2500);
+        }, 3500);
     };
 
     const handleCodeRun = async () => {
@@ -504,6 +518,44 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                     </div>
                 )}
 
+                {isHtml && activeTab === 'preview' && htmlChecks.length > 0 && (
+                    <div style={{ padding: '14px 18px', borderTop: '1px solid rgba(255,255,255,.06)', background: '#0d0d1a' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '10px', fontWeight: 900, letterSpacing: '.2em', color: '#22d3ee', textTransform: 'uppercase' }}>
+                                Page Checks
+                            </span>
+                            {checkResults && (
+                                <span style={{
+                                    fontSize: '10px', fontWeight: 900, padding: '2px 10px', borderRadius: '999px',
+                                    color: checkResults.every((r) => r.passed) ? '#34d399' : '#fbbf24',
+                                    background: checkResults.every((r) => r.passed) ? 'rgba(16,185,129,.12)' : 'rgba(245,158,11,.12)',
+                                }}>
+                                    {checkResults.filter((r) => r.passed).length}/{checkResults.length} passing
+                                </span>
+                            )}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                            {(checkResults || htmlChecks.map((c, i) => ({ id: c.id, label: htmlCheckLabel(c), passed: null, detail: '', _i: i }))).map((r, i) => (
+                                <div key={r.id || i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                                    {r.passed === null || r.passed === undefined ? (
+                                        <span style={{ width: '14px', height: '14px', borderRadius: '50%', border: '1.5px dashed #475569', flexShrink: 0 }} />
+                                    ) : r.passed ? (
+                                        <CheckCircle size={14} color="#34d399" style={{ flexShrink: 0 }} />
+                                    ) : (
+                                        <AlertCircle size={14} color="#f87171" style={{ flexShrink: 0 }} />
+                                    )}
+                                    <span style={{ color: r.passed ? '#e2e8f0' : '#94a3b8' }}>
+                                        {r.label || htmlCheckLabel(htmlChecks[i] || {})}
+                                    </span>
+                                    {!r.passed && r.detail ? (
+                                        <span style={{ color: '#fca5a5', fontSize: '11px' }}>— {r.detail}</span>
+                                    ) : null}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {isHtml && activeTab === 'console' && (
                     <div style={{
                         flex: 1, overflow: 'auto', padding: '20px 24px',
@@ -669,8 +721,10 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             </div>
 
 
-            {/* Expected Output - For Challenge Mode */}
-            {mode === 'challenge' && (
+            {/* Expected Output - For Challenge Mode. Hidden for HTML blocks
+                with page checks: the checklist above IS the expectation
+                (the quick expected text appears in it as a page-text check). */}
+            {mode === 'challenge' && !(isHtml && htmlChecks.length > 0) && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ padding: '20px 24px', borderTop: '1px solid var(--accent-glow)', background: 'var(--accent-light)' }}>
                     <p style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 900, textTransform: 'uppercase', margin: '0 0 12px 0' }}>
                         {isHtml ? 'Expected On Page:' : 'Expected Output:'}

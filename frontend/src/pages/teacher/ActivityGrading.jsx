@@ -5,8 +5,8 @@ import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
 import ActivityTypeBadge from '../../components/teacher/ActivityTypeBadge';
 import CodeMirror from '@uiw/react-codemirror';
-import { cmExtension, languageOf } from '../../utils/codeLanguages';
-import { Eye, Code2 } from 'lucide-react';
+import { cmExtension, languageOf, normalizeHtmlChecks, injectPreviewBridge } from '../../utils/codeLanguages';
+import { Eye, Code2, Play } from 'lucide-react';
 
 function studentName(s) {
   const p = s?.student_profile || s?.student?.student_profile;
@@ -336,7 +336,7 @@ export default function ActivityGrading() {
                             <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px 0' }}>Student answer</p>
                             {answer?.submitted_answer ? (
                               code
-                                ? <CodingAnswerView language={q.language} code={answer.submitted_answer} />
+                                ? <CodingAnswerView language={q.language} code={answer.submitted_answer} htmlChecks={q.html_checks || []} testResults={answer.test_results} />
                                 : (
                               <pre style={{ margin: '0 0 12px 0', padding: '12px 14px', borderRadius: '8px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: '13.5px', lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                                 {answer.submitted_answer}
@@ -554,20 +554,34 @@ export default function ActivityGrading() {
 }
 
 // Teacher-side view of a student's code: syntax highlighted in the question's
-// language, a sandboxed live preview for HTML submissions, and a run-it-
-// yourself pane (with stdin) so the teacher sees what the code actually did.
-function CodingAnswerView({ language, code }) {
+// language, a sandboxed live preview for HTML submissions (graded against the
+// question's page checks, same harness students see), and a run-it-yourself
+// pane (with stdin) so the teacher sees what the code actually did.
+function CodingAnswerView({ language, code, htmlChecks: htmlChecksProp = [], testResults = null }) {
   const lang = languageOf(language);
   const isHtml = lang.preview;
+  const htmlChecks = isHtml ? normalizeHtmlChecks(htmlChecksProp) : [];
   const [tab, setTab] = useState('code');
   const [previewDoc, setPreviewDoc] = useState('');
+  const [previewResults, setPreviewResults] = useState(null);
   const [stdin, setStdin] = useState('');
   const [runOutput, setRunOutput] = useState('');
   const [runError, setRunError] = useState(false);
   const [running, setRunning] = useState(false);
 
+  useEffect(() => {
+    if (!isHtml) return undefined;
+    const handler = (event) => {
+      if (!event.data || !event.data.__instructai_preview || event.data.type !== 'check-results') return;
+      setPreviewResults(event.data.results || []);
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [isHtml]);
+
   const runPreview = () => {
-    setPreviewDoc(code);
+    setPreviewResults(null);
+    setPreviewDoc(injectPreviewBridge(code, htmlChecks));
     setTab('preview');
   };
 
@@ -628,8 +642,27 @@ function CodingAnswerView({ language, code }) {
       {tab === 'code' ? (
         <CodeMirror value={code} editable={false} height="320px" extensions={[cmExtension(lang.id)]} theme="dark" basicSetup={{ foldGutter: false, highlightActiveLine: false }} />
       ) : tab === 'preview' ? (
-        <div style={{ height: '320px', background: '#fff' }}>
-          <iframe title="Student HTML Preview" srcDoc={previewDoc} sandbox="allow-scripts allow-forms allow-modals allow-popups" style={{ width: '100%', height: '100%', border: 'none', display: 'block' }} />
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div style={{ height: '320px', background: '#fff' }}>
+            <iframe title="Student HTML Preview" srcDoc={previewDoc} sandbox="allow-scripts allow-forms allow-modals allow-popups" style={{ width: '100%', height: '100%', border: 'none', display: 'block' }} />
+          </div>
+          {(previewResults || (testResults && testResults.checks)) && (
+            <div style={{ padding: '10px 14px', borderTop: '1px solid var(--border-color)', background: '#0d0d1a' }}>
+              <div style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#22d3ee', marginBottom: '6px' }}>
+                Page check results — {(() => {
+                  const rows = previewResults || testResults.checks || [];
+                  return `${rows.filter((r) => r.passed).length}/${rows.length} passing`;
+                })()}
+              </div>
+              {(previewResults || testResults.checks || []).map((r, i) => (
+                <div key={r.id || i} style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '11.5px', padding: '2px 0' }}>
+                  <span style={{ color: r.passed ? '#34d399' : '#f87171', flexShrink: 0 }}>{r.passed ? '✓' : '✕'}</span>
+                  <span style={{ color: '#cbd5e1' }}>{r.label || `Check ${i + 1}`}</span>
+                  {!r.passed && r.detail ? <span style={{ color: '#fca5a5', fontSize: '10px' }}>— {r.detail}</span> : null}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column' }}>

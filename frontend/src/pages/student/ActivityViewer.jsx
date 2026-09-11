@@ -31,6 +31,7 @@ export default function ActivityViewer() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [answers, setAnswers] = useState({});
+  const [htmlCheckResults, setHtmlCheckResults] = useState({});
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [removingFileId, setRemovingFileId] = useState(null);
@@ -140,6 +141,11 @@ export default function ActivityViewer() {
       if (activity.submission_type === 'questions') {
         payload.answers = answers;
         payload.question_ids = (activity.questions || []).map(q => q.id);
+        const reported = Object.entries(htmlCheckResults || {})
+          .filter(([, checks]) => checks && Object.keys(checks).length > 0);
+        if (reported.length > 0) {
+          payload.html_check_results = Object.fromEntries(reported);
+        }
       }
 
       const res = await api.post(`/student/activities/${activityId}/submit`, payload);
@@ -481,7 +487,7 @@ export default function ActivityViewer() {
                 {activity.questions?.length || 0} question{(activity.questions?.length || 0) !== 1 ? 's' : ''}
               </p>
               {(activity.questions || []).map((q, idx) => (
-                <QuestionRenderer key={q.id} question={q} index={idx} value={answers[q.id]} onChange={(val) => saveAnswer(q.id, val)} />
+                <QuestionRenderer key={q.id} question={q} index={idx} value={answers[q.id]} onChange={(val) => saveAnswer(q.id, val)} onCheckResults={(byId) => setHtmlCheckResults((prev) => ({ ...prev, [q.id]: byId }))} />
               ))}
 
               <button onClick={handleSubmit} disabled={submitting}
@@ -520,7 +526,7 @@ export default function ActivityViewer() {
   );
 }
 
-function QuestionRenderer({ question, index, value, onChange }) {
+function QuestionRenderer({ question, index, value, onChange, onCheckResults }) {
 
   if (question.type === 'multiple_choice') {
     return (
@@ -613,6 +619,8 @@ function QuestionRenderer({ question, index, value, onChange }) {
           value={value}
           onChange={onChange}
           boilerplate={question.boilerplate || ''}
+          htmlChecks={question.html_checks || []}
+          onCheckResults={onCheckResults}
         />
       </div>
     );

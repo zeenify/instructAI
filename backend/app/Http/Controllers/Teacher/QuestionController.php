@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Question;
 use App\Models\QuestionTestCase;
+use App\Support\CodingQuestionGrader;
 use App\Support\CodeRunner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -68,6 +69,8 @@ class QuestionController extends Controller
             'language' => $this->languageRule(),
             'points' => 'sometimes|numeric|min:1|max:99999',
             'order_index' => 'sometimes|integer|min:0',
+            'partial_credit' => 'sometimes|boolean',
+            'html_checks' => 'nullable|array|max:50',
         ]);
 
         try {
@@ -75,6 +78,7 @@ class QuestionController extends Controller
 
             $question->update($request->only([
                 'type', 'question_text', 'options', 'expected_output', 'boilerplate', 'language', 'points', 'order_index',
+                'partial_credit', 'html_checks',
             ]));
 
             return response()->json($question);
@@ -150,40 +154,14 @@ class QuestionController extends Controller
         }
 
         if ($lang === 'html') {
-            return response()->json(['message' => 'HTML questions are graded by the AI service and cannot be verified against test cases.'], 422);
-        }
-
-        $results = [];
-        $passed = 0;
-        foreach ($testCases as $index => $testCase) {
-            $run = CodeRunner::execute($lang, $validated['reference_code'], ($testCase->input ?? '') !== '' ? $testCase->input : null);
-            $ok = ! $run['timed_out']
-                && CodeRunner::normalizeOutput($run['stdout']) === CodeRunner::normalizeOutput((string) $testCase->expected_output);
-
-            if ($ok) {
-                $passed++;
-            }
-
-            $results[] = [
-                'test_case_index' => $index,
-                'passed' => $ok,
-                'input' => (string) $testCase->input,
-                'expected_output' => (string) $testCase->expected_output,
-                'actual_output' => $run['stdout'],
-                'compile_output' => $run['compile_output'],
-                'stderr' => $run['stderr'],
-                'timed_out' => $run['timed_out'],
-            ];
+            return response()->json(['message' => 'HTML questions are checked with page checks in the browser — use "Test page checks" instead.'], 422);
         }
 
         $question->update(['reference_code' => $validated['reference_code']]);
 
-        return response()->json([
-            'passed' => $passed,
-            'total' => $testCases->count(),
-            'all_passed' => $passed === $testCases->count(),
-            'results' => $results,
-        ]);
+        return response()->json(
+            CodingQuestionGrader::verifyReference($lang, $validated['reference_code'], $testCases)
+        );
     }
 
     public function reorder(Request $request, $quizId)

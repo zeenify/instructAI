@@ -16,6 +16,8 @@ class Question extends Model
         'points',
         'boilerplate',
         'language',
+        'partial_credit',
+        'html_checks',
         'reference_code',
         'order_index',
     ];
@@ -23,6 +25,8 @@ class Question extends Model
     // 2. CRITICAL: Tell Laravel that 'options' is an array/JSON
     protected $casts = [
         'options' => 'array',
+        'html_checks' => 'array',
+        'partial_credit' => 'boolean',
     ];
 
     public function quiz()

@@ -21,7 +21,8 @@ import Button from '../../components/ui/Button';
 import { useTheme } from '../../context/ThemeContext';
 
 import CodeMirror from '@uiw/react-codemirror';
-import { CODE_LANGUAGES, cmExtension, resolveLanguage, languageOf, normalizeFiles, webFileKind, WEB_FILE_TEMPLATES } from '../../utils/codeLanguages';
+import { CODE_LANGUAGES, cmExtension, resolveLanguage, languageOf, normalizeFiles, composeWebProject, webFileKind, WEB_FILE_TEMPLATES } from '../../utils/codeLanguages';
+import HtmlChecksEditor from '../../components/teacher/HtmlChecksEditor';
 import { html as htmlExt } from '@codemirror/lang-html';
 import { css as cssExt } from '@codemirror/lang-css';
 import { javascript as jsExt } from '@codemirror/lang-javascript';
@@ -439,8 +440,19 @@ case 'code': {
                         <input style={{ padding: '10px 12px' }} className="w-full bg-white/5 border border-white/10 rounded-2xl text-sm font-mono text-cyan-400" value={block.data.expected || ""} onChange={(e) => update(block.id, { expected: e.target.value })} />
                         {lang.preview && (
                             <p className="text-[10px] text-slate-500 font-medium" style={{ margin: 0 }}>
-                                The student's rendered page must contain this text (case-insensitive, ignores extra whitespace). Use the Console tab idea — students see console.log output too.
+                                Quick check — the rendered page must contain this text (case-insensitive). Add structured page checks below for element, attribute and style requirements.
                             </p>
+                        )}
+                        {lang.preview && (
+                            <div style={{ marginTop: '8px' }}>
+                                <HtmlChecksEditor
+                                    title="Page Checks"
+                                    accent="#22d3ee"
+                                    checks={block.data.html_checks || []}
+                                    onChange={(next) => update(block.id, { html_checks: next })}
+                                    referenceHtml={composeWebProject(normalizeFiles(block.data.files, block.data.code))}
+                                />
+                            </div>
                         )}
                     </div>
                 )}

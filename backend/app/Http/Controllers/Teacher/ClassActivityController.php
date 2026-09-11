@@ -1201,6 +1201,9 @@ class ClassActivityController extends Controller
             'boilerplate' => 'nullable|string|max:5000',
             'language' => 'nullable|string|in:'.implode(',', CodeRunner::LANGUAGES),
             'points' => 'required|numeric|min:1|max:99999',
+            'partial_credit' => 'sometimes|boolean',
+            'html_checks' => 'nullable|array|max:50',
+            'reference_code' => 'nullable|string|max:50000',
         ]);
 
         $maxOrder = ActivityQuestion::where('activity_id', $activityId)->max('order_index') ?? 0;
@@ -1218,6 +1221,9 @@ class ClassActivityController extends Controller
             'boilerplate' => $validated['boilerplate'] ?? '',
             'language' => $validated['language'] ?? 'java',
             'points' => $validated['points'],
+            'partial_credit' => (bool) ($validated['partial_credit'] ?? false),
+            'html_checks' => $validated['html_checks'] ?? null,
+            'reference_code' => $validated['reference_code'] ?? null,
             'order_index' => $maxOrder + 1,
         ]);
 
@@ -1250,6 +1256,9 @@ class ClassActivityController extends Controller
             'language' => 'nullable|string|in:'.implode(',', CodeRunner::LANGUAGES),
             'points' => 'sometimes|numeric|min:1|max:99999',
             'order_index' => 'sometimes|integer|min:0',
+            'partial_credit' => 'sometimes|boolean',
+            'html_checks' => 'nullable|array|max:50',
+            'reference_code' => 'nullable|string|max:50000',
         ]);
 
         if (isset($validated['type']) && in_array($validated['type'], ['multiple_choice', 'true_false'])) {

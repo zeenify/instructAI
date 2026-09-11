@@ -16,6 +16,7 @@ use App\Http\Controllers\Teacher\AnalyticsController;
 use App\Http\Controllers\Teacher\ClassActivityController;
 // --- ADD STUDENT CONTROLLERS ---
 use App\Http\Controllers\Teacher\CodeRunController;
+use App\Http\Controllers\Teacher\ActivityQuestionController;
 use App\Http\Controllers\Teacher\ClassroomController;
 use App\Http\Controllers\Teacher\CourseController;
 use App\Http\Controllers\Teacher\IndexingController;
@@ -85,6 +86,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/teacher/questions/{id}/test-cases', [QuestionController::class, 'testCases']);
     Route::put('/teacher/questions/{id}/test-cases', [QuestionController::class, 'updateTestCases']);
     Route::post('/teacher/questions/{id}/verify', [QuestionController::class, 'verify']);
+    // Same for ACTIVITY coding questions (mirrors the quiz endpoints)
+    Route::get('/teacher/activity-questions/{id}/test-cases', [ActivityQuestionController::class, 'testCases']);
+    Route::put('/teacher/activity-questions/{id}/test-cases', [ActivityQuestionController::class, 'updateTestCases']);
+    Route::post('/teacher/activity-questions/{id}/verify', [ActivityQuestionController::class, 'verify']);
     Route::post('/teacher/run-code', [CodeRunController::class, 'run'])->middleware('throttle:code-execution');
 
     // delete

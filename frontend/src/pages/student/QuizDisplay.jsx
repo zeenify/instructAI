@@ -18,6 +18,7 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
     const [questions, setQuestions] = useState([]);
     const [currentIdx, setCurrentIdx] = useState(-1);
     const [answers, setAnswers] = useState({});
+    const [htmlCheckResults, setHtmlCheckResults] = useState({});
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [gradingProgress, setGradingProgress] = useState(0);
@@ -139,7 +140,16 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
 
         try {
             const question_ids = questions.map(q => q.id);
-            const res = await api.post(`/student/quizzes/${quizId}/submit`, { answers, question_ids });
+            // Only include HTML page-check results the student actually ran;
+            // unrun pages fall back to teacher review on the server.
+            const html_check_results = Object.entries(htmlCheckResults || {})
+                .filter(([, checks]) => checks && Object.keys(checks).length > 0)
+                .map(([qid, checks]) => [qid, checks]);
+            const res = await api.post(`/student/quizzes/${quizId}/submit`, {
+                answers,
+                question_ids,
+                html_check_results: Object.fromEntries(html_check_results),
+            });
             
             setGradingProgress(100);
             setTimeout(() => {
@@ -257,7 +267,19 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
                                                     <span style={{ fontSize: '12px', fontWeight: 800, color: detail.test_results.passed === detail.test_results.total ? '#10b981' : '#f59e0b' }}>
                                                         {detail.test_results.passed}/{detail.test_results.total} test cases passed{detail.score != null ? ` · ${detail.score} pts` : ''}
                                                     </span>
+                                                    {detail.test_results.passed !== detail.test_results.total && (
+                                                        <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#94a3b8' }}>
+                                                            every test must pass for full points
+                                                        </span>
+                                                    )}
                                                 </div>
+                                            </div>
+                                        )}
+                                        {detail.engine_unavailable && (
+                                            <div style={{ paddingTop: '8px' }}>
+                                                <span style={{ fontSize: '11px', fontWeight: 700, color: '#f59e0b', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '6px 12px', borderRadius: '10px', display: 'inline-block' }}>
+                                                    The grading engine was unreachable while scoring this answer — your teacher will review it.
+                                                </span>
                                             </div>
                                         )}
                                         {detail.ai_unavailable && (
@@ -654,6 +676,8 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
                             boilerplate={q.boilerplate || ""}
                             challengeExpected={q.expected_output || null}
                             sampleTests={q.sample_tests || []}
+                            htmlChecks={q.html_checks || []}
+                            onCheckResults={(byId) => setHtmlCheckResults((prev) => ({ ...prev, [q.id]: byId }))}
                             height="450px"
                         />
                     )}

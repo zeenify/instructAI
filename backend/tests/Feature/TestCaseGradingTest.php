@@ -194,7 +194,7 @@ class TestCaseGradingTest extends TestCase
 
     // ---------- Grading ----------
 
-    public function test_quiz_grades_by_test_cases_with_full_and_partial_credit(): void
+    public function test_quiz_grades_all_or_nothing_by_default(): void
     {
         [, , $quiz, $question] = $this->quizQuestion(['points' => 10], [
             ['input' => '3', 'expected_output' => '9'],
@@ -210,14 +210,30 @@ class TestCaseGradingTest extends TestCase
         $this->assertSame(2, $res->json('details.0.test_results.total'));
         $this->assertSame(2, $res->json('details.0.test_results.passed'));
 
-        // Half credit: passes only the first test
+        // Passing only the first test earns NOTHING by default — the
+        // per-test breakdown is still reported as feedback.
         $this->queueEngine(["9\n", "26\n"]);
         $res2 = $this->submitQuiz($this->student(), $quiz, $question, 'n = int(input())'."\n".'print(n * n + (0 if n == 3 else 1))');
         $res2->assertStatus(200);
-        $this->assertEquals(5.0, (float) $res2->json('score'));
+        $this->assertEquals(0.0, (float) $res2->json('score'));
         $this->assertFalse($res2->json('details.0.is_correct'));
         $this->assertSame(1, $res2->json('details.0.test_results.passed'));
         $this->assertSame(2, $res2->json('details.0.test_results.total'));
+    }
+
+    public function test_quiz_awards_partial_credit_when_question_opts_in(): void
+    {
+        [, , $quiz, $question] = $this->quizQuestion(['points' => 10, 'partial_credit' => true], [
+            ['input' => '3', 'expected_output' => '9'],
+            ['input' => '5', 'expected_output' => '25'],
+        ]);
+
+        $this->queueEngine(["9\n", "26\n"]);
+        $res = $this->submitQuiz($this->student(), $quiz, $question, 'n = int(input())'."\n".'print(n * n + (0 if n == 3 else 1))');
+        $res->assertStatus(200);
+        $this->assertEquals(5.0, (float) $res->json('score'));
+        $this->assertFalse($res->json('details.0.is_correct'));
+        $this->assertSame(1, $res->json('details.0.test_results.passed'));
     }
 
     public function test_test_case_stdin_is_delivered_and_output_normalized(): void
@@ -255,7 +271,7 @@ class TestCaseGradingTest extends TestCase
         });
     }
 
-    public function test_engine_down_fails_tests_without_breaking_submission(): void
+    public function test_engine_down_flags_submission_for_review_instead_of_zero(): void
     {
         [, , $quiz, $question] = $this->quizQuestion(['points' => 10], [
             ['input' => '', 'expected_output' => 'x'],
@@ -266,9 +282,13 @@ class TestCaseGradingTest extends TestCase
 
         $res = $this->submitQuiz($this->student(), $quiz, $question, 'print("x")');
         $res->assertStatus(200);
+        // The submission is not silently zeroed as "wrong": the attempt scores
+        // 0 but is flagged so the UI can send it to teacher review.
         $this->assertEquals(0.0, (float) $res->json('score'));
         $this->assertFalse($res->json('details.0.is_correct'));
         $this->assertSame(0, $res->json('details.0.test_results.passed'));
+        $this->assertTrue($res->json('details.0.engine_unavailable'));
+        $this->assertTrue($res->json('engine_unavailable'));
     }
 
     public function test_legacy_coding_output_match_passes_even_when_ai_is_down(): void
@@ -296,6 +316,92 @@ class TestCaseGradingTest extends TestCase
         $res->assertStatus(200);
         $this->assertFalse($res->json('details.0.is_correct'));
         $this->assertEquals(0.0, (float) $res->json('score'));
+    }
+
+    public function test_html_checks_grade_from_reported_results(): void
+    {
+        [, , $quiz, $question] = $this->quizQuestion([
+            'points' => 10,
+            'language' => 'html',
+            'html_checks' => [
+                ['id' => 'c1', 'kind' => 'exists', 'selector' => 'h1', 'label' => 'Has a heading'],
+                ['id' => 'c2', 'kind' => 'page-text', 'text' => 'welcome', 'label' => 'Says welcome'],
+            ],
+        ], []);
+
+        Sanctum::actingAs($this->student());
+        // Both checks reported passing -> full points
+        $res = $this->postJson("/api/student/quizzes/{$quiz->id}/submit", [
+            'answers' => [$question->id => '<h1>hi</h1> welcome'],
+            'question_ids' => [$question->id],
+            'html_check_results' => [$question->id => ['c1' => true, 'c2' => true]],
+        ]);
+        $res->assertStatus(200);
+        $this->assertTrue($res->json('details.0.is_correct'));
+        $this->assertEquals(10.0, (float) $res->json('score'));
+        $this->assertSame(2, $res->json('details.0.test_results.total'));
+
+        // A failing check -> zero (HTML checks are a completion gate)
+        $res2 = $this->postJson("/api/student/quizzes/{$quiz->id}/submit", [
+            'answers' => [$question->id => '<h1>hi</h1> welcome'],
+            'question_ids' => [$question->id],
+            'html_check_results' => [$question->id => ['c1' => true, 'c2' => false]],
+        ]);
+        $res2->assertStatus(200);
+        $this->assertFalse($res2->json('details.0.is_correct'));
+        $this->assertEquals(0.0, (float) $res2->json('score'));
+    }
+
+    public function test_activity_coding_grades_by_test_cases_like_quizzes(): void
+    {
+        $teacher = $this->teacher();
+        $classroom = Classroom::create(['teacher_id' => $teacher->id, 'name' => 'C', 'class_code' => '555555']);
+        $activity = ClassActivity::create([
+            'class_id' => $classroom->id,
+            'teacher_id' => $teacher->id,
+            'title' => 'Code lab activity',
+            'activity_type' => 'assignment',
+            'submission_type' => 'questions',
+            'grading_method' => 'auto',
+            'is_published' => true,
+            'max_points' => 10,
+        ]);
+
+        $question = \App\Models\ActivityQuestion::create([
+            'activity_id' => $activity->id,
+            'type' => 'coding',
+            'question_text' => 'Square a number',
+            'language' => 'python',
+            'points' => 10,
+            'order_index' => 0,
+        ]);
+        foreach ([['input' => '3', 'expected_output' => '9'], ['input' => '5', 'expected_output' => '25']] as $i => $tc) {
+            QuestionTestCase::create([
+                'testable_type' => \App\Models\ActivityQuestion::class,
+                'testable_id' => $question->id,
+                'input' => $tc['input'],
+                'expected_output' => $tc['expected_output'],
+                'hidden' => false,
+                'order_index' => $i,
+            ]);
+        }
+
+        $graded = $question->fresh(['testCases']);
+        $solution = 'n = int(input())'."\n".'print(n * n)';
+
+        // All tests pass -> full points, same policy as quizzes
+        $this->queueEngine(["9\n", "25\n"]);
+        $result = \App\Support\ActivityGrading::grade($graded, $solution);
+        $this->assertTrue($result['is_correct']);
+        $this->assertEquals(10.0, (float) $result['score']);
+        $this->assertSame(2, $result['test_results']['passed']);
+
+        // Partial pass -> zero by default (all-or-nothing)
+        $this->queueEngine(["9\n", "26\n"]);
+        $partial = \App\Support\ActivityGrading::grade($graded, $solution);
+        $this->assertFalse($partial['is_correct']);
+        $this->assertEquals(0.0, (float) $partial['score']);
+        $this->assertSame(1, $partial['test_results']['passed']);
     }
 
     // ---------- Verify + teacher run ----------

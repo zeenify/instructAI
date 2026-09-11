@@ -13,6 +13,7 @@ import api, { invalidateCache } from '../../services/api';
 import Button from '../../components/ui/Button';
 import DeleteModal from '../../components/ui/DeleteModal';
 import TestCaseEditor from '../../components/teacher/TestCaseEditor';
+import HtmlChecksEditor from '../../components/teacher/HtmlChecksEditor';
 
 import CodeMirror from '@uiw/react-codemirror';
 import { CODE_LANGUAGES, cmExtension, resolveLanguage, languageOf } from '../../utils/codeLanguages';
@@ -232,11 +233,47 @@ function DraggableQuestion({ q, index, quiz, deleteModalOpen, setDeleteModalOpen
                                 }`} placeholder={qLang.preview ? 'Text that must appear on the rendered page...' : 'Required system output string...'} />
                                 {qLang.preview && (
                                     <p className={`text-[10px] font-medium ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`} style={{ margin: 0 }}>
-                                        HTML questions are graded by AI (and reviewed by you) — students see a live preview of their page while answering.
+                                        Quick check only — the rendered page must contain this text. Add structured page checks below for element, attribute and style requirements; students see the checklist live while answering.
                                     </p>
                                 )}
                             </div>
-                            <TestCaseEditor question={q} />
+                            {qLang.preview && (
+                                <HtmlChecksEditor
+                                    title="Page Checks"
+                                    checks={q.html_checks || []}
+                                    onChange={(next) => updateQuestion(q.id, { html_checks: next })}
+                                    referenceHtml={q.reference_code || ''}
+                                    onReferenceChange={(text) => updateQuestion(q.id, { reference_code: text })}
+                                />
+                            )}
+                            {!qLang.preview && <TestCaseEditor question={q} />}
+                            {!qLang.preview && (
+                                <button
+                                    type="button"
+                                    onClick={() => updateQuestion(q.id, { partial_credit: !q.partial_credit })}
+                                    style={{ padding: '10px 16px', gap: '10px', alignSelf: 'flex-start' }}
+                                    className={`flex items-center rounded-2xl border text-[11px] font-bold transition-all cursor-pointer ${
+                                        q.partial_credit
+                                            ? 'bg-amber-500/10 border-amber-500/40 text-amber-400'
+                                            : theme === 'dark'
+                                                ? 'bg-white/5 border-white/10 text-slate-400'
+                                                : 'bg-slate-100 border-slate-300 text-slate-600'
+                                    }`}
+                                    title="Off: every test must pass for full points. On: points × tests passed."
+                                >
+                                    <span
+                                        style={{
+                                            width: '30px', height: '16px', borderRadius: '999px', display: 'inline-flex',
+                                            alignItems: 'center', padding: '2px', transition: 'all .2s',
+                                            background: q.partial_credit ? '#f59e0b' : 'rgba(148,163,184,.4)',
+                                            justifyContent: q.partial_credit ? 'flex-end' : 'flex-start',
+                                        }}
+                                    >
+                                        <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#fff', display: 'block' }} />
+                                    </span>
+                                    Allow partial credit
+                                </button>
+                            )}
                         </div>
                         );
                     })()}

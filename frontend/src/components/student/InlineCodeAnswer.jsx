@@ -10,7 +10,8 @@ import {
     languageOf,
     cmExtension,
     injectPreviewBridge,
-    normalizePageText,
+    htmlCheckLabel,
+    normalizeHtmlChecks,
     detectStdinUsage,
 } from '../../utils/codeLanguages';
 
@@ -30,6 +31,8 @@ export default function InlineCodeAnswer({
     height = '240px',
     challengeExpected = null, // when set, a matching page/output shows a success chip
     sampleTests = [],         // teacher-provided (input -> expected) pairs shown to students
+    htmlChecks: htmlChecksProp = [], // structured page checks for HTML questions
+    onCheckResults = null,    // (resultsById) => void — reported with the submission
 }) {
     const lang = languageOf(language);
     const isHtml = lang.preview;
@@ -44,10 +47,15 @@ export default function InlineCodeAnswer({
     const [consoleLines, setConsoleLines] = useState([]);
     const [passed, setPassed] = useState(false);
     const [actualOutput, setActualOutput] = useState(null); // for expected-vs-actual display
+    // HTML page checks: explicit structured checks win; a legacy expected-text
+    // string is synthesized into a single page-text check.
+    const htmlChecks = isHtml ? normalizeHtmlChecks(htmlChecksProp, challengeExpected) : [];
+    const [checkResults, setCheckResults] = useState(null);
     const pendingCheckRef = useRef(null);
+    const runCountRef = useRef(0);
     const containerRef = useRef(null);
 
-    useEffect(() => { setPassed(false); setActualOutput(null); }, [language]);
+    useEffect(() => { setPassed(false); setActualOutput(null); setCheckResults(null); }, [language]);
 
     // Auto-open the stdin box when the code reads input — a bare EOFError
     // traceback teaches a beginner nothing.
@@ -64,15 +72,20 @@ export default function InlineCodeAnswer({
             if (!event.data || !event.data.__instructai_preview) return;
             if (event.data.type === 'console') {
                 setConsoleLines((prev) => [...prev.slice(-99), { level: event.data.level, message: event.data.message }]);
-            } else if (event.data.type === 'page-text' && pendingCheckRef.current) {
-                const check = pendingCheckRef.current;
+            } else if (event.data.type === 'check-results' && pendingCheckRef.current) {
                 pendingCheckRef.current = null;
-                const ok = normalizePageText(event.data.text).includes(normalizePageText(check));
-                setPassed(ok);
+                const results = event.data.results || [];
+                setCheckResults(results);
+                const byId = {};
+                results.forEach((r) => { byId[r.id] = !!r.passed; });
+                const allPassed = results.length > 0 && results.every((r) => r.passed);
+                setPassed(allPassed);
+                onCheckResults?.(byId);
             }
         };
         window.addEventListener('message', handler);
         return () => window.removeEventListener('message', handler);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isHtml]);
 
     const handleRun = async () => {
@@ -86,16 +99,15 @@ export default function InlineCodeAnswer({
 
         if (isHtml) {
             setConsoleLines([]);
-            setPreviewDoc(injectPreviewBridge(value || boilerplate));
-            pendingCheckRef.current = challengeExpected;
+            // Identical srcDoc strings don't reload the iframe — bust it per run.
+            runCountRef.current += 1;
+            setPreviewDoc(injectPreviewBridge(value || boilerplate, htmlChecks) + '<!--run-' + runCountRef.current + '-->');
+            pendingCheckRef.current = true;
             setTab('preview');
             setTimeout(() => {
                 setIsRunning(false);
-                if (pendingCheckRef.current) {
-                    pendingCheckRef.current = null;
-                    setPassed(false);
-                }
-            }, 2500);
+                pendingCheckRef.current = null;
+            }, 3500);
             return;
         }
 
@@ -228,17 +240,52 @@ export default function InlineCodeAnswer({
             )}
 
             {isHtml && tab === 'preview' && (
-                <div style={{ height, background: '#fff', position: 'relative' }}>
-                    {previewDoc ? (
-                        <iframe
-                            title="HTML Preview"
-                            srcDoc={previewDoc}
-                            sandbox="allow-scripts allow-forms allow-modals allow-popups"
-                            style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-                        />
-                    ) : (
-                        <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontFamily: 'monospace', fontSize: '12px' }}>
-                            Click "Run Page" to render
+                <div style={{ background: '#fff', position: 'relative' }}>
+                    <div style={{ height, position: 'relative' }}>
+                        {previewDoc ? (
+                            <iframe
+                                title="HTML Preview"
+                                srcDoc={previewDoc}
+                                sandbox="allow-scripts allow-forms allow-modals allow-popups"
+                                style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+                            />
+                        ) : (
+                            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontFamily: 'monospace', fontSize: '12px' }}>
+                                Click "Run Page" to render
+                            </div>
+                        )}
+                    </div>
+                    {htmlChecks.length > 0 && (
+                        <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(255,255,255,.06)', background: '#0d0d1a' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                <span style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '.2em', color: '#22d3ee', textTransform: 'uppercase' }}>
+                                    Page Checks
+                                </span>
+                                {checkResults && (
+                                    <span style={{
+                                        fontSize: '9px', fontWeight: 900, padding: '2px 8px', borderRadius: '999px',
+                                        color: checkResults.every((r) => r.passed) ? '#34d399' : '#fbbf24',
+                                        background: checkResults.every((r) => r.passed) ? 'rgba(16,185,129,.12)' : 'rgba(245,158,11,.12)',
+                                    }}>
+                                        {checkResults.filter((r) => r.passed).length}/{checkResults.length} passing
+                                    </span>
+                                )}
+                            </div>
+                            {(checkResults || htmlChecks.map((c) => ({ id: c.id, label: htmlCheckLabel(c), passed: null, detail: '' }))).map((r, i) => (
+                                <div key={r.id || i} style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '11.5px', padding: '2px 0' }}>
+                                    {r.passed === null || r.passed === undefined ? (
+                                        <span style={{ width: '12px', height: '12px', borderRadius: '50%', border: '1.5px dashed #475569', flexShrink: 0 }} />
+                                    ) : r.passed ? (
+                                        <span style={{ color: '#34d399', flexShrink: 0 }}>✓</span>
+                                    ) : (
+                                        <span style={{ color: '#f87171', flexShrink: 0 }}>✕</span>
+                                    )}
+                                    <span style={{ color: r.passed ? '#e2e8f0' : '#94a3b8' }}>
+                                        {r.label || htmlCheckLabel(htmlChecks[i] || {})}
+                                    </span>
+                                    {!r.passed && r.detail ? <span style={{ color: '#fca5a5', fontSize: '10px' }}>— {r.detail}</span> : null}
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>

@@ -7,6 +7,7 @@ use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\StudentAnswer;
 use App\Support\CodeRunner;
+use App\Support\CodingQuestionGrader;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -21,7 +22,7 @@ class QuizController extends Controller
         $quiz = Quiz::with('module.course')->findOrFail($id);
 
         $query = $quiz->questions()
-            ->select('id', 'quiz_id', 'question_text', 'type', 'options', 'points', 'boilerplate', 'language')
+            ->select('id', 'quiz_id', 'question_text', 'type', 'options', 'points', 'boilerplate', 'language', 'html_checks')
             ->with(['testCases' => fn ($q) => $q->select('id', 'testable_type', 'testable_id', 'input', 'expected_output', 'hidden', 'order_index')
                 ->where('hidden', false)
                 ->orderBy('order_index')]);
@@ -160,6 +161,9 @@ class QuizController extends Controller
             'answers.*' => 'nullable',
             'question_ids' => 'nullable|array|max:500',
             'question_ids.*' => 'integer|min:1',
+            // Client-side HTML page-check results (from the sandboxed preview
+            // iframe) — only trusted for HTML questions configured with checks.
+            'html_check_results' => 'nullable|array|max:500',
         ]);
 
         $user = $request->user();
@@ -174,7 +178,7 @@ class QuizController extends Controller
 
         // Engine + AI work happens OUTSIDE the DB transaction — executions can
         // take seconds each and must never hold a write lock that long.
-        $checks = $this->runAutoChecks($activeQuestions, $submittedAnswers);
+        $checks = $this->runAutoChecks($activeQuestions, $submittedAnswers, (array) $request->input('html_check_results', []));
 
         return DB::transaction(function () use ($quizId, $user, $activeQuestions, $submittedAnswers, $attemptMaxScore, $checks) {
             $attempt = QuizAttempt::create([
@@ -195,13 +199,17 @@ class QuizController extends Controller
                 $earned = 0.0;
                 $testResults = null;
                 $aiUnavailable = false;
+                $engineUnavailable = false;
 
                 if ($question->type === 'coding' && isset($checks['gradedCoding'][$question->id])) {
-                    // Test-case graded: stdin delivered, partial credit
+                    // Test-case graded (IO tests or HTML page checks)
                     $graded = $checks['gradedCoding'][$question->id];
                     $isCorrect = $graded['is_correct'];
                     $earned = $graded['earned'];
-                    $testResults = ['passed' => $graded['passed'], 'total' => $graded['total'], 'tests' => $graded['tests']];
+                    $testResults = isset($graded['checks'])
+                        ? ['passed' => $graded['passed'], 'total' => $graded['total'], 'checks' => $graded['checks']]
+                        : ['passed' => $graded['passed'], 'total' => $graded['total'], 'tests' => $graded['tests']];
+                    $engineUnavailable = (bool) ($graded['engine_error'] ?? false);
                 } elseif ($question->type === 'coding') {
                     $lang = $question->language ?: 'java';
 
@@ -297,15 +305,19 @@ class QuizController extends Controller
                     'student_answer_text' => $studentAnswerText, // For multiple choice display
                     'test_results' => $testResults ? ['passed' => $testResults['passed'], 'total' => $testResults['total']] : null,
                     'ai_unavailable' => $aiUnavailable,
+                    'engine_unavailable' => $engineUnavailable,
                 ];
             }
 
             $attempt->update(['total_score' => round($totalScore, 2)]);
 
+            $anyEngineUnavailable = collect($detailedResults)->contains(fn ($d) => $d['engine_unavailable']);
+
             return response()->json([
                 'score' => round($totalScore, 2),
                 'max_score' => $attemptMaxScore,
                 'details' => $detailedResults,
+                'engine_unavailable' => $anyEngineUnavailable,
             ]);
         });
     }
@@ -315,7 +327,7 @@ class QuizController extends Controller
      * test-case execution for coding questions, legacy stage-1 output matching,
      * and collection of questions that need the AI batch service.
      */
-    private function runAutoChecks($activeQuestions, array $submittedAnswers): array
+    private function runAutoChecks($activeQuestions, array $submittedAnswers, array $htmlCheckResults = []): array
     {
         $questionsForAI = [];
         $aiQuestionMap = [];
@@ -370,30 +382,45 @@ class QuizController extends Controller
                 $testCases = $question->testCases->values();
 
                 if ($testCases->isNotEmpty() && $lang !== 'html') {
-                    // Test-case path: one engine run per test case with its stdin,
-                    // normalized stdout comparison. Partial credit by default.
-                    $passed = 0;
-                    $tests = [];
-                    foreach ($testCases as $testCase) {
-                        $run = CodeRunner::execute($lang, $rawAnswer, ($testCase->input ?? '') !== '' ? $testCase->input : null);
-
-                        $ok = ! $run['timed_out']
-                            && CodeRunner::normalizeOutput($run['stdout']) === CodeRunner::normalizeOutput((string) $testCase->expected_output);
-
-                        $tests[] = ['passed' => $ok, 'hidden' => (bool) $testCase->hidden];
-                        if ($ok) {
-                            $passed++;
-                        }
+                    // Test-case path: one engine run per test with its stdin,
+                    // normalized stdout comparison. All-or-nothing by default;
+                    // partial credit only when the question opts in.
+                    $gradedCoding[$question->id] = CodingQuestionGrader::gradeTestCases(
+                        $lang,
+                        $rawAnswer,
+                        $testCases,
+                        (float) $question->points,
+                        (bool) $question->partial_credit
+                    );
+                } elseif ($lang === 'html' && ! empty($question->html_checks)) {
+                    // HTML page checks run in the student's browser against the
+                    // rendered page (freeCodeCamp-style checklist). Grade from
+                    // the results the frontend reported with this submission.
+                    $reported = $htmlCheckResults[$question->id] ?? null;
+                    if (is_array($reported)) {
+                        $gradedCoding[$question->id] = CodingQuestionGrader::gradeHtmlChecks(
+                            (float) $question->points,
+                            CodingQuestionGrader::withLegacyExpected($question->html_checks, $question->expected_output),
+                            $reported
+                        );
+                    }
+                    // No reported results → fall through to the AI/review path
+                    // below so an unrun submission still gets judged.
+                    if (isset($gradedCoding[$question->id])) {
+                        continue;
                     }
 
-                    $total = $testCases->count();
-                    $gradedCoding[$question->id] = [
-                        'earned' => round($question->points * $passed / $total, 2),
-                        'passed' => $passed,
-                        'total' => $total,
-                        'is_correct' => $passed === $total,
-                        'tests' => $tests,
+                    $questionsForAI[] = [
+                        'question_num' => count($questionsForAI) + 1,
+                        'question_id' => $question->id,
+                        'question_text' => $question->question_text,
+                        'type' => 'coding',
+                        'language' => 'html',
+                        'code' => $rawAnswer,
+                        'expected_output' => trim((string) $question->expected_output),
+                        'output_matched' => false,
                     ];
+                    $aiQuestionMap[count($questionsForAI)] = $question->id;
                 } elseif ($lang === 'html') {
                     // HTML has no server runtime — let the AI judge the markup.
                     $questionsForAI[] = [

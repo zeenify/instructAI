@@ -103,9 +103,10 @@ export function normalizePageText(text) {
 
 // Inject the bridge as early as possible (top of <head>) so the console
 // override exists before any student script runs. Falls back for documents
-// without the usual structure.
-export function injectPreviewBridge(source) {
-    const bridge = PREVIEW_BRIDGE_SCRIPT;
+// without the usual structure. When `checks` are supplied the injected bridge
+// also grades the rendered page against them and posts `check-results`.
+export function injectPreviewBridge(source, checks = null) {
+    const bridge = checks && checks.length > 0 ? buildPreviewBridge(checks) : PREVIEW_BRIDGE_SCRIPT;
     if (/<head[^>]*>/i.test(source)) return source.replace(/<head[^>]*>/i, (m) => m + bridge);
     if (/<html[^>]*>/i.test(source)) return source.replace(/<html[^>]*>/i, (m) => m + bridge);
     if (/<body[^>]*>/i.test(source)) return source.replace(/<body[^>]*>/i, (m) => m + bridge);
@@ -214,3 +215,198 @@ export const PREVIEW_BRIDGE_SCRIPT = `
     window.addEventListener('load', function () { setTimeout(postText, 120); });
 })();
 </script>`;
+
+// ---------- HTML page checks (freeCodeCamp-style) ----------
+// A check is a small structured assertion the bridge grades against the
+// rendered page INSIDE the sandboxed iframe:
+//   { id, kind, selector?, count?, match?, text?, attribute?, value?, property?, label? }
+// Kinds: exists | text | attribute | style | page-text | no-console-errors
+
+export const CHECK_KINDS = [
+    { id: 'exists', label: 'Element exists', needs: ['selector', 'count'] },
+    { id: 'text', label: 'Element text', needs: ['selector', 'match', 'text'] },
+    { id: 'attribute', label: 'Element attribute', needs: ['selector', 'attribute', 'match', 'value'] },
+    { id: 'style', label: 'Computed style', needs: ['selector', 'property', 'value'] },
+    { id: 'page-text', label: 'Page contains text', needs: ['text'] },
+    { id: 'no-console-errors', label: 'No console errors', needs: [] },
+];
+
+export function newHtmlCheck(kind = 'exists') {
+    const base = { id: 'check-' + Math.random().toString(36).slice(2, 9), kind };
+    if (kind === 'exists') return { ...base, selector: '', count: 1 };
+    if (kind === 'text') return { ...base, selector: '', match: 'contains', text: '' };
+    if (kind === 'attribute') return { ...base, selector: '', attribute: 'href', match: 'equals', value: '' };
+    if (kind === 'style') return { ...base, selector: '', property: 'color', value: '' };
+    if (kind === 'page-text') return { ...base, text: '' };
+    return base;
+}
+
+// Human-readable sentence for check lists (student checklist, teacher verify).
+export function htmlCheckLabel(check) {
+    if (check.label) return check.label;
+    const sel = check.selector || 'page';
+    switch (check.kind) {
+        case 'exists':
+            return `Element "${check.selector || 'body'}" exists${Number(check.count) > 1 ? ` (at least ${check.count})` : ''}`;
+        case 'text':
+            return `Element "${sel}" text ${check.match === 'equals' ? 'is exactly' : 'contains'} "${check.text}"`;
+        case 'attribute':
+            return `Element "${sel}" has ${check.attribute} ${check.match === 'contains' ? 'containing' : '='} "${check.value}"`;
+        case 'style':
+            return `Element "${sel}" has ${check.property} = ${check.value}`;
+        case 'page-text':
+            return `Page contains "${check.text}"`;
+        case 'no-console-errors':
+            return 'Page loads with no console errors';
+        default:
+            return 'Check';
+    }
+}
+
+// Legacy challenges only stored an "expected text" string — wrap it as a
+// page-text check so every consumer runs the single checks pipeline.
+export function synthesizeHtmlChecks(expectedText) {
+    const text = String(expectedText || '').trim();
+    if (!text) return [];
+    return [{ id: 'page-text-auto', kind: 'page-text', text, label: `Page contains "${text}"` }];
+}
+
+export function normalizeHtmlChecks(checks, legacyExpected = '') {
+    const list = Array.isArray(checks) ? checks.filter((c) => c && CHECK_KINDS.some((k) => k.id === c.kind)) : [];
+    const text = String(legacyExpected || '').trim();
+    // The quick "expected text" field always counts as one more page-text
+    // check, so it stays enforced next to structured checks instead of
+    // silently disappearing behind them.
+    if (text && !list.some((c) => c.kind === 'page-text' && String(c.text || '').trim().toLowerCase() === text.toLowerCase())) {
+        list.push(...synthesizeHtmlChecks(text));
+    }
+    return list;
+}
+
+// Builds the bridge script variant that grades the page. Checks are embedded
+// at build time (the sandbox blocks parent→frame DOM access), run ~150ms and
+// ~900ms after load (late DOM mutations get a second chance), and the parent
+// treats the LAST `check-results` message as authoritative.
+export function buildPreviewBridge(checks) {
+    const serialized = JSON.stringify(checks);
+    return `
+<script>
+(function () {
+    var send = function (payload) {
+        try { parent.postMessage(Object.assign({ __instructai_preview: true }, payload), '*'); } catch (e) {}
+    };
+    var format = function (args) {
+        return Array.prototype.map.call(args, function (a) {
+            if (a instanceof Error) return a.message;
+            if (typeof a === 'object' && a !== null) { try { return JSON.stringify(a); } catch (e) { return String(a); } }
+            return String(a);
+        }).join(' ');
+    };
+    var errorCount = 0;
+    ['log', 'info', 'warn', 'error', 'debug'].forEach(function (level) {
+        var original = console[level] ? console[level].bind(console) : function () {};
+        console[level] = function () {
+            if (level === 'error') errorCount++;
+            send({ type: 'console', level: level, message: format(arguments) });
+            original.apply(console, arguments);
+        };
+    });
+    window.addEventListener('error', function (event) {
+        errorCount++;
+        send({ type: 'console', level: 'error', message: event.message + ' (line ' + event.lineno + ')' });
+    });
+    window.addEventListener('unhandledrejection', function (event) {
+        errorCount++;
+        send({ type: 'console', level: 'error', message: 'Unhandled promise rejection: ' + event.reason });
+    });
+
+    var CHECKS = ${serialized};
+
+    var normText = function (t) { return String(t || '').replace(/\\s+/g, ' ').trim().toLowerCase(); };
+    // Normalize a candidate value ("red", "bold", "2em", "50%") the same way
+    // the browser would compute it ON THE MATCHED ELEMENT — percentage values
+    // resolve against the element's own box, so a detached probe would lie.
+    var normValue = function (el, prop, value) {
+        try {
+            var probe = el.cloneNode(false);
+            probe.style.cssText += ';position:absolute!important;left:-9999px;top:-9999px;margin:0;';
+            probe.style[prop] = value;
+            el.parentNode.appendChild(probe);
+            var computed = getComputedStyle(probe)[prop];
+            probe.remove();
+            return computed;
+        } catch (e) { return String(value || '').toLowerCase(); }
+    };
+
+    var runChecks = function () {
+        var results = CHECKS.map(function (check, idx) {
+            var res = { id: check.id || ('check-' + idx), label: check.label || '', passed: false, detail: '' };
+            try {
+                switch (check.kind) {
+                    case 'exists': {
+                        var found = document.querySelectorAll(check.selector || 'body').length;
+                        var need = Math.max(1, Number(check.count) || 1);
+                        res.passed = found >= need;
+                        res.detail = res.passed ? '' : 'found ' + found + ' element(s) for "' + check.selector + '" (need ' + need + ')';
+                        break;
+                    }
+                    case 'text': {
+                        var scope = check.selector ? document.querySelector(check.selector) : document.body;
+                        var txt = normText(scope ? scope.innerText : '');
+                        var expected = normText(check.text);
+                        res.passed = check.match === 'equals' ? txt === expected : (expected !== '' && txt.indexOf(expected) !== -1);
+                        res.detail = res.passed ? '' : 'text not found' + (check.selector ? ' in "' + check.selector + '"' : ' on the page');
+                        break;
+                    }
+                    case 'attribute': {
+                        var el = check.selector ? document.querySelector(check.selector) : null;
+                        if (!el) { res.detail = 'no element for "' + check.selector + '"'; break; }
+                        var val = el.getAttribute(check.attribute || '') || '';
+                        var exp = String(check.value || '');
+                        res.passed = check.match === 'contains' ? val.indexOf(exp) !== -1 : val === exp;
+                        res.detail = res.passed ? '' : check.attribute + '="' + val + '"' + (res.passed ? '' : ' (expected ' + (check.match === 'contains' ? 'to contain ' : '') + '"' + exp + '")');
+                        break;
+                    }
+                    case 'style': {
+                        var el2 = check.selector ? document.querySelector(check.selector) : null;
+                        if (!el2) { res.detail = 'no element for "' + check.selector + '"'; break; }
+                        var computed = getComputedStyle(el2)[check.property || 'color'];
+                        res.passed = normValue(el2, check.property || 'color', check.value) === normValue(el2, check.property || 'color', computed);
+                        res.detail = res.passed ? '' : (check.property + ' is "' + computed + '" (expected "' + check.value + '")');
+                        break;
+                    }
+                    case 'page-text': {
+                        var page = normText(document.body ? document.body.innerText : '');
+                        var expT = normText(check.text);
+                        res.passed = expT !== '' && page.indexOf(expT) !== -1;
+                        res.detail = res.passed ? '' : 'expected text not on the page';
+                        break;
+                    }
+                    case 'no-console-errors': {
+                        res.passed = errorCount === 0;
+                        res.detail = res.passed ? '' : errorCount + ' console error(s)';
+                        break;
+                    }
+                    default:
+                        res.detail = 'unknown check kind';
+                }
+            } catch (e) {
+                res.detail = 'check error: ' + e.message;
+            }
+            return res;
+        });
+        send({ type: 'check-results', results: results });
+    };
+
+    var kick = function () { setTimeout(runChecks, 150); setTimeout(runChecks, 900); };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', kick);
+        window.addEventListener('load', kick);
+    } else {
+        // Script injected into an already-complete document — events already fired.
+        kick();
+    }
+})();
+</script>`;
+
+}

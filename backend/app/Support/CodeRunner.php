@@ -163,6 +163,7 @@ class CodeRunner
             'compile_output' => (string) ($data['compile_output'] ?? ''),
             'exit_code' => $data['exit_code'] ?? null,
             'timed_out' => (bool) ($data['timed_out'] ?? false),
+            'engine_error' => false,
         ];
     }
 
@@ -174,6 +175,10 @@ class CodeRunner
             'compile_output' => '',
             'exit_code' => null,
             'timed_out' => false,
+            // Distinguishes "the engine could not run anything" from "the code
+            // ran and produced no output" — graders must not punish students
+            // for infrastructure outages.
+            'engine_error' => true,
         ];
     }
 }

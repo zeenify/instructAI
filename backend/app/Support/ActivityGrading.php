@@ -8,13 +8,22 @@ use App\Models\ClassActivity;
 
 class ActivityGrading
 {
-    public static function grade(ActivityQuestion $question, $rawAnswer): array
+    /**
+     * @param  array<string, array<string, bool>>  $htmlCheckResults  optional
+     *    per-question map of checkId => passed, reported by the student's
+     *    browser for HTML questions that use page checks.
+     */
+    public static function grade(ActivityQuestion $question, $rawAnswer, array $htmlCheckResults = []): array
     {
         if ($rawAnswer === null || $rawAnswer === '') {
             return ['is_correct' => false, 'score' => 0.0];
         }
 
-        if (in_array($question->type, ['essay', 'coding'])) {
+        if ($question->type === 'coding') {
+            return self::gradeCoding($question, (string) $rawAnswer, $htmlCheckResults);
+        }
+
+        if ($question->type === 'essay') {
             return ['is_correct' => false, 'score' => 0.0];
         }
 
@@ -48,6 +57,58 @@ class ActivityGrading
         ];
     }
 
+    /**
+     * Coding questions follow the exact same policy as quizzes: IO test cases
+     * grade all-or-nothing (partial credit only when the question opts in),
+     * HTML page checks are a completion gate graded from the student's
+     * browser-reported results, and anything else stays with the teacher.
+     */
+    private static function gradeCoding(ActivityQuestion $question, string $rawAnswer, array $htmlCheckResults): array
+    {
+        $lang = $question->language ?: 'java';
+        $testCases = $question->testCases->values();
+
+        if ($testCases->isNotEmpty() && $lang !== 'html') {
+            $graded = CodingQuestionGrader::gradeTestCases(
+                $lang,
+                $rawAnswer,
+                $testCases,
+                (float) $question->points,
+                (bool) $question->partial_credit
+            );
+
+            return [
+                'is_correct' => $graded['is_correct'],
+                'score' => $graded['earned'],
+                'test_results' => ['passed' => $graded['passed'], 'total' => $graded['total'], 'tests' => $graded['tests']],
+            ];
+        }
+
+        if ($lang === 'html' && ! empty($question->html_checks)) {
+            $reported = $htmlCheckResults[$question->id] ?? null;
+            if (is_array($reported) && $reported !== []) {
+                $graded = CodingQuestionGrader::gradeHtmlChecks(
+                    (float) $question->points,
+                    CodingQuestionGrader::withLegacyExpected($question->html_checks, $question->expected_output),
+                    $reported
+                );
+
+                return [
+                    'is_correct' => $graded['is_correct'],
+                    'score' => $graded['earned'],
+                    'test_results' => ['passed' => $graded['passed'], 'total' => $graded['total'], 'checks' => $graded['checks']],
+                ];
+            }
+
+            // The student never ran the page — route to teacher review rather
+            // than hard-zero an unjudged submission.
+            return ['is_correct' => false, 'score' => 0.0];
+        }
+
+        // No tests and no checks -> manual grading (status quo)
+        return ['is_correct' => false, 'score' => 0.0];
+    }
+
     public static function normalizeAnswer($rawAnswer): string
     {
         return is_array($rawAnswer) ? json_encode($rawAnswer) : (string) $rawAnswer;
@@ -69,6 +130,7 @@ class ActivityGrading
         $hasManualTypes = false;
 
         $submission->loadMissing('answers');
+        $activity->loadMissing('questions.testCases');
 
         foreach ($activity->questions as $question) {
             $answer = $submission->answers->firstWhere('question_id', $question->id);
@@ -85,10 +147,11 @@ class ActivityGrading
             $answer->update([
                 'is_correct' => $result['is_correct'],
                 'score' => $result['score'],
+                'test_results' => $result['test_results'] ?? null,
             ]);
             $totalScore += $result['score'];
 
-            if (in_array($question->type, ['essay', 'coding'])) {
+            if (! self::autoGradable($question)) {
                 $hasManualTypes = true;
             }
         }
@@ -103,5 +166,25 @@ class ActivityGrading
         ]);
 
         return $submission->fresh();
+    }
+
+    /**
+     * Mirror of the submit-path auto-gradability check, kept here so live-room
+     * finalization and endLive use the same policy.
+     */
+    public static function autoGradable(ActivityQuestion $question): bool
+    {
+        if ($question->type === 'essay') {
+            return false;
+        }
+
+        if ($question->type !== 'coding') {
+            return true;
+        }
+
+        $lang = $question->language ?: 'java';
+
+        return ($lang !== 'html' && $question->testCases->isNotEmpty())
+            || ($lang === 'html' && ! empty($question->html_checks));
     }
 }

@@ -44,6 +44,15 @@ class ClassActivityController extends Controller
         }
     }
 
+    /**
+     * Whether a question can be fully graded without a human — single source
+     * of truth lives in ActivityGrading so live-room finalization agrees.
+     */
+    public static function isAutoGradable($question): bool
+    {
+        return ActivityGrading::autoGradable($question);
+    }
+
     private function getSubmission($activityId)
     {
         return ActivitySubmission::where('activity_id', $activityId)
@@ -120,7 +129,7 @@ class ClassActivityController extends Controller
 
     public function submit(Request $request, $id)
     {
-        $activity = ClassActivity::with('questions')->findOrFail($id);
+        $activity = ClassActivity::with(['questions.testCases'])->findOrFail($id);
         $this->checkEnrollment($activity->class_id);
 
         if ($activity->deadline_at && now()->gt($activity->deadline_at) && $activity->deadline_behavior === 'hard') {
@@ -174,7 +183,7 @@ class ClassActivityController extends Controller
                     }
 
                     $result = $activity->grading_method === 'auto'
-                        ? ActivityGrading::grade($question, $rawAnswer)
+                        ? ActivityGrading::grade($question, $rawAnswer, (array) $request->input('html_check_results', []))
                         : ['is_correct' => false, 'score' => 0.0];
                     $isCorrect = $result['is_correct'];
                     $score = $result['score'];
@@ -188,6 +197,7 @@ class ClassActivityController extends Controller
                             'submitted_answer' => ActivityGrading::normalizeAnswer($rawAnswer),
                             'is_correct' => $isCorrect,
                             'score' => $score,
+                            'test_results' => $result['test_results'] ?? null,
                         ]
                     );
 
@@ -195,7 +205,9 @@ class ClassActivityController extends Controller
                 }
 
                 if ($activity->grading_method === 'auto') {
-                    $hasManualTypes = $activity->questions->contains(fn ($q) => in_array($q->type, ['essay', 'coding']));
+                    // Coding questions stay with the teacher only when nothing
+                    // can grade them automatically (no tests, no page checks).
+                    $hasManualTypes = $activity->questions->contains(fn ($q) => ! self::isAutoGradable($q));
                     $submission->update([
                         'score' => $totalScore,
                         'status' => $hasManualTypes ? 'submitted' : 'graded',
