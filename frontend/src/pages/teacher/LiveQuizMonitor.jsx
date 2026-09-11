@@ -21,6 +21,7 @@ import {
   Zap,
 } from "lucide-react";
 import api from "../../services/api";
+import LiveCodeModal from "../../components/teacher/LiveCodeModal";
 
 const STATUS_META = {
   taking: { label: "Taking", color: "#10b981", bg: "rgba(16,185,129,0.12)" },
