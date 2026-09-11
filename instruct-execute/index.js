@@ -106,10 +106,10 @@ const LANGS = {
             return { className };
         },
         compile(folder, meta) {
-            return spawn('javac', [path.join(folder, `${meta.className}.java`)], { detached: true });
+            return spawn('javac', [path.join(folder, `${meta.className}.java`)], { detached: process.platform !== 'win32' });
         },
         run(folder, meta) {
-            return spawn('java', ['-cp', folder, meta.className], { detached: true });
+            return spawn('java', ['-cp', folder, meta.className], { detached: process.platform !== 'win32' });
         },
     },
     python: {
@@ -123,7 +123,7 @@ const LANGS = {
             // -u / PYTHONUNBUFFERED so print() prompts appear in pipes immediately
             return spawn(RUNTIMES.python, ['-u', 'main.py'], {
                 cwd: folder,
-                detached: true,
+                detached: process.platform !== 'win32',
                 env: { ...process.env, PYTHONUNBUFFERED: '1' },
             });
         },
@@ -136,7 +136,7 @@ const LANGS = {
             return {};
         },
         run(folder) {
-            return spawn('node', ['main.js'], { cwd: folder, detached: true });
+            return spawn('node', ['main.js'], { cwd: folder, detached: process.platform !== 'win32' });
         },
     },
     cpp: {
@@ -148,11 +148,11 @@ const LANGS = {
         },
         compile(folder) {
             const exe = process.platform === 'win32' ? 'main.exe' : 'main';
-            return spawn(RUNTIMES.gpp, ['-std=c++17', '-O2', '-o', exe, 'main.cpp'], { cwd: folder, detached: true });
+            return spawn(RUNTIMES.gpp, ['-std=c++17', '-O2', '-o', exe, 'main.cpp'], { cwd: folder, detached: process.platform !== 'win32' });
         },
         run(folder) {
             const exe = process.platform === 'win32' ? 'main.exe' : 'main';
-            return spawn(path.join(folder, exe), [], { cwd: folder, detached: true });
+            return spawn(path.join(folder, exe), [], { cwd: folder, detached: process.platform !== 'win32' });
         },
     },
     // Web pages never touch the server — the browser sandbox IS the runtime.
