@@ -1,14 +1,37 @@
 """
-Groq API client pool with round-robin cycling and rate-limit handling
+Google AI Studio (Gemini) client pool with round-robin cycling and rate-limit handling.
+
+Talks to Gemini through Google's OpenAI-compatible endpoint so every call site
+keeps using the familiar client.chat.completions.create(...) interface. The
+generation model lives in config/models.py — swap it there, not here.
 """
 import os
 import time
-from groq import Groq
 from itertools import cycle
 
+from openai import OpenAI
 
-class GroqClientPool:
-    """Manages multiple Groq API keys with round-robin cycling and backoff"""
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+
+# Accepts GEMINI_API_KEY first, then the legacy GEMINI_API name, then numbered
+# extras (GEMINI_API_KEY2..4) so more keys can be added without code changes.
+_KEY_VARS = [
+    "GEMINI_API_KEY",
+    "GEMINI_API",
+    "GEMINI_API_KEY2",
+    "GEMINI_API_KEY3",
+    "GEMINI_API_KEY4",
+]
+
+
+def is_rate_limit_error(error: Exception) -> bool:
+    """True for 429 / quota errors from the Gemini OpenAI-compatible endpoint."""
+    text = str(error).lower()
+    return "rate_limit" in text or "rate limit" in text or "quota" in text or "resource_exhausted" in text
+
+
+class AIClientPool:
+    """Manages multiple Gemini API keys with round-robin cycling and backoff"""
 
     def __init__(self):
         self.keys = []
@@ -16,15 +39,13 @@ class GroqClientPool:
         self.key_states = {}
         self.current_index = 0
 
-        # Load all 4 keys from environment
-        for i in range(1, 5):
-            env_var = f"GROQ_API_KEY{''.join(str(i)) if i > 1 else ''}"
+        for env_var in _KEY_VARS:
             key = os.getenv(env_var)
-            if key:
+            if key and key not in self.keys:
                 self.keys.append(key)
-                client = Groq(api_key=key)
+                client = OpenAI(api_key=key, base_url=GEMINI_BASE_URL)
                 self.clients.append(client)
-                self.key_states[i] = {
+                self.key_states[len(self.clients)] = {
                     'backoff_until': 0,
                     'rate_limited': False,
                     'last_error': None
@@ -32,9 +53,9 @@ class GroqClientPool:
 
         self.cycle_iter = cycle(range(len(self.clients)))
 
-        print(f"[GROQ POOL] Initialized with {len(self.clients)} API keys")
+        print(f"[AI POOL] Initialized with {len(self.clients)} Gemini API key(s) via {GEMINI_BASE_URL}")
         for i, key in enumerate(self.keys, 1):
-            print(f"  Key {i}: {key[:15]}...")
+            print(f"  Key {i}: {key[:12]}...")
 
     def get_available_client(self):
         """
@@ -67,7 +88,7 @@ class GroqClientPool:
         # All keys in backoff - return the one closest to recovery
         if best_backoff_idx is not None:
             key_num = best_backoff_idx + 1
-            print(f"[GROQ POOL] All keys in backoff. Returning key {key_num} (recovers in {best_backoff:.1f}s)")
+            print(f"[AI POOL] All keys in backoff. Returning key {key_num} (recovers in {best_backoff:.1f}s)")
             return self.clients[best_backoff_idx], key_num
 
         # Fallback (shouldn't reach here)
@@ -78,7 +99,7 @@ class GroqClientPool:
         state = self.key_states[key_num]
         state['rate_limited'] = True
         state['backoff_until'] = time.time() + backoff_seconds
-        print(f"[GROQ POOL] Key {key_num} rate-limited, backing off for {backoff_seconds}s")
+        print(f"[AI POOL] Key {key_num} rate-limited, backing off for {backoff_seconds}s")
 
     def mark_success(self, key_num):
         """Clear rate-limit on successful request"""
@@ -86,7 +107,7 @@ class GroqClientPool:
         if state['rate_limited']:
             state['rate_limited'] = False
             state['backoff_until'] = 0
-            print(f"[GROQ POOL] Key {key_num} recovered, backoff cleared")
+            print(f"[AI POOL] Key {key_num} recovered, backoff cleared")
 
     def get_available_count(self):
         """Count how many keys are currently available (not in backoff)"""

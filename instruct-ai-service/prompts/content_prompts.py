@@ -48,6 +48,9 @@ FIELD NAMES (NO EXCEPTIONS):
 - points
 - options (for multiple_choice and true_false)
 - boilerplate (for coding only)
+- language (for coding only: "java" | "python" | "javascript" | "cpp" | "html")
+- reference_solution (for coding only: complete working solution)
+- test_cases (for coding only, EXCEPT html: array of {{"input", "expected_output", "hidden"}})
 
 VIOLATIONS WILL CAUSE SYSTEM FAILURE.
 
@@ -100,8 +103,11 @@ ENUMERATION RULES (ABSOLUTELY CRITICAL):
   {{"options": [], "expected_output": "JDK, JRE, JVM"}} OR {{"options": ["JDK", "JRE", "JVM"], "expected_output": "JDK, JRE, JVM"}}
 
 CODING RULES:
+- language = EXACTLY one of "java", "python", "javascript", "cpp", "html" — the language the lessons taught
 - boilerplate = starter code for student
-- expected_output = ACTUAL console output (e.g., "42\\n", NOT "prints 42")
+- reference_solution = the COMPLETE working solution (no TODOs, never prints the expected output directly). It is executed on the real compiler to verify the test cases.
+- expected_output = ACTUAL console output of reference_solution with no input (e.g., "42\\n", NOT "prints 42")
+- test_cases = array of 2-4 objects {{"input", "expected_output", "hidden"}}. "input" is the exact stdin fed to the program ("" when it reads nothing); "expected_output" is the EXACT full stdout for that stdin; the first test must have hidden=false and at least one other test hidden=true. For html questions omit test_cases and reference_solution entirely.
 - points = 3-5 based on complexity
 
 GROUPING REQUIREMENT - JSON STRUCTURE ENFORCES THIS:
@@ -147,23 +153,17 @@ CRITICAL - ABSOLUTE REQUIREMENTS (VIOLATIONS WILL CAUSE REJECTION):
 
 OUTPUT FORMAT: Valid JSON matching the exact schema provided.
 
-LESSON BLOCKS must follow this structure:
-- h1: {{"type": "h1", "data": {{"text": "Heading Text"}}}}
-- text: {{"type": "text", "data": {{"text": "<p>HTML content with <strong>formatting</strong></p>"}}}}
-- code (playground): {{"type": "code", "data": {{"mode": "playground", "code": "Java code...", "expected": ""}}}}
-- code (challenge): {{"type": "code", "data": {{"mode": "challenge", "code": "Java starter code...", "expected": "Expected output"}}}}
-- image: {{"type": "image", "data": {{"url": "https://source.unsplash.com/800x400/?KEYWORD1,KEYWORD2,KEYWORD3", "caption": "Descriptive caption"}}}}
-  * IMPORTANT: Replace KEYWORD1,KEYWORD2,KEYWORD3 with 2-3 keywords relevant to THIS SPECIFIC LESSON TOPIC
-  * Examples: "variables,programming,syntax" or "loops,coding,algorithm" or "design,graphics,ui"
-- video: {{"type": "video", "data": {{"url": "", "title": "Suggested: [Topic] Tutorial - Search on YouTube", "description": "Teacher should find and add YouTube URL"}}}}
-- link: {{"type": "link", "data": {{"url": "https://docs.oracle.com/javase/tutorial/", "title": "Official Documentation"}}}}
+NOTE: Lesson code blocks are assembled by the platform from your structured
+section content — every code-bearing section (example, practice) MUST include
+a "language" field set to EXACTLY one of: "java", "python", "javascript",
+"cpp", "html" — matching the programming language used in the curriculum.
 
 QUIZ QUESTIONS must follow exact schema per type:
 - multiple_choice: 4 options, points: 1
 - true_false: "True" or "False", points: 1
 - identification: ONE WORD answer (e.g., "JVM", "int", "variable"), points: 1
 - enumeration: 2-4 items ONLY (NO MORE THAN 4), points: N (where N = number of items)
-- coding: starter code + expected output, points: 3-5 (based on difficulty)
+- coding: language + starter code + reference solution + test cases + expected output, points: 3-5 (based on difficulty)
 
 CRITICAL RULES - VIOLATIONS = REJECTION:
 1. **Identification answers**: SINGLE WORD ONLY (e.g., "JVM" not "Java Virtual Machine" or "To execute bytecode")
@@ -175,15 +175,12 @@ CRITICAL RULES - VIOLATIONS = REJECTION:
    - Enumeration: N points (where N = number of items the answer should contain)
    - Coding: 3-5 points (simpler = 3 pts, complex = 5 pts)
 4. **Coding output**: Must be ACTUAL console output, not descriptions (e.g., "42\n" not "prints 42")
-4. **Lesson variety**: DO NOT use same structure for every lesson. Mix up the block order and types.
-5. **Practical content**: For setup/installation lessons, provide ACTUAL STEPS, not just descriptions.
-6. **Code examples**: Only include code when it ADDS VALUE. Don't force code into every lesson.
-7. Use {writing_style} style, {difficulty} difficulty
-8. **Images**: Use Unsplash Source URLs with relevant keywords:
-   - Format: https://source.unsplash.com/800x400/?keyword1,keyword2,keyword3
-   - Choose keywords relevant to lesson topic (e.g., "java,programming,code" or "computer,software,development")
-   - Images are real educational photos, not placeholders
-9. **Videos**: Leave URL empty, suggest search terms for YouTube
+5. **Language field**: Every code example and coding question carries the curriculum's language — never mix languages
+6. **Lesson variety**: DO NOT use same structure for every lesson. Mix up the block order and types.
+7. **Practical content**: For setup/installation lessons, provide ACTUAL STEPS, not just descriptions.
+8. **Code examples**: Only include code when it ADDS VALUE. Don't force code into every lesson.
+9. Use {writing_style} style, {difficulty} difficulty
+10. **Videos**: Leave URL empty, suggest search terms for YouTube
 """
 
 
@@ -360,6 +357,9 @@ Use ONLY these field names, nothing else:
 - options: [Array of 4 strings] - ONLY FOR MULTIPLE_CHOICE
 - expected_output: The correct answer (DO NOT use "answer")
 - boilerplate: Starter code - ONLY FOR CODING
+- language: "java" | "python" | "javascript" | "cpp" | "html" - ONLY FOR CODING
+- reference_solution: Complete working solution - ONLY FOR CODING
+- test_cases: [{{"input", "expected_output", "hidden"}}] - ONLY FOR CODING (not html)
 
 FIELDS YOU MUST NOT USE:
 - Do NOT use "question" - use "question_text"
@@ -427,10 +427,29 @@ CRITICAL REQUIREMENTS:
    - BAD: Asking for 3 items but returning 7 items
 
 10. **Coding questions**:
+    - Include "language": EXACTLY one of "java", "python", "javascript", "cpp", "html" — matching the language used in the lessons
     - Include "boilerplate": Starter code template for student
-    - Include "expected_output": ACTUAL console output (not description)
-    - GOOD: "42\\n", "Hello World\\n", "10\\n20\\n30"
-    - BAD: "prints the answer", "displays the result"
+    - Include "reference_solution": COMPLETE working solution (no TODOs, not hardcoded). It runs on the real compiler to verify the tests.
+    - Include "expected_output": ACTUAL console output of the reference solution with no input (not description)
+      GOOD: "42\\n", "Hello World\\n", "10\\n20\\n30"
+      BAD: "prints the answer", "displays the result"
+    - Include "test_cases": 2-4 objects, each {{"input": "<exact stdin>", "expected_output": "<exact full stdout>", "hidden": true/false}}
+      * "input" uses ACTUAL line breaks between values; "" when the program reads no input
+      * "expected_output" is the EXACT literal stdout for that stdin
+      * First test hidden=false (students see it); at least one later test hidden=true
+      * test cases MUST have DIFFERENT inputs producing DIFFERENT outputs — design the
+        challenge so the program READS INPUT (e.g., Scanner for java, input() for python),
+        otherwise the hidden tests add nothing
+      * For "html" questions: OMIT test_cases and reference_solution
+    - GOOD coding question:
+      {{"question_text": "Read two numbers and print their sum", "type": "coding", "language": "java", "points": 3, "options": [],
+        "boilerplate": "import java.util.Scanner;\n\npublic class Main {{\n    public static void main(String[] args) {{\n        Scanner sc = new Scanner(System.in);\n        // TODO: read two numbers and print their sum\n    }}\n}}",
+        "reference_solution": "import java.util.Scanner;\n\npublic class Main {{\n    public static void main(String[] args) {{\n        Scanner sc = new Scanner(System.in);\n        int a = sc.nextInt();\n        int b = sc.nextInt();\n        System.out.println(a + b);\n    }}\n}}",
+        "expected_output": "12",
+        "test_cases": [
+          {{"input": "5\n7", "expected_output": "12", "hidden": false}},
+          {{"input": "10\n-3", "expected_output": "7", "hidden": true}}
+        ]}}
 
 Output ONLY valid JSON with GROUPED structure (questions separated by type):
 {{
@@ -474,10 +493,15 @@ Output ONLY valid JSON with GROUPED structure (questions separated by type):
     {{
       "question_text": "Write a program to print 'Hello World'",
       "type": "coding",
+      "language": "java",
       "points": 3,
       "options": [],
       "boilerplate": "public class Main {{\n    public static void main(String[] args) {{\n        // Your code here\n    }}\n}}",
-      "expected_output": "Hello World"
+      "reference_solution": "public class Main {{\n    public static void main(String[] args) {{\n        System.out.println(\"Hello World\");\n    }}\n}}",
+      "expected_output": "Hello World",
+      "test_cases": [
+        {{"input": "", "expected_output": "Hello World", "hidden": false}}
+      ]
     }}
   ]
 }}

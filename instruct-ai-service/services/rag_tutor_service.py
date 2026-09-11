@@ -1,11 +1,12 @@
 from config.characters import get_character
 from services.embedding_service import embedding_service
 from services.retrieval_service import retrieval_service
-from utils.groq_client_pool import GroqClientPool
+from utils.ai_client_pool import AIClientPool, is_rate_limit_error
+from config.models import GEN_CONTENT_MODEL
 
 class RAGTutorService:
     def __init__(self):
-        self.groq_pool = GroqClientPool()
+        self.ai_pool = AIClientPool()
 
     def detect_question_depth(self, question: str) -> str:
         """Detect if question is casual/simple or deep/complex"""
@@ -215,24 +216,24 @@ RESPONSE STRATEGY:
         # 4. Call Groq LLM with rotating keys
         print(f"[RAG CHAT] Calling Groq LLM...")
         try:
-            client, key_num = self.groq_pool.get_available_client()
+            client, key_num = self.ai_pool.get_available_client()
             print(f"[RAG CHAT] Using key {key_num}")
 
             response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model=GEN_CONTENT_MODEL,
                 messages=messages,
                 temperature=0.7,
                 max_tokens=1000
             )
 
-            self.groq_pool.mark_success(key_num)
+            self.ai_pool.mark_success(key_num)
             answer = response.choices[0].message.content
             print(f"[RAG CHAT] Got answer: {answer[:50]}...")
             return answer
         except Exception as e:
             print(f"[RAG CHAT ERROR] LLM call failed: {str(e)}")
-            if "rate_limit" in str(e).lower():
-                self.groq_pool.mark_rate_limited(key_num, backoff_seconds=60)
+            if is_rate_limit_error(e):
+                self.ai_pool.mark_rate_limited(key_num, backoff_seconds=60)
             raise
 
 rag_tutor_service = RAGTutorService()

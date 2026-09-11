@@ -2,14 +2,16 @@
 Service for curriculum structure generation using Groq API
 """
 import json
-from groq import Groq
+from config.gen_schemas import CURRICULUM_FORMAT
+from config.models import GEN_CONTENT_MODEL
+from utils.ai_client_pool import is_rate_limit_error
 from schemas import CurriculumResponse
 from prompts.curriculum_prompts import get_curriculum_system_prompt, build_curriculum_user_prompt
 from utils.logger import log_api_request, log_api_response, log_error, print_metrics_summary
 
 
 async def generate_curriculum_stream(
-    groq_pool,
+    ai_pool,
     context_text: str,
     prompt: str,
     difficulty: str,
@@ -60,7 +62,7 @@ async def generate_curriculum_stream(
         log_api_request(
             endpoint="generate-curriculum-stream",
             messages=messages,
-            model="llama-3.3-70b-versatile"
+            model=GEN_CONTENT_MODEL
         )
 
         # Send initial status
@@ -69,27 +71,27 @@ async def generate_curriculum_stream(
         # Try to get an available client from pool
         stream = None
         attempt_count = 0
-        max_attempts = len(groq_pool.clients)
+        max_attempts = len(ai_pool.clients)
         import time as time_module
 
         while attempt_count < max_attempts and not stream:
             try:
-                client, key_num = groq_pool.get_available_client()
+                client, key_num = ai_pool.get_available_client()
                 print(f"[CURRICULUM] Using API key {key_num}")
                 stream = client.chat.completions.create(
                     messages=messages,
-                    model="llama-3.3-70b-versatile",
-                    response_format={"type": "json_object"},
+                    model=GEN_CONTENT_MODEL,
+                    response_format=CURRICULUM_FORMAT,
                     stream=True
                 )
-                groq_pool.mark_success(key_num)
+                ai_pool.mark_success(key_num)
             except Exception as e:
                 error_str = str(e).lower()
-                if "rate_limit" in error_str:
-                    groq_pool.mark_rate_limited(key_num, backoff_seconds=60)
+                if is_rate_limit_error(e):
+                    ai_pool.mark_rate_limited(key_num, backoff_seconds=60)
                     attempt_count += 1
                     if attempt_count < max_attempts:
-                        available_count = groq_pool.get_available_count()
+                        available_count = ai_pool.get_available_count()
                         if available_count > 0:
                             yield f"data: {json.dumps({'type': 'status', 'message': f'Key {key_num} rate-limited, trying another ({available_count} keys available)...'})}\n\n"
                         else:
@@ -122,7 +124,7 @@ async def generate_curriculum_stream(
                     if not test_json.strip().endswith('}'):
                         test_json += ']}}' # Close JSON structure
 
-                    parsed = json.loads(test_json)
+                    parsed = json.loads(test_json, strict=False)
 
                     if 'new_modules' in parsed:
                         current_count = len(parsed['new_modules'])
@@ -150,7 +152,7 @@ async def generate_curriculum_stream(
         yield f"data: {json.dumps({'type': 'status', 'message': 'Finalizing curriculum...'})}\n\n"
 
         try:
-            parsed_json = json.loads(accumulated)
+            parsed_json = json.loads(accumulated, strict=False)
             safe_curriculum = CurriculumResponse(**parsed_json)
             yield f"data: {json.dumps({'type': 'complete', 'data': safe_curriculum.dict()})}\n\n"
         except Exception as e:
@@ -170,7 +172,7 @@ async def generate_curriculum_stream(
 
 
 async def generate_curriculum_legacy(
-    groq_pool,
+    ai_pool,
     context_text: str,
     prompt: str
 ) -> dict:
@@ -200,19 +202,19 @@ async def generate_curriculum_legacy(
         log_api_request(
             endpoint="generate-curriculum",
             messages=messages,
-            model="llama-3.3-70b-versatile"
+            model=GEN_CONTENT_MODEL
         )
 
-        client, key_num = groq_pool.get_available_client()
+        client, key_num = ai_pool.get_available_client()
         print(f"[CURRICULUM-LEGACY] Using API key {key_num}")
 
         chat_completion = client.chat.completions.create(
             messages=messages,
-            model="llama-3.3-70b-versatile",
-            response_format={"type": "json_object"}
+            model=GEN_CONTENT_MODEL,
+            response_format=CURRICULUM_FORMAT
         )
 
-        groq_pool.mark_success(key_num)
+        ai_pool.mark_success(key_num)
 
         raw_output = chat_completion.choices[0].message.content
 
@@ -226,7 +228,7 @@ async def generate_curriculum_legacy(
             streaming=False
         )
 
-        parsed_json = json.loads(raw_output)
+        parsed_json = json.loads(raw_output, strict=False)
         safe_curriculum = CurriculumResponse(**parsed_json)
 
         return safe_curriculum.dict()

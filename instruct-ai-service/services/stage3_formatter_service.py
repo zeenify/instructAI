@@ -11,6 +11,20 @@ from utils.media_fetcher import (
     generate_video_keywords
 )
 from utils.code_formatter import format_code_block, fix_json_escapes_in_code
+from utils.engine_client import actual_output_for, strip_markdown_fence
+
+# Languages the InstructAI IDE understands end to end (mirrors CodeRunner::LANGUAGES).
+VALID_LANGUAGES = {"java", "python", "javascript", "cpp", "html"}
+
+
+def normalize_language(value) -> str | None:
+    """Normalize an AI-provided language id to one the IDE knows, else None."""
+    if not isinstance(value, str):
+        return None
+    lang = value.strip().lower()
+    if lang == "c++":
+        lang = "cpp"
+    return lang if lang in VALID_LANGUAGES else None
 
 
 def convert_markdown_to_html(text: str) -> str:
@@ -213,6 +227,7 @@ def format_section_to_blocks(
                 "type": "code",
                 "data": {
                     "mode": "playground",
+                    "language": normalize_language(section_content.get("language")),
                     "code": formatted_code,
                     "expected": fix_json_escapes_in_code(section_content.get("output", ""))
                 }
@@ -271,13 +286,33 @@ def format_section_to_blocks(
             starter_code = fix_json_escapes_in_code(starter_code)
             formatted_starter = format_code_block(starter_code)
 
+            language = normalize_language(section_content.get("language"))
+            expected = fix_json_escapes_in_code(section_content.get("expected_output", ""))
+
+            # Non-HTML challenges: run the AI's reference solution on the real
+            # engine and publish ITS output as the expected result, so every
+            # generated challenge is verified solvable. If the engine is down
+            # or the reference fails, keep the AI's expected text as-is.
+            if language and language != "html":
+                reference = strip_markdown_fence(
+                    fix_json_escapes_in_code(str(section_content.get("reference_solution") or ""))
+                )
+                if reference:
+                    actual = actual_output_for(language, reference)
+                    if actual:
+                        expected = actual
+                        print(f"[CHALLENGE-VERIFY] {section_title[:40]}: expected output verified by engine")
+                    else:
+                        print(f"[CHALLENGE-VERIFY] {section_title[:40]}: engine unavailable/reference failed — keeping AI expected output")
+
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "code",
                 "data": {
                     "mode": "challenge",
+                    "language": language,
                     "code": formatted_starter,
-                    "expected": fix_json_escapes_in_code(section_content.get("expected_output", ""))
+                    "expected": expected
                 }
             })
 

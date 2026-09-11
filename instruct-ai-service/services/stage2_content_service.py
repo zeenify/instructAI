@@ -3,9 +3,11 @@ Stage 2: Section Content Generation Service
 Generates detailed content for each section from Stage 1 outline
 """
 import json
+from config.gen_schemas import section_format
+from config.models import GEN_CONTENT_MODEL
+from utils.ai_client_pool import is_rate_limit_error
 import asyncio
-from groq import Groq
-from prompts.stage2_content_prompts import get_section_content_system_prompt, build_section_content_prompt
+from prompts.stage2_content_prompts import get_section_content_system_prompt, build_section_content_prompt, is_programming_context
 from utils.logger import log_api_request, log_api_response, log_error
 
 
@@ -16,12 +18,12 @@ def get_optimal_model(section_type: str) -> str:
     """
     critical_sections = ["concept", "tutorial"]
     if section_type in critical_sections:
-        return "llama-3.3-70b-versatile"
-    return "llama-3.1-8b-instant"
+        return GEN_CONTENT_MODEL
+    return GEN_CONTENT_MODEL
 
 
 async def generate_section_content(
-    groq_pool,
+    ai_pool,
     curriculum_context: str,
     module_title: str,
     lesson_title: str,
@@ -58,7 +60,11 @@ async def generate_section_content(
     # Override needs_code based on course setting - if course is not coding, disable code regardless of section type
     needs_code = section.get('needs_code', False) and is_coding
 
-    system_prompt = get_section_content_system_prompt(section_type, writing_style, content_depth, curriculum_context)
+    # A course explicitly flagged as coding stays programming even when no
+    # curriculum document was uploaded (the keyword check alone would see "").
+    is_programming = is_coding or is_programming_context(curriculum_context)
+
+    system_prompt = get_section_content_system_prompt(section_type, writing_style, content_depth, curriculum_context, is_programming)
     user_prompt = build_section_content_prompt(
         curriculum_context=curriculum_context,
         module_title=module_title,
@@ -92,29 +98,29 @@ async def generate_section_content(
     # Try to get a response, cycling through keys on rate limit
     response = None
     attempt_count = 0
-    max_attempts = len(groq_pool.clients)
+    max_attempts = len(ai_pool.clients)
     key_num = None
 
     while attempt_count < max_attempts and not response:
         try:
-            client, key_num = groq_pool.get_available_client()
+            client, key_num = ai_pool.get_available_client()
             model_short = model.split('/')[-1] if '/' in model else model
             print(f"[STAGE2-CONTENT] Using API key {key_num}, model {model_short} (attempt {attempt_count + 1}/{max_attempts})")
 
             response = client.chat.completions.create(
                 messages=messages,
                 model=model,
-                response_format={"type": "json_object"},
+                response_format=section_format(section_type, is_programming),
                 temperature=0.7
             )
 
-            groq_pool.mark_success(key_num)
+            ai_pool.mark_success(key_num)
             print(f"[STAGE2-CONTENT] Key {key_num} succeeded")
 
         except Exception as e:
             error_str = str(e).lower()
-            if "rate_limit" in error_str:
-                groq_pool.mark_rate_limited(key_num, backoff_seconds=60)
+            if is_rate_limit_error(e):
+                ai_pool.mark_rate_limited(key_num, backoff_seconds=60)
                 print(f"[STAGE2-CONTENT] Key {key_num} rate-limited, trying next key...")
                 attempt_count += 1
                 if attempt_count < max_attempts:
@@ -170,7 +176,7 @@ async def generate_section_content(
             streaming=False
         )
 
-        content_data = json.loads(raw_response)
+        content_data = json.loads(raw_response, strict=False)
 
         # Add metadata
         content_data['section_title'] = section_title
@@ -196,7 +202,7 @@ async def generate_section_content(
 
 
 async def generate_all_section_contents(
-    groq_pool,
+    ai_pool,
     curriculum_context: str,
     module_title: str,
     lesson_title: str,
@@ -207,7 +213,7 @@ async def generate_all_section_contents(
     Generate content for all sections in a lesson
 
     Args:
-        groq_pool: Groq client pool
+        ai_pool: Groq client pool
         curriculum_context: Full curriculum document
         module_title: Parent module
         lesson_title: Parent lesson
@@ -221,7 +227,7 @@ async def generate_all_section_contents(
 
     for section in sections:
         content = await generate_section_content(
-            groq_pool=groq_pool,
+            ai_pool=ai_pool,
             curriculum_context=curriculum_context,
             module_title=module_title,
             lesson_title=lesson_title,

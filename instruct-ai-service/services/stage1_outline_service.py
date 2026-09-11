@@ -3,13 +3,15 @@ Stage 1: Outline Generation Service
 Generates structured outline for each lesson
 """
 import json
-from groq import Groq
+from config.gen_schemas import OUTLINE_FORMAT
+from config.models import GEN_CONTENT_MODEL
+from utils.ai_client_pool import is_rate_limit_error
 from prompts.stage1_outline_prompts import get_outline_system_prompt, build_outline_prompt
 from utils.logger import log_api_request, log_api_response, log_error
 
 
 async def generate_lesson_outline(
-    groq_pool,
+    ai_pool,
     curriculum_context: str,
     module_title: str,
     lesson_title: str,
@@ -54,20 +56,20 @@ async def generate_lesson_outline(
         log_api_request(
             endpoint=f"stage1-outline-{lesson_title}",
             messages=messages,
-            model="llama-3.1-8b-instant"
+            model=GEN_CONTENT_MODEL
         )
 
-        client, key_num = groq_pool.get_available_client()
+        client, key_num = ai_pool.get_available_client()
         print(f"[STAGE1-OUTLINE] Using API key {key_num}")
 
         response = client.chat.completions.create(
             messages=messages,
-            model="llama-3.1-8b-instant",
-            response_format={"type": "json_object"},
+            model=GEN_CONTENT_MODEL,
+            response_format=OUTLINE_FORMAT,
             temperature=0.5
         )
 
-        groq_pool.mark_success(key_num)
+        ai_pool.mark_success(key_num)
 
         raw_response = response.choices[0].message.content
 
@@ -81,7 +83,7 @@ async def generate_lesson_outline(
             streaming=False
         )
 
-        outline_data = json.loads(raw_response)
+        outline_data = json.loads(raw_response, strict=False)
         return outline_data
 
     except Exception as e:

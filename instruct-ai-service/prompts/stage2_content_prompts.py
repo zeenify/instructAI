@@ -4,7 +4,15 @@ Generates detailed content for each section based on its type
 """
 
 
-def get_section_content_system_prompt(section_type: str, writing_style: str = "conversational", content_depth: str = "standard", curriculum_context: str = "") -> str:
+def is_programming_context(curriculum_context: str) -> bool:
+    """Shared keyword check so the service and prompts agree on course kind."""
+    module_lower = (curriculum_context or "").lower()
+    programming_keywords = ["programming", "java", "python", "javascript", "code", "coding", "web development",
+                            "software", "algorithm", "data structure", "html", "css", "web development"]
+    return any(keyword in module_lower for keyword in programming_keywords)
+
+
+def get_section_content_system_prompt(section_type: str, writing_style: str = "conversational", content_depth: str = "standard", curriculum_context: str = "", is_programming=None) -> str:
     """
     Get system prompt tailored to section type with style and depth
 
@@ -123,10 +131,8 @@ Output format:
 
     elif section_type == "example":
         # Check if this is a programming course (needs code)
-        module_lower = curriculum_context.lower() if curriculum_context else ""
-        programming_keywords = ["programming", "java", "python", "javascript", "code", "coding", "web development",
-                                "software", "algorithm", "data structure"]
-        is_programming = any(keyword in module_lower for keyword in programming_keywords)
+        if is_programming is None:
+            is_programming = is_programming_context(curriculum_context)
 
         if is_programming:
             return base + """
@@ -143,15 +149,21 @@ RULES:
 8. Assume students will click "Run" in the editor to test the code
 9. VARY examples: Some should be minimal (show one concept), some should be realistic (show patterns)
 
+LANGUAGE FIELD (REQUIRED):
+- "language" = the programming language of the code, matching the curriculum
+- MUST be exactly one of: "java", "python", "javascript", "cpp", "html"
+- If the curriculum teaches web pages, use "html" and make "code" a complete HTML document
+
 STYLE: Code-first, then explain. Like showing AND telling. Make students curious.
 
 Output format:
 {
   "content_type": "example",
+  "language": "java",
   "intro": "Brief, engaging intro to what we're demonstrating (1-2 sentences)",
   "code": "Complete, properly formatted code with:\n  - ACTUAL line breaks between statements (not \\n escape sequences)\n  - Clear indentation (4 spaces per level)\n  - Comments only on tricky lines (not obvious things)\n  - Blank lines between logical sections\n  - Readable structure (never cramped into one line)",
   "explanation": "Explain the code: WHAT it does + WHY it's structured this way (focus on insights)",
-  "output": "What you should see when you run this (use actual line breaks, not \\n)",
+  "output": "What you should see when you run this (use actual line breaks, not \\n). For html: what the rendered page shows.",
   "key_concepts": ["Concept 1 shown in code", "Concept 2 shown in code"]
 }
 """
@@ -182,10 +194,8 @@ Output format:
 
     elif section_type == "practice":
         # Check if this is a programming course
-        module_lower = curriculum_context.lower() if curriculum_context else ""
-        programming_keywords = ["programming", "java", "python", "javascript", "code", "coding", "web development",
-                                "software", "algorithm", "data structure"]
-        is_programming = any(keyword in module_lower for keyword in programming_keywords)
+        if is_programming is None:
+            is_programming = is_programming_context(curriculum_context)
 
         if is_programming:
             return base + """
@@ -206,21 +216,34 @@ RULES:
 7. Students run code in the ONLINE EDITOR by clicking "Run" - do NOT mention javac, terminal, or compilation
 8. **DO NOT assume knowledge of concepts from later sections** - even if "loops" are mentioned in the lesson title, if THIS section hasn't covered loops yet, don't use them
 
-STARTER CODE REQUIREMENTS:
+LANGUAGE FIELD (REQUIRED):
+- "language" = the programming language of the challenge, matching the curriculum
+- MUST be exactly one of: "java", "python", "javascript", "cpp", "html"
+
+HTML CHALLENGES (language = "html"):
+- "starter_code" = a complete HTML document students edit (structure, tags, styles in a <style> block or inline)
+- "expected_output" = TEXT THAT MUST APPEAR ON THE RENDERED PAGE (not console output)
+- Omit "test_cases" and "reference_solution" - HTML pages are checked visually
+
+NON-HTML CHALLENGES - STARTER CODE REQUIREMENTS:
 - Include the entire structure (imports, class definition, method signatures)
 - Use vague layout comments ONLY - show WHERE code goes, not WHAT code looks like
   BAD: "// TODO: Add a for loop: for(int i=1; i<=5; i++)"
   GOOD: "// TODO: Add a loop here to repeat 5 times"
   GOOD: "// TODO: Replace this placeholder with a loop"
 - DO NOT show example code in comments - that's cheating
-- Properly formatted with good indentation and ACTUAL newlines (not \n escape sequences)
-- When writing JSON, use actual line breaks between logical sections
+- Properly formatted with good indentation and ACTUAL newlines (not \\n escape sequences)
 - Code must be immediately runnable in the online editor (no setup needed)
 
-EXPECTED_OUTPUT REQUIREMENTS:
+NON-HTML CHALLENGES - REFERENCE SOLUTION (REQUIRED):
+- "reference_solution" = the COMPLETE working solution (no TODOs) that passes every test case
+- It must be a real solution that reads input and computes results - NEVER print expected outputs directly
+- It will be executed on the real compiler to verify the test cases, so it must compile and run as-is
+
+NON-HTML CHALLENGES - EXPECTED_OUTPUT REQUIREMENTS:
 - **MUST be the EXACT literal output** - Every character, line, space
 - **NOT a description** (e.g., "A greeting message" is WRONG)
-- **Multi-line output MUST use actual line breaks** - NOT \n escape sequences
+- **Multi-line output MUST use actual line breaks** - NOT \\n escape sequences
 - Write it exactly as the program prints it, one line per line
 - Include empty lines if the output has them
 - Include any spacing or formatting exactly
@@ -230,6 +253,14 @@ Example WRONG: "A greeting with calculation result"
 Example RIGHT (write this exact format):
 Hello, Alice!
 Your number doubled is 20
+
+NON-HTML CHALLENGES - TEST_CASES (REQUIRED, 2-4 tests):
+- Each test case runs the program with "input" fed to stdin and compares full stdout to "expected_output"
+- "input" = the exact stdin text with ACTUAL line breaks between values ("" when the program reads nothing)
+- "expected_output" = the EXACT literal full stdout for that input
+- "hidden": the FIRST test must be visible (false) so students see an example; make at least one other test hidden (true)
+- Tests must be solvable by a correct general solution - no test should require special-casing the exact input
+- The platform EXECUTES reference_solution against these tests before publishing; tests that fail are discarded
 
 ANTI-PATTERNS TO AVOID:
 - Creating a calculator when the lesson is about environment setup (WRONG)
@@ -248,9 +279,15 @@ STYLE: Encouraging but challenging. Build confidence through doing.
 Output format:
 {
   "content_type": "practice",
+  "language": "java",
   "challenge": "Clear statement of what to build/do (1-2 sentences, directly related to this lesson)",
   "starter_code": "Fully structured code with:\n  - All imports and class setup\n  - Method signatures ready\n  - VAGUE TODO comments (show WHERE, not WHAT)\n  - NO example code in comments\n  - Proper formatting with actual line breaks (not \\n)",
-  "expected_output": "The EXACT literal output (actual line breaks, not \\n)",
+  "reference_solution": "Complete working solution (actual line breaks, no TODOs, not hardcoded)",
+  "expected_output": "The EXACT literal output of the reference solution with no input (actual line breaks, not \\n)",
+  "test_cases": [
+    {"input": "", "expected_output": "output of the no-input run", "hidden": false},
+    {"input": "5\n7", "expected_output": "exact stdout for that stdin", "hidden": true}
+  ],
   "success_criteria": "How to verify it works - be specific about what to check"
 }
 """

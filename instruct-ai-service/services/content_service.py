@@ -3,13 +3,81 @@ Service for lesson and quiz content generation using Groq API
 Multi-stage pipeline for high-quality lesson generation
 """
 import json
+from config.gen_schemas import QUIZ_FORMAT
+from config.models import GEN_CONTENT_MODEL
+from utils.ai_client_pool import is_rate_limit_error
 import time
-from groq import Groq
 from prompts.content_prompts import get_content_system_prompt, get_quiz_system_prompt, build_lesson_prompt, build_quiz_prompt
 from services.stage1_outline_service import generate_lesson_outline
 from services.stage2_content_service import generate_all_section_contents
 from services.stage3_formatter_service import format_all_sections_to_lesson
 from utils.logger import log_api_request, log_api_response, log_error, print_metrics_summary
+from utils.code_formatter import fix_json_escapes_in_code
+from utils.engine_client import verify_test_cases, actual_output_for, strip_markdown_fence
+
+# Languages the InstructAI IDE understands end to end (mirrors CodeRunner::LANGUAGES).
+VALID_LANGUAGES = {"java", "python", "javascript", "cpp", "html"}
+
+
+def normalize_language(value):
+    """Normalize an AI-provided language id to one the IDE knows, else None."""
+    if not isinstance(value, str):
+        return None
+    lang = value.strip().lower()
+    if lang == "c++":
+        lang = "cpp"
+    return lang if lang in VALID_LANGUAGES else None
+
+
+def harden_coding_questions(quiz_data: dict) -> None:
+    """
+    Prepare generated coding questions for the platform's test-case grading
+    engine, in place:
+
+    - normalize/keep "language" (None -> backend grades as java)
+    - unwrap markdown fences from boilerplate/reference_solution
+    - EXECUTE reference_solution on the engine against every test case and
+      keep only passing ones (needs >= 2 kept, else test cases are dropped
+      and the question falls back to expected-output grading)
+    - when verified, rewrite expected_output to the reference's real no-input
+      output so students and graders agree on the same target
+    - html questions carry no tests/reference (checked visually)
+    """
+    for question in quiz_data.get("coding", []) or []:
+        if not isinstance(question, dict):
+            continue
+
+        language = normalize_language(question.get("language"))
+        question["language"] = language
+        question["boilerplate"] = strip_markdown_fence(
+            fix_json_escapes_in_code(str(question.get("boilerplate") or "")))
+
+        reference = strip_markdown_fence(
+            fix_json_escapes_in_code(str(question.get("reference_solution") or "")))
+        if reference:
+            question["reference_solution"] = reference
+
+        tests = question.get("test_cases")
+        tests = [t for t in (tests if isinstance(tests, list) else [])
+                 if isinstance(t, dict) and str(t.get("expected_output", "") or "")][:5]
+
+        if language in (None, "html"):
+            question.pop("test_cases", None)
+            continue
+
+        if reference and tests:
+            kept = verify_test_cases(language, reference, tests)
+            if len(kept) >= 1:
+                question["test_cases"] = kept
+                actual = actual_output_for(language, reference)
+                if actual is not None:
+                    question["expected_output"] = actual
+                print(f"[QUIZ-HARDEN] kept {len(kept)}/{len(tests)} verified test cases")
+                continue
+            print(f"[QUIZ-HARDEN] no tests verified — dropping test cases, "
+                  f"question falls back to expected-output grading")
+
+        question.pop("test_cases", None)
 
 
 def extract_lesson_summary(formatted_lesson: dict, lesson_title: str, module_title: str) -> dict:
@@ -132,7 +200,7 @@ def parse_distribution(preset_or_custom: str) -> dict:
 
 
 async def generate_content_stream(
-    groq_pool,
+    ai_pool,
     curriculum_structure: list,
     curriculum_context: str,
     difficulty: str,
@@ -196,7 +264,7 @@ async def generate_content_stream(
                     yield f"data: {json.dumps({'type': 'status', 'message': f'📋 Planning outline: {lesson_title}'})}\n\n"
 
                     outline = await generate_lesson_outline(
-                        groq_pool=groq_pool,
+                        ai_pool=ai_pool,
                         curriculum_context=curriculum_context,
                         module_title=module_title,
                         lesson_title=lesson_title,
@@ -219,7 +287,7 @@ async def generate_content_stream(
 
                         from services.stage2_content_service import generate_section_content
                         content = await generate_section_content(
-                            groq_pool=groq_pool,
+                            ai_pool=ai_pool,
                             curriculum_context=curriculum_context,
                             module_title=module_title,
                             lesson_title=lesson_title,
@@ -394,28 +462,28 @@ async def generate_content_stream(
                     log_api_request(
                         endpoint=f"generate-quiz-{quiz_id}",
                         messages=messages,
-                        model="llama-3.3-70b-versatile"
+                        model=GEN_CONTENT_MODEL
                     )
 
                     response = None
                     attempt_count = 0
-                    max_attempts = len(groq_pool.clients)
+                    max_attempts = len(ai_pool.clients)
 
                     while attempt_count < max_attempts and not response:
                         try:
-                            client, key_num = groq_pool.get_available_client()
+                            client, key_num = ai_pool.get_available_client()
                             print(f"[QUIZ-{quiz_id}] Using API key {key_num}")
                             response = client.chat.completions.create(
                                 messages=messages,
-                                model="llama-3.3-70b-versatile",
-                                response_format={"type": "json_object"},
+                                model=GEN_CONTENT_MODEL,
+                                response_format=QUIZ_FORMAT,
                                 temperature=0.7
                             )
-                            groq_pool.mark_success(key_num)
+                            ai_pool.mark_success(key_num)
                         except Exception as e:
                             error_str = str(e).lower()
-                            if "rate_limit" in error_str:
-                                groq_pool.mark_rate_limited(key_num, backoff_seconds=60)
+                            if is_rate_limit_error(e):
+                                ai_pool.mark_rate_limited(key_num, backoff_seconds=60)
                                 attempt_count += 1
                                 if attempt_count < max_attempts:
                                     print(f"[QUIZ-{quiz_id}] Key {key_num} rate-limited, trying another...")
@@ -445,7 +513,11 @@ async def generate_content_stream(
                         streaming=False
                     )
 
-                    quiz_data = json.loads(raw_response)
+                    quiz_data = json.loads(raw_response, strict=False)
+
+                    # Execute generated reference solutions against their test
+                    # cases on the real engine before publishing anything.
+                    harden_coding_questions(quiz_data)
 
                     # Pass full quiz data (includes grouped questions + timer settings)
                     quiz_content = {

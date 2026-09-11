@@ -1,5 +1,5 @@
 """
-Metrics logging for Groq API requests - tracks tokens, requests, and performance
+Metrics logging for AI API requests - tracks tokens, requests, and performance
 """
 import json
 from datetime import datetime

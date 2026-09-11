@@ -12,13 +12,14 @@ load_dotenv()
 from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from groq import Groq
 from pydantic import BaseModel
 
 # Import modular components
 from schemas import CurriculumResponse
 from utils.file_handler import extract_text
-from utils.groq_client_pool import GroqClientPool
+from utils.ai_client_pool import AIClientPool, is_rate_limit_error
+from config.gen_schemas import DETECTION_FORMAT, VERIFY_FORMAT, BATCH_CHECK_FORMAT
+from config.models import GEN_CONTENT_MODEL
 from utils.logger import print_metrics_summary
 from services.curriculum_service import generate_curriculum_stream, generate_curriculum_legacy
 from services.content_service import generate_content_stream
@@ -47,8 +48,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Groq client pool (4 keys with round-robin + backoff)
-groq_pool = GroqClientPool()
+# Initialize AI client pool (Gemini via OpenAI-compatible endpoint, round-robin + backoff)
+ai_pool = AIClientPool()
 
 
 # ===== HEALTH CHECK ENDPOINT =====
@@ -82,10 +83,10 @@ async def detect_programming_content_endpoint(data: DetectionRequest):
         if not curriculum_text:
             return {"is_coding": False}
 
-        client, key_num = groq_pool.get_available_client()
+        client, key_num = ai_pool.get_available_client()
 
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=GEN_CONTENT_MODEL,
             messages=[
                 {
                     "role": "system",
@@ -100,7 +101,7 @@ async def detect_programming_content_endpoint(data: DetectionRequest):
             max_tokens=10
         )
 
-        groq_pool.mark_success(key_num)
+        ai_pool.mark_success(key_num)
         answer = response.choices[0].message.content.strip().lower()
         is_coding = answer == "true"
 
@@ -138,7 +139,7 @@ async def curriculum_stream_endpoint(
 
     return StreamingResponse(
         generate_curriculum_stream(
-            groq_pool=groq_pool,
+            ai_pool=ai_pool,
             context_text=context_text,
             prompt=prompt,
             difficulty=difficulty,
@@ -167,7 +168,7 @@ async def curriculum_legacy_endpoint(
         context_text = f"Context from uploaded file: {extract_text(file)[:4000]}"
 
     result = await generate_curriculum_legacy(
-        groq_pool=groq_pool,
+        ai_pool=ai_pool,
         context_text=context_text,
         prompt=prompt
     )
@@ -198,7 +199,7 @@ async def content_stream_endpoint(
 
     return StreamingResponse(
         generate_content_stream(
-            groq_pool=groq_pool,
+            ai_pool=ai_pool,
             curriculum_structure=structure,
             curriculum_context=curriculum_context,
             difficulty=difficulty,
@@ -228,7 +229,7 @@ async def test_outline_endpoint(
     curriculum_context = curriculum_text[:8000] if curriculum_text else ""
 
     outline = await generate_lesson_outline(
-        groq_pool=groq_pool,
+        ai_pool=ai_pool,
         curriculum_context=curriculum_context,
         module_title=module_title,
         lesson_title=lesson_title,
@@ -256,7 +257,7 @@ async def test_full_lesson_endpoint(
     try:
         # Stage 1: Generate outline
         outline = await generate_lesson_outline(
-            groq_pool=groq_pool,
+            ai_pool=ai_pool,
             curriculum_context=curriculum_context,
             module_title=module_title,
             lesson_title=lesson_title,
@@ -265,7 +266,7 @@ async def test_full_lesson_endpoint(
 
         # Stage 2: Generate content for each section
         section_contents = await generate_all_section_contents(
-            groq_pool=groq_pool,
+            ai_pool=ai_pool,
             curriculum_context=curriculum_context,
             module_title=module_title,
             lesson_title=lesson_title,
@@ -316,7 +317,7 @@ async def verify_code_challenge_endpoint(request: dict):
         return {"passed": False, "reason": "Missing challenge details"}
 
     try:
-        client, key_num = groq_pool.get_available_client()
+        client, key_num = ai_pool.get_available_client()
 
         prompt = f"""You are grading a Java coding challenge where output already matches expected.
 Challenge: {question_text}
@@ -335,15 +336,14 @@ Respond with ONLY a JSON object:
         print(f"[AI] Verification prompt sent")
 
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model=GEN_CONTENT_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_object"},
+            response_format=VERIFY_FORMAT,
             temperature=0.2,
-            max_tokens=200
         )
 
-        groq_pool.mark_success(key_num)
-        result = json.loads(response.choices[0].message.content)
+        ai_pool.mark_success(key_num)
+        result = json.loads(response.choices[0].message.content, strict=False)
         print(f"[AI] Verification result: {result}")
         return result
 
@@ -365,7 +365,7 @@ async def check_answers_batch(request: dict):
         return {"results": []}
 
     try:
-        client, key_num = groq_pool.get_available_client()
+        client, key_num = ai_pool.get_available_client()
 
         # Build prompt with all questions
         questions_text = ""
@@ -440,15 +440,14 @@ Respond with ONLY a JSON array: {{"results": [{{"question_num": 1, "is_correct":
         print(f"[AI] Prompt:\n{prompt}")
 
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model=GEN_CONTENT_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_object"},
+            response_format=BATCH_CHECK_FORMAT,
             temperature=0.2,
-            max_tokens=500
         )
 
-        groq_pool.mark_success(key_num)
-        result = json.loads(response.choices[0].message.content)
+        ai_pool.mark_success(key_num)
+        result = json.loads(response.choices[0].message.content, strict=False)
         print(f"[AI] Batch check result: {result}")
         return result
 
