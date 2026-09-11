@@ -9,6 +9,7 @@ use App\Models\Module;
 use App\Models\Lesson;
 use App\Models\Quiz;
 use App\Models\Question;
+use App\Models\QuestionTestCase;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Support\Facades\Http;
@@ -722,16 +723,41 @@ class CourseController extends Controller
                                                 $options = [];
                                             }
 
-                                            Question::create([
+                                            // Coding questions carry their language (the column is NOT NULL
+                                            // with a java default, so fall back to it when the AI omitted
+                                            // it) and the reference solution used to verify the generated
+                                            // test cases.
+                                            $question = Question::create([
                                                 'quiz_id' => $quiz->id,
                                                 'question_text' => $questionText,
                                                 'type' => $questionType,
                                                 'options' => $options,
                                                 'expected_output' => $expectedOutput,
                                                 'boilerplate' => $questionData['boilerplate'] ?? null,
+                                                'language' => $questionType === 'coding' ? ($questionData['language'] ?? 'java') : 'java',
+                                                'reference_code' => $questionType === 'coding' ? ($questionData['reference_solution'] ?? null) : null,
                                                 'points' => $questionData['points'] ?? 1,
                                                 'order_index' => $orderIndex++,
                                             ]);
+
+                                            // Persist the AI-generated test cases (already verified
+                                            // against the reference solution by the AI service) so
+                                            // the question grades through the test-case engine.
+                                            if ($questionType === 'coding' && isset($questionData['test_cases']) && is_array($questionData['test_cases'])) {
+                                                foreach (array_slice($questionData['test_cases'], 0, 20) as $caseIndex => $case) {
+                                                    if (! is_array($case) || ! isset($case['expected_output']) || trim((string) $case['expected_output']) === '') {
+                                                        continue;
+                                                    }
+                                                    QuestionTestCase::create([
+                                                        'testable_type' => Question::class,
+                                                        'testable_id' => $question->id,
+                                                        'input' => (string) ($case['input'] ?? ''),
+                                                        'expected_output' => (string) $case['expected_output'],
+                                                        'hidden' => (bool) ($case['hidden'] ?? false),
+                                                        'order_index' => $caseIndex,
+                                                    ]);
+                                                }
+                                            }
 
                                             $totalPoints += $questionData['points'] ?? 1;
                                         }

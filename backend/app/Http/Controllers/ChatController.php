@@ -15,9 +15,9 @@ class ChatController extends Controller
             return response()->json(['error' => 'Message is required'], 400);
         }
 
-        $apiKey = env('GROQ_API_KEY_CHAT');
+        $apiKey = env('GEMINI_API_KEY');
         if (!$apiKey) {
-            return response()->json(['error' => 'Groq API key not configured. Add GROQ_API_KEY_CHAT to .env'], 500);
+            return response()->json(['error' => 'Gemini API key not configured. Add GEMINI_API_KEY to .env'], 500);
         }
 
         $systemPrompt = $this->getEunaSystemPrompt();
@@ -40,8 +40,8 @@ class ChatController extends Controller
 
             $response = \Http::timeout(30)
                 ->withHeaders(['Authorization' => "Bearer {$apiKey}"])
-                ->post('https://api.groq.com/openai/v1/chat/completions', [
-                    'model' => 'llama-3.1-8b-instant',
+                ->post('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', [
+                    'model' => 'gemini-3.5-flash-lite',
                     'messages' => $messages,
                     'max_tokens' => 256,
                     'temperature' => 0.9,
