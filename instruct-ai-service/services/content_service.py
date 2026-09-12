@@ -3,6 +3,7 @@ Service for lesson and quiz content generation using Groq API
 Multi-stage pipeline for high-quality lesson generation
 """
 import json
+import asyncio
 from config.gen_schemas import QUIZ_FORMAT
 from config.models import GEN_CONTENT_MODEL
 from utils.ai_client_pool import is_rate_limit_error
@@ -78,6 +79,37 @@ def harden_coding_questions(quiz_data: dict) -> None:
                   f"question falls back to expected-output grading")
 
         question.pop("test_cases", None)
+
+
+HEARTBEAT_INTERVAL_S = 12
+
+
+async def run_with_heartbeat(fn, *args, **kwargs):
+    """
+    Run blocking pipeline work in a worker thread while the async generator
+    yields SSE comment heartbeats. Long silent phases (quiz LLM calls, engine
+    verification of generated tests) otherwise exceed proxy idle timeouts
+    (nginx fastcgi_read_timeout) and kill the stream mid-generation with
+    ERR_INCOMPLETE_CHUNKED_ENCODING in the browser.
+
+    Yields {'heartbeat': True} while waiting, then {'result': <return value>}.
+    """
+    def _call():
+        result = fn(*args, **kwargs)
+        if asyncio.iscoroutine(result):
+            # async pipeline steps (outline/section services) get their own
+            # event loop in the worker thread
+            return asyncio.run(result)
+        return result
+
+    task = asyncio.create_task(asyncio.to_thread(_call))
+    while True:
+        done, _ = await asyncio.wait({task}, timeout=HEARTBEAT_INTERVAL_S)
+        if done:
+            return_data = task.result()
+            yield {'result': return_data}
+            return
+        yield {'heartbeat': True}
 
 
 def extract_lesson_summary(formatted_lesson: dict, lesson_title: str, module_title: str) -> dict:
@@ -263,15 +295,20 @@ async def generate_content_stream(
                     # STAGE 1: Generate outline
                     yield f"data: {json.dumps({'type': 'status', 'message': f'📋 Planning outline: {lesson_title}'})}\n\n"
 
-                    outline = await generate_lesson_outline(
+                    async for msg in run_with_heartbeat(
+                        generate_lesson_outline,
                         ai_pool=ai_pool,
                         curriculum_context=curriculum_context,
                         module_title=module_title,
                         lesson_title=lesson_title,
                         difficulty=difficulty,
-                        previous_lessons=module_lesson_summaries,  # Pass earlier lessons for context awareness
-                        is_coding=is_coding  # Pass the coding flag
-                    )
+                        previous_lessons=module_lesson_summaries,
+                        is_coding=is_coding
+                    ):
+                        if 'result' in msg:
+                            outline = msg['result']
+                        else:
+                            yield ': heartbeat' + chr(10) + chr(10)
 
                     sections = outline.get('sections', [])
                     yield f"data: {json.dumps({'type': 'status', 'message': f'✍️ Writing {len(sections)} sections: {lesson_title}'})}\n\n"
@@ -286,7 +323,8 @@ async def generate_content_stream(
                         time.sleep(0.1)  # Small delay to separate section start messages
 
                         from services.stage2_content_service import generate_section_content
-                        content = await generate_section_content(
+                        async for msg in run_with_heartbeat(
+                            generate_section_content,
                             ai_pool=ai_pool,
                             curriculum_context=curriculum_context,
                             module_title=module_title,
@@ -298,7 +336,11 @@ async def generate_content_stream(
                             previous_sections=previous_sections,  # Pass sections within this lesson
                             previous_lessons=module_lesson_summaries,  # Pass earlier lessons for cross-lesson context
                             is_coding=is_coding  # Override section's needs_code if is_coding is False
-                        )
+                        ):
+                            if 'result' in msg:
+                                content = msg['result']
+                            else:
+                                yield ': heartbeat' + chr(10) + chr(10)
 
                         # Check if rate limit was hit
                         if content.get('rate_limit_error'):
@@ -370,14 +412,19 @@ async def generate_content_stream(
                     time.sleep(0.2)  # Delay before Stage 3 to let UI catch up
 
                     # STAGE 3: Format to lesson blocks with real media
-                    formatted_lesson = format_all_sections_to_lesson(
+                    async for msg in run_with_heartbeat(
+                        format_all_sections_to_lesson,
                         section_contents=section_contents,
                         lesson_title=lesson_title,
                         module_title=module_title,
                         include_images=(include_images.lower() == "true"),
                         include_videos=(include_videos.lower() == "true"),
                         previous_lesson_videos=module_lesson_summaries  # Pass previous lesson summaries for video deduplication
-                    )
+                    ):
+                        if 'result' in msg:
+                            formatted_lesson = msg['result']
+                        else:
+                            yield ': heartbeat' + chr(10) + chr(10)
 
                     lesson_content = {
                         "lesson_id": lesson_id,
@@ -473,12 +520,21 @@ async def generate_content_stream(
                         try:
                             client, key_num = ai_pool.get_available_client()
                             print(f"[QUIZ-{quiz_id}] Using API key {key_num}")
-                            response = client.chat.completions.create(
-                                messages=messages,
-                                model=GEN_CONTENT_MODEL,
-                                response_format=QUIZ_FORMAT,
-                                temperature=0.7
-                            )
+                            # Thread + heartbeat: the quiz LLM call can stay silent
+                            # for a minute+, which no proxy in the chain tolerates.
+                            call_task = asyncio.create_task(asyncio.to_thread(
+                                lambda: client.chat.completions.create(
+                                    messages=messages,
+                                    model=GEN_CONTENT_MODEL,
+                                    response_format=QUIZ_FORMAT,
+                                    temperature=0.7
+                                )
+                            ))
+                            while not call_task.done():
+                                await asyncio.sleep(HEARTBEAT_INTERVAL_S)
+                                if not call_task.done():
+                                    yield ': heartbeat' + chr(10) + chr(10)
+                            response = call_task.result()
                             ai_pool.mark_success(key_num)
                         except Exception as e:
                             error_str = str(e).lower()
@@ -517,7 +573,9 @@ async def generate_content_stream(
 
                     # Execute generated reference solutions against their test
                     # cases on the real engine before publishing anything.
-                    harden_coding_questions(quiz_data)
+                    async for msg in run_with_heartbeat(harden_coding_questions, quiz_data):
+                        if 'result' not in msg:
+                            yield ': heartbeat' + chr(10) + chr(10)
 
                     # Pass full quiz data (includes grouped questions + timer settings)
                     quiz_content = {

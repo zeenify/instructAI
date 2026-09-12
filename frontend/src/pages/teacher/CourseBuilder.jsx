@@ -435,13 +435,15 @@ export default function CourseBuilder() {
                             if (data.type === 'status') {
                                 setAiLogs(prev => [...prev, `📡 ${data.message}`]);
                             } else if (data.type === 'module') {
-                                // New module received - add with animation delay
                                 const moduleData = data.data;
                                 setAiLogs(prev => [...prev, `✨ Generated: ${moduleData.title}`]);
 
-                                // Rate-limit: wait before showing
-                                await new Promise(resolve => setTimeout(resolve, 800));
-
+                                // NOTE: never await/sleep inside this read loop. In a
+                                // background tab Chrome throttles setTimeout to ~1/min,
+                                // the reader stops draining the SSE socket, and the
+                                // Laravel proxy deadlocks mid-stream (observed twice).
+                                // Keep only instant state updates here; pacing is the
+                                // backend's job.
                                 accumulatedModules.push(moduleData);
                                 setAiResult({
                                     new_modules: accumulatedModules.map(m => ({
@@ -453,10 +455,8 @@ export default function CourseBuilder() {
                                     }))
                                 });
 
-                                // Type out lessons/quizzes with delays
                                 const items = [...(moduleData.lessons || []), ...(moduleData.quizzes || [])];
                                 for (const item of items) {
-                                    await new Promise(resolve => setTimeout(resolve, 300));
                                     setAiLogs(prev => [...prev, `  📘 ${item.title}`]);
                                 }
                             } else if (data.type === 'complete') {
