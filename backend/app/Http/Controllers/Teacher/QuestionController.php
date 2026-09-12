@@ -71,6 +71,7 @@ class QuestionController extends Controller
             'order_index' => 'sometimes|integer|min:0',
             'partial_credit' => 'sometimes|boolean',
             'html_checks' => 'nullable|array|max:50',
+            'reference_code' => 'nullable|string|max:50000',
         ]);
 
         try {
@@ -78,7 +79,7 @@ class QuestionController extends Controller
 
             $question->update($request->only([
                 'type', 'question_text', 'options', 'expected_output', 'boilerplate', 'language', 'points', 'order_index',
-                'partial_credit', 'html_checks',
+                'partial_credit', 'html_checks', 'reference_code',
             ]));
 
             return response()->json($question);

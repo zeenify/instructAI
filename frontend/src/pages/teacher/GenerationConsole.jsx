@@ -1,11 +1,76 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, BookOpen, FileQuestion, Pencil } from 'lucide-react';
+import { CheckCircle, BookOpen, FileQuestion, Pencil, Check } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
+import api from '../../services/api';
 import TerminalLog from '../../components/generation/TerminalLog';
 import ProgressBar from '../../components/generation/ProgressBar';
 import ModuleProgressCard from '../../components/generation/ModuleProgressCard';
 import EditableLessonContent from '../../components/generation/EditableLessonContent';
 import EditableQuizContent from '../../components/generation/EditableQuizContent';
+
+/**
+ * Click-to-edit title for the selected lesson/quiz. Persists through the same
+ * endpoints the editors use (PUT /teacher/lessons/{id} or /teacher/quizzes/{id}).
+ */
+function EditableTitle({ item, onRename }) {
+  const editable = !!item.generated && typeof item.id === 'number';
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(item.title);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { setValue(item.title); }, [item.title, item.id]);
+
+  const commit = async () => {
+    setEditing(false);
+    const next = value.trim();
+    if (!editable || !next || next === item.title) return;
+    setSaving(true);
+    const endpoint = item.type === 'quiz' ? `/teacher/quizzes/${item.id}` : `/teacher/lessons/${item.id}`;
+    try {
+      await api.put(endpoint, { title: next });
+      onRename(item.id, next);
+    } catch {
+      setValue(item.title);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editable) {
+    return <h2 style={{ marginBottom: '12px' }} className="text-3xl font-bold text-white">{item.title}</h2>;
+  }
+
+  if (editing) {
+    return (
+      <div style={{ marginBottom: '12px', gap: '8px' }} className="flex items-center">
+        <input
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setValue(item.title); setEditing(false); } e.stopPropagation(); }}
+          className="text-2xl font-bold text-white bg-slate-900 border border-cyan-500/50 rounded-lg px-3 py-1 outline-none flex-1"
+        />
+        <button onClick={commit} style={{ padding: '6px 10px' }} className="rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 cursor-pointer">
+          {saving ? '…' : <Check size={14} />}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginBottom: '12px', gap: '8px' }} className="group/title flex items-center">
+      <h2 className="text-3xl font-bold text-white">{item.title}</h2>
+      <button
+        onClick={() => setEditing(true)}
+        style={{ padding: '5px 9px', gap: '5px' }}
+        className="inline-flex items-center rounded-md text-[11px] font-semibold opacity-0 group-hover/title:opacity-100 bg-slate-900 border border-slate-700 text-slate-400 hover:text-cyan-300 transition-all cursor-pointer"
+      >
+        <Pencil size={11} /> Rename
+      </button>
+    </div>
+  );
+}
 
 export default function GenerationConsole({
   isOpen,
@@ -160,6 +225,18 @@ export default function GenerationConsole({
     }));
   };
 
+  // Rename a lesson or quiz from the console (updates tabs + editors live).
+  const handleRename = (itemId, nextTitle) => {
+    onContentChange?.(prev => ({
+      ...prev,
+      modules: prev.modules.map(m => ({
+        ...m,
+        lessons: m.lessons.map(l => (l.id === itemId ? { ...l, title: nextTitle } : l)),
+        quizzes: m.quizzes.map(q => (q.id === itemId ? { ...q, title: nextTitle } : q))
+      }))
+    }));
+  };
+
   // Update one question inside a generated quiz.
   const handleQuizQuestionsChange = (quizId, nextQuestions) => {
     onContentChange?.(prev => ({
@@ -309,9 +386,7 @@ export default function GenerationConsole({
                           {selectedLesson.moduleTitle}
                           {selectedLesson.type === 'quiz' && <span className="text-cyan-400 text-xs">QUIZ</span>}
                         </h3>
-                        <h2 style={{ marginBottom: '24px' }} className="text-3xl font-bold text-white">
-                          {selectedLesson.title}
-                        </h2>
+                        <EditableTitle item={selectedLesson} onRename={handleRename} />
                         {!selectedLesson.generated && (
                           <p style={{ marginBottom: '12px' }} className="text-xs text-slate-500 flex items-center" >
                             <Pencil size={11} style={{ marginRight: '6px' }} />
