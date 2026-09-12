@@ -724,6 +724,27 @@ export default function CourseBuilder() {
                                         )
                                     }))
                                 }));
+
+                                // The stream payload has no DB ids — pull the persisted
+                                // questions (with ids) so the console's inline editor can
+                                // autosave through PUT /teacher/questions/{id}.
+                                api.get(`/teacher/quizzes/${quizData.quiz_id}`, { bypassCache: true })
+                                    .then(res => {
+                                        const persisted = res.data?.questions || [];
+                                        if (!persisted.length) return;
+                                        setGeneratedContent(prev => ({
+                                            ...prev,
+                                            modules: prev.modules.map(m => ({
+                                                ...m,
+                                                quizzes: m.quizzes.map(q =>
+                                                    q.id === quizData.quiz_id
+                                                        ? { ...q, questions: persisted, generated: true }
+                                                        : q
+                                                )
+                                            }))
+                                        }));
+                                    })
+                                    .catch(() => {});
                             } else if (data.type === 'complete') {
                                 addLog('complete', '✓ All content generated successfully', logDelayOffset + 100);
                                 setTimeout(() => {
@@ -1449,6 +1470,7 @@ const allPublished = [...(activeModuleData?.lessons || []), ...(activeModuleData
                 generatedContent={generatedContent}
                 isGenerating={isGeneratingContent}
                 logs={generationLogs}
+                onContentChange={setGeneratedContent}
             />
 
             {/* Curriculum Management Modal */}

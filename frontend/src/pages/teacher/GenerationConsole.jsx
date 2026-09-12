@@ -1,16 +1,19 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, BookOpen, FileQuestion } from 'lucide-react';
+import { CheckCircle, BookOpen, FileQuestion, Pencil } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import TerminalLog from '../../components/generation/TerminalLog';
 import ProgressBar from '../../components/generation/ProgressBar';
 import ModuleProgressCard from '../../components/generation/ModuleProgressCard';
+import EditableLessonContent from '../../components/generation/EditableLessonContent';
+import EditableQuizContent from '../../components/generation/EditableQuizContent';
 
 export default function GenerationConsole({
   isOpen,
   generatedContent,
   isGenerating,
   logs = [],
-  onClose
+  onClose,
+  onContentChange
 }) {
   const [overallProgress, setOverallProgress] = useState(0);
   const [completedLessons, setCompletedLessons] = useState(0);
@@ -37,7 +40,8 @@ export default function GenerationConsole({
             title: lesson.title,
             blocks: lesson.blocks || [],
             moduleTitle: module.title,
-            type: 'lesson'
+            type: 'lesson',
+            generated: !!lesson.generated
           });
         }
         if (lesson.generated) {
@@ -54,7 +58,8 @@ export default function GenerationConsole({
             title: quiz.title,
             questions: quiz.questions || [],
             moduleTitle: module.title,
-            type: 'quiz'
+            type: 'quiz',
+            generated: !!quiz.generated
           });
         }
         if (quiz.generated) {
@@ -93,17 +98,17 @@ export default function GenerationConsole({
     const blockCount = lesson.blocks?.length || 0;
     const currentCount = displayedBlocks[selectedLessonId] || 0;
 
-    // If generation is done, show all blocks immediately
-    if (!isGenerating && currentCount < blockCount) {
-      setDisplayedBlocks(prev => ({
-        ...prev,
-        [selectedLessonId]: blockCount
-      }));
+    // Persisted lessons (and finished runs) render fully — the teacher may be
+    // editing them, so never drip-feed blocks they're looking at.
+    if (lesson.generated || !isGenerating) {
+      if (currentCount < blockCount) {
+        setDisplayedBlocks(prev => ({ ...prev, [selectedLessonId]: blockCount }));
+      }
       return;
     }
 
     // While generating, stagger the reveal
-    if (isGenerating && currentCount < blockCount) {
+    if (currentCount < blockCount) {
       const timer = setTimeout(() => {
         setDisplayedBlocks(prev => ({
           ...prev,
@@ -128,8 +133,13 @@ export default function GenerationConsole({
   const selectedLesson = completedLessonsList.find(l => l.id === selectedLessonId);
   const visibleBlockCount = displayedBlocks[selectedLessonId] || 0;
 
-  // Auto-scroll lesson content to bottom when new blocks appear
+  // Auto-scroll lesson content to bottom when new blocks appear — but only
+  // for lessons still streaming. A completed lesson may be open for inline
+  // editing and must never be yanked around.
+  const selectedLessonForScroll = completedLessonsList.find(l => l.id === selectedLessonId);
   useEffect(() => {
+    if (!isGenerating) return;
+    if (selectedLessonForScroll?.generated) return;
     if (lessonContentRef.current) {
       requestAnimationFrame(() => {
         if (lessonContentRef.current) {
@@ -137,7 +147,29 @@ export default function GenerationConsole({
         }
       });
     }
-  }, [visibleBlockCount]);
+  }, [visibleBlockCount, isGenerating, selectedLessonForScroll?.generated]);
+
+  // Update one lesson's blocks (from the inline editor) inside generatedContent.
+  const handleLessonBlocksChange = (lessonId, nextBlocks) => {
+    onContentChange?.(prev => ({
+      ...prev,
+      modules: prev.modules.map(m => ({
+        ...m,
+        lessons: m.lessons.map(l => (l.id === lessonId ? { ...l, blocks: nextBlocks } : l))
+      }))
+    }));
+  };
+
+  // Update one question inside a generated quiz.
+  const handleQuizQuestionsChange = (quizId, nextQuestions) => {
+    onContentChange?.(prev => ({
+      ...prev,
+      modules: prev.modules.map(m => ({
+        ...m,
+        quizzes: m.quizzes.map(q => (q.id === quizId ? { ...q, questions: nextQuestions } : q))
+      }))
+    }));
+  };
 
   const handleFinish = () => {
     if (isGenerating) {
@@ -280,148 +312,28 @@ export default function GenerationConsole({
                         <h2 style={{ marginBottom: '24px' }} className="text-3xl font-bold text-white">
                           {selectedLesson.title}
                         </h2>
+                        {!selectedLesson.generated && (
+                          <p style={{ marginBottom: '12px' }} className="text-xs text-slate-500 flex items-center" >
+                            <Pencil size={11} style={{ marginRight: '6px' }} />
+                            Inline editing unlocks for this {selectedLesson.type === 'quiz' ? 'quiz' : 'lesson'} as soon as its generation completes.
+                          </p>
+                        )}
                       </div>
 
-                      {/* Lesson Content */}
+                      {/* Lesson Content (inline-editable once the lesson is persisted) */}
                       {selectedLesson.type === 'lesson' && (
-                      <div style={{ gap: '24px' }} className="space-y-6 text-slate-300 text-base leading-relaxed">
-                        {selectedLesson.blocks?.map((block, idx) => {
-                          // Only show blocks up to the revealed count
-                          if (idx >= visibleBlockCount) return null;
-
-                          return (
-                            <motion.div
-                              key={idx}
-                              initial={{ opacity: 0, y: 15 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.3 }}
-                            >
-                              {block.type === 'text' && (
-                                <div
-                                  className="prose prose-invert prose-base max-w-none text-slate-300"
-                                  dangerouslySetInnerHTML={{
-                                    __html: block.data?.text || ''
-                                  }}
-                                />
-                              )}
-                              {block.type === 'code' && (
-                                <div className="rounded-lg overflow-hidden">
-                                  <div style={{ padding: '16px 20px' }} className="bg-slate-900 border border-slate-800 rounded-lg">
-                                    <pre className="overflow-x-auto text-sm font-mono">
-                                      <code className="text-cyan-300">
-                                        {block.data?.code || ''}
-                                      </code>
-                                    </pre>
-                                  </div>
-                                </div>
-                              )}
-                              {block.type === 'image' && block.data?.src && (
-                                <div className="rounded-lg overflow-hidden border border-slate-800">
-                                  <img
-                                    src={block.data.src}
-                                    alt={block.data?.alt || 'lesson content'}
-                                    className="w-full h-auto max-h-96 object-cover"
-                                  />
-                                </div>
-                              )}
-                              {block.type === 'video' && block.data?.src && (
-                                <div className="rounded-lg overflow-hidden border border-slate-800 bg-slate-900">
-                                  <video
-                                    controls
-                                    className="w-full h-auto max-h-96"
-                                    src={block.data.src}
-                                  />
-                                </div>
-                              )}
-                              {block.type === 'embed' && block.data?.url && (
-                                <div className="rounded-lg overflow-hidden border border-slate-800">
-                                  <iframe
-                                    src={block.data.url}
-                                    className="w-full h-96 border-0"
-                                    allowFullScreen
-                                  />
-                                </div>
-                              )}
-                            </motion.div>
-                          );
-                        })}
-
-                      </div>
+                        <EditableLessonContent
+                          lesson={selectedLesson}
+                          onBlocksChange={handleLessonBlocksChange}
+                        />
                       )}
 
-                      {/* Quiz Content */}
+                      {/* Quiz Content (inline-editable once real question ids sync) */}
                       {selectedLesson.type === 'quiz' && (
-                      <div style={{ gap: '24px' }} className="space-y-6">
-                        {selectedLesson.questions?.map((question, idx) => (
-                          <motion.div
-                            key={idx}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, delay: idx * 0.1 }}
-                            style={{ padding: '20px 24px' }}
-                            className="bg-slate-900/50 border border-slate-800 rounded-xl"
-                          >
-                            {/* Question Number and Text */}
-                            <div style={{ marginBottom: '16px' }}>
-                              <span className="text-cyan-400 text-sm font-semibold">Question {idx + 1}</span>
-                              <p style={{ marginTop: '8px' }} className="text-white font-semibold text-lg">
-                                {question.question_text || question.question}
-                              </p>
-                            </div>
-
-                            {/* Options */}
-                            {question.options && question.options.length > 0 && (
-                              <div style={{ gap: '8px', marginBottom: '16px' }} className="space-y-2">
-                                {question.options.map((option, optIdx) => {
-                                  const expectedOutput = question.expected_output ?? question.answer;
-                                  const isCorrect = String(optIdx) === String(expectedOutput) || option === expectedOutput;
-                                  return (
-                                    <div
-                                      key={optIdx}
-                                      style={{ padding: '14px 16px', marginBottom: '8px' }}
-                                      className={`rounded-lg border ${
-                                        isCorrect
-                                          ? 'bg-green-900/30 border-green-500/50 text-green-300'
-                                          : 'bg-slate-800/50 border-slate-700 text-slate-300'
-                                      }`}
-                                    >
-                                      <div style={{ gap: '12px' }} className="flex items-start">
-                                        <span className={`font-bold mt-0.5 ${isCorrect ? 'text-green-400' : 'text-slate-400'}`}>
-                                          {String.fromCharCode(65 + optIdx)}.
-                                        </span>
-                                        <div className="flex-1">
-                                          <p>{option}</p>
-                                          {isCorrect && (
-                                            <span style={{ marginTop: '4px' }} className="text-xs text-green-400 font-semibold block">✓ Correct Answer</span>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-
-                            {/* Short Answer / Identification */}
-                            {(!question.options || question.options.length === 0) && (
-                              <div style={{ padding: '16px 20px', marginBottom: '16px' }} className="bg-slate-800/50 border border-slate-700 rounded-lg">
-                                <p style={{ marginBottom: '8px' }} className="text-sm text-slate-400">Expected Answer:</p>
-                                <p className="text-green-400 font-semibold">
-                                  {question.expected_output || question.answer || 'N/A'}
-                                </p>
-                              </div>
-                            )}
-
-                            {/* Points and Type */}
-                            <div style={{ gap: '12px', paddingTop: '12px', marginTop: '12px' }} className="flex items-center text-xs text-slate-400 border-t border-slate-800">
-                              <span style={{ padding: '6px 12px' }} className="bg-slate-800 rounded">
-                                {question.type || 'multiple_choice'}
-                              </span>
-                              <span>{question.points || 1} pts</span>
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
+                        <EditableQuizContent
+                          questions={selectedLesson.questions || []}
+                          onQuestionsChange={(next) => handleQuizQuestionsChange(selectedLesson.id, next)}
+                        />
                       )}
                     </div>
                   ) : (
