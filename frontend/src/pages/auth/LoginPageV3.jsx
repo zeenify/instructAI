@@ -57,6 +57,7 @@ export default function LoginPageV3() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [showLrnInput, setShowLrnInput] = useState(false);
   const [selectedRole, setSelectedRole] = useState(null);
@@ -150,30 +151,42 @@ export default function LoginPageV3() {
           <p className="auth-card-kicker">InstructAI — Penaranda Senior High School</p>
           <h1 className="auth-card-title">Welcome back</h1>
 
-          <form onSubmit={handleLogin} className="auth-form">
+          <form onSubmit={handleLogin} className="auth-form" autoComplete="off">
             <label className="auth-field">
               <span className="auth-field-label">Email</span>
               <input
                 type="email"
-                placeholder="you@penaranda.edu.ph"
+                placeholder="juan.delacruz@gmail.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={loading}
-                autoComplete="email"
+                autoComplete="off"
               />
             </label>
             <label className="auth-field">
               <span className="auth-field-label">Password</span>
               <input
-                type="password"
-                placeholder="••••••••"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
-                autoComplete="current-password"
+                autoComplete="new-password"
               />
+            </label>
+
+            <label className="auth-show-pw">
+              <input
+                type="checkbox"
+                checked={showPassword}
+                onChange={(e) => setShowPassword(e.target.checked)}
+              />
+              <span className="auth-show-box" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 13 l5 5 L20 6" stroke="currentColor" strokeWidth="3.6" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </span>
+              <span className="auth-show-label">show password</span>
             </label>
 
             <button type="submit" className="auth-submit" disabled={loading}>
