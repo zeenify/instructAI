@@ -1,0 +1,50 @@
+/* Teacher register — page-specific extras on top of the shared auth styles
+   (LoginPageV3.css holds the .auth-* system; this file adds register-only bits) */
+
+/* two-column name row */
+.auth-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 480px) {
+  .auth-form-row { grid-template-columns: 1fr; }
+}
+
+/* optional tag inside a field label */
+.auth-optional {
+  font-weight: 400;
+  color: var(--pik-verm);
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+}
+
+/* whitelist pre-approval note */
+.auth-whitelist-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  line-height: 1.6;
+  color: var(--pik-ink-soft);
+  background: var(--pik-yellow);
+  border: 1.5px dashed var(--pik-ink);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.auth-whitelist-note svg { flex-shrink: 0; color: var(--pik-ink); }
+
+/* footnote link */
+.auth-footnote-link {
+  color: var(--pik-verm);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.auth-footnote-link:hover { color: var(--pik-ink); }
