@@ -583,7 +583,7 @@ const SPREADS = {
       num: '04',
       icon: Volume2,
       title: 'Reviewers you can',
-      titleEm: 'listen to on the jeep ride',
+      titleEm: 'just listen to',
       body: 'One tap turns any lesson into a condensed AI reviewer — and it reads itself aloud, so exam week can happen anywhere.',
       visual: <ReviewerVisual />,
     },
@@ -748,7 +748,7 @@ function CognifySection() {
           transition={{ duration: 0.6, ease: 'easeOut' }}
         >
           <p className="pik-kicker">
-            <img src={cognifyImg} alt="" className="cognify-mini-logo" /> for the jeep ride home
+            <img src={cognifyImg} alt="" className="cognify-mini-logo" /> study on the go
           </p>
           <h2 className="cognify-headline">
             Meet <em>Cognify</em> — the review app that lives in your pocket.
@@ -773,7 +773,7 @@ function CognifySection() {
           viewport={{ once: true, margin: '-70px' }}
           transition={{ type: 'spring', stiffness: 120, damping: 16 }}
         >
-          <Tape className="tape-tl" />
+          <img src={cognifyImg} alt="Cognify app logo" className="phone-logo-badge" />
           <div className="phone">
             <div className="phone-screen">
               <div className="phone-status">
