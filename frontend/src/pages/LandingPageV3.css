@@ -389,27 +389,26 @@
 
 .choice-card:hover .choice-cta { gap: 13px; }
 
-/* tape — design element, not realism: opaque marker-yellow, torn ends, soft shadow */
+/* tape — C1: paper-white strip, ink border, hard offset shadow, dashed marker line */
 .tape {
   position: absolute;
-  width: 148px;
+  width: 158px;
   height: 30px;
-  background: linear-gradient(180deg, #ffd955, #ffd43b 55%, #f2c435);
-  box-shadow:
-    0 1px 1px rgba(57, 43, 24, 0.22),
-    0 4px 10px rgba(57, 43, 24, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    inset 0 -1px 0 rgba(146, 116, 47, 0.35);
-  clip-path: polygon(
-    0% 20%, 1% 0%, 7% 3%, 15% 0%, 24% 4%, 33% 1%, 42% 3%, 52% 0%, 62% 3%,
-    72% 0%, 82% 3%, 92% 0%, 100% 4%,
-    99% 26%, 100% 52%, 99% 78%, 100% 100%,
-    93% 97%, 84% 100%, 74% 96%, 64% 100%, 54% 97%, 44% 100%, 34% 96%, 24% 100%,
-    15% 97%, 7% 100%, 0% 96%,
-    1% 80%, 0% 52%, 1% 36%
-  );
+  background:
+    repeating-linear-gradient(90deg, transparent 0 12px, var(--pik-verm) 12px 19px) center / 100% 3px no-repeat,
+    var(--pik-card);
+  border: 2px solid var(--pik-ink);
+  box-shadow: 3px 3px 0 var(--pik-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
   pointer-events: none;
 }
+
+.tape-tl { top: -15px; left: 18px; transform: rotate(-3deg); }
+.tape-tr { top: -15px; right: 18px; transform: rotate(2.5deg); }
+.tape-br { bottom: -14px; right: 24px; transform: rotate(2deg); }
 
 .tape-tl { top: -15px; left: 20px; transform: rotate(-4deg); }
 .tape-tr { top: -15px; right: 20px; transform: rotate(3deg); }
