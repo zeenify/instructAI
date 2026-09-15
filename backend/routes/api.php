@@ -18,6 +18,8 @@ use App\Http\Controllers\Teacher\ClassActivityController;
 use App\Http\Controllers\Teacher\CodeRunController;
 use App\Http\Controllers\Teacher\ActivityQuestionController;
 use App\Http\Controllers\Teacher\ClassroomController;
+use App\Http\Controllers\Admin\StudentWhitelistController;
+use App\Http\Controllers\Admin\TeacherWhitelistController;
 use App\Http\Controllers\Teacher\CourseController;
 use App\Http\Controllers\Teacher\IndexingController;
 use App\Http\Controllers\Teacher\LessonController;
@@ -91,6 +93,19 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('/teacher/activity-questions/{id}/test-cases', [ActivityQuestionController::class, 'updateTestCases']);
     Route::post('/teacher/activity-questions/{id}/verify', [ActivityQuestionController::class, 'verify']);
     Route::post('/teacher/run-code', [CodeRunController::class, 'run'])->middleware('throttle:code-execution');
+
+    // Enrollment whitelists — ADMIN ONLY (role enforced server-side). Only
+    // LRNs/emails on these lists can register or sign up as students/teachers
+    // of Penaranda Senior High School.
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/admin/student-whitelist', [StudentWhitelistController::class, 'index']);
+        Route::post('/admin/student-whitelist', [StudentWhitelistController::class, 'store']);
+        Route::delete('/admin/student-whitelist/{id}', [StudentWhitelistController::class, 'destroy']);
+
+        Route::get('/admin/teacher-whitelist', [TeacherWhitelistController::class, 'index']);
+        Route::post('/admin/teacher-whitelist', [TeacherWhitelistController::class, 'store']);
+        Route::delete('/admin/teacher-whitelist/{id}', [TeacherWhitelistController::class, 'destroy']);
+    });
 
     // delete
     Route::post('/teacher/courses/{id}/publish-all', [CourseController::class, 'publishAll']);

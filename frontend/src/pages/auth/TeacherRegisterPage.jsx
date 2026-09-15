@@ -54,7 +54,7 @@ export default function TeacherRegisterPage() {
                         <ShieldCheck size={12} /> Instructor Onboarding
                     </div>
                     <h1>Teacher Workspace</h1>
-                    <p>Deploy intelligent curriculum in seconds.</p>
+                    <p>Deploy intelligent curriculum in seconds. Your email must be pre-approved by the school admin.</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="register-form">

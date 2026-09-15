@@ -11,6 +11,8 @@ import { useGoogleLogin } from '@react-oauth/google';
 import './LoginPage.css';
 import './RoleModal.css';
 
+const dashboardFor = (r) => (r === 'teacher' ? '/dashboard/teacher' : r === 'admin' ? '/admin' : '/dashboard/student');
+
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -29,7 +31,7 @@ export default function LoginPage() {
     const token = localStorage.getItem('token');
     const role = localStorage.getItem('role');
     if (token && role) {
-      navigate(role === 'teacher' ? '/dashboard/teacher' : '/dashboard/student');
+      navigate(dashboardFor(role));
     }
   }, [navigate]);
 
@@ -54,12 +56,16 @@ export default function LoginPage() {
         setShowRoleModal(false);
         login(res.data.user, res.data.token, res.data.role);
         toast.success("Account Ready!");
-        navigate(res.data.role === 'teacher' ? '/dashboard/teacher' : '/dashboard/student');
+        navigate(dashboardFor(res.data.role));
       }
     } catch (err) {
-      toast.error("Setup failed. Please try again.");
+      toast.error(err.response?.data?.message || "Setup failed. Please try again.");
       setLoading(false);
+      setShowRoleModal(false);
       setSelectedRole(null);
+      setShowLrnInput(false);
+      setLrnNumber('');
+      setLrnError('');
     }
   };
 
@@ -81,7 +87,7 @@ export default function LoginPage() {
       const res = await api.post('/login', { email, password });
       login(res.data.user, res.data.token, res.data.role);
       toast.success("Success!");
-      navigate(res.data.role === 'teacher' ? '/dashboard/teacher' : '/dashboard/student');
+      navigate(dashboardFor(res.data.role));
     } catch (err) {
       toast.error(err.response?.data?.message || "Invalid credentials");
       setLoading(false);
@@ -110,7 +116,7 @@ export default function LoginPage() {
 
         <div className="login-header">
           <h1>Sign In</h1>
-          <p>Log in to manage your intelligent classroom.</p>
+          <p>Penaranda Senior High School — log in to your intelligent classroom.</p>
         </div>
 
         <form onSubmit={handleLogin} className="login-form">
@@ -217,7 +223,7 @@ export default function LoginPage() {
                       {loading && selectedRole === 'teacher' ? 'Setting up...' : 'Educator'}
                     </h3>
                     <p className="role-card-description">
-                      Create courses, manage students, and deploy AI-powered curriculum in seconds.
+                      Create courses, manage students, and deploy AI-powered curriculum in seconds. Your email must be pre-approved by the school admin.
                     </p>
                   </motion.button>
 

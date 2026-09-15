@@ -25,6 +25,11 @@ import ActivityResults from './pages/teacher/ActivityResults';
 import StudentMonitor from './pages/teacher/StudentMonitor';
 import Analytics from './pages/teacher/Analytics';
 
+// Admin Pages
+import AdminLayout from './components/layouts/AdminLayout';
+import StudentWhitelist from './pages/admin/StudentWhitelist';
+import TeacherWhitelist from './pages/admin/TeacherWhitelist';
+
 // Student Pages
 import StudentOverview from './pages/student/StudentOverview';
 import ClassView from './pages/student/Classview';
@@ -96,7 +101,18 @@ function App() {
             <Route path="class/:classId/activity/:activityId/results" element={<ActivityResults />} />
           </Route>
 
-          
+          {/* --- Admin Dashboard --- */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<StudentWhitelist />} />
+            <Route path="teachers" element={<TeacherWhitelist />} />
+          </Route>
 
           {/* --- Student Dashboard (Immortal Sidebar) --- */}
           <Route 

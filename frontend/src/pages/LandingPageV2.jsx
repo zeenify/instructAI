@@ -69,7 +69,7 @@ function Hero() {
 
         <p className="hero-subtitle">
           Generate complete curriculum, create interactive quizzes, and deploy an AI tutor—all in minutes.
-          Students code in the browser. Teachers teach smarter.
+          Students code in the browser. Teachers teach smarter. Built for Penaranda Senior High School.
         </p>
 
         <div className="hero-buttons">

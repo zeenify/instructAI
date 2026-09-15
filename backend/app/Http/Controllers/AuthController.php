@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\StudentProfile;
 use App\Models\TeacherProfile;
+use App\Models\EnrolledStudent;
+use App\Models\WhitelistedTeacher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
@@ -24,6 +26,10 @@ class AuthController extends Controller
             'lrn_number' => 'required|string|size:12|unique:student_profiles,lrn_number',
         ]);
 
+        if ($error = $this->lrnEnrollmentError($data['lrn_number'])) {
+            return response()->json(['message' => $error], 422);
+        }
+
         $user = User::create([
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
@@ -35,6 +41,8 @@ class AuthController extends Controller
             'last_name' => $data['last_name'],
             'lrn_number' => $data['lrn_number'],
         ]);
+
+        $this->markLrnClaimed($data['lrn_number']);
 
         return response()->json([
             'message' => 'Student registered successfully',
@@ -54,6 +62,10 @@ class AuthController extends Controller
             'organization' => 'nullable|string', // Added organization (optional)
         ]);
 
+        if ($error = $this->teacherWhitelistError($data['email'])) {
+            return response()->json(['message' => $error], 422);
+        }
+
         $user = User::create([
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
@@ -65,6 +77,8 @@ class AuthController extends Controller
             'last_name' => $data['last_name'],
             'organization' => $data['organization'] ?? null,
         ]);
+
+        $this->markTeacherClaimed($data['email']);
 
         return response()->json([
             'message' => 'Teacher registered successfully',
@@ -127,6 +141,14 @@ class AuthController extends Controller
                     'lrn_number' => 'required_if:role,student|string|size:12|unique:student_profiles,lrn_number',
                 ]);
 
+                if ($chosenRole === 'student' && ($error = $this->lrnEnrollmentError($lrnNumber))) {
+                    return response()->json(['message' => $error], 422);
+                }
+
+                if ($chosenRole === 'teacher' && ($error = $this->teacherWhitelistError($email))) {
+                    return response()->json(['message' => $error], 422);
+                }
+
                 $user = User::create([
                     'email' => $email,
                     'role' => $chosenRole,
@@ -141,11 +163,13 @@ class AuthController extends Controller
                         'last_name' => $payload['family_name'] ?? '',
                         'lrn_number' => $lrnNumber,
                     ]);
+                    $this->markLrnClaimed($lrnNumber);
                 } else {
                     $user->teacherProfile()->create([
                         'first_name' => $payload['given_name'] ?? 'User',
                         'last_name' => $payload['family_name'] ?? '',
                     ]);
+                    $this->markTeacherClaimed($email);
                 }
             }
 
@@ -169,5 +193,47 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Logged out successfully']);
+    }
+
+    /**
+     * Panel fix (#4/#6): students can only sign up with an LRN on the school's
+     * enrollment whitelist. Returns the rejection message or null when valid.
+     */
+    private function lrnEnrollmentError(?string $lrnNumber): ?string
+    {
+        if (!$lrnNumber) {
+            return 'An LRN is required to register as a student.';
+        }
+
+        if (!EnrolledStudent::where('lrn_number', $lrnNumber)->exists()) {
+            return 'This LRN is not on the Penaranda Senior High School enrollment list. '
+                . 'Please ask your teacher to add it to the enrollment whitelist.';
+        }
+
+        return null;
+    }
+
+    private function markLrnClaimed(string $lrnNumber): void
+    {
+        EnrolledStudent::where('lrn_number', $lrnNumber)->update(['claimed' => true]);
+    }
+
+    /**
+     * Panel fix: teacher accounts must be pre-approved by the school admin.
+     * Returns the rejection message or null when the email is whitelisted.
+     */
+    private function teacherWhitelistError(string $email): ?string
+    {
+        if (!WhitelistedTeacher::where('email', strtolower($email))->exists()) {
+            return 'This email is not approved for teacher registration. '
+                . 'Please ask the school admin to add it to the teacher whitelist.';
+        }
+
+        return null;
+    }
+
+    private function markTeacherClaimed(string $email): void
+    {
+        WhitelistedTeacher::where('email', strtolower($email))->update(['claimed' => true]);
     }
 }

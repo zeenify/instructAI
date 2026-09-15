@@ -187,6 +187,7 @@ export default function HeroWithCharacter() {
           >
             An AI-Powered Learning Management System — featuring a zero-setup browser IDE,
             curriculum-grounded AI lesson generation, and real-time mastery analytics.
+            Built for Penaranda Senior High School.
           </motion.p>
 
           <motion.div

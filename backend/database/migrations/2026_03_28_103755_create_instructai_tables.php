@@ -13,7 +13,7 @@ return new class extends Migration
             $table->id();
             $table->string('email')->unique();
             $table->string('password')->nullable();
-            $table->enum('role', ['student', 'teacher']);
+            $table->enum('role', ['student', 'teacher', 'admin']);
             $table->string('google_id')->nullable();
             $table->string('avatar')->nullable();
             $table->timestamps();

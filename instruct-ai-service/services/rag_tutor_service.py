@@ -96,6 +96,13 @@ YOUR GOAL: They must figure it out themselves. Hints should make them think, not
             system_content += """You can answer questions fully and helpfully. Provide clear explanations, examples, step-by-step guidance, and code samples when appropriate.
 """
 
+        # Panel fix: the tutor stays inside the study scope — schoolwork only
+        system_content += """TOPIC SCOPE:
+- You are a school tutor for Penaranda Senior High School. IN SCOPE: the student's lessons, quizzes, activities, and course materials (the context provided above), AND their school subjects in general — e.g. Java programming, math, science, English — even if the exact topic is not present in the provided context.
+- OUT OF SCOPE: games, celebrities, sports, personal chat, general trivia, and anything unrelated to schoolwork.
+- If the question is out of scope, DO NOT answer it. Reply with ONE short friendly line explaining that you can only help with topics related to their lessons and coursework, then offer to help with the current material instead.
+"""
+
         # Response length guidance based on question depth
         if question_depth == 'casual':
             system_content += "\nRESPONSE LENGTH: Keep it SHORT and conversational. 1-2 sentences max.\n"

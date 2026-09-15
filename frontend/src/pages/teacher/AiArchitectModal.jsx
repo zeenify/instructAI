@@ -63,6 +63,19 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
                                 </div>
                             )}
 
+                            {/* Panel fix: spell out the terminology so the terms can't be misread */}
+                            <div style={{ marginBottom: '24px', padding: '14px 18px' }} className="bg-purple-500/[0.06] border border-purple-500/20 rounded-xl text-slate-400 text-xs leading-relaxed text-left">
+                                <span className="text-purple-300 font-bold">What you'll get: </span>
+                                the AI builds the full learning plan for <span className="text-slate-200 font-semibold">one subject</span> —
+                                split into <span className="text-slate-200 font-semibold">modules</span> (units),
+                                each holding <span className="text-slate-200 font-semibold">lessons</span>
+                                {params.includeQuiz ? ' and a ' : ' and '}
+                                {params.includeQuiz && <span className="text-slate-200 font-semibold">quiz</span>}
+                                {params.includeQuiz && ' '}
+                                {params.includeCodingExercises && 'with coding exercises '}
+                                for your students. Nothing is published automatically — everything lands in a review console for you to edit and approve first.
+                            </div>
+
                             <form onSubmit={handleSubmit} style={{ gap: '24px' }} className="flex flex-col">
                                 {/* Structure Parameters */}
                                 <div style={{ padding: '20px 24px' }} className="bg-white/[0.02] border border-white/5 rounded-2xl">

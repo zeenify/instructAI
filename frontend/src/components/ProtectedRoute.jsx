@@ -11,7 +11,8 @@ export default function ProtectedRoute({ children, allowedRole }) {
 
     if (allowedRole && role !== allowedRole) {
         // Wrong role? Send back to their specific dashboard
-        return <Navigate to={role === 'teacher' ? '/dashboard/teacher' : '/dashboard/student'} replace />;
+        const homeByRole = { teacher: '/dashboard/teacher', student: '/dashboard/student', admin: '/admin' };
+        return <Navigate to={homeByRole[role] || '/login'} replace />;
     }
 
     return children;

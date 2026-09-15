@@ -123,6 +123,9 @@ export default function StudentRegisterPage() {
                         {lrnError && (
                             <p style={{ color: '#f87171', fontSize: '12px', marginTop: '4px', marginLeft: '4px' }}>{lrnError}</p>
                         )}
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '6px', marginLeft: '4px' }}>
+                            Must be on the Penaranda Senior High School enrollment list — ask your teacher if it is not accepted.
+                        </p>
                     </div>
 
                     <motion.div

@@ -204,9 +204,9 @@ class AIChatController extends Controller
             if (!is_array($block)) continue;
 
             if (isset($block['type'])) {
-                if ($block['type'] === 'heading' && isset($block['data']['text'])) {
+                if (($block['type'] === 'heading' || $block['type'] === 'h1') && isset($block['data']['text'])) {
                     $text .= $block['data']['text'] . "\n\n";
-                } elseif ($block['type'] === 'paragraph' && isset($block['data']['text'])) {
+                } elseif (($block['type'] === 'paragraph' || $block['type'] === 'text') && isset($block['data']['text'])) {
                     $text .= $block['data']['text'] . "\n\n";
                 } elseif ($block['type'] === 'code' && isset($block['data']['description'])) {
                     $text .= "Code example: " . $block['data']['description'] . "\n\n";

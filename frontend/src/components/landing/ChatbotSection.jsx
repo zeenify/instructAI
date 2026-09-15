@@ -328,7 +328,7 @@ export default function ChatbotSection() {
               >
                 <input
                   type="text"
-                  placeholder="Ask me anything..."
+                  placeholder="Ask me about InstructAI..."
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={(e) => {
