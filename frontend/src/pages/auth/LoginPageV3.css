@@ -464,6 +464,7 @@
   display: flex;
   gap: 22px;
   flex-wrap: wrap;
+  margin-top: 38px;
 }
 
 .ticket {
