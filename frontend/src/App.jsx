@@ -6,7 +6,7 @@ import { useTheme } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // --- Page Imports ---
-import LandingPageV2 from './pages/LandingPageV2';
+import LandingPageV3 from './pages/LandingPageV3';
 import LoginPage from './pages/auth/LoginPage';
 import TeacherRegisterPage from './pages/auth/TeacherRegisterPage';
 import StudentRegisterPage from './pages/auth/StudentRegisterPage';
@@ -65,7 +65,7 @@ function App() {
         />
         <Routes>
           {/* --- Public Routes --- */}
-          <Route path="/" element={<LandingPageV2 />} />
+          <Route path="/" element={<LandingPageV3 />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register/teacher" element={<TeacherRegisterPage />} />
           <Route path="/register/student" element={<StudentRegisterPage />} />
