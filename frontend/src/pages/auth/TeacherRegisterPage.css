@@ -1,127 +1,50 @@
-.register-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  padding: 20px;
-}
+/* Teacher register — page-specific extras on top of the shared auth styles
+   (LoginPage.css holds the .auth-* system; this file adds register-only bits) */
 
-.register-card {
-  width: 100%;
-  max-width: 500px;
-  background: rgba(3, 0, 20, 0.8);
-  border: 1px solid rgba(167, 139, 250, 0.15);
-  border-radius: 32px;
-  backdrop-filter: blur(2xl);
-  padding: 50px 45px;
-  display: flex;
-  flex-direction: column;
-  gap: 30px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 20px 60px -10px rgba(168, 85, 247, 0.15);
-}
-
-.register-header {
-  text-align: center;
-  margin-bottom: 10px;
-}
-
-.register-header h1 {
-  font-size: 2.2rem;
-  font-weight: 700;
-  margin-bottom: 8px;
-  color: white;
-}
-
-.register-header p {
-  font-size: 0.9rem;
-  color: #94a3b8;
-  line-height: 1.4;
-}
-
-.register-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 18px;
-  border-radius: 999px;
-  background: rgba(167, 139, 250, 0.12);
-  border: 1px solid rgba(167, 139, 250, 0.35);
-  color: #a78bfa;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  margin-bottom: 14px;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 4px 12px rgba(167, 139, 250, 0.08);
-  transition: all 0.3s ease;
-}
-
-.register-badge:hover {
-  background: rgba(167, 139, 250, 0.15);
-  border-color: rgba(167, 139, 250, 0.5);
-  box-shadow: 0 6px 16px rgba(167, 139, 250, 0.12);
-}
-
-.register-form {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.register-form-row {
+/* two-column name row */
+.auth-form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 14px;
 }
 
-.register-form input {
-  padding: 14px 16px 14px 45px !important;
-  font-size: 0.95rem !important;
-  height: auto !important;
-  min-height: 52px !important;
-  background: rgba(167, 139, 250, 0.03) !important;
-  border-color: rgba(167, 139, 250, 0.2) !important;
-  transition: all 0.3s ease !important;
+@media (max-width: 480px) {
+  .auth-form-row { grid-template-columns: 1fr; }
 }
 
-.register-form input:focus {
-  background: rgba(167, 139, 250, 0.08) !important;
-  border-color: rgba(167, 139, 250, 0.4) !important;
-  box-shadow: 0 0 20px rgba(167, 139, 250, 0.15) !important;
+/* optional tag inside a field label */
+.auth-optional {
+  font-weight: 400;
+  color: var(--pik-verm);
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
 }
 
-.register-form button {
-  margin-top: 10px;
-  padding: 16px 24px;
-  font-size: 0.95rem;
+/* whitelist pre-approval note */
+.auth-whitelist-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  line-height: 1.6;
+  color: var(--pik-ink-soft);
+  background: var(--pik-yellow);
+  border: 1.5px dashed var(--pik-ink);
+  border-radius: 8px;
+  padding: 10px 12px;
 }
 
-.register-footer {
-  text-align: center;
-  padding-top: 20px;
-  border-top: 1px solid rgba(167, 139, 250, 0.1);
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
+.auth-whitelist-note svg { flex-shrink: 0; color: var(--pik-ink); }
 
-.register-footer p {
-  color: #94a3b8;
-  margin: 0;
-}
-
-.register-footer a {
-  color: #a78bfa;
-  text-decoration: none;
+/* footnote link */
+.auth-footnote-link {
+  color: var(--pik-verm);
   font-weight: 700;
-  transition: color 0.3s;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
 }
 
-.register-footer a:hover {
-  color: #d8b4fe;
-}
+.auth-footnote-link:hover { color: var(--pik-ink); }

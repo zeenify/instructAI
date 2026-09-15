@@ -6,9 +6,9 @@ import { useTheme } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // --- Page Imports ---
-import LandingPageV3 from './pages/LandingPageV3';
-import LoginPageV3 from './pages/auth/LoginPageV3';
-import TeacherRegisterPageV3 from './pages/auth/TeacherRegisterPageV3';
+import LandingPage from './pages/LandingPage';
+import LoginPage from './pages/auth/LoginPage';
+import TeacherRegisterPage from './pages/auth/TeacherRegisterPage';
 import StudentRegisterPage from './pages/auth/StudentRegisterPage';
 
 // Teacher Pages
@@ -65,9 +65,9 @@ function App() {
         />
         <Routes>
           {/* --- Public Routes --- */}
-          <Route path="/" element={<LandingPageV3 />} />
-          <Route path="/login" element={<LoginPageV3 />} />
-          <Route path="/register/teacher" element={<TeacherRegisterPageV3 />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register/teacher" element={<TeacherRegisterPage />} />
           <Route path="/register/student" element={<StudentRegisterPage />} />
           
           {/* --- Teacher Dashboard (Immortal Sidebar) --- */}

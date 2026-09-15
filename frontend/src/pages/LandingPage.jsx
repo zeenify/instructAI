@@ -18,7 +18,7 @@ import {
   Trophy,
   Volume2,
 } from 'lucide-react';
-import './LandingPageV3.css';
+import './LandingPage.css';
 import doodlePapersImg from '../assets/landing/doodle-papers.png';
 import doodleTerminalImg from '../assets/landing/doodle-terminal.png';
 import doodleArrowImg from '../assets/landing/doodle-arrow.png';
@@ -922,7 +922,7 @@ function Footer({ onPick }) {
 // Page
 // ─────────────────────────────────────────────────────────────
 
-export default function LandingPageV3() {
+export default function LandingPage() {
   const [role, setRole] = useState(() => readStoredRole());
 
   const pick = (next, scroll = false) => {
