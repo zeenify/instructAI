@@ -88,7 +88,7 @@
 }
 
 .pik-nav-inner {
-  max-width: 1400px;
+  max-width: min(1720px, 96vw);
   margin: 0 auto;
   padding: 14px 28px;
   display: flex;
@@ -217,7 +217,7 @@
 /* ── hero ────────────────────────────────────────────────── */
 
 .pik-hero {
-  max-width: 1400px;
+  max-width: min(1720px, 96vw);
   margin: 0 auto;
   padding: 84px 28px 40px;
   display: flex;
@@ -229,7 +229,7 @@
 .pik-headline {
   font-family: 'Fraunces', serif;
   font-weight: 900;
-  font-size: clamp(3rem, 8.4vw, 6.6rem);
+  font-size: clamp(3rem, 8.4vw, 8rem);
   line-height: 0.98;
   letter-spacing: -0.025em;
   margin-top: 26px;
@@ -291,7 +291,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 70px;
+  width: 96px;
   flex-shrink: 0;
 }
 
@@ -302,7 +302,7 @@
   color: var(--pik-ink-soft);
 }
 
-.choice-arrow { width: 78px; margin-top: 4px; transform: rotate(-24deg); }
+.choice-arrow { width: 96px; margin-top: 4px; transform: rotate(-24deg); }
 
 /* hand-drawn arrow asset (true alpha) */
 .curly-wrap { display: inline-block; line-height: 0; }
@@ -315,7 +315,7 @@
 
 .choice-card {
   position: relative;
-  width: min(400px, 42%);
+  width: min(560px, 44%);
   text-align: left;
   background: var(--pik-card);
   border: 2px solid var(--pik-ink);
@@ -389,19 +389,19 @@
 
 .choice-card:hover .choice-cta { gap: 13px; }
 
-/* tape — true-alpha washi scan */
+/* tape — true-alpha washi scan; oversized, corner-anchored */
 .tape {
   position: absolute;
-  width: 122px;
-  height: 36px;
+  width: 158px;
+  height: 42px;
   background: url('../assets/landing/tape.png') center / cover no-repeat;
   filter: saturate(0.95);
   pointer-events: none;
 }
 
-.tape-tl { top: -13px; left: 26px; transform: rotate(-7deg); }
-.tape-tr { top: -13px; right: 26px; transform: rotate(6deg); }
-.tape-br { bottom: -12px; right: 34px; transform: rotate(5deg); }
+.tape-tl { top: -19px; left: 22px; transform: rotate(-5deg); }
+.tape-tr { top: -19px; right: 22px; transform: rotate(4deg); }
+.tape-br { bottom: -19px; right: 30px; transform: rotate(3.5deg); }
 
 /* seal stamp */
 
@@ -462,7 +462,7 @@
 /* ── track (editorial spreads) ───────────────────────────── */
 
 .pik-track {
-  max-width: 1400px;
+  max-width: min(1720px, 96vw);
   margin: 0 auto;
   padding: 110px 28px 40px;
   scroll-margin-top: 96px;
@@ -472,20 +472,21 @@
 
 .coffee-stain {
   position: absolute;
-  top: -38px;
-  right: 7%;
-  width: 150px;
-  opacity: 0.72;
+  top: -190px;
+  right: -40px;
+  width: 680px;
+  opacity: 0.55;
   transform: rotate(14deg);
   pointer-events: none;
+  z-index: -1;
 }
 
 .cta-stain {
   position: absolute;
-  bottom: -36px;
-  right: 26px;
-  width: 140px;
-  opacity: 0.8;
+  bottom: -130px;
+  right: -80px;
+  width: 540px;
+  opacity: 0.6;
   transform: rotate(-10deg);
   pointer-events: none;
 }
@@ -543,20 +544,20 @@
 .spreads {
   display: flex;
   flex-direction: column;
-  gap: 40px;
-  margin-top: 60px;
+  gap: 72px;
+  margin-top: 70px;
 }
 
 .spread {
   display: grid;
-  grid-template-columns: 130px 1fr 1fr;
-  gap: 34px;
+  grid-template-columns: 150px 1.05fr 1fr;
+  gap: 44px;
   align-items: center;
   background: transparent;
 }
 
 .spread.flip {
-  grid-template-columns: 1fr 1fr 130px;
+  grid-template-columns: 1fr 1.05fr 150px;
 }
 
 .spread.flip .spread-num { order: 3; }
@@ -613,9 +614,9 @@
   background: var(--pik-card);
   border: 2px solid var(--pik-ink);
   border-radius: 8px;
-  padding: 24px;
+  padding: 26px;
   box-shadow: var(--pik-card-shadow);
-  width: min(440px, 100%);
+  width: min(540px, 100%);
   transform: rotate(-1deg);
 }
 
@@ -1055,7 +1056,7 @@
 }
 
 .arena-inner {
-  max-width: 1400px;
+  max-width: min(1720px, 96vw);
   margin: 0 auto;
   padding: 90px 28px;
   display: grid;
@@ -1228,7 +1229,7 @@
 /* ── how it works ────────────────────────────────────────── */
 
 .pik-how {
-  max-width: 1320px;
+  max-width: min(1560px, 94vw);
   margin: 0 auto;
   padding: 100px 28px 30px;
   text-align: center;
@@ -1312,7 +1313,7 @@
 /* ── final CTA ───────────────────────────────────────────── */
 
 .pik-cta {
-  max-width: 1040px;
+  max-width: min(1200px, 92vw);
   margin: 0 auto;
   padding: 90px 28px 110px;
 }
@@ -1396,7 +1397,7 @@
 }
 
 .footer-inner {
-  max-width: 1400px;
+  max-width: min(1720px, 96vw);
   margin: 0 auto;
   padding: 54px 28px 30px;
   display: grid;
@@ -1469,7 +1470,7 @@
 /* ── cognify (mobile companion) ──────────────────────────── */
 
 .pik-cognify {
-  max-width: 1400px;
+  max-width: min(1720px, 96vw);
   margin: 0 auto;
   padding: 110px 28px 30px;
   scroll-margin-top: 80px;
