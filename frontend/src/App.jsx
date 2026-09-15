@@ -7,7 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 // --- Page Imports ---
 import LandingPageV3 from './pages/LandingPageV3';
-import LoginPage from './pages/auth/LoginPage';
+import LoginPageV3 from './pages/auth/LoginPageV3';
 import TeacherRegisterPage from './pages/auth/TeacherRegisterPage';
 import StudentRegisterPage from './pages/auth/StudentRegisterPage';
 
@@ -66,7 +66,7 @@ function App() {
         <Routes>
           {/* --- Public Routes --- */}
           <Route path="/" element={<LandingPageV3 />} />
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login" element={<LoginPageV3 />} />
           <Route path="/register/teacher" element={<TeacherRegisterPage />} />
           <Route path="/register/student" element={<StudentRegisterPage />} />
           
