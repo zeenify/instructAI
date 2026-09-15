@@ -245,18 +245,18 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--pik-paper-2);
-  background: var(--pik-ink);
+  background: var(--pik-sage);
   border: 2px solid var(--pik-ink);
   border-radius: 999px;
   padding: 13px 24px;
   cursor: pointer;
-  box-shadow: 4px 4px 0 var(--pik-verm);
+  box-shadow: 4px 4px 0 var(--pik-ink);
   transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease;
 }
 
 .auth-submit:hover:not(:disabled) {
   transform: translate(-2px, -2px);
-  box-shadow: 6px 6px 0 var(--pik-verm);
+  box-shadow: 6px 6px 0 var(--pik-ink);
 }
 
 .auth-submit:disabled { opacity: 0.75; cursor: wait; }
@@ -313,10 +313,7 @@
 .auth-google:disabled { opacity: 0.7; cursor: wait; }
 
 .auth-footnote {
-  position: absolute;
-  bottom: 22px;
-  left: 0;
-  right: 0;
+  margin-top: 18px;
   text-align: center;
   font-size: 0.9rem;
   color: var(--pik-ink);
@@ -533,6 +530,43 @@
 
 .ticket:hover .ticket-title svg { transform: translate(2px, -2px); }
 .ticket-title svg { transition: transform 0.15s ease; }
+
+
+/* ── shared register-page extras ─────────────────────────── */
+
+.auth-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 480px) {
+  .auth-form-row { grid-template-columns: 1fr; }
+}
+
+.auth-optional {
+  font-weight: 400;
+  color: var(--pik-verm);
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+}
+
+.auth-whitelist-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  line-height: 1.6;
+  color: var(--pik-ink-soft);
+  background: var(--pik-yellow);
+  border: 1.5px dashed var(--pik-ink);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.auth-whitelist-note svg { flex-shrink: 0; color: var(--pik-ink); }
 
 /* ── role modal (paper restyle) ──────────────────────────── */
 
