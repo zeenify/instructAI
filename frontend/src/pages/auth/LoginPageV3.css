@@ -60,7 +60,6 @@
   background-image: url('../../assets/landing/paper-texture.jpg');
   background-size: 560px;
   background-blend-mode: multiply;
-  border-right: 2px solid var(--pik-ink);
   padding: 36px clamp(28px, 5vw, 84px);
   display: flex;
   flex-direction: column;
@@ -323,25 +322,43 @@
   color: var(--pik-ink-soft);
 }
 
-/* ── right band: editorial ───────────────────────────────── */
+/* ── right band: chalkboard ─────────────────────────────── */
 
 .auth-editorial {
-  padding: clamp(40px, 6vw, 96px) clamp(36px, 6vw, 110px);
+  padding: clamp(48px, 6vw, 96px) clamp(40px, 6vw, 110px) 110px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   position: relative;
   overflow: hidden;
+  background-color: var(--pik-chalk, #14342a);
+  background-image: url('../../assets/landing/chalk-texture.jpg');
+  background-size: cover;
+  background-blend-mode: soft-light;
+  border: 14px solid #8b5e34;
+  box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.4);
+}
+
+.auth-editorial::after {
+  /* faint chalk dust cloud, bottom of the board */
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 30px;
+  height: 90px;
+  background: radial-gradient(ellipse at center, rgba(240, 236, 224, 0.12), transparent 70%);
+  pointer-events: none;
 }
 
 .auth-spin-badge {
   position: absolute;
-  top: clamp(24px, 4vw, 56px);
+  top: clamp(30px, 4vw, 60px);
   right: clamp(24px, 4vw, 64px);
-  width: clamp(96px, 9vw, 138px);
-  height: clamp(96px, 9vw, 138px);
+  width: clamp(100px, 9vw, 140px);
+  height: clamp(100px, 9vw, 140px);
   animation: auth-spin 26s linear infinite;
-  filter: drop-shadow(4px 5px 0 var(--pik-shadow));
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.45));
 }
 
 .auth-spin-badge-text {
@@ -354,74 +371,93 @@
 
 @keyframes auth-spin { to { transform: rotate(360deg); } }
 
-.auth-stain {
-  position: absolute;
-  bottom: -140px;
-  left: -60px;
-  width: 560px;
-  opacity: 0.5;
-  transform: rotate(-9deg);
-  pointer-events: none;
-  z-index: -1;
-}
-
-.auth-sparkles {
-  position: absolute;
-  top: clamp(36px, 5vw, 76px);
-  left: clamp(30px, 5vw, 90px);
-  width: clamp(64px, 6vw, 92px);
-  transform: rotate(-8deg);
-  pointer-events: none;
+.auth-chalk-kicker {
+  font-family: 'Walter Turncoat', cursive;
+  font-size: clamp(1rem, 1.4vw, 1.3rem);
+  letter-spacing: 0.14em;
+  color: rgba(240, 236, 224, 0.85);
+  text-shadow: 0 0 6px rgba(240, 236, 224, 0.18);
 }
 
 .auth-headline {
-  font-family: 'Fraunces', serif;
-  font-weight: 900;
-  font-size: clamp(3rem, 5.6vw, 6.4rem);
-  line-height: 1.04;
-  letter-spacing: -0.025em;
-  margin-top: 26px;
+  font-family: 'Walter Turncoat', cursive;
+  font-weight: 400;
+  font-size: clamp(3.2rem, 5.8vw, 6.6rem);
+  line-height: 1.02;
+  letter-spacing: 0.01em;
+  color: #f3efe4;
+  margin-top: 20px;
+  text-shadow: 0 0 8px rgba(240, 236, 224, 0.22);
 }
 
 .auth-headline em {
-  font-style: italic;
-  font-weight: 600;
-  color: var(--pik-verm);
+  font-style: normal;
+  color: var(--pik-yellow);
 }
 
 .auth-headline-line2 { position: relative; display: inline-block; }
 
-.auth-underline {
+.auth-chalk-underline {
   position: absolute;
-  left: 0;
-  bottom: -0.12em;
-  width: 100%;
-  height: 0.32em;
-  object-fit: fill;
-  z-index: -1;
+  left: 2%;
+  bottom: -0.08em;
+  width: 96%;
+  height: 0.22em;
   pointer-events: none;
 }
 
 .auth-body {
   margin-top: 30px;
-  font-size: clamp(0.98rem, 1.1vw, 1.12rem);
-  line-height: 1.7;
-  color: var(--pik-ink-soft);
-  max-width: 48ch;
+  font-size: clamp(1rem, 1.15vw, 1.14rem);
+  line-height: 1.75;
+  color: rgba(240, 236, 224, 0.94);
+  max-width: 44ch;
+  text-shadow: 0 0 5px rgba(240, 236, 224, 0.14);
 }
 
 .auth-hand-note {
-  margin-top: 44px;
-  font-size: clamp(1.5rem, 1.9vw, 2rem);
+  margin-top: 42px;
+  font-size: clamp(1.6rem, 2vw, 2.1rem);
   font-weight: 600;
-  color: var(--pik-ink);
+  color: var(--pik-yellow);
+  transform: rotate(-2deg);
+  text-shadow: 0 0 6px rgba(255, 212, 59, 0.2);
+}
+
+/* chalk tray with chalk + eraser */
+.chalk-tray {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(230px, 60%);
+  height: 13px;
+  background: linear-gradient(#a1723f, #7c5230);
+  border-radius: 4px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.chalk-piece {
+  position: absolute;
+  top: -7px;
+  left: 24px;
+  width: 38px;
+  height: 8px;
+  background: linear-gradient(#fdfbf4, #e3ded0);
+  border-radius: 3px;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.35);
   transform: rotate(-2deg);
 }
 
-.auth-hand-arrow {
-  width: 64px;
-  margin: 2px 0 20px 130px;
-  transform: rotate(120deg);
+.chalk-eraser {
+  position: absolute;
+  top: -15px;
+  right: 20px;
+  width: 52px;
+  height: 15px;
+  background: linear-gradient(#4a4038, #2f2924);
+  border-radius: 3px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 2px 0 rgba(255, 255, 255, 0.12);
 }
 
 .auth-tickets {
@@ -435,12 +471,13 @@
   flex-direction: column;
   gap: 3px;
   text-decoration: none;
-  border: 1.5px dashed var(--pik-ink);
+  border: 2px dashed rgba(240, 236, 224, 0.8);
   border-radius: 6px;
-  padding: 14px 22px 12px;
+  padding: 13px 22px 11px;
   min-width: 220px;
   position: relative;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+  color: #f3efe4;
+  transition: transform 0.15s ease, background 0.2s ease, color 0.2s ease;
 }
 
 .ticket::before {
@@ -450,14 +487,17 @@
   top: 6px;
   bottom: 6px;
   width: 1px;
-  border-left: 1.5px dashed rgba(22, 19, 14, 0.25);
+  border-left: 1.5px dashed rgba(240, 236, 224, 0.35);
 }
 
 .ticket:hover {
-  background: var(--pik-yellow);
+  background: #f0ece0;
+  color: var(--pik-ink);
   transform: translate(-2px, -2px) rotate(-0.6deg);
-  box-shadow: 4px 4px 0 var(--pik-ink);
+  box-shadow: 4px 5px 0 rgba(0, 0, 0, 0.35);
 }
+
+.ticket:hover::before { border-left-color: rgba(22, 19, 14, 0.25); }
 
 .ticket-kicker {
   font-family: 'JetBrains Mono', monospace;
@@ -465,8 +505,10 @@
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--pik-ink-soft);
+  color: rgba(240, 236, 224, 0.7);
 }
+
+.ticket:hover .ticket-kicker { color: var(--pik-ink-soft); }
 
 .ticket-title {
   display: inline-flex;
@@ -641,7 +683,6 @@
   .auth-headline { font-size: clamp(2.6rem, 9vw, 4rem); }
   .auth-footnote { position: static; margin-top: 34px; }
   .auth-spin-badge { width: 84px; height: 84px; top: 18px; right: 18px; }
-  .auth-stain { width: 380px; bottom: auto; top: -60px; left: auto; right: -120px; }
 }
 
 /* ── reduced motion ──────────────────────────────────────── */

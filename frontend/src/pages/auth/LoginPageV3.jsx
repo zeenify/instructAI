@@ -6,10 +6,6 @@ import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { useGoogleLogin } from '@react-oauth/google';
-import doodleArrow from '../../assets/landing/doodle-arrow.png';
-import sparkles from '../../assets/landing/sparkles.png';
-import coffeeStain from '../../assets/landing/coffee-stain.png';
-import markerUnderline from '../../assets/landing/marker-underline.png';
 import './LoginPageV3.css';
 
 const dashboardFor = (r) => (r === 'teacher' ? '/dashboard/teacher' : r === 'admin' ? '/admin' : '/dashboard/student');
@@ -206,19 +202,20 @@ export default function LoginPageV3() {
         <p className="auth-footnote">having trouble? your teacher or the school admin can help</p>
       </div>
 
-      {/* ── right band: editorial ── */}
+      {/* ── right band: chalkboard ── */}
       <div className="auth-editorial">
         <SpinBadge />
-        <img src={coffeeStain} alt="" aria-hidden="true" className="auth-stain" />
-        <img src={sparkles} alt="" aria-hidden="true" className="auth-sparkles" />
 
-        <p className="pik-kicker">welcome back to Penaranda SHS</p>
+        <p className="auth-chalk-kicker">welcome back to Penaranda SHS</p>
         <h2 className="auth-headline">
           Welcome back<br />
           to{' '}
           <span className="auth-headline-line2">
             <em>class</em>
-            <img src={markerUnderline} alt="" aria-hidden="true" className="auth-underline" />
+            <svg viewBox="0 0 220 22" fill="none" aria-hidden="true" className="auth-chalk-underline">
+              <path d="M6 12 C 60 4, 128 18, 214 9" stroke="var(--pik-yellow)" strokeWidth="5" strokeLinecap="round" />
+              <path d="M14 17 C 76 11, 152 20, 202 13" stroke="rgba(255, 212, 59, 0.5)" strokeWidth="3" strokeLinecap="round" />
+            </svg>
           </span>
         </h2>
         <p className="auth-body">
@@ -227,7 +224,6 @@ export default function LoginPageV3() {
         </p>
 
         <p className="auth-hand-note font-hand">new here? grab a ticket below</p>
-        <img src={doodleArrow} alt="" aria-hidden="true" className="auth-hand-arrow" />
 
         <div className="auth-tickets">
           <Link to="/register/teacher" className="ticket">
@@ -240,6 +236,11 @@ export default function LoginPageV3() {
             <span className="ticket-title">Student sign up</span>
             <ArrowUpRight size={16} strokeWidth={2.8} />
           </Link>
+        </div>
+
+        <div className="chalk-tray" aria-hidden="true">
+          <span className="chalk-piece" />
+          <span className="chalk-eraser" />
         </div>
       </div>
 

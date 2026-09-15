@@ -1,9 +1,13 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Walter+Turncoat&display=swap');
 
 /* handwritten marker font — for annotations across the app */
 .font-hand { font-family: 'Caveat', cursive; }
+
+/* chalk font — for chalkboards and schoolroom accents */
+.font-chalk { font-family: 'Walter Turncoat', cursive; }
 
 @theme {
   /* This makes these colors available as Tailwind classes like bg-brand-bg */
