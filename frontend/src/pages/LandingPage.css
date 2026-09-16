@@ -188,6 +188,7 @@
 }
 
 .pik-login {
+  white-space: nowrap;
   font-size: 0.85rem;
   font-weight: 600;
   text-decoration: none;
@@ -335,7 +336,7 @@
 
 .choice-kicker {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.66rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.24em;
   text-transform: uppercase;
@@ -1066,6 +1067,8 @@
   scroll-margin-top: 80px;
 }
 
+.arena-inner > * { min-width: 0; }
+
 .arena-inner {
   max-width: min(1720px, 96vw);
   margin: 0 auto;
@@ -1449,6 +1452,7 @@
 .footer-cols a,
 .footer-cols button {
   display: block;
+  padding: 4px 0;
   text-align: left;
   background: none;
   border: none;
@@ -1661,15 +1665,17 @@
   font-family: 'Fraunces', serif;
   font-weight: 600;
   font-size: 0.95rem;
-  line-height: 1.45;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  margin-bottom: 10px;
 }
 
 .phone-q b { color: #6d5ae0; }
 
 .phone-tap {
-  margin-top: 12px;
+  margin-top: 14px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.6rem;
+  font-size: 0.68rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--pik-ink-soft);
@@ -1681,7 +1687,7 @@
   border-top: 1.5px dashed rgba(22, 19, 14, 0.25);
   padding-top: 10px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.64rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1773,10 +1779,63 @@
 
 .lesson-done svg { width: 14px; height: 14px; }
 
+
+/* ── mobile navigation ───────────────────────────────────── */
+
+.pik-burger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--pik-ink);
+  border-radius: 8px;
+  background: var(--pik-card);
+  color: var(--pik-ink);
+  cursor: pointer;
+  box-shadow: 2px 2px 0 var(--pik-shadow);
+}
+
+.pik-mobile-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--pik-paper);
+  border-bottom: 2px solid var(--pik-ink);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 28px 20px;
+  gap: 4px;
+  z-index: 60;
+}
+
+.pik-mobile-menu a,
+.pik-mobile-menu button {
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 10px 6px;
+  font-family: 'Fraunces', serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--pik-ink);
+  text-decoration: none;
+  cursor: pointer;
+  border-bottom: 1.5px dashed rgba(22, 19, 14, 0.2);
+}
+
+.pik-mobile-menu a:active,
+.pik-mobile-menu button:active { color: var(--pik-verm); }
+
+@media (max-width: 1020px) {
+  .pik-burger { display: inline-flex; }
+  .pik-nav-links, .pik-nav-cta { display: none; }
+}
+
 /* ── responsive ──────────────────────────────────────────── */
 
 @media (max-width: 1020px) {
-  .pik-nav-links { display: none; }
   .spin-badge { display: none; }
   .spread,
   .spread.flip { grid-template-columns: 1fr; gap: 22px; }
@@ -1786,10 +1845,14 @@
   .spread-num { text-align: left; font-size: 3.6rem; }
   .spread.flip .spread-num { text-align: right; }
   .arena-inner { grid-template-columns: 1fr; gap: 44px; }
+  .chalkboard { width: 100%; }
+  .arena-copy { max-width: 100%; }
   .cognify-inner { grid-template-columns: 1fr; gap: 50px; }
 }
 
 @media (max-width: 760px) {
+  .headline-sparkles { width: 64px; right: 10px; top: -30px; }
+  .coffee-stain { width: 320px; right: 6px; }
   .choice-row { flex-direction: column; align-items: center; gap: 40px; }
   .choice-card { width: min(420px, 100%); }
   .choice-spacer { display: none; }

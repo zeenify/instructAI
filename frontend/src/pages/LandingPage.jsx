@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowRight,
+  Menu,
   ArrowUpRight,
   BookOpen,
   Brain,
@@ -143,6 +144,8 @@ function Tape({ className = '' }) {
 // ─────────────────────────────────────────────────────────────
 
 function Nav({ role, onPick }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const close = () => setMenuOpen(false);
   return (
     <header className="pik-nav">
       <div className="pik-nav-inner">
@@ -179,7 +182,29 @@ function Nav({ role, onPick }) {
             Get started
           </a>
         </div>
+        <button
+          type="button"
+          className="pik-burger"
+          aria-label="Toggle menu"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((o) => !o)}
+        >
+          <Menu size={20} strokeWidth={2.5} />
+        </button>
       </div>
+
+      {menuOpen && (
+        <nav className="pik-mobile-menu" aria-label="Mobile">
+          <a href="#track" onClick={close}>Features</a>
+          <a href="#arena" onClick={close}>Live arena</a>
+          <a href="#cognify" onClick={close}>Cognify app</a>
+          <a href="#how" onClick={close}>How it works</a>
+          <button type="button" onClick={() => { onPick('teacher'); close(); }}>For teachers</button>
+          <button type="button" onClick={() => { onPick('student'); close(); }}>For students</button>
+          <a href="/login" onClick={close}>Log in</a>
+          <a href={role === 'student' ? '/register/student' : '/register/teacher'} onClick={close}>Get started</a>
+        </nav>
+      )}
     </header>
   );
 }
