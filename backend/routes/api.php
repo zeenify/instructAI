@@ -37,6 +37,7 @@ Route::post('/register/teacher', [AuthController::class, 'registerTeacher']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/login/google', [AuthController::class, 'loginWithGoogle']);
 Route::post('/chat/message', [ChatController::class, 'chat']);
+Route::post('/euna/tts', [ChatController::class, 'tts'])->middleware('throttle:20,1');
 
 // Protected Routes
 Route::middleware('auth:sanctum')->group(function () {

@@ -1,0 +1,323 @@
+/* ═══════════════════════════════════════════════════════════
+   EUNA chatbot section — shares the Paper & Ink system
+   (palette vars mirror LandingPage.css; section is self-contained)
+   ═══════════════════════════════════════════════════════════ */
+
+.euna-section {
+  --pik-paper: #faf6ef;
+  --pik-paper-2: #f3ecdd;
+  --pik-card: #fffdf7;
+  --pik-ink: #16130e;
+  --pik-ink-soft: #57503f;
+  --pik-verm: #ff4b26;
+  --pik-yellow: #ffd43b;
+  --pik-sage: #3e8e7e;
+  --pik-shadow: rgba(57, 43, 24, 0.15);
+  --pik-card-shadow: 5px 6px 0 rgba(22, 19, 14, 0.06), 12px 14px 26px rgba(57, 43, 24, 0.2);
+
+  border-top: 2px solid var(--pik-ink);
+  border-bottom: 2px solid var(--pik-ink);
+  background: var(--pik-paper);
+  background-image: url('../../assets/landing/paper-texture.jpg');
+  background-size: 560px;
+  background-blend-mode: multiply;
+  color: var(--pik-ink);
+  font-family: 'Inter', sans-serif;
+  scroll-margin-top: 80px;
+}
+
+.euna-inner {
+  max-width: min(1720px, 96vw);
+  margin: 0 auto;
+  padding: 90px clamp(24px, 4vw, 56px);
+}
+
+.euna-header { text-align: center; margin-bottom: 48px; }
+
+.euna-headline {
+  font-family: 'Fraunces', serif;
+  font-weight: 900;
+  font-size: clamp(2.2rem, 4.6vw, 3.8rem);
+  letter-spacing: -0.02em;
+  margin-top: 16px;
+}
+
+.euna-headline em {
+  font-style: italic;
+  font-weight: 600;
+  color: var(--pik-verm);
+}
+
+.euna-sub {
+  margin-top: 14px;
+  color: var(--pik-ink-soft);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.euna-stage {
+  display: grid;
+  grid-template-columns: minmax(320px, 460px) 1fr;
+  gap: clamp(24px, 3vw, 48px);
+  align-items: stretch;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ── 3D portrait card ── */
+
+.euna-portrait-card {
+  position: relative;
+  background: linear-gradient(180deg, #e8f0ea 0%, #dce8e2 100%);
+  border: 2px solid var(--pik-ink);
+  border-radius: 12px;
+  min-height: 480px;
+  box-shadow: var(--pik-card-shadow);
+  overflow: visible;
+}
+
+.euna-portrait-card .tape-tl { top: -16px; left: 22px; }
+
+.euna-canvas-host {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.euna-canvas-host canvas { display: block; }
+
+.euna-canvas-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  color: var(--pik-ink-soft);
+  padding: 24px;
+  text-align: center;
+}
+
+.euna-portrait-hud {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.euna-role-chip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: var(--pik-card);
+  border: 2px solid var(--pik-ink);
+  border-radius: 999px;
+  padding: 6px 12px;
+  color: var(--pik-ink);
+  pointer-events: auto;
+}
+
+.euna-role-chip.teacher { background: var(--pik-yellow); }
+.euna-role-chip.student { background: var(--pik-sage); color: #fffdf7; }
+.euna-role-chip.none { background: var(--pik-paper-2); color: var(--pik-ink-soft); border-style: dashed; }
+
+.euna-speaker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: var(--pik-card);
+  color: var(--pik-ink);
+  border: 2px solid var(--pik-ink);
+  border-radius: 999px;
+  padding: 7px 12px;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 2px 2px 0 var(--pik-shadow);
+  transition: transform 0.12s ease, background 0.2s ease;
+}
+
+.euna-speaker:hover { transform: translateY(-1px); }
+.euna-speaker.on { background: var(--pik-verm); color: #fffdf7; }
+.euna-speaker.on:hover { background: #ff6a47; }
+.euna-speaker.speaking { animation: euna-pulse 0.9s ease-in-out infinite; }
+
+@keyframes euna-pulse {
+  0%, 100% { box-shadow: 2px 2px 0 var(--pik-shadow); }
+  50% { box-shadow: 0 0 0 5px rgba(255, 75, 38, 0.25); }
+}
+
+/* ── chat card ── */
+
+.euna-chat-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--pik-card);
+  border: 2px solid var(--pik-ink);
+  border-radius: 12px;
+  box-shadow: var(--pik-card-shadow);
+  overflow: hidden;
+  min-height: 480px;
+}
+
+.euna-chat-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 260px;
+}
+
+.euna-msg { display: flex; gap: 10px; align-items: flex-end; }
+.euna-msg.user { justify-content: flex-end; }
+
+.euna-msg-avatar {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--pik-yellow);
+  border: 2px solid var(--pik-ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Fraunces', serif;
+  font-weight: 900;
+  font-size: 0.95rem;
+}
+
+.euna-msg-text {
+  max-width: 78%;
+  padding: 11px 14px;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  border-radius: 12px;
+}
+
+.euna-msg.bot .euna-msg-text {
+  background: var(--pik-paper-2);
+  border: 1.5px solid rgba(22, 19, 14, 0.3);
+  border-bottom-left-radius: 4px;
+}
+
+.euna-msg.user .euna-msg-text {
+  background: var(--pik-ink);
+  color: var(--pik-paper-2);
+  border-bottom-right-radius: 4px;
+}
+
+.euna-typing span {
+  display: inline-block;
+  animation: euna-blink 1.2s infinite;
+}
+.euna-typing span:nth-child(2) { animation-delay: 0.2s; }
+.euna-typing span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes euna-blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+
+/* suggestions */
+
+.euna-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 22px 14px;
+}
+
+.euna-suggestion {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--pik-ink);
+  background: var(--pik-paper-2);
+  border: 1.5px solid rgba(22, 19, 14, 0.35);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.euna-suggestion:hover:not(:disabled) {
+  background: var(--pik-yellow);
+  border-color: var(--pik-ink);
+  transform: translateY(-1px);
+}
+
+.euna-suggestion:disabled { opacity: 0.5; cursor: wait; }
+
+/* input row */
+
+.euna-input-row {
+  display: flex;
+  gap: 10px;
+  padding: 16px 22px 20px;
+  border-top: 1.5px dashed rgba(22, 19, 14, 0.3);
+  background: var(--pik-paper-2);
+}
+
+.euna-input-row input {
+  flex: 1;
+  font: 0.95rem 'Inter', sans-serif;
+  color: var(--pik-ink);
+  background: #fffef9;
+  border: 2px solid var(--pik-ink);
+  border-radius: 999px;
+  padding: 12px 18px;
+  outline: none;
+  min-width: 0;
+}
+
+.euna-input-row input:focus-visible { box-shadow: 3px 3px 0 var(--pik-yellow); }
+
+.euna-send {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--pik-ink);
+  color: var(--pik-paper-2);
+  border: 2px solid var(--pik-ink);
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--pik-verm);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.euna-send:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--pik-verm);
+}
+
+.euna-send:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── responsive ── */
+
+@media (max-width: 900px) {
+  .euna-stage { grid-template-columns: 1fr; }
+  .euna-portrait-card { min-height: 360px; }
+  .euna-chat-card { min-height: 420px; }
+  .euna-inner { padding: 70px clamp(20px, 4vw, 40px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .euna-speaker.speaking { animation: none; }
+}

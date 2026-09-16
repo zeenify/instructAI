@@ -19,6 +19,7 @@ import {
   Trophy,
   Volume2,
 } from 'lucide-react';
+import EunaChatSection from '../components/landing/EunaChatSection.jsx';
 import './LandingPage.css';
 import doodlePapersImg from '../assets/landing/doodle-papers.png';
 import doodleTerminalImg from '../assets/landing/doodle-terminal.png';
@@ -158,6 +159,7 @@ function Nav({ role, onPick }) {
           <a href="#track">Features</a>
           <a href="#arena">Live arena</a>
           <a href="#cognify">Cognify app</a>
+          <a href="#euna">Ask Euna</a>
           <a href="#how">How it works</a>
         </nav>
 
@@ -198,6 +200,7 @@ function Nav({ role, onPick }) {
           <a href="#track" onClick={close}>Features</a>
           <a href="#arena" onClick={close}>Live arena</a>
           <a href="#cognify" onClick={close}>Cognify app</a>
+          <a href="#euna" onClick={close}>Ask Euna</a>
           <a href="#how" onClick={close}>How it works</a>
           <button type="button" onClick={() => { onPick('teacher'); close(); }}>For teachers</button>
           <button type="button" onClick={() => { onPick('student'); close(); }}>For students</button>
@@ -968,6 +971,7 @@ export default function LandingPage() {
         {role ? <Track role={role} /> : <TrackTeaser onPick={pick} />}
         <Arena />
         <CognifySection />
+        <EunaChatSection />
         {role && <HowItWorks role={role} />}
         {role && <FinalCTA role={role} />}
       </main>
