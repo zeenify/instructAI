@@ -208,14 +208,20 @@ const EunaCanvas = memo(function EunaCanvas({ speakerOn, onSpeakingChange }) {
     const ro = new ResizeObserver(resize);
     ro.observe(host);
 
-    // ---------- pointer head-follow ----------
+    // ---------- pointer head-follow: only inside the portrait, gentle clamps ----------
+    let pointerInside = false;
     const onMove = (e) => {
       const b = host.getBoundingClientRect();
       mouseX = ((e.clientX - b.left) / b.width) * 2 - 1;
       mouseY = -((e.clientY - b.top) / b.height) * 2 - 1;
+      mouseX = Math.max(-1, Math.min(1, mouseX));
+      mouseY = Math.max(-1, Math.min(1, mouseY));
       lastMouse = performance.now();
+      pointerInside = true;
     };
-    addEventListener('pointermove', onMove);
+    const onLeave = () => { pointerInside = false; lastMouse = 0; };
+    host.addEventListener('pointermove', onMove);
+    host.addEventListener('pointerleave', onLeave);
 
     // ---------- render loop ----------
     const clock = new THREE.Clock();
@@ -232,9 +238,9 @@ const EunaCanvas = memo(function EunaCanvas({ speakerOn, onSpeakingChange }) {
         if (Math.random() < 0.35) { glanceYaw = 0; glancePitch = 0; }
         else { glanceYaw = (Math.random() - 0.5) * 0.6; glancePitch = (Math.random() - 0.5) * 0.25; }
       }
-      const active = now - lastMouse <= 5000;
-      targetYaw = active ? mouseX * 0.5 : glanceYaw;
-      targetPitch = active ? -mouseY * 0.28 : glancePitch;
+      const active = pointerInside && now - lastMouse <= 5000;
+      targetYaw = active ? Math.max(-0.4, Math.min(0.4, mouseX * 0.38)) : glanceYaw;
+      targetPitch = active ? Math.max(-0.2, Math.min(0.2, -mouseY * 0.22)) : glancePitch;
       yaw += (targetYaw - yaw) * 0.08;
       pitch += (targetPitch - pitch) * 0.08;
 
@@ -335,7 +341,8 @@ const EunaCanvas = memo(function EunaCanvas({ speakerOn, onSpeakingChange }) {
       clearInterval(keepAlive);
       io.disconnect();
       ro.disconnect();
-      removeEventListener('pointermove', onMove);
+      host.removeEventListener('pointermove', onMove);
+      host.removeEventListener('pointerleave', onLeave);
       apiRef.current = null;
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
@@ -506,13 +513,13 @@ export default function EunaChatSection() {
             <div className="euna-chat-scroll">
               {messages.map((m, i) => (
                 <div key={i} className={`euna-msg ${m.type}`}>
-                  {m.type === 'bot' && <span className="euna-msg-avatar">E</span>}
+                  {m.type === 'bot' && <span className="euna-msg-avatar"><img src="/euna/euna_profile.png" alt="" className="euna-msg-avatar-img" /></span>}
                   <p className="euna-msg-text">{m.text}</p>
                 </div>
               ))}
               {isLoading && (
                 <div className="euna-msg bot">
-                  <span className="euna-msg-avatar">E</span>
+                  <span className="euna-msg-avatar"><img src="/euna/euna_profile.png" alt="" className="euna-msg-avatar-img" /></span>
                   <p className="euna-msg-text euna-typing">thinking<span>.</span><span>.</span><span>.</span></p>
                 </div>
               )}
