@@ -551,13 +551,15 @@ export default function EunaChatSection() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="euna-suggestions">
-              {SUGGESTED_QUESTIONS.map((q) => (
-                <button key={q} type="button" className="euna-suggestion" onClick={() => sendMessage(q)} disabled={isLoading}>
-                  {q}
-                </button>
-              ))}
-            </div>
+            {messages.length <= 1 && (
+              <div className="euna-suggestions">
+                {SUGGESTED_QUESTIONS.map((q) => (
+                  <button key={q} type="button" className="euna-suggestion" onClick={() => sendMessage(q)} disabled={isLoading}>
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <form
               className="euna-input-row"
