@@ -71,7 +71,7 @@
   background: linear-gradient(180deg, #e8f0ea 0%, #dce8e2 100%);
   border: 2px solid var(--pik-ink);
   border-radius: 12px;
-  min-height: 480px;
+  min-height: 560px;
   box-shadow: var(--pik-card-shadow);
   overflow: visible;
 }
@@ -152,6 +152,7 @@
 
 .euna-speaker:hover { transform: translateY(-1px); }
 .euna-speaker.on { background: var(--pik-verm); color: #fffdf7; }
+.euna-speaker.on.generating { background: var(--pik-yellow); color: var(--pik-ink); }
 .euna-speaker.on:hover { background: #ff6a47; }
 .euna-speaker.speaking { animation: euna-pulse 0.9s ease-in-out infinite; }
 
@@ -171,7 +172,7 @@
   border-radius: 12px;
   box-shadow: var(--pik-card-shadow);
   overflow: hidden;
-  min-height: 480px;
+  height: 560px;
 }
 
 .euna-chat-scroll {
@@ -181,7 +182,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  min-height: 260px;
+  min-height: 0;
 }
 
 .euna-msg { display: flex; gap: 10px; align-items: flex-end; }
@@ -321,8 +322,8 @@
 
 @media (max-width: 900px) {
   .euna-stage { grid-template-columns: 1fr; }
-  .euna-portrait-card { min-height: 360px; }
-  .euna-chat-card { min-height: 420px; }
+  .euna-portrait-card { min-height: 400px; }
+  .euna-chat-card { height: 460px; }
   .euna-inner { padding: 70px clamp(20px, 4vw, 40px); }
 }
 

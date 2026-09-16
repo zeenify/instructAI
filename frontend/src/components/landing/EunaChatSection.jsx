@@ -31,9 +31,8 @@ const roleGreeting = (role) =>
       : "Hey there! I'm Euna. Got questions about InstructAI? Pick your side up top and ask away!";
 
 /* ── 3D EUNA — vanilla three.js, adapted from euna3d/viewer/public/main.js ── */
-const EunaCanvas = memo(function EunaCanvas({ speakerOn, onSpeakingChange }) {
+const EunaCanvas = memo(function EunaCanvas({ speakerOn, apiRef }) {
   const hostRef = useRef(null);
-  const apiRef = useRef(null);
   const speakerRef = useRef(speakerOn);
   speakerRef.current = speakerOn;
 
@@ -176,6 +175,9 @@ const EunaCanvas = memo(function EunaCanvas({ speakerOn, onSpeakingChange }) {
       src.connect(analyser);
       analyser.connect(audioCtx.destination);
       freqData = new Uint8Array(analyser.frequencyBinCount);
+      window.__eunaAudio = {
+        get: () => ({ paused: audioEl?.paused, time: audioEl ? Math.round(audioEl.currentTime * 10) / 10 : null, ctx: audioCtx?.state, src: (audioEl?.src || "").slice(0, 40) }),
+      };
     }
 
     // public controller used by the chat logic
@@ -193,6 +195,12 @@ const EunaCanvas = memo(function EunaCanvas({ speakerOn, onSpeakingChange }) {
         return new Promise((resolve) => { audioEl.onended = resolve; });
       },
       stopAudio: () => { if (audioEl) { audioEl.pause(); audioEl.src = ''; } },
+      // must be called inside a user gesture (speaker toggle) so the
+      // AudioContext starts unlocked and later play() calls are allowed
+      prepare: () => {
+        setupAudio();
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      },
     };
     apiRef.current = api;
 
@@ -359,8 +367,10 @@ export default function EunaChatSection() {
   const [isLoading, setIsLoading] = useState(false);
   const [speakerOn, setSpeakerOn] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voicePhase, setVoicePhase] = useState(null); // null | warming | speaking
   const [lowEnd] = useState(isLowEndDevice);
   const [show3D, setShow3D] = useState(true);
+  const eunaApiRef = useRef(null);
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
   const speakerRef = useRef(false);
@@ -396,10 +406,12 @@ export default function EunaChatSection() {
     }
   }, [messages, isLoading]);
 
-  const speakText = async (text, api) => {
-    if (!speakerRef.current || !api) return;
+  const speakText = async (text) => {
+    const api = eunaApiRef.current;
+    if (!speakerOn || !api) return;
     setIsSpeaking(true);
     try {
+      setVoicePhase('warming');
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
       const res = await fetch(`${apiUrl}/euna/tts`, {
         method: 'POST',
@@ -408,16 +420,20 @@ export default function EunaChatSection() {
       });
       if (!res.ok) throw new Error('tts ' + res.status);
       const blob = await res.blob();
+      setVoicePhase('speaking');
       await api.loadAudio(blob); // resolves when playback ends; FFT drives the mouth
     } catch {
       api.speak(Math.min(9000, 1800 + text.length * 55)); // TTS failed: lip-sync silently
     } finally {
+      setVoicePhase(null);
       setIsSpeaking(false);
     }
   };
 
   const sendMessage = async (text = inputValue) => {
     if (!text.trim() || isLoading) return;
+    eunaApiRef.current?.stopAudio();
+    setVoicePhase(null);
     setMessages((prev) => [...prev, { type: 'user', text: text.trim() }]);
     setInputValue('');
     setIsLoading(true);
@@ -435,22 +451,25 @@ export default function EunaChatSection() {
       });
       const data = await res.json();
       const reply = res.ok ? data.response : 'Ugh, my brain glitched. Ask me again?';
+      setIsLoading(false); // reply text shows immediately — the voice phase runs after
       setMessages((prev) => [...prev, { type: 'bot', text: reply }]);
-      await speakText(reply);
+      speakText(reply);
     } catch {
       setMessages((prev) => [...prev, { type: 'bot', text: "I can't reach my brain right now — try again in a sec!" }]);
-    } finally {
       setIsLoading(false);
     }
   };
 
   const toggleSpeaker = () => {
-    setSpeakerOn((on) => {
-      const next = !on;
-      speakerRef.current = next;
-      if (!next) setIsSpeaking(false);
-      return next;
-    });
+    const next = !speakerOn;
+    setSpeakerOn(next);
+    speakerRef.current = next;
+    if (next) {
+      eunaApiRef.current?.prepare(); // inside the click gesture: unlocks audio
+    } else {
+      eunaApiRef.current?.stopAudio();
+      setIsSpeaking(false);
+    }
   };
 
   const roleLabel =
@@ -488,7 +507,7 @@ export default function EunaChatSection() {
           <div className="euna-portrait-card" ref={containerRef}>
             <Tape className="tape tape-tl" />
             {show3D && !lowEnd ? (
-              <EunaCanvas speakerOn={speakerOn} />
+              <EunaCanvas speakerOn={speakerOn} apiRef={eunaApiRef} />
             ) : (
               <div className="euna-canvas-fallback">
                 <span className="font-hand">3D is napping on low-end devices</span>
@@ -498,12 +517,18 @@ export default function EunaChatSection() {
               <span className={`euna-role-chip ${role ?? 'none'}`}>{roleLabel}</span>
               <button
                 type="button"
-                className={`euna-speaker ${speakerOn ? 'on' : ''} ${isSpeaking ? 'speaking' : ''}`}
+                className={`euna-speaker ${speakerOn ? 'on' : ''} ${voicePhase === 'warming' ? 'generating' : ''} ${isSpeaking ? 'speaking' : ''}`}
                 onClick={toggleSpeaker}
                 title={speakerOn ? 'Speaker is on — Euna will talk' : 'Turn on the speaker'}
               >
                 {speakerOn ? <Volume2 size={17} strokeWidth={2.4} /> : <VolumeX size={17} strokeWidth={2.4} />}
-                {speakerOn ? 'speaker on' : 'speaker off'}
+                {voicePhase === 'warming'
+                  ? 'warming up…'
+                  : voicePhase === 'speaking'
+                    ? 'speaking…'
+                    : speakerOn
+                      ? 'speaker on'
+                      : 'speaker off'}
               </button>
             </div>
           </div>
