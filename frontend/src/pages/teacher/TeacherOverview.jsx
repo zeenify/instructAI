@@ -1,234 +1,251 @@
-import { useClasses } from '../../context/ClassContext';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { BookOpen, Users, BarChart3, Eye, Plus, ArrowRight } from 'lucide-react';
+import {
+    BookOpen,
+    Users,
+    BarChart3,
+    Layers,
+    ClipboardList,
+    ArrowRight,
+    Plus,
+    Copy,
+    Check,
+    Calendar,
+    GraduationCap,
+    Loader2,
+} from 'lucide-react';
 import api from '../../services/api';
-import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
+import { useClasses } from '../../context/ClassContext';
+import StatCard from '../../components/ui/StatCard';
+import CreateTile from '../../components/ui/CreateTile';
+import ColorSwatches from '../../components/ui/ColorSwatches';
+import '../../styles/dashboard.css';
+
+const DEFAULT_CLASS_COLOR = '#6d5ae0';
+
+/**
+ * Time-of-day greeting. Morning starts at 5am (4am is still night),
+ * evening runs 6pm–10pm, and the late-night hours get their own line.
+ */
+const greetingForNow = () => {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 12) return 'Good morning';
+    if (h >= 12 && h < 18) return 'Good afternoon';
+    if (h >= 18 && h < 23) return 'Good evening';
+    return 'Burning the midnight oil';
+};
+
+const formatDate = (iso) =>
+    new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+const todayLabel = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+});
 
 export default function TeacherOverview() {
-    const { classes } = useClasses();
     const navigate = useNavigate();
-    const [totalStudents, setTotalStudents] = useState(0);
+    const { user } = useAuth();
+    const { refreshClasses } = useClasses();
+    const [data, setData] = useState({ classes: [], totals: { classes_count: 0, students_count: 0 } });
+    const [loading, setLoading] = useState(true);
+    const [copiedId, setCopiedId] = useState(null);
 
     useEffect(() => {
-        const fetchStudentCounts = async () => {
-            try {
-                let studentCount = 0;
-                for (const cls of classes) {
-                    const res = await api.get(`/teacher/classes/${cls.id}`);
-                    studentCount += res.data.students?.length || 0;
-                }
-                setTotalStudents(studentCount);
-            } catch (err) {
-                console.error('Failed to fetch student counts:', err);
-            }
+        let alive = true;
+        api.get('/teacher/overview', { bypassCache: true })
+            .then((res) => {
+                if (!alive) return;
+                setData({
+                    classes: res.data.classes ?? [],
+                    totals: res.data.totals ?? { classes_count: 0, students_count: 0 },
+                });
+            })
+            .catch((err) => console.error('Failed to load overview', err))
+            .finally(() => alive && setLoading(false));
+        return () => {
+            alive = false;
         };
+    }, []);
 
-        if (classes.length > 0) {
-            fetchStudentCounts();
-        } else {
-            setTotalStudents(0);
+    const setColor = async (cls, hex) => {
+        // optimistic: card + sidebar dot recolor immediately
+        setData((prev) => ({
+            ...prev,
+            classes: prev.classes.map((c) => (c.id === cls.id ? { ...c, color: hex } : c)),
+        }));
+        try {
+            await api.put(`/teacher/classes/${cls.id}/color`, { color: hex });
+            refreshClasses(); // sync the sidebar dots from ClassContext
+        } catch {
+            setData((prev) => ({
+                ...prev,
+                classes: prev.classes.map((c) => (c.id === cls.id ? { ...c, color: cls.color } : c)),
+            }));
         }
-    }, [classes]);
+    };
 
-return (
-        <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', paddingLeft: '24px', paddingRight: '24px', paddingTop: '32px', paddingBottom: '32px', transition: 'all 0.3s ease' }}>
-            <div style={{ maxWidth: '1280px', marginLeft: 'auto', marginRight: 'auto' }}>
-                {/* Header */}
-                <div style={{ marginBottom: '40px' }}>
-                    <h1 style={{ fontSize: '32px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '8px', margin: 0 }}>
-                        Dashboard
+    const copyCode = (cls) => {
+        navigator.clipboard?.writeText(cls.class_code);
+        setCopiedId(cls.id);
+        setTimeout(() => setCopiedId((id) => (id === cls.id ? null : id)), 1500);
+    };
+
+    const profile = user?.teacher_profile;
+    const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'Teacher';
+    const greeting = greetingForNow();
+
+    return (
+        <div>
+            {/* Hero */}
+            <div className="db-hero">
+                <div className="db-hero-greeting">
+                    <h1 className="db-hero-title">
+                        {greeting}, {fullName}
                     </h1>
-                    <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
-                        Welcome back! Here's your teaching overview.
-                    </p>
+                    <p className="db-hero-sub">Here's what's happening with your classes today.</p>
                 </div>
-
-                {/* Stats Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '40px' }}>
-                    <div style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '10px', border: '1px solid var(--border-color)', padding: '24px', boxShadow: 'var(--card-shadow)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                            <p style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
-                                Active Classes
-                            </p>
-                            <BookOpen style={{ width: '18px', height: '18px', color: '#10b981' }} />
-                        </div>
-                        <div style={{ fontSize: '36px', fontWeight: '700', color: '#10b981', marginBottom: '8px' }}>
-                            {classes.length}
-                        </div>
-                        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>Classes you created</p>
-                    </div>
-
-                    <div style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '10px', border: '1px solid var(--border-color)', padding: '24px', boxShadow: 'var(--card-shadow)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                            <p style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
-                                Total Students
-                            </p>
-                            <Users style={{ width: '18px', height: '18px', color: '#06b6d4' }} />
-                        </div>
-                        <div style={{ fontSize: '36px', fontWeight: '700', color: '#06b6d4', marginBottom: '8px' }}>
-                            {totalStudents}
-                        </div>
-                        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>Across all classes</p>
-                    </div>
-
-                    <div
-                        onClick={() => navigate('/dashboard/teacher/analytics')}
-                        style={{
-                            backgroundColor: 'var(--bg-secondary)',
-                            borderRadius: '10px',
-                            border: '1px solid var(--border-color)',
-                            padding: '24px',
-                            cursor: 'pointer',
-                            transition: 'all 200ms ease-in-out',
-                            boxShadow: 'var(--card-shadow)'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = 'var(--bg-primary)';
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
-                            e.currentTarget.style.transform = 'translateY(0)';
-                        }}
-                    >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                            <p style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
-                                View Analytics
-                            </p>
-                            <BarChart3 style={{ width: '18px', height: '18px', color: '#8b5cf6' }} />
-                        </div>
-                        <div style={{ fontSize: '16px', fontWeight: '600', color: '#8b5cf6', marginBottom: '8px' }}>
-                            Performance Metrics
-                        </div>
-                        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>Track course performance and completion rates</p>
-                    </div>
+                <div className="db-hero-meta">
+                    <Calendar size={15} />
+                    {todayLabel}
                 </div>
+            </div>
 
-                {/* Classes Section */}
-                <div style={{ marginBottom: '40px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                        <h2 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Your Classes</h2>
-                        <button
-                            onClick={() => navigate('/dashboard/teacher/classes/new')}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                padding: '10px 16px',
-                                backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                                border: '1px solid rgba(16, 185, 129, 0.4)',
-                                borderRadius: '8px',
-                                color: '#10b981',
-                                fontSize: '14px',
-                                fontWeight: '600',
-                                cursor: 'pointer',
-                                transition: 'all 200ms ease-in-out'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.3)';
-                                e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.6)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
-                                e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-                            }}
-                        >
+            {loading ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
+                    <Loader2 size={28} className="animate-spin" style={{ color: 'var(--db-accent)' }} />
+                </div>
+            ) : (
+                <>
+                    {/* Stats */}
+                    <div className="db-stats-grid">
+                        <StatCard
+                            icon={BookOpen}
+                            tone="violet"
+                            label="Active Classes"
+                            value={data.totals.classes_count}
+                            caption="Classes you created"
+                        />
+                        <StatCard
+                            icon={Users}
+                            tone="green"
+                            label="Total Students"
+                            value={data.totals.students_count}
+                            caption="Across all classes"
+                        />
+                        <StatCard
+                            icon={BarChart3}
+                            tone="violet"
+                            label="View Analytics"
+                            value="Performance Metrics"
+                            caption="Track course performance and completion rates"
+                            onClick={() => navigate('/dashboard/teacher/analytics')}
+                        />
+                    </div>
+
+                    {/* Your Classes */}
+                    <div className="db-section-row">
+                        <div className="db-section-title-wrap">
+                            <span className="db-section-icon">
+                                <Users size={21} strokeWidth={2.1} />
+                            </span>
+                            <div>
+                                <h2 className="db-section-title">Your Classes</h2>
+                                <p className="db-section-sub">Manage your classes, track progress, and create new ones.</p>
+                            </div>
+                        </div>
+                        <button className="db-btn-primary" onClick={() => navigate('/dashboard/teacher/classes/new')}>
                             <Plus size={16} />
                             Create Class
                         </button>
                     </div>
 
-{classes.length === 0 ? (
-                        <div style={{
-                            backgroundColor: 'var(--bg-secondary)',
-                            borderRadius: '10px',
-                            border: '1px solid var(--border-color)',
-                            padding: '40px',
-                            textAlign: 'center',
-                            boxShadow: 'var(--card-shadow)'
-                        }}>
-                            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                                You haven't created any classes yet.
-                            </p>
-                            <button
-                                onClick={() => navigate('/dashboard/teacher/classes/new')}
-                                style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    padding: '12px 24px',
-                                    backgroundColor: '#10b981',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    color: 'white',
-                                    fontSize: '14px',
-                                    fontWeight: '600',
-                                    cursor: 'pointer',
-                                    transition: 'all 200ms ease-in-out'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = '#059669';
-                                    e.currentTarget.style.transform = 'scale(1.05)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = '#10b981';
-                                    e.currentTarget.style.transform = 'scale(1)';
-                                }}
+                    <div className="db-class-grid">
+                        {data.classes.map((cls) => (
+                            <div
+                                key={cls.id}
+                                className="db-card db-class-card db-clickable"
+                                onClick={() => navigate(`/dashboard/teacher/class/${cls.id}`)}
+                                role="button"
                             >
-                                <Plus size={16} />
-                                Create Your First Class
-                            </button>
-                        </div>
-                    ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-                            {classes.map(cls => (
-                                <button
-                                    key={cls.id}
-                                    onClick={() => navigate(`/dashboard/teacher/class/${cls.id}`)}
-                                    style={{
-                                        backgroundColor: 'var(--bg-secondary)',
-                                        borderRadius: '10px',
-                                        border: '1px solid var(--border-color)',
-                                        padding: '20px',
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        transition: 'all 200ms ease-in-out',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        justifyContent: 'space-between',
-                                        minHeight: '120px',
-                                        boxShadow: 'var(--card-shadow)'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.backgroundColor = 'var(--bg-primary)';
-                                        e.currentTarget.style.borderColor = '#10b981';
-                                        e.currentTarget.style.transform = 'translateY(-2px)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
-                                        e.currentTarget.style.borderColor = 'var(--border-color)';
-                                        e.currentTarget.style.transform = 'translateY(0)';
-                                    }}
+                                <div
+                                    className="db-class-band"
+                                    style={{ '--class-color': cls.color || DEFAULT_CLASS_COLOR }}
                                 >
-                                    <div>
-                                        <h3 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
-                                            {cls.name}
-                                        </h3>
-                                        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-                                            Class Code: <span style={{ fontWeight: '600' }}>{cls.class_code}</span>
-                                        </p>
+                                    <div className="db-band-palette">
+                                        <ColorSwatches value={cls.color} onChange={(hex) => setColor(cls, hex)} />
                                     </div>
-                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-                                        <ArrowRight style={{ width: '16px', height: '16px', color: '#10b981' }} />
+                                </div>
+                                <div className="db-class-body">
+                                    <div className="db-class-toprow">
+                                        <div className="db-class-name-wrap">
+                                            <span
+                                                className="db-class-avatar"
+                                                style={{ '--class-color': cls.color || DEFAULT_CLASS_COLOR }}
+                                            >
+                                                <GraduationCap size={22} />
+                                            </span>
+                                            <h3 className="db-class-name">{cls.name}</h3>
+                                        </div>
                                     </div>
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
 
-            </div>
+                                    <div className="db-code-row">
+                                        Class Code:
+                                        <span className="db-code-chip">{cls.class_code}</span>
+                                        <button
+                                            type="button"
+                                            className="db-copy-btn"
+                                            title="Copy class code"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                copyCode(cls);
+                                            }}
+                                        >
+                                            {copiedId === cls.id ? <Check size={14} /> : <Copy size={14} />}
+                                        </button>
+                                    </div>
+
+                                    <div className="db-class-stats">
+                                        <div className="db-class-stat">
+                                            <span className="db-class-stat-icon"><Users size={14} /></span>
+                                            <b>{cls.students_count}</b>
+                                            <span>Students</span>
+                                        </div>
+                                        <div className="db-class-stat">
+                                            <span className="db-class-stat-icon"><Layers size={14} /></span>
+                                            <b>{cls.modules_count}</b>
+                                            <span>Modules</span>
+                                        </div>
+                                        <div className="db-class-stat">
+                                            <span className="db-class-stat-icon"><ClipboardList size={14} /></span>
+                                            <b>{cls.classwork_quizzes_count}</b>
+                                            <span>Quizzes</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="db-class-footer">
+                                        <span className="db-class-footer-date">
+                                            <Calendar size={14} />
+                                            Created {formatDate(cls.created_at)}
+                                        </span>
+                                        <span className="db-class-footer-arrow">
+                                            <ArrowRight size={15} />
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+
+                        <CreateTile
+                            title="Create New Class"
+                            subtitle="Set up a new class and invite your students with a class code."
+                            onClick={() => navigate('/dashboard/teacher/classes/new')}
+                        />
+                    </div>
+                </>
+            )}
         </div>
     );
 }

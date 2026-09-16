@@ -8,7 +8,7 @@ class Classroom extends Model
 {
     protected $table = 'classes'; // Maps to our 'classes' table
 
-    protected $fillable = ['teacher_id', 'name', 'class_code', 'description'];
+    protected $fillable = ['teacher_id', 'name', 'class_code', 'description', 'color'];
 
     public function teacher()
     {
