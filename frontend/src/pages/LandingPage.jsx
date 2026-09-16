@@ -375,8 +375,7 @@ function ExamVisual() {
       <Tape className="tape-br" />
       <div className="exam-paper">
         <p className="exam-title">Quiz 3 — Functions <span className="exam-pts">20 pts</span></p>
-        <pre className="exam-code"><span className="c-kw">def</span> <span className="c-fn">add</span>(a, b):
-    <span className="c-kw">return</span> a + b</pre>
+        <pre className="exam-code"><span className="c-kw">def</span> <span className="c-fn">add</span>(a, b):{'\n'}{'    '}<span className="c-kw">return</span> a + b</pre>
         <div className="exam-case">
           <span className="case-io">add(2, 3) → <b>5</b></span>
           <svg viewBox="0 0 24 24" className="case-check" aria-hidden="true"><path d="M4 13 l5 5 L20 6" stroke="var(--pik-verm)" strokeWidth="3.4" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -442,11 +441,7 @@ function IdeVisual() {
           <span className="ide-dot" /><span className="ide-dot" /><span className="ide-dot" />
           <span className="ide-tab">Main.java</span>
         </div>
-        <pre className="ide-code"><span className="c-kw">public class</span> <span className="c-fn">Main</span> {'{'}
-{'  '}<span className="c-kw">static void</span> <span className="c-fn">main</span>(String[] args) {'{'}
-{'    '}System.out.println(<span className="c-str">"Hello, Penaranda!"</span>);
-{'  '}{'}'}
-{'}'}</pre>
+        <pre className="ide-code"><span className="c-kw">public class</span> <span className="c-fn">Main</span> {'{\n'}{'  '}<span className="c-kw">static void</span> <span className="c-fn">main</span>(String[] args) {'{\n'}{'    '}System.out.println(<span className="c-str">"Hello, Penaranda!"</span>);{'\n'}{'  '}{'}'}{'\n'}{'}'}</pre>
         <div className="ide-terminal">
           <span className="ide-prompt">$ java Main</span>
           <span className="ide-out">Hello, Penaranda!</span>

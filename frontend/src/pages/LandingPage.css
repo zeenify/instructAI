@@ -1784,6 +1784,7 @@
 
 .pik-burger {
   display: none;
+  margin-left: auto;
   align-items: center;
   justify-content: center;
   width: 40px;
@@ -1836,6 +1837,7 @@
 /* ── responsive ──────────────────────────────────────────── */
 
 @media (max-width: 1020px) {
+  .spread > * { min-width: 0; }
   .spin-badge { display: none; }
   .spread,
   .spread.flip { grid-template-columns: 1fr; gap: 22px; }
