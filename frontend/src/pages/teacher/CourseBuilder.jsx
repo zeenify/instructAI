@@ -16,8 +16,16 @@ import GenerationConsole from './GenerationConsole.jsx';
 import IndexingStatsModal from '../../components/teacher/IndexingStatsModal';
 import './CourseBuilder.css';
 
-export default function CourseBuilder() {
-    const { id } = useParams();
+/**
+ * Course editor. Normally a page (route param supplies the course id), but it
+ * can also be EMBEDDED in the class page's Content tab: pass `courseId` and
+ * `embedded` — embedded hides the page chrome (back link, course title) that
+ * would duplicate the class page header, keeping every content action.
+ * See docs/data-layer-plan.md (strict 1 class = 1 course).
+ */
+export default function CourseBuilder({ courseId = null, embedded = false }) {
+    const params = useParams();
+    const id = courseId ?? params.id;
     const navigate = useNavigate();
     
     // Core States
@@ -973,12 +981,14 @@ if (loading || !course) return (
     const activeModuleData = activeModuleId ? course.modules.find(m => m.id === activeModuleId) : null;
 
     return (
-        <div className="builder-container">
+        <div className="builder-container" style={embedded ? { maxWidth: 'none', padding: 0, margin: 0 } : undefined}>
             <header style={{ marginBottom: '40px' }} className="mb-10">
-<button onClick={() => activeModuleId ? setActiveModuleId(null) : navigate(-1)} style={{ marginBottom: '24px', padding: '12px 0' }} className="border-none bg-transparent cursor-pointer text-slate-500 hover:text-brand-text transition-colors flex items-center gap-2">
+{(!embedded || activeModuleId) && (
+                <button onClick={() => activeModuleId ? setActiveModuleId(null) : navigate(-1)} style={{ marginBottom: '24px', padding: '12px 0' }} className="border-none bg-transparent cursor-pointer text-slate-500 hover:text-brand-text transition-colors flex items-center gap-2">
                     <ChevronLeft size={18} />
                     <span className="text-xs font-bold uppercase tracking-[0.1em]">{activeModuleId ? 'Return to Modules' : 'Exit to Classroom'}</span>
                 </button>
+                )}
 
                 {/* Top Control Bar - Enhanced */}
                 {!activeModuleId && (
@@ -1016,7 +1026,7 @@ if (loading || !course) return (
                     <div className="flex-1">
                         {!activeModuleId ? (
                             <>
-                                <span className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">Course</span>
+                                {!embedded && <span className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">Course</span>}
                                 <div style={{ marginTop: '12px', gap: '12px' }} className="flex items-center group">
 {isTitleEditing ? (
                                         <div style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid #a78bfa' }} className="flex items-center gap-2 rounded-xl p-2 flex-1">
@@ -1046,6 +1056,8 @@ if (loading || !course) return (
                                         </div>
 ) : (
                                         <>
+                                            {!embedded && (
+                                            <>
                                             <h1 style={{ color: 'var(--text-primary)' }} className="text-5xl font-black tracking-tight cursor-pointer hover:text-purple-400 transition-colors" onClick={() => {
                                                 setEditingTitle(course.title);
                                                 setIsTitleEditing(true);
@@ -1053,6 +1065,8 @@ if (loading || !course) return (
                                                 {course.title}
                                             </h1>
                                             <span className="text-slate-500 text-xs uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Click to edit</span>
+                                            </>
+                                    )}
                                         </>
                                     )}
                                 </div>

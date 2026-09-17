@@ -1,19 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-    ArrowRight,
     BookOpen,
     Check,
     ClipboardList,
     Copy,
     ExternalLink,
-    Layers,
     Users,
 } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'sonner';
 import { useClassDetails, useCourseContent } from '../../queries/classDetails';
 import Classwork from './Classwork';
+import CourseBuilder from './CourseBuilder';
 import { SkeletonBlock } from '../../components/ui/skeletons';
 import '../../styles/dashboard.css';
 
@@ -56,10 +55,6 @@ export default function ClassDetails() {
         setCopied(true);
         toast.success(`Class code copied: ${classroom.class_code}`);
         setTimeout(() => setCopied(false), 1600);
-    };
-
-    const openBuilder = () => {
-        if (course) navigate(`/dashboard/teacher/class/${id}/course/${course.id}`);
     };
 
     if (isLoading || !classroom) {
@@ -129,10 +124,6 @@ export default function ClassDetails() {
                         </button>
                     </div>
                 </div>
-                <button className="db-btn-primary" onClick={openBuilder} disabled={!course}>
-                    <BookOpen size={16} />
-                    Open Builder
-                </button>
             </div>
 
             {statStrip}
@@ -155,9 +146,9 @@ export default function ClassDetails() {
                 </button>
             </div>
 
-            {/* CONTENT TAB */}
+            {/* CONTENT TAB — the embedded builder IS the management surface */}
             {activeTab === 'content' && (
-                <div>
+                <>
                     {!course ? (
                         // Legacy classes created before auto-course: create their content course on demand.
                         <div className="cd-empty">
@@ -181,45 +172,10 @@ export default function ClassDetails() {
                                 Set up class content
                             </button>
                         </div>
-                    ) : modules.length === 0 ? (
-                        <div className="cd-empty">
-                            <Layers size={28} style={{ marginBottom: 6 }} />
-                            <p className="cd-empty-title">No modules yet</p>
-                            <p>Open the Builder to add your first module — or generate a whole course with AI.</p>
-                            <button type="button" className="db-btn-primary" style={{ marginTop: 12 }} onClick={openBuilder}>
-                                <BookOpen size={16} />
-                                Open Builder
-                            </button>
-                        </div>
                     ) : (
-                        <>
-                            {modules.map((mod, i) => (
-                                <button
-                                    key={mod.id}
-                                    type="button"
-                                    className="db-card cd-module-row db-clickable"
-                                    onClick={openBuilder}
-                                >
-                                    <span className="cd-module-index">{String(i + 1).padStart(2, '0')}</span>
-                                    <h3 className="cd-module-name">{mod.title}</h3>
-                                    <div className="cd-module-meta">
-                                        <span className="cd-chip">{mod.lessons?.length ?? 0} Lessons</span>
-                                        <span className="cd-chip">{mod.quizzes?.length ?? 0} Quizzes</span>
-                                        <span className={`cd-chip ${mod.is_published ? 'published' : 'draft'}`}>
-                                            {mod.is_published ? 'Published' : 'Draft'}
-                                        </span>
-                                        <span className="db-class-footer-arrow">
-                                            <ArrowRight size={15} />
-                                        </span>
-                                    </div>
-                                </button>
-                            ))}
-                            <p style={{ fontSize: 13, color: 'var(--db-text-3)', margin: '14px 0 0' }}>
-                                Reorder, edit lessons, and generate with AI inside the Builder.
-                            </p>
-                        </>
+                        <CourseBuilder courseId={course.id} embedded />
                     )}
-                </div>
+                </>
             )}
 
             {/* STUDENTS TAB */}
