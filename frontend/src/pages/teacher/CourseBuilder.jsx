@@ -1024,6 +1024,10 @@ if (loading || !course) return (
                             {isUpdatingStatus ? <Loader2 size={11} className="animate-spin" /> : (isPublished ? <Check size={11} /> : null)}
                             {isPublished ? 'Live' : 'Draft'}
                         </span>
+                        <button type="button" className={`cd-tbtn ${isPublished ? '' : 'cd-tbtn-accent'}`} onClick={handleGoLive} disabled={isUpdatingStatus}>
+                            <Rocket size={14} />
+                            {isPublished ? 'Unpublish' : 'Go Live'}
+                        </button>
                         {course.curriculum_file_url && (
                             <span className="cd-cur" title={course.curriculum_file_url.split('/').pop()}>
                                 <FileText size={12} />
@@ -1034,10 +1038,6 @@ if (loading || !course) return (
                         <button type="button" className="cd-tbtn" onClick={() => setShowCurriculumModal(true)}>
                             <FileText size={14} />
                             {course.curriculum_file_url ? 'Manage' : 'Upload'}
-                        </button>
-                        <button type="button" className={`cd-tbtn ${isPublished ? '' : 'cd-tbtn-accent'}`} onClick={handleGoLive} disabled={isUpdatingStatus}>
-                            <Rocket size={14} />
-                            {isPublished ? 'Unpublish' : 'Go Live'}
                         </button>
                         <button type="button" className="cd-tbtn cd-tbtn-ai" onClick={() => setIsAiModalOpen(true)}>
                             <Sparkles size={14} />
