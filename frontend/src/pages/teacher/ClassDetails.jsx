@@ -19,6 +19,20 @@ import '../../styles/dashboard.css';
 
 const TABS = ['content', 'students', 'classwork'];
 
+/** Mirrors the embedded builder: toolbar row + module card grid. */
+function ContentTabSkeleton() {
+    return (
+        <>
+            <SkeletonBlock style={{ height: 46, borderRadius: 14, marginBottom: 22 }} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
+                {[0, 1, 2].map((i) => (
+                    <SkeletonBlock key={i} style={{ height: 168, borderRadius: 16 }} />
+                ))}
+            </div>
+        </>
+    );
+}
+
 /**
  * The class page — strict 1 class = 1 course (docs/data-layer-plan.md).
  * The first course (order_index) IS the class content; the Content tab shows
@@ -74,14 +88,10 @@ export default function ClassDetails() {
                         </div>
                     ))}
                 </div>
-                <div className="cd-tab-bar">
-                    {[0, 1, 2].map((i) => (
-                        <SkeletonBlock key={i} style={{ width: 90, height: 16, marginRight: 18 }} />
-                    ))}
+                <div className="cd-tab-bar" style={{ marginBottom: 22 }}>
+                    <SkeletonBlock style={{ width: 92, height: 15 }} />
                 </div>
-                {[0, 1, 2].map((i) => (
-                    <SkeletonBlock key={i} style={{ height: 64, borderRadius: 14, marginBottom: 10 }} />
-                ))}
+                <ContentTabSkeleton />
             </div>
         );
     }
@@ -151,18 +161,9 @@ export default function ClassDetails() {
             {activeTab === 'content' && (
                 <>
                     {loadingContent && course ? (
-                        // One cohesive skeleton while the course content loads —
-                        // the builder only mounts once data is cached, so its
-                        // internal loading gate never flashes.
-                        <>
-                            <SkeletonBlock style={{ height: 46, borderRadius: 14, marginBottom: 12 }} />
-                            <SkeletonBlock style={{ height: 120, borderRadius: 16, marginBottom: 20 }} />
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
-                                {[0, 1, 2].map((i) => (
-                                    <SkeletonBlock key={i} style={{ height: 170, borderRadius: 16 }} />
-                                ))}
-                            </div>
-                        </>
+                        // One skeleton while the course content loads — the
+                        // builder mounts pre-filled, so no second skeleton.
+                        <ContentTabSkeleton />
                     ) : !course ? (
                         // Legacy classes created before auto-course: create their content course on demand.
                         <div className="cd-empty">
@@ -187,7 +188,7 @@ export default function ClassDetails() {
                             </button>
                         </div>
                     ) : (
-                        <CourseBuilder courseId={course.id} embedded />
+                        <CourseBuilder courseId={course.id} embedded initialCourse={content} />
                     )}
                 </>
             )}

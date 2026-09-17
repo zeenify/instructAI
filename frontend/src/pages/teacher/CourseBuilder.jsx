@@ -25,14 +25,24 @@ import './CourseBuilder.css';
  * would duplicate the class page header, keeping every content action.
  * See docs/data-layer-plan.md (strict 1 class = 1 course).
  */
-export default function CourseBuilder({ courseId = null, embedded = false }) {
+export default function CourseBuilder({ courseId = null, embedded = false, initialCourse = null }) {
     const params = useParams();
     const id = courseId ?? params.id;
     const navigate = useNavigate();
-    
-    // Core States
-    const [course, setCourse] = useState(null);
-    const [loading, setLoading] = useState(true);
+
+    // Core States. When embedded, the parent passes initialCourse (already
+    // loaded by the class page) so the builder mounts pre-filled — its own
+    // background refetch never flashes a second skeleton.
+    const enrichCourse = (data) => data ? {
+        ...data,
+        modules: (data.modules || []).map(m => ({
+            ...m,
+            lessons: (m.lessons || []).map(l => ({ ...l, itemType: 'lesson' })),
+            quizzes: (m.quizzes || []).map(q => ({ ...q, itemType: 'quiz' })),
+        })),
+    } : null;
+    const [course, setCourse] = useState(() => enrichCourse(initialCourse));
+    const [loading, setLoading] = useState(!initialCourse);
     const [isPublished, setIsPublished] = useState(false);
     
     // UI View States
@@ -85,22 +95,19 @@ export default function CourseBuilder({ courseId = null, embedded = false }) {
     const [showIndexingStats, setShowIndexingStats] = useState(false);
     const [indexingStats, setIndexingStats] = useState(null);
 
-    useEffect(() => { fetchCourse(); }, [id]);
+    useEffect(() => { fetchCourse(!initialCourse); }, [id]);
 
-    const fetchCourse = async () => {
+    const fetchCourse = async (showLoading = true) => {
         try {
             // The editor always fetches fresh — a stale read here means the
-            // teacher edits/publishes against the wrong state.
+            // teacher edits/publishes against the wrong state. showLoading is
+            // false for embedded background refreshes (the parent skeleton
+            // already covered the first load).
             const res = await api.get(`/teacher/courses/${id}`, { bypassCache: true });
-            const enrichedModules = res.data.modules.map(m => ({
-                ...m,
-                lessons: (m.lessons || []).map(l => ({ ...l, itemType: 'lesson' })),
-                quizzes: (m.quizzes || []).map(q => ({ ...q, itemType: 'quiz' }))
-            }));
-            setCourse({ ...res.data, modules: enrichedModules });
+            setCourse(enrichCourse(res.data));
             setIsPublished(res.data.is_published);
         } catch (err) { navigate('/dashboard/teacher'); }
-        finally { setLoading(false); }
+        finally { if (showLoading) setLoading(false); }
     };
 
     // --- ACTIONS ---
