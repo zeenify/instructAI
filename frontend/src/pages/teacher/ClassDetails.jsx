@@ -6,6 +6,7 @@ import {
     ClipboardList,
     Copy,
     ExternalLink,
+    Layers,
     Users,
 } from 'lucide-react';
 import api from '../../services/api';
