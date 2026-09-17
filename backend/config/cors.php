@@ -25,7 +25,8 @@ return [
         'https://instruct-ai-topaz.vercel.app'
     ],
 
-    'allowed_origins_patterns' => [],
+    // Vite picks a new port when the default is taken — allow any localhost dev port
+    'allowed_origins_patterns' => ['#^http://localhost:\d+$#'],
 
     'allowed_headers' => ['*'],
 

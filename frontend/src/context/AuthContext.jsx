@@ -1,6 +1,7 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import api, { invalidateCache } from '../services/api';
 import cache from '../utils/cache';
+import { queryClient } from '../main';
 
 const AuthContext = createContext();
 
@@ -27,6 +28,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('role');
         sessionStorage.removeItem('user');
         cache.clear();
+        queryClient.clear(); // never leak data across accounts in the same tab
     };
 
     useEffect(() => {

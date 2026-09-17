@@ -4,6 +4,16 @@ AI-powered LMS for programming education, built for Penaranda Senior High School
 Stack: Laravel (backend/, port 8000) · React 19 + Vite (frontend/, port 5173) ·
 Python RAG service (instruct-ai-service/) · Kotlin Android app (cognify/).
 
+## Data layer migration (ACTIVE — read before touching any page's fetching)
+
+We are migrating all data fetching to **TanStack Query** (stale-while-revalidate)
+to fix slow/inconsistent refetching across pages. The full plan, phases, progress
+tracker, and the rules for future pages live in **`docs/data-layer-plan.md`** —
+read it before writing any `useEffect` fetch or touching `services/api.js`
+caching. Short version: pages consume data via `src/queries/` hooks; loading
+spinners only when no cached data exists; invalidate by query key after
+mutations; never add new `bypassCache` usage.
+
 ## UI/UX overhaul — active workflow (do not skip steps)
 
 We are redesigning the web app **page by page**, one page at a time:

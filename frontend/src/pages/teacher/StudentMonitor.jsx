@@ -1,124 +1,85 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useClasses } from '../../context/ClassContext';
 import { ChevronLeft, Loader2, BookOpen, Users } from 'lucide-react';
-import api, { getMonitorStats, getMonitorStudents, getStudentProfile } from '../../services/api';
+import {
+    useMonitorCourses,
+    useMonitorStats,
+    useMonitorStudents,
+    useStudentProfile,
+} from '../../queries/monitor';
 import StudentMonitorStats from './StudentMonitorStats';
 import StudentMonitorList from './StudentMonitorList';
 import StudentProfileDetail from './StudentProfileDetail';
 import StudentProfileSkeleton from './StudentProfileSkeleton';
 import StudentMonitorListSkeleton from './StudentMonitorListSkeleton';
 
+/**
+ * Data comes from src/queries/monitor.js hooks — cached per key above the
+ * routes, so remounts across the monitor/:classId/:courseId/:studentId
+ * sibling routes render instantly and revalidate in the background.
+ * The URL is the source of truth for the current selection.
+ * See docs/data-layer-plan.md.
+ */
 export default function StudentMonitor() {
     const { classId, courseId, studentId } = useParams();
     const navigate = useNavigate();
     const { classes } = useClasses();
 
-    const [selectedClass, setSelectedClass] = useState(classId ? parseInt(classId) : null);
-    const [selectedCourse, setSelectedCourse] = useState(courseId ? parseInt(courseId) : null);
-    const [courses, setCourses] = useState([]);
-    const [stats, setStats] = useState(null);
-    const [students, setStudents] = useState([]);
-    const [selectedStudent, setSelectedStudent] = useState(studentId ? parseInt(studentId) : null);
-    const [studentProfile, setStudentProfile] = useState(null);
+    const selectedClass = classId ? parseInt(classId) : null;
+    const selectedCourse = courseId ? parseInt(courseId) : null;
+    const selectedStudent = studentId ? parseInt(studentId) : null;
 
-    const [loadingCourses, setLoadingCourses] = useState(false);
-    const [loadingStats, setLoadingStats] = useState(false);
-    const [loadingStudents, setLoadingStudents] = useState(false);
-    const [loadingProfile, setLoadingProfile] = useState(false);
     const [sort, setSort] = useState('progress');
     const [filter, setFilter] = useState('all');
     const [profileTab, setProfileTab] = useState('progress');
 
+    const { data: courses = [] } = useMonitorCourses(selectedClass);
+    const { data: stats = null, isLoading: loadingStats } = useMonitorStats(selectedClass, selectedCourse);
+    const { data: students = [], isLoading: loadingStudents } = useMonitorStudents(
+        selectedClass,
+        selectedCourse,
+        sort,
+        filter,
+    );
+    const { data: studentProfile = null, isLoading: loadingProfile } = useStudentProfile(
+        selectedClass,
+        selectedCourse,
+        selectedStudent,
+    );
+
+    // Auto-select the first class on bare /monitor, then the first course.
+    // replace: true — these are defaults, not history entries.
     useEffect(() => {
         if (classes.length > 0 && !selectedClass) {
-            setSelectedClass(classes[0].id);
+            navigate(`/dashboard/teacher/monitor/${classes[0].id}`, { replace: true });
         }
-    }, [classes, selectedClass]);
+    }, [classes, selectedClass, navigate]);
 
     useEffect(() => {
-        if (selectedClass) {
-            setLoadingCourses(true);
-            api.get(`/teacher/classes/${selectedClass}`, { bypassCache: true })
-                .then(res => {
-                    const coursesData = res.data.courses || [];
-                    setCourses(coursesData);
-                    if (coursesData.length > 0 && !selectedCourse) {
-                        setSelectedCourse(coursesData[0].id);
-                    }
-                    setStats(null);
-                    setStudents([]);
-                })
-                .catch(err => {
-                    console.error('Failed to fetch courses:', err);
-                    setCourses([]);
-                })
-                .finally(() => setLoadingCourses(false));
+        if (selectedClass && courses.length > 0 && !selectedCourse) {
+            navigate(`/dashboard/teacher/monitor/${selectedClass}/${courses[0].id}`, { replace: true });
         }
-    }, [selectedClass]);
+    }, [selectedClass, courses, selectedCourse, navigate]);
 
-    useEffect(() => {
-        if (selectedClass && selectedCourse) {
-            setLoadingStats(true);
-            setLoadingStudents(true);
+    const handleClassChange = (id) => {
+        if (id) navigate(`/dashboard/teacher/monitor/${id}`);
+    };
 
-            Promise.all([
-                getMonitorStats(selectedClass, selectedCourse),
-                getMonitorStudents(selectedClass, selectedCourse, sort, filter)
-            ])
-            .then(([statsRes, studentsRes]) => {
-                setStats(statsRes.data);
-                setStudents(studentsRes.data.students);
-                setSelectedStudent(null);
-                setStudentProfile(null);
-            })
-            .catch(err => {
-                console.error('Failed to fetch monitoring data:', err);
-                setStats(null);
-                setStudents([]);
-            })
-            .finally(() => {
-                setLoadingStats(false);
-                setLoadingStudents(false);
-            });
-        }
-    }, [selectedClass, selectedCourse, sort, filter]);
-
-    useEffect(() => {
-        if (selectedClass && selectedCourse && selectedStudent) {
-            setLoadingProfile(true);
-            setStudentProfile(null);
-
-            const abortController = new AbortController();
-
-            getStudentProfile(selectedClass, selectedCourse, selectedStudent, abortController.signal)
-                .then(res => {
-                    setStudentProfile(res.data);
-                })
-                .catch(err => {
-                    if (err.name !== 'AbortError') {
-                        console.error('Failed to fetch student profile:', err);
-                        setStudentProfile(null);
-                    }
-                })
-                .finally(() => setLoadingProfile(false));
-
-            return () => abortController.abort();
-        }
-    }, [selectedClass, selectedCourse, selectedStudent]);
+    const handleCourseChange = (id) => {
+        if (id) navigate(`/dashboard/teacher/monitor/${selectedClass}/${id}`);
+    };
 
     const handleStudentClick = (student) => {
-        setSelectedStudent(student.id);
         navigate(`/dashboard/teacher/monitor/${selectedClass}/${selectedCourse}/${student.id}`);
     };
 
     const handleBackFromProfile = () => {
-        setSelectedStudent(null);
-        navigate(`/dashboard/teacher/monitor/${selectedClass}`);
+        navigate(`/dashboard/teacher/monitor/${selectedClass}/${selectedCourse}`);
     };
 
-    const selectedClassData = classes.find(c => c.id === selectedClass);
-    const selectedCourseData = courses.find(c => c.id === selectedCourse);
+    const selectedClassData = classes.find((c) => c.id === selectedClass);
+    const selectedCourseData = courses.find((c) => c.id === selectedCourse);
 
     if (selectedStudent) {
         return (
@@ -214,7 +175,7 @@ export default function StudentMonitor() {
                         </label>
                         <select
                             value={selectedClass || ''}
-                            onChange={(e) => setSelectedClass(e.target.value ? parseInt(e.target.value) : null)}
+                            onChange={(e) => handleClassChange(e.target.value ? parseInt(e.target.value) : null)}
                             style={{
                                 width: '100%',
                                 padding: '14px 16px',
@@ -240,7 +201,7 @@ export default function StudentMonitor() {
                         </label>
                         <select
                             value={selectedCourse || ''}
-                            onChange={(e) => setSelectedCourse(e.target.value ? parseInt(e.target.value) : null)}
+                            onChange={(e) => handleCourseChange(e.target.value ? parseInt(e.target.value) : null)}
                             disabled={!selectedClass}
                             style={{
                                 width: '100%',
