@@ -128,6 +128,13 @@ export default function CourseBuilder({ courseId = null, embedded = false }) {
         finally { setIsUpdatingStatus(false); }
     };
 
+    // Embedded toolbar's single publish action: Go Live publishes the course
+    // AND every module/item in one shot; Unpublish sets the course to draft.
+    const handleGoLive = () => {
+        if (isPublished) toggleCourseStatus();
+        else publishAllItems();
+    };
+
     const handleIndexCourse = async () => {
         // Open modal immediately with loading state
         setShowIndexingStats(true);
@@ -990,8 +997,54 @@ if (loading || !course) return (
                 </button>
                 )}
 
-                {/* Top Control Bar - Enhanced */}
-                {!activeModuleId && (
+                {/* Compact toolbar (embedded in the class page Content tab) */}
+                {!activeModuleId && embedded && (
+                    <div className="cd-ctoolbar">
+                        <span className={`cd-live ${isPublished ? 'on' : 'off'}`}>
+                            {isUpdatingStatus ? <Loader2 size={11} className="animate-spin" /> : (isPublished ? <Check size={11} /> : null)}
+                            {isPublished ? 'Live' : 'Draft'}
+                        </span>
+                        {course.curriculum_file_url && (
+                            <span className="cd-cur" title={course.curriculum_file_url.split('/').pop()}>
+                                <FileText size={12} />
+                                {course.curriculum_file_url.split('/').pop()?.slice(0, 24)}
+                            </span>
+                        )}
+                        <span className="cd-tsep" />
+                        <button type="button" className="cd-tbtn" onClick={() => setShowCurriculumModal(true)}>
+                            <FileText size={14} />
+                            {course.curriculum_file_url ? 'Manage' : 'Upload'}
+                        </button>
+                        <button type="button" className={`cd-tbtn ${isPublished ? '' : 'cd-tbtn-accent'}`} onClick={handleGoLive} disabled={isUpdatingStatus}>
+                            <Rocket size={14} />
+                            {isPublished ? 'Unpublish' : 'Go Live'}
+                        </button>
+                        <button type="button" className="cd-tbtn cd-tbtn-ai" onClick={() => setIsAiModalOpen(true)}>
+                            <Sparkles size={14} />
+                            AI
+                        </button>
+                        <button type="button" className="cd-tbtn" onClick={handleIndexCourse} disabled={isUpdatingStatus}>
+                            <BookOpen size={14} />
+                            Index for AI
+                        </button>
+                        <span className="cd-tspacer" />
+                        <button type="button" className={`cd-tbtn ${isReorderMode ? 'cd-tbtn-on' : ''}`} onClick={() => setIsReorderMode(!isReorderMode)}>
+                            <GripHorizontal size={14} />
+                            {isReorderMode ? 'Done' : 'Reorder'}
+                        </button>
+                        <button type="button" className={`cd-tbtn ${isBulkDeleteMode ? 'cd-tbtn-danger' : ''}`} onClick={() => { setIsBulkDeleteMode(!isBulkDeleteMode); setSelectedModuleIds(new Set()); }}>
+                            <Trash2 size={14} />
+                            {isBulkDeleteMode ? 'Cancel' : 'Delete'}
+                        </button>
+                        <button type="button" className="cd-tbtn-primary" onClick={() => setModuleModal({ isOpen: true, mode: 'create', id: null, title: '' })}>
+                            <Plus size={14} />
+                            New Module
+                        </button>
+                    </div>
+                )}
+
+                {/* Top Control Bar - Enhanced (standalone route only) */}
+                {!activeModuleId && !embedded && (
                     <div style={{ padding: '24px 28px', marginBottom: '32px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', boxShadow: 'var(--card-shadow)' }} className="rounded-2xl flex flex-wrap items-center justify-between gap-6">
                         <div className="flex items-center gap-3 flex-wrap">
                             <span style={{ padding: '10px 16px' }} className={`rounded-lg text-xs font-bold uppercase tracking-wider ${
@@ -1021,8 +1074,8 @@ if (loading || !course) return (
                     </div>
                 )}
 
-                {/* Header Title and Action Buttons */}
-                <div style={{ marginBottom: '32px', gap: '24px' }} className="flex flex-col md:flex-row md:items-end md:justify-between">
+                {/* Header Title and Action Buttons (standalone route only for the course level) */}
+                {(!embedded || activeModuleId) && <div style={{ marginBottom: '32px', gap: '24px' }} className="flex flex-col md:flex-row md:items-end md:justify-between">
                     <div className="flex-1">
                         {!activeModuleId ? (
                             <>
@@ -1070,7 +1123,7 @@ if (loading || !course) return (
                                         </>
                                     )}
                                 </div>
-                                {course.description && (
+                                {course.description && !embedded && (
                                     <p style={{ color: 'var(--text-secondary)' }} className="text-sm mt-3 max-w-2xl">{course.description}</p>
                                 )}
                             </>
@@ -1123,15 +1176,14 @@ if (loading || !course) return (
                                 Index for AI
                             </button>
                         </div>
-                    )}
-                </div>
+                    )}</div>}
             </header>
 
             <AnimatePresence mode="wait">
                 {!activeModuleId ? (
 <motion.div key="grid" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
-                        {/* Control Toolbar */}
-                        <div style={{ padding: '20px 28px', marginBottom: '32px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', boxShadow: 'var(--card-shadow)' }} className="flex flex-wrap justify-between items-center gap-4 rounded-2xl">
+                        {/* Control Toolbar (standalone route only) */}
+                        {!embedded && <div style={{ padding: '20px 28px', marginBottom: '32px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', boxShadow: 'var(--card-shadow)' }} className="flex flex-wrap justify-between items-center gap-4 rounded-2xl">
                             <button
                                 onClick={() => setModuleModal({ isOpen: true, mode: 'create', id: null, title: '' })}
                                 style={{ padding: '14px 22px' }}
@@ -1182,7 +1234,7 @@ if (loading || !course) return (
                                     </button>
                                 )}
                             </div>
-                        </div>
+                        </div>}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 list-none p-0 relative">
                             {course.modules.map((module) => {
