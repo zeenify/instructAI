@@ -12,7 +12,6 @@ import {
     Check,
     Calendar,
     GraduationCap,
-    Loader2,
 } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'sonner';
@@ -21,6 +20,7 @@ import { useClasses } from '../../context/ClassContext';
 import StatCard from '../../components/ui/StatCard';
 import CreateTile from '../../components/ui/CreateTile';
 import ColorSwatches from '../../components/ui/ColorSwatches';
+import { StatCardSkeleton, ClassCardSkeleton, SkeletonBlock } from '../../components/ui/skeletons';
 import { OPEN_CREATE_CLASS } from '../../components/teacher/CreateClassModal';
 import '../../styles/dashboard.css';
 
@@ -90,10 +90,26 @@ export default function TeacherOverview() {
                 </div>
             </div>
 
-            {/* Spinner only until the first load — background refreshes never flash it */}
+            {/* Skeletons only until the first load — background refreshes never flash them */}
             {loading && classes.length === 0 ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
-                    <Loader2 size={28} className="animate-spin" style={{ color: 'var(--db-accent)' }} />
+                <div>
+                    <div className="db-stats-grid">
+                        <StatCardSkeleton />
+                        <StatCardSkeleton />
+                        <StatCardSkeleton />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
+                        <SkeletonBlock style={{ width: 48, height: 48, borderRadius: '50%', flex: 'none' }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <SkeletonBlock style={{ width: 160, height: 18 }} />
+                            <SkeletonBlock style={{ width: 260, height: 12 }} />
+                        </div>
+                    </div>
+                    <div className="db-class-grid">
+                        <ClassCardSkeleton />
+                        <ClassCardSkeleton />
+                        <ClassCardSkeleton />
+                    </div>
                 </div>
             ) : (
                 <>

@@ -32,6 +32,7 @@
     --db-green-border: rgba(52, 211, 153, 0.4);
     --db-danger: #f87171;
     --db-danger-soft: rgba(248, 113, 113, 0.1);
+    --db-shimmer: rgba(255, 255, 255, 0.06);
     --db-glow-top: radial-gradient(1100px 380px at 12% -8%, rgba(109, 90, 224, 0.14), transparent 70%);
     --db-glow-bottom: radial-gradient(900px 420px at 4% 108%, rgba(109, 90, 224, 0.12), transparent 70%);
 }
@@ -60,6 +61,7 @@
     --db-green-border: rgba(14, 159, 110, 0.32);
     --db-danger: #dc2626;
     --db-danger-soft: rgba(220, 38, 38, 0.07);
+    --db-shimmer: rgba(23, 25, 35, 0.06);
     --db-glow-top: radial-gradient(1100px 380px at 12% -8%, rgba(109, 90, 224, 0.09), transparent 70%);
     --db-glow-bottom: radial-gradient(900px 420px at 4% 108%, rgba(109, 90, 224, 0.07), transparent 70%);
 }
@@ -1413,6 +1415,30 @@
     to {
         opacity: 1;
         transform: scale(1);
+    }
+}
+
+/* ---------- Skeletons (standard page-level loading state) ---------- */
+
+.db-skeleton {
+    position: relative;
+    overflow: hidden;
+    background: var(--db-card-2);
+    border-radius: 10px;
+}
+
+.db-skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, var(--db-shimmer), transparent);
+    animation: db-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes db-shimmer {
+    to {
+        transform: translateX(100%);
     }
 }
 

@@ -85,6 +85,10 @@ Per-data freshness windows (`staleTime`) are chosen per query, e.g. class list
   `setQueryData`-style updates with rollback.
 - Loading UI only when there is no cached data yet (`isLoading`, not
   `isFetching`) — background refetches must never blank a page.
+- **Skeleton loading for page/section content** (`components/ui/skeletons.jsx`,
+  shimmer via `.db-skeleton`) that mirrors the real layout. Circle spinners
+  are ONLY for small inline actions (buttons, chips, sidebar rows) — never
+  for page-level loads.
 
 ## Acceptance checks
 - [ ] Second visit to Monitor renders instantly from cache; stats refresh in background.

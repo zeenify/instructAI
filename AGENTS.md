@@ -11,8 +11,10 @@ to fix slow/inconsistent refetching across pages. The full plan, phases, progres
 tracker, and the rules for future pages live in **`docs/data-layer-plan.md`** —
 read it before writing any `useEffect` fetch or touching `services/api.js`
 caching. Short version: pages consume data via `src/queries/` hooks; loading
-spinners only when no cached data exists; invalidate by query key after
-mutations; never add new `bypassCache` usage.
+spinners only when no cached data exists — and page-level loading uses
+**skeletons** (`components/ui/skeletons.jsx`), circle loaders only for small
+inline actions; invalidate by query key after mutations; never add new
+`bypassCache` usage.
 
 ## UI/UX overhaul — active workflow (do not skip steps)
 
