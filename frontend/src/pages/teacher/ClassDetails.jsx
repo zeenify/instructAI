@@ -75,16 +75,19 @@ export default function ClassDetails() {
     if (isLoading || !classroom) {
         return (
             <div>
-                <SkeletonBlock style={{ width: 60, height: 11, marginBottom: 12 }} />
-                <div className="cd-title-row" style={{ marginBottom: 26 }}>
-                    <SkeletonBlock style={{ width: 320, height: 38 }} />
-                    <SkeletonBlock style={{ width: 110, height: 32, borderRadius: 9 }} />
+                <div className="cd-hero" style={{ marginBottom: 20 }}>
+                    <SkeletonBlock style={{ width: 52, height: 11, marginBottom: 12 }} />
+                    <div className="cd-title-row">
+                        <SkeletonBlock style={{ width: 340, height: 40, borderRadius: 12 }} />
+                        <SkeletonBlock style={{ width: 118, height: 36, borderRadius: 10 }} />
+                    </div>
                 </div>
-                <div className="cd-stat-strip">
+                <div className="cd-stat-tiles" style={{ marginBottom: 30 }}>
                     {[0, 1, 2, 3].map((i) => (
-                        <div key={i} className="cd-stat" style={{ gap: 8 }}>
-                            <SkeletonBlock style={{ width: 48, height: 24 }} />
-                            <SkeletonBlock style={{ width: 90, height: 12 }} />
+                        <div key={i} className="cd-stat-tile" style={{ cursor: 'default' }}>
+                            <SkeletonBlock style={{ width: 44, height: 44, borderRadius: 14 }} />
+                            <SkeletonBlock style={{ width: 44, height: 30 }} />
+                            <SkeletonBlock style={{ width: 74, height: 12 }} />
                         </div>
                     ))}
                 </div>
@@ -100,40 +103,41 @@ export default function ClassDetails() {
     const lessonCount = modules.reduce((n, m) => n + (m.lessons?.length ?? 0), 0);
     const students = classroom.students ?? [];
 
+    const statTiles = [
+        { key: 'content', icon: Users, tone: 'green', value: students.length, label: 'Students' },
+        { key: 'content', icon: Layers, tone: 'violet', value: loadingContent && !content ? '—' : modules.length, label: 'Modules' },
+        { key: 'content', icon: BookOpen, tone: 'sky', value: loadingContent && !content ? '—' : lessonCount, label: 'Lessons' },
+        { key: 'classwork', icon: ClipboardList, tone: 'amber', value: classroom.activities_count ?? 0, label: 'Classwork' },
+    ];
+
     const statStrip = (
-        <div className="cd-stat-strip">
-            <div className="cd-stat">
-                <b>{students.length}</b>
-                <span>Students</span>
-            </div>
-            <div className="cd-stat">
-                <b>{loadingContent && !content ? '—' : modules.length}</b>
-                <span>Modules</span>
-            </div>
-            <div className="cd-stat">
-                <b>{loadingContent && !content ? '—' : lessonCount}</b>
-                <span>Lessons</span>
-            </div>
-            <div className="cd-stat">
-                <b>{classroom.activities_count ?? 0}</b>
-                <span>Classwork</span>
-            </div>
+        <div className="cd-stat-tiles">
+            {statTiles.map((t) => (
+                <button
+                    key={t.label}
+                    type="button"
+                    className={`cd-stat-tile ${activeTab === t.key ? 'active' : ''}`}
+                    onClick={() => setTab(t.key)}
+                >
+                    <span className={`cd-stat-icon ${t.tone}`}><t.icon size={19} strokeWidth={2.1} /></span>
+                    <span className="cd-stat-num">{t.value}</span>
+                    <span className="cd-stat-word">{t.label}</span>
+                </button>
+            ))}
         </div>
     );
 
     return (
         <div>
-            {/* Header */}
-            <div className="cd-header">
-                <div>
-                    <p className="cd-eyebrow">Class</p>
-                    <div className="cd-title-row">
-                        <h1 className="cd-title">{classroom.name}</h1>
-                        <button type="button" className="cd-code-chip-lg" onClick={copyCode} title="Copy class code">
-                            {classroom.class_code}
-                            {copied ? <Check size={14} /> : <Copy size={14} />}
-                        </button>
-                    </div>
+            {/* Header — hero card tinted with the class color */}
+            <div className="cd-hero" style={{ '--class-color': classroom.color || '#6d5ae0' }}>
+                <p className="cd-eyebrow">Class</p>
+                <div className="cd-title-row">
+                    <h1 className="cd-title">{classroom.name}</h1>
+                    <button type="button" className="cd-code-chip-lg" onClick={copyCode} title="Copy class code">
+                        {classroom.class_code}
+                        {copied ? <Check size={14} /> : <Copy size={14} />}
+                    </button>
                 </div>
             </div>
 

@@ -5,7 +5,7 @@ import { courseContentKey } from '../../queries/classDetails';
 import { motion, AnimatePresence, useDragControls, Reorder } from 'framer-motion';
 import {
     ChevronLeft, Plus, FileText, HelpCircle, Loader2,
-    Sparkles, ExternalLink, X, Check, GripVertical, Eye, EyeOff, Globe, Lock, Rocket, Trash2, Edit3, Send, Layers, GripHorizontal, Upload, CheckCircle, BookOpen
+    Sparkles, ExternalLink, X, Check, GripVertical, Eye, EyeOff, Globe, Lock, Rocket, Trash2, Edit3, Send, Layers, GripHorizontal, Upload, CheckCircle, BookOpen, ArrowRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
@@ -1025,7 +1025,7 @@ if (loading || !course) return (
                             {isPublished ? 'Live' : 'Draft'}
                         </span>
                         <button type="button" className={`cd-tbtn ${isPublished ? '' : 'cd-tbtn-accent'}`} onClick={handleGoLive} disabled={isUpdatingStatus}>
-                            <Rocket size={14} />
+                            <Rocket size={16} />
                             {isPublished ? 'Unpublish' : 'Go Live'}
                         </button>
                         {course.curriculum_file_url && (
@@ -1036,28 +1036,34 @@ if (loading || !course) return (
                         )}
                         <span className="cd-tsep" />
                         <button type="button" className="cd-tbtn" onClick={() => setShowCurriculumModal(true)}>
-                            <FileText size={14} />
+                            <FileText size={16} />
                             {course.curriculum_file_url ? 'Manage' : 'Upload'}
                         </button>
                         <button type="button" className="cd-tbtn cd-tbtn-ai" onClick={() => setIsAiModalOpen(true)}>
-                            <Sparkles size={14} />
+                            <Sparkles size={16} />
                             AI
                         </button>
                         <button type="button" className="cd-tbtn" onClick={handleIndexCourse} disabled={isUpdatingStatus}>
-                            <BookOpen size={14} />
+                            <BookOpen size={16} />
                             Index for AI
                         </button>
                         <span className="cd-tspacer" />
                         <button type="button" className={`cd-tbtn ${isReorderMode ? 'cd-tbtn-on' : ''}`} onClick={() => setIsReorderMode(!isReorderMode)}>
-                            <GripHorizontal size={14} />
+                            <GripHorizontal size={16} />
                             {isReorderMode ? 'Done' : 'Reorder'}
                         </button>
                         <button type="button" className={`cd-tbtn ${isBulkDeleteMode ? 'cd-tbtn-danger' : ''}`} onClick={() => { setIsBulkDeleteMode(!isBulkDeleteMode); setSelectedModuleIds(new Set()); }}>
-                            <Trash2 size={14} />
+                            <Trash2 size={16} />
                             {isBulkDeleteMode ? 'Cancel' : 'Delete'}
                         </button>
+                        {isBulkDeleteMode && selectedModuleIds.size > 0 && (
+                            <button type="button" className="cd-tbtn cd-tbtn-danger-solid" onClick={handleBulkDelete} disabled={isDeleting}>
+                                {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                                Delete {selectedModuleIds.size}
+                            </button>
+                        )}
                         <button type="button" className="cd-tbtn-primary" onClick={() => setModuleModal({ isOpen: true, mode: 'create', id: null, title: '' })}>
-                            <Plus size={14} />
+                            <Plus size={16} />
                             New Module
                         </button>
                     </div>
@@ -1267,8 +1273,11 @@ if (loading || !course) return (
                                 const isDragging = draggingModuleId === module.id;
 
                                 return (
-<div
+<motion.div
                                         key={module.id}
+                                        initial={{ opacity: 0, y: 14 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.28, delay: Math.min(moduleIndex * 0.06, 0.36), ease: 'easeOut' }}
                                         draggable={isReorderMode}
                                         onDragStart={(e) => {
                                             setDraggingModuleId(module.id);
@@ -1304,7 +1313,7 @@ if (loading || !course) return (
                                             }
                                         }}
                                     >
-<div className={`cd-mod ${isBulkDeleteMode && selectedModuleIds.has(module.id) ? 'cd-mod-selected' : ''} ${isReorderMode ? 'cd-mod-reorder' : ''}`}>
+<div className={`cd-mod ${isBulkDeleteMode && selectedModuleIds.has(module.id) ? 'cd-mod-selected' : ''} ${isReorderMode ? 'cd-mod-reorder' : ''} ${dragOverModuleId === module.id && isReorderMode ? 'cd-mod-drop' : ''}`}>
                                             {isReorderMode && (
                                                 <div className="cd-mod-grip"><GripVertical size={15} /></div>
                                             )}
@@ -1320,6 +1329,9 @@ if (loading || !course) return (
                                                     <span className="cd-mod-index">{String(moduleIndex + 1).padStart(2, '0')}</span>
                                                 )}
                                                 <h3 className="cd-mod-title">{module.title}</h3>
+                                                {!isReorderMode && !isBulkDeleteMode && (
+                                                    <span className="cd-mod-arrow"><ArrowRight size={16} /></span>
+                                                )}
                                                 {!isReorderMode && !isBulkDeleteMode && (
                                                     <div className="cd-mod-actions">
                                                         <button
@@ -1345,17 +1357,20 @@ if (loading || !course) return (
                                                     </div>
                                                 )}
                                             </div>
+                                            <div className="cd-mod-progress-row">
+                                                <div className="cd-mod-progress"><span style={{ width: `${progressPct}%` }} /></div>
+                                                <span className="cd-mod-progress-label">{progressPct}% published</span>
+                                            </div>
                                             <div className="cd-mod-meta">
-                                                <span className="cd-chip"><BookOpen size={12} /> {module.lessons?.length || 0} Lessons</span>
-                                                <span className="cd-chip"><HelpCircle size={12} /> {module.quizzes?.length || 0} Quizzes</span>
+                                                <span className="cd-chip"><BookOpen size={14} /> {module.lessons?.length || 0} {module.lessons?.length === 1 ? 'Lesson' : 'Lessons'}</span>
+                                                <span className="cd-chip"><HelpCircle size={14} /> {module.quizzes?.length || 0} {module.quizzes?.length === 1 ? 'Quiz' : 'Quizzes'}</span>
+                                                <span className={`cd-chip ${statusClass}`}>{statusText}</span>
                                             </div>
                                             <div className="cd-mod-foot">
-                                                <div className="cd-mod-progress"><span style={{ width: `${progressPct}%` }} /></div>
-                                                <span className={`cd-chip ${statusClass}`}>{statusText}</span>
                                                 <span className="cd-mod-items">{total} items</span>
                                             </div>
                                         </div>
-                                    </div>
+                                    </motion.div>
                                 );
                             })}
                         </div>
