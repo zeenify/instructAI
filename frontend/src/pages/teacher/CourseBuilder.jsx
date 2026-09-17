@@ -43,7 +43,9 @@ export default function CourseBuilder({ courseId = null, embedded = false, initi
     } : null;
     const [course, setCourse] = useState(() => enrichCourse(initialCourse));
     const [loading, setLoading] = useState(!initialCourse);
-    const [isPublished, setIsPublished] = useState(false);
+    // Seed from the cached course — a remount must never show a state the
+    // cache already knows is wrong.
+    const [isPublished, setIsPublished] = useState(Boolean(initialCourse?.is_published));
     
     // UI View States
     const [activeModuleId, setActiveModuleId] = useState(null);

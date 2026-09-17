@@ -11,6 +11,7 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const errors = [];
 const timeline = [];
+const notes = [];
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
@@ -33,6 +34,14 @@ await page.addInitScript(([t, u]) => {
 // settle on class 20 (Smoke Test Class)
 await page.goto('http://localhost:5173/dashboard/teacher/class/20');
 await page.waitForTimeout(2500);
+
+// ensure the course is LIVE before switching away
+const goLiveBtn = page.getByRole('button', { name: /Go Live/i });
+if (await goLiveBtn.count()) {
+    await goLiveBtn.click();
+    await page.waitForTimeout(3000);
+}
+notes.push('pre-switch chip: ' + JSON.stringify(await page.locator('.cd-live').textContent()));
 const urlOf = () => page.url();
 
 // switch to another class via the sidebar (the second class link)
@@ -49,16 +58,23 @@ console.log('back to:', urlOf());
 
 // sample module-card + toolbar presence every 250ms for 5s
 const t0 = Date.now();
+let firstChip = null;
 for (let i = 0; i < 24; i++) {
     const cards = await page.locator('.cd-mod').count();
     const toolbar = await page.locator('.cd-ctoolbar').count();
     const skeletons = await page.locator('.db-skeleton').count();
+    if (firstChip === null && toolbar) {
+        firstChip = (await page.locator('.cd-live').textContent().catch(() => null))?.trim();
+        timeline.push(`t+${String(Date.now() - t0).padStart(4)}ms  FIRST CHIP=${firstChip} (expect Live — no waiting allowed)`);
+    }
     timeline.push(`t+${String(Date.now() - t0).padStart(4)}ms  cards=${cards} toolbar=${toolbar} skel=${skeletons}`);
     if (i === 1) await page.screenshot({ path: `${OUT}/10-switch-early.png` });
     await page.waitForTimeout(i < 8 ? 100 : 300);
 }
 
 // also capture the wire for the same period already recorded
+console.log('=== NOTES ===');
+notes.forEach((n) => console.log(n));
 console.log('=== TIMELINE ===');
 timeline.forEach((t) => console.log(t));
 console.log('=== CONSOLE ERRORS ===');
