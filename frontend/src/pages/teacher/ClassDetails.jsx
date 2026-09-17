@@ -188,7 +188,14 @@ export default function ClassDetails() {
                             </button>
                         </div>
                     ) : (
-                        <CourseBuilder courseId={course.id} embedded initialCourse={content} />
+                        /* key: builder state (modules, expanded module, modes) is
+                           per-course — never leak across class switches */
+                        <CourseBuilder
+                            key={course.id}
+                            courseId={course.id}
+                            embedded
+                            initialCourse={content}
+                        />
                     )}
                 </>
             )}
