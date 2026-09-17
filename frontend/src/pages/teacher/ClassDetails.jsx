@@ -75,7 +75,7 @@ export default function ClassDetails() {
     if (isLoading || !classroom) {
         return (
             <div>
-                <div className="cd-hero" style={{ marginBottom: 20 }}>
+                <div className="cd-hero">
                     <SkeletonBlock style={{ width: 52, height: 11, marginBottom: 12 }} />
                     <div className="cd-title-row">
                         <SkeletonBlock style={{ width: 340, height: 40, borderRadius: 12 }} />
