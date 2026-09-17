@@ -38,7 +38,16 @@ class ClassroomController extends Controller
             'class_code' => strtoupper(Str::random(6)) // Generates a random 6-char code
         ]);
 
-        return response()->json($classroom, 201);
+        // Strict 1 class = 1 course (see docs/data-layer-plan.md): auto-create
+        // the class's content course so a new class is immediately buildable.
+        $classroom->courses()->create([
+            'teacher_id' => $request->user()->id,
+            'title' => $classroom->name,
+            'is_published' => false,
+            'order_index' => 0,
+        ]);
+
+        return response()->json($classroom->load('courses'), 201);
     }
     
     public function overview(Request $request)
@@ -117,6 +126,22 @@ class ClassroomController extends Controller
         return response()->json(['id' => $classroom->id, 'color' => $classroom->color]);
     }
 
+    public function destroy(Request $request, $id)
+    {
+        $classroom = Classroom::where('id', $id)
+            ->where('teacher_id', $request->user()->id)
+            ->first();
+
+        if (!$classroom) {
+            return response()->json(['message' => 'Class not found or unauthorized'], 403);
+        }
+
+        // Courses, enrollments, activities, etc. cascade via foreign keys.
+        $classroom->delete();
+
+        return response()->json(['message' => 'Class deleted']);
+    }
+
     public function show($id)
     {
         // This query says: "Find a class with this ID, BUT only if the teacher_id matches the logged-in user"
@@ -126,7 +151,7 @@ class ClassroomController extends Controller
                 'courses' => fn($q) => $q->orderBy('order_index', 'asc'),
                 'students.studentProfile'
             ])
-            ->withCount(['students', 'courses'])
+            ->withCount(['students', 'courses', 'activities'])
             ->first();
 
         if (!$classroom) {

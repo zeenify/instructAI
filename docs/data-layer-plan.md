@@ -78,6 +78,34 @@ Per-data freshness windows (`staleTime`) are chosen per query, e.g. class list
 - [ ] Final cleanup: delete `utils/cache.js`, interceptor cache logic,
       `bypassCache` flag, and all manual `invalidateCache()` calls.
 
+## Deferred cleanups (do NOT forget — likely after compaction)
+
+**Architecture decision (2026-09-18): strict 1 class = 1 course.**
+No DB migration — the course is auto-created under the hood
+(`ClassroomController@store` creates a default course titled after the class).
+The class page treats the single course AS the class content (Content tab
+shows its modules). If a legacy class somehow has multiple courses, the page
+renders the first by `order_index` — no picker, nothing breaks. Backend still
+technically accepts multi-course; strictness lives in behavior/UI. Rationale:
+DepEd grades per subject; Prog 1 and Prog 2 are different subjects = different
+classes. One class = one section × one subject.
+
+- [ ] **Student side still has a course picker screen** (class → course list →
+  content). With 1:1 it's a redundant always-one-item screen. REMOVE it during
+  the student pages redesign: navigate class → straight into the single
+  course's content. Affects `pages/student/ClassView.jsx`, possibly
+  `StudentLayout`/routing under `/dashboard/student`.
+- [ ] **Monitor page course dropdown is pointless** with 1:1 (only one course
+  per class). Remove the dropdown and auto-use the class's course during the
+  Monitor UI redesign. (`pages/teacher/StudentMonitor.jsx`,
+  `queries/monitor.js` keys can keep courseId.)
+- [ ] **CourseBuilder entry point** is now "Open Builder" from the class
+  page's Content tab (route `/dashboard/teacher/class/:classId/course/:id`
+  unchanged). The old course-grid cards no longer exist.
+- [ ] Course title is now redundant with the class name in the teacher UI —
+  hide it on teacher surfaces; student surfaces may still show it until their
+  redesign.
+
 ## Rules for future pages (follow in every redesign)
 - Pages consume data via `src/queries/` hooks — never a private `useEffect`
   fetch of data another page also shows.
