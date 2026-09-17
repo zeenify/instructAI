@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { queryClient } from '../../lib/queryClient';
+import { courseContentKey } from '../../queries/classDetails';
 import { motion, AnimatePresence, useDragControls, Reorder } from 'framer-motion';
 import {
     ChevronLeft, Plus, FileText, HelpCircle, Loader2,
@@ -87,7 +89,9 @@ export default function CourseBuilder({ courseId = null, embedded = false }) {
 
     const fetchCourse = async () => {
         try {
-            const res = await api.get(`/teacher/courses/${id}`);
+            // The editor always fetches fresh — a stale read here means the
+            // teacher edits/publishes against the wrong state.
+            const res = await api.get(`/teacher/courses/${id}`, { bypassCache: true });
             const enrichedModules = res.data.modules.map(m => ({
                 ...m,
                 lessons: (m.lessons || []).map(l => ({ ...l, itemType: 'lesson' })),
@@ -100,12 +104,18 @@ export default function CourseBuilder({ courseId = null, embedded = false }) {
     };
 
     // --- ACTIONS ---
+    // Every mutation invalidates both cache layers: the legacy axios cache
+    // AND the TanStack query the class page stat strip reads from.
+    const refreshContent = () => {
+        invalidateCache(`/teacher/courses/${id}`);
+        queryClient.invalidateQueries({ queryKey: ['course', Number(id), 'content'] });
+    };
     const toggleCourseStatus = async () => {
         setIsUpdatingStatus(true);
         const newStatus = !isPublished;
         try {
             await api.post(`/teacher/courses/${id}/publish`, { is_published: newStatus });
-            invalidateCache(`/teacher/courses/${id}`);
+            refreshContent();
             setIsPublished(newStatus);
             if (newStatus) {
               toast.success("Course is now live");
@@ -121,10 +131,11 @@ export default function CourseBuilder({ courseId = null, embedded = false }) {
         const toastId = toast.loading("Publishing all contents...");
         try {
             await api.post(`/teacher/courses/${id}/publish-all`);
-            invalidateCache(`/teacher/courses/${id}`);
+            setIsPublished(true); // optimistic — the refetch below only confirms
+            refreshContent();
             toast.success("All contents published successfully", { id: toastId });
             fetchCourse();
-        } catch (err) { toast.error("Publishing failed", { id: toastId }); }
+        } catch (err) { console.error('publishAll failed:', err); toast.error("Publishing failed", { id: toastId }); fetchCourse(); }
         finally { setIsUpdatingStatus(false); }
     };
 
@@ -170,12 +181,12 @@ export default function CourseBuilder({ courseId = null, embedded = false }) {
         try {
             if (moduleModal.mode === 'create') {
                 const res = await api.post(`/teacher/courses/${id}/modules`, { title: moduleModal.title });
-                invalidateCache(`/teacher/courses/${id}`);
+                refreshContent();
                 setCourse(prev => ({ ...prev, modules: [...prev.modules, { ...res.data, lessons: [], quizzes: [] }] }));
                 toast.success("Created");
             } else {
                 await api.put(`/teacher/modules/${moduleModal.id}`, { title: moduleModal.title });
-                invalidateCache(`/teacher/courses/${id}`);
+                refreshContent();
                 setCourse(prev => ({
                     ...prev,
                     modules: prev.modules.map(m => m.id === moduleModal.id ? { ...m, title: moduleModal.title } : m)
@@ -195,7 +206,7 @@ export default function CourseBuilder({ courseId = null, embedded = false }) {
         try {
             await api.put(`/teacher/courses/${id}`, { title: newTitle.trim() });
             setCourse(prev => ({ ...prev, title: newTitle.trim() }));
-            invalidateCache(`/teacher/courses/${id}`);
+            refreshContent();
             toast.success('Course renamed');
             setIsTitleEditing(false);
         } catch (err) {
@@ -220,7 +231,7 @@ export default function CourseBuilder({ courseId = null, embedded = false }) {
         api.post(`/teacher/courses/${id}/modules/reorder`, {
             modules: newModules.map(m => m.id)
         }).then(() => {
-            invalidateCache(`/teacher/courses/${id}`);
+            refreshContent();
             toast.success('Reordered');
         }).catch(() => {
             toast.error('Failed to save order');
@@ -248,7 +259,7 @@ export default function CourseBuilder({ courseId = null, embedded = false }) {
             try {
                 const payload = newOrder.map(item => ({ id: item.id, itemType: item.itemType }));
                 await api.post(`/teacher/modules/${activeModuleId}/reorder`, { items: payload });
-                invalidateCache(`/teacher/courses/${id}`);
+                refreshContent();
             } catch (err) {}
         }, 1000);
     };
@@ -279,7 +290,7 @@ export default function CourseBuilder({ courseId = null, embedded = false }) {
 
         try {
             await api.put(`/teacher/${type}/${item.id}`, { is_published: newStatus });
-            invalidateCache(`/teacher/courses/${id}`);
+            refreshContent();
             if (newStatus) {
               toast.success('Published');
             } else {
@@ -287,7 +298,7 @@ export default function CourseBuilder({ courseId = null, embedded = false }) {
             }
         }
         catch (err) {
-            invalidateCache(`/teacher/courses/${id}`);
+            refreshContent();
             fetchCourse();
             toast.error('Failed to toggle status');
         } finally {
@@ -303,7 +314,7 @@ export default function CourseBuilder({ courseId = null, embedded = false }) {
         try {
             const res = await api.post(endpoint, { title: value });
             const newItem = { ...res.data, itemType: type };
-            invalidateCache(`/teacher/courses/${id}`);
+            refreshContent();
             setCourse(prev => ({
                 ...prev,
                 modules: prev.modules.map(m => m.id === activeModuleId ? {
@@ -327,7 +338,7 @@ export default function CourseBuilder({ courseId = null, embedded = false }) {
             await api.delete(`/teacher/${plural}/${itemId}`);
 
             // Invalidate cache to ensure fresh data
-            invalidateCache(`/teacher/courses/${id}`);
+            refreshContent();
             invalidateCache(`/teacher/${plural}/${itemId}`);
 
             // Optimistically update UI immediately
@@ -383,7 +394,7 @@ export default function CourseBuilder({ courseId = null, embedded = false }) {
             }));
 
             // Invalidate cache
-            invalidateCache(`/teacher/courses/${id}`);
+            refreshContent();
             if (activeModuleId && selectedModuleIds.has(activeModuleId)) {
                 setActiveModuleId(null);
             }
@@ -529,7 +540,7 @@ export default function CourseBuilder({ courseId = null, embedded = false }) {
             setSavedModulesData(courseData.data.modules || []);
 
             // Invalidate cache so new modules appear
-            invalidateCache(`/teacher/courses/${id}`);
+            refreshContent();
         } catch (err) {
             toast.error('Failed to save curriculum', { id: toastId });
         } finally {
@@ -767,7 +778,7 @@ export default function CourseBuilder({ courseId = null, embedded = false }) {
                                     setIsGeneratingContent(false);
 
                                     // Invalidate cache to force fresh data
-                                    invalidateCache(`/teacher/courses/${id}`);
+                                    refreshContent();
                                     invalidateCache('/teacher/lessons/');
                                     invalidateCache('/teacher/quizzes/');
 
@@ -913,7 +924,7 @@ export default function CourseBuilder({ courseId = null, embedded = false }) {
             });
 
             // Invalidate cache and refetch
-            invalidateCache(`/teacher/courses/${id}`);
+            refreshContent();
             fetchCourse();
 
             // Auto-close modal after 3 seconds
@@ -1237,12 +1248,13 @@ if (loading || !course) return (
                         </div>}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 list-none p-0 relative">
-                            {course.modules.map((module) => {
+                            {course.modules.map((module, moduleIndex) => {
                                 const total = (module.lessons?.length || 0) + (module.quizzes?.length || 0);
                                 const published = [...(module.lessons || []), ...(module.quizzes || [])].filter(i => i.is_published).length;
                                 const unpublished = total - published;
                                 const statusText = total === 0 ? 'Empty' : (unpublished === 0 ? 'All Published' : `${unpublished} Draft`);
-                                const statusColor = total === 0 ? 'slate' : (unpublished === 0 ? 'emerald' : 'amber');
+                                const statusClass = total === 0 ? '' : (unpublished === 0 ? 'published' : 'draft');
+                                const progressPct = total ? Math.round((published / total) * 100) : 0;
                                 const isDragging = draggingModuleId === module.id;
 
                                 return (
@@ -1283,84 +1295,55 @@ if (loading || !course) return (
                                             }
                                         }}
                                     >
-<div style={{ padding: '24px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', boxShadow: 'var(--card-shadow)' }} className={`h-full min-h-[280px] rounded-3xl transition-all flex flex-col overflow-hidden ${
-                                            isBulkDeleteMode && selectedModuleIds.has(module.id)
-                                                ? 'border-red-500/60 bg-red-500/10'
-                                                : isReorderMode
-                                                ? 'border-purple-500/40 bg-purple-500/5'
-                                                : 'group-hover:shadow-xl group-hover:shadow-purple-500/10 hover:border-purple-500/40'
-                                        }`}>
-                                            {/* Header Section */}
-<div style={{ margin: '-24px -24px 20px -24px', padding: '20px 24px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)' }} className="flex justify-between items-start relative group/header">
-                                                {isReorderMode && (
-                                                    <div className="absolute top-1/2 left-3 -translate-y-1/2 w-8 h-10 rounded-lg bg-purple-500/40 border-2 border-purple-500/70 flex items-center justify-center text-purple-200 text-lg font-bold opacity-100 transition-all group-hover/header:bg-purple-500/60 group-hover/header:border-purple-400 cursor-grab active:cursor-grabbing shadow-lg shadow-purple-500/30">
-                                                        
-                                                    </div>
-                                                )}
+<div className={`cd-mod ${isBulkDeleteMode && selectedModuleIds.has(module.id) ? 'cd-mod-selected' : ''} ${isReorderMode ? 'cd-mod-reorder' : ''}`}>
+                                            {isReorderMode && (
+                                                <div className="cd-mod-grip"><GripVertical size={15} /></div>
+                                            )}
+                                            <div className="cd-mod-head">
                                                 {isBulkDeleteMode ? (
-                                                    <div className="relative w-full flex items-center justify-between gap-3">
-                                                        <div className="flex items-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={selectedModuleIds.has(module.id)}
-                                                                onChange={() => {}}
-                                                                className="w-6 h-6 rounded-lg border-2 border-white/30 bg-white/5 cursor-pointer checked:bg-red-500 checked:border-red-500 accent-red-500 appearance-none"
-                                                            />
-                                                        </div>
-                                                        <span className="text-sm font-bold text-white flex-1 line-clamp-2">{module.title}</span>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedModuleIds.has(module.id)}
+                                                        onChange={() => {}}
+                                                        className="cd-mod-check"
+                                                    />
+                                                ) : (
+                                                    <span className="cd-mod-index">{String(moduleIndex + 1).padStart(2, '0')}</span>
+                                                )}
+                                                <h3 className="cd-mod-title">{module.title}</h3>
+                                                {!isReorderMode && !isBulkDeleteMode && (
+                                                    <div className="cd-mod-actions">
+                                                        <button
+                                                            type="button"
+                                                            title="Edit module"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setModuleModal({ isOpen: true, mode: 'edit', id: module.id, title: module.title });
+                                                            }}
+                                                        >
+                                                            <Edit3 size={14} />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            title="Delete module"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setDeleteModal({ isOpen: true, type: 'module', id: module.id });
+                                                            }}
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
                                                     </div>
-) : (
-                                                    <>
-                                                        <div style={{ color: '#7e22ce', background: 'rgba(167, 139, 250, 0.2)', borderColor: 'rgba(167, 139, 250, 0.4)' }} className="w-14 h-14 rounded-2xl border flex items-center justify-center shadow-sm">
-                                                            <Layers size={24} />
-                                                        </div>
-{!isReorderMode && !isBulkDeleteMode && (
-                                                            <div style={{ padding: '8px 10px', gap: '6px' }} className="flex opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 backdrop-blur-xl rounded-xl border border-white/10 shadow-xl">
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setModuleModal({ isOpen: true, mode: 'edit', id: module.id, title: module.title });
-                                                                    }}
-                                                                    style={{ padding: '8px 10px' }}
-                                                                    className="hover:text-white hover:bg-white/10 rounded-lg border-none bg-transparent cursor-pointer transition-colors"
-                                                                    title="Edit module"
-                                                                >
-                                                                    <Edit3 size={16} style={{ color: '#a78bfa' }} />
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setDeleteModal({ isOpen: true, type: 'module', id: module.id });
-                                                                    }}
-                                                                    style={{ padding: '8px 10px' }}
-                                                                    className="hover:bg-red-500/10 rounded-lg border-none bg-transparent cursor-pointer transition-colors"
-                                                                    title="Delete module"
-                                                                >
-                                                                    <Trash2 size={16} style={{ color: '#f87171' }} />
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </>
                                                 )}
                                             </div>
-
-                                            {/* Content Section */}
-<div className="flex-grow flex flex-col justify-between">
-                                                <div>
-                                                    <h3 style={{ color: 'var(--text-primary)' }} className="text-xl font-bold mb-4 line-clamp-2 leading-snug">{module.title}</h3>
-<div className="flex gap-4 text-sm text-slate-500 mb-6">
-                                                        <div className="flex items-center gap-2"><BookOpen size={16} style={{ color: '#a855f7', strokeWidth: 2.5 }} /><span className="font-semibold text-slate-300">{module.lessons?.length || 0}</span></div>
-                                                        <div className="flex items-center gap-2"><HelpCircle size={16} style={{ color: '#06b6d4', strokeWidth: 2.5 }} /><span className="font-semibold text-slate-300">{module.quizzes?.length || 0}</span></div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Footer with Status */}
-                                                <div style={{ marginTop: '20px', paddingTop: '16px' }} className="border-t border-white/5 flex items-center justify-between">
-                                                    <span className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider inline-block bg-${statusColor}-500/20 text-${statusColor}-400 border border-${statusColor}-500/30`}>
-                                                        {statusText}
-                                                    </span>
-                                                    <span className="text-xs text-slate-500 font-semibold">{total} items</span>
-                                                </div>
+                                            <div className="cd-mod-meta">
+                                                <span className="cd-chip"><BookOpen size={12} /> {module.lessons?.length || 0} Lessons</span>
+                                                <span className="cd-chip"><HelpCircle size={12} /> {module.quizzes?.length || 0} Quizzes</span>
+                                            </div>
+                                            <div className="cd-mod-foot">
+                                                <div className="cd-mod-progress"><span style={{ width: `${progressPct}%` }} /></div>
+                                                <span className={`cd-chip ${statusClass}`}>{statusText}</span>
+                                                <span className="cd-mod-items">{total} items</span>
                                             </div>
                                         </div>
                                     </div>
@@ -1389,7 +1372,7 @@ const allPublished = [...(activeModuleData?.lessons || []), ...(activeModuleData
                                         ...lessonIds.map(lid => api.put(`/teacher/lessons/${lid}`, { is_published: !allPublished })),
                                         ...quizIds.map(qid => api.put(`/teacher/quizzes/${qid}`, { is_published: !allPublished }))
                                     ]).then(() => {
-                                        invalidateCache(`/teacher/courses/${id}`);
+                                        refreshContent();
                                         fetchCourse();
                                         if (allPublished) {
                                           toast.warning('All unpublished');

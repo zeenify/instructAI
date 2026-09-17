@@ -150,7 +150,20 @@ export default function ClassDetails() {
             {/* CONTENT TAB — the embedded builder IS the management surface */}
             {activeTab === 'content' && (
                 <>
-                    {!course ? (
+                    {loadingContent && course ? (
+                        // One cohesive skeleton while the course content loads —
+                        // the builder only mounts once data is cached, so its
+                        // internal loading gate never flashes.
+                        <>
+                            <SkeletonBlock style={{ height: 46, borderRadius: 14, marginBottom: 12 }} />
+                            <SkeletonBlock style={{ height: 120, borderRadius: 16, marginBottom: 20 }} />
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
+                                {[0, 1, 2].map((i) => (
+                                    <SkeletonBlock key={i} style={{ height: 170, borderRadius: 16 }} />
+                                ))}
+                            </div>
+                        </>
+                    ) : !course ? (
                         // Legacy classes created before auto-course: create their content course on demand.
                         <div className="cd-empty">
                             <BookOpen size={28} style={{ marginBottom: 6 }} />
@@ -189,26 +202,28 @@ export default function ClassDetails() {
                             <p>Share the class code {classroom.class_code} — students join with it.</p>
                         </div>
                     ) : (
-                        students.map((s) => (
-                            <div key={s.id} className="db-card cd-student-row">
-                                <img
-                                    src={s.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.studentProfile?.first_name ?? s.email)}`}
-                                    alt=""
-                                />
-                                <div style={{ minWidth: 0, flex: 1 }}>
-                                    <p className="cd-student-name">
-                                        {s.studentProfile
-                                            ? `${s.studentProfile.first_name} ${s.studentProfile.last_name}`
-                                            : s.email}
-                                    </p>
-                                    <p className="cd-student-email">{s.email}</p>
+                        students.map((s) => {
+                            const profileName = s.studentProfile
+                                ? [s.studentProfile.first_name, s.studentProfile.last_name].filter(Boolean).join(' ')
+                                : '';
+                            const displayName = profileName || s.email;
+                            return (
+                                <div key={s.id} className="db-card cd-student-row">
+                                    <img
+                                        src={s.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`}
+                                        alt=""
+                                    />
+                                    <div style={{ minWidth: 0, flex: 1 }}>
+                                        <p className="cd-student-name">{displayName}</p>
+                                        {profileName && <p className="cd-student-email">{s.email}</p>}
+                                    </div>
+                                    {s.studentProfile?.lrn_number && (
+                                        <span className="cd-chip">LRN {s.studentProfile.lrn_number}</span>
+                                    )}
+                                    <ExternalLink size={15} style={{ color: 'var(--db-text-3)', flex: 'none' }} />
                                 </div>
-                                {s.studentProfile?.lrn_number && (
-                                    <span className="cd-chip">LRN {s.studentProfile.lrn_number}</span>
-                                )}
-                                <ExternalLink size={15} style={{ color: 'var(--db-text-3)', flex: 'none' }} />
-                            </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
             )}

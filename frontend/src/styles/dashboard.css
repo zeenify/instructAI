@@ -1494,6 +1494,172 @@
     transform: translateY(-1px);
 }
 
+/* Module cards (embedded builder, cd- design) */
+
+.cd-mod {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 158px;
+    padding: 16px 18px;
+    background: var(--db-card);
+    border: 1px solid var(--db-border);
+    border-radius: 16px;
+    cursor: pointer;
+    transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.cd-mod:hover {
+    border-color: var(--db-accent-border);
+    transform: translateY(-2px);
+    box-shadow: var(--db-shadow);
+}
+
+.cd-mod-selected {
+    border-color: rgba(248, 113, 113, 0.5);
+    background: var(--db-danger-soft);
+}
+
+.cd-mod-reorder {
+    border-color: var(--db-accent-border);
+    background: var(--db-accent-soft);
+}
+
+.cd-mod-grip {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 34px;
+    border-radius: 9px;
+    background: var(--db-accent-soft);
+    border: 1px solid var(--db-accent-border);
+    color: var(--db-accent-bright);
+    cursor: grab;
+}
+
+.cd-mod-head {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-bottom: 13px;
+    min-height: 26px;
+}
+
+.cd-mod-index {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--db-text-3);
+}
+
+.cd-mod-check {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--db-danger);
+    cursor: pointer;
+}
+
+.cd-mod-title {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--db-font-display);
+    font-size: 15.5px;
+    font-weight: 600;
+    color: var(--db-text);
+    margin: 0;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.cd-mod-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.cd-mod:hover .cd-mod-actions {
+    opacity: 1;
+}
+
+.cd-mod-actions button {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--db-text-3);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cd-mod-actions button:first-child:hover {
+    color: var(--db-accent-bright);
+    background: var(--db-accent-soft);
+}
+
+.cd-mod-actions button:last-child:hover {
+    color: var(--db-danger);
+    background: var(--db-danger-soft);
+}
+
+.cd-mod-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.cd-mod-meta .cd-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.cd-mod-foot {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--db-border);
+}
+
+.cd-mod-progress {
+    flex: 1;
+    max-width: 130px;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--db-card-2);
+    overflow: hidden;
+}
+
+.cd-mod-progress span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--db-accent);
+    transition: width 0.3s ease;
+}
+
+.cd-mod-items {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--db-text-3);
+    margin-left: auto;
+    white-space: nowrap;
+}
+
 /* ---------- Modal (create class & future dialogs) ---------- */
 
 .db-modal-backdrop {

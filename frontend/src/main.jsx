@@ -4,20 +4,8 @@ import './index.css'
 import App from './App.jsx'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { ThemeProvider } from './context/ThemeContext'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-
-// One shared data memory above the routes — see docs/data-layer-plan.md.
-// staleTime: cached data is served instantly and considered fresh for 30s;
-// after that it still renders instantly while a background refetch runs.
-export const queryClient = new QueryClient({
-    defaultOptions: {
-        queries: {
-            staleTime: 30_000,
-            refetchOnWindowFocus: false,
-            retry: 1,
-        },
-    },
-})
+import { QueryClientProvider } from '@tanstack/react-query'
+import { queryClient } from './lib/queryClient'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

@@ -348,15 +348,18 @@ class CourseController extends Controller
         }
     }
 
-    public function publishAll(Request $request, $id) 
+    public function publishAll(Request $request, $id)
     {
         $course = Course::findOrFail($id);
-        
+
+        // Go Live means the course itself too — is_published gates student access
+        $course->update(['is_published' => true]);
+
         $moduleIds = $course->modules()->pluck('id');
         $course->modules()->update(['is_published' => true]);
         \App\Models\Lesson::whereIn('module_id', $moduleIds)->update(['is_published' => true]);
         \App\Models\Quiz::whereIn('module_id', $moduleIds)->update(['is_published' => true]);
-        
+
         return response()->json(['success' => true]);
     }
         

@@ -1,7 +1,7 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import api, { invalidateCache } from '../services/api';
 import cache from '../utils/cache';
-import { queryClient } from '../main';
+import { queryClient } from '../lib/queryClient';
 
 const AuthContext = createContext();
 
