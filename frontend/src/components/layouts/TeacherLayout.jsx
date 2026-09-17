@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useClasses } from '../../context/ClassContext';
 import { LayoutDashboard, BarChart3, Settings, LogOut, Plus, Loader2, Eye, ChevronRight, PanelLeftClose, Menu } from 'lucide-react';
 import ThemeToggle from '../ui/ThemeToggle';
+import CreateClassModal, { OPEN_CREATE_CLASS } from '../teacher/CreateClassModal';
 import '../../styles/dashboard.css';
 
 export default function TeacherLayout() {
@@ -14,10 +15,18 @@ export default function TeacherLayout() {
 
     const [collapsed, setCollapsed] = useState(() => localStorage.getItem('db-sidebar-collapsed') === '1');
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [createOpen, setCreateOpen] = useState(false);
 
     useEffect(() => {
         localStorage.setItem('db-sidebar-collapsed', collapsed ? '1' : '0');
     }, [collapsed]);
+
+    // Any surface (overview buttons, old /classes/new links) can open the modal
+    useEffect(() => {
+        const open = () => setCreateOpen(true);
+        window.addEventListener(OPEN_CREATE_CLASS, open);
+        return () => window.removeEventListener(OPEN_CREATE_CLASS, open);
+    }, []);
 
     // Close the mobile drawer whenever the route changes
     useEffect(() => {
@@ -88,7 +97,7 @@ export default function TeacherLayout() {
                     )}
 
                     <button
-                        onClick={() => navigate('/dashboard/teacher/classes/new')}
+                        onClick={() => setCreateOpen(true)}
                         className="db-nav-item"
                         style={{ color: 'var(--db-accent-bright)', fontWeight: 600, marginTop: '6px' }}
                     >
@@ -147,6 +156,8 @@ export default function TeacherLayout() {
             <main className={`db-main ${collapsed ? 'is-full' : ''}`}>
                 <Outlet />
             </main>
+
+            <CreateClassModal open={createOpen} onClose={() => setCreateOpen(false)} />
         </div>
     );
 }

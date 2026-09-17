@@ -26,13 +26,15 @@ class ClassroomController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string'
+            'description' => 'nullable|string',
+            'color' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
         ]);
 
         $classroom = Classroom::create([
             'teacher_id' => $request->user()->id,
             'name' => $request->name,
             'description' => $request->description,
+            'color' => $request->color,
             'class_code' => strtoupper(Str::random(6)) // Generates a random 6-char code
         ]);
 

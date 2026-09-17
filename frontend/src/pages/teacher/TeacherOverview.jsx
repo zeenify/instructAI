@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     BookOpen,
@@ -15,11 +15,13 @@ import {
     Loader2,
 } from 'lucide-react';
 import api from '../../services/api';
+import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { useClasses } from '../../context/ClassContext';
 import StatCard from '../../components/ui/StatCard';
 import CreateTile from '../../components/ui/CreateTile';
 import ColorSwatches from '../../components/ui/ColorSwatches';
+import { OPEN_CREATE_CLASS } from '../../components/teacher/CreateClassModal';
 import '../../styles/dashboard.css';
 
 const DEFAULT_CLASS_COLOR = '#6d5ae0';
@@ -48,43 +50,18 @@ const todayLabel = new Date().toLocaleDateString('en-US', {
 export default function TeacherOverview() {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { refreshClasses } = useClasses();
-    const [data, setData] = useState({ classes: [], totals: { classes_count: 0, students_count: 0 } });
-    const [loading, setLoading] = useState(true);
+    // Classes + totals come from ClassContext (single source of truth) so the
+    // cards, sidebar, and any future page update together on every change.
+    const { classes, totals, loading, patchClass } = useClasses();
     const [copiedId, setCopiedId] = useState(null);
 
-    useEffect(() => {
-        let alive = true;
-        api.get('/teacher/overview', { bypassCache: true })
-            .then((res) => {
-                if (!alive) return;
-                setData({
-                    classes: res.data.classes ?? [],
-                    totals: res.data.totals ?? { classes_count: 0, students_count: 0 },
-                });
-            })
-            .catch((err) => console.error('Failed to load overview', err))
-            .finally(() => alive && setLoading(false));
-        return () => {
-            alive = false;
-        };
-    }, []);
-
-    const setColor = async (cls, hex) => {
-        // optimistic: card + sidebar dot recolor immediately
-        setData((prev) => ({
-            ...prev,
-            classes: prev.classes.map((c) => (c.id === cls.id ? { ...c, color: hex } : c)),
-        }));
-        try {
-            await api.put(`/teacher/classes/${cls.id}/color`, { color: hex });
-            refreshClasses(); // sync the sidebar dots from ClassContext
-        } catch {
-            setData((prev) => ({
-                ...prev,
-                classes: prev.classes.map((c) => (c.id === cls.id ? { ...c, color: cls.color } : c)),
-            }));
-        }
+    const setColor = (cls, hex) => {
+        // Optimistic: card band, avatar chip, and sidebar dot recolor instantly.
+        patchClass(cls.id, { color: hex });
+        api.put(`/teacher/classes/${cls.id}/color`, { color: hex }).catch(() => {
+            patchClass(cls.id, { color: cls.color }); // roll back on failure
+            toast.error('Could not save the class color');
+        });
     };
 
     const copyCode = (cls) => {
@@ -113,7 +90,8 @@ export default function TeacherOverview() {
                 </div>
             </div>
 
-            {loading ? (
+            {/* Spinner only until the first load — background refreshes never flash it */}
+            {loading && classes.length === 0 ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
                     <Loader2 size={28} className="animate-spin" style={{ color: 'var(--db-accent)' }} />
                 </div>
@@ -125,14 +103,14 @@ export default function TeacherOverview() {
                             icon={BookOpen}
                             tone="violet"
                             label="Active Classes"
-                            value={data.totals.classes_count}
+                            value={totals.classes_count}
                             caption="Classes you created"
                         />
                         <StatCard
                             icon={Users}
                             tone="green"
                             label="Total Students"
-                            value={data.totals.students_count}
+                            value={totals.students_count}
                             caption="Across all classes"
                         />
                         <StatCard
@@ -156,14 +134,14 @@ export default function TeacherOverview() {
                                 <p className="db-section-sub">Manage your classes, track progress, and create new ones.</p>
                             </div>
                         </div>
-                        <button className="db-btn-primary" onClick={() => navigate('/dashboard/teacher/classes/new')}>
+                        <button className="db-btn-primary" onClick={() => window.dispatchEvent(new CustomEvent(OPEN_CREATE_CLASS))}>
                             <Plus size={16} />
                             Create Class
                         </button>
                     </div>
 
                     <div className="db-class-grid">
-                        {data.classes.map((cls) => (
+                        {classes.map((cls) => (
                             <div
                                 key={cls.id}
                                 className="db-card db-class-card db-clickable"
@@ -241,7 +219,7 @@ export default function TeacherOverview() {
                         <CreateTile
                             title="Create New Class"
                             subtitle="Set up a new class and invite your students with a class code."
-                            onClick={() => navigate('/dashboard/teacher/classes/new')}
+                            onClick={() => window.dispatchEvent(new CustomEvent(OPEN_CREATE_CLASS))}
                         />
                     </div>
                 </>

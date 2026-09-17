@@ -66,6 +66,13 @@
 
 /* ---------- Shell ---------- */
 
+/* Dashboard display font — modern premium headings. Landing keeps Fraunces;
+   the app uses Sora so headings feel current, not old-fashioned. */
+.db-shell,
+.db-modal-backdrop {
+    --db-font-display: 'Sora', 'Inter', sans-serif;
+}
+
 .db-shell {
     display: flex;
     min-height: 100vh;
@@ -464,7 +471,7 @@
 }
 
 .db-hero-title {
-    font-family: 'Fraunces', serif;
+    font-family: var(--db-font-display);
     font-size: 44px;
     font-weight: 700;
     letter-spacing: -0.015em;
@@ -592,6 +599,7 @@
 }
 
 .db-stat-value {
+    font-family: var(--db-font-display);
     font-size: 40px;
     font-weight: 700;
     line-height: 1;
@@ -666,6 +674,7 @@
 }
 
 .db-section-title {
+    font-family: var(--db-font-display);
     font-size: 22px;
     font-weight: 700;
     margin: 0;
@@ -793,6 +802,7 @@
 }
 
 .db-class-name {
+    font-family: var(--db-font-display);
     font-size: 18.5px;
     font-weight: 650;
     color: var(--db-text);
@@ -942,20 +952,32 @@
 }
 
 .db-swatch {
+    position: relative;
+    display: grid;
+    place-items: center;
     width: 22px;
     height: 22px;
     border-radius: 50%;
     border: 2px solid transparent;
     cursor: pointer;
-    transition: transform 0.12s ease, border-color 0.12s ease;
+    padding: 0;
+    transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
 .db-swatch:hover {
     transform: scale(1.15);
 }
 
+/* Selected: ring with a gap so it reads on any fill color */
 .db-swatch.selected {
-    border-color: var(--db-text);
+    border-color: var(--db-card);
+    box-shadow: 0 0 0 2.5px var(--db-text);
+    transform: scale(1.08);
+}
+
+.db-swatch-check {
+    color: #ffffff;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
 }
 
 /* ---------- Dashed create tile ---------- */
@@ -1044,6 +1066,354 @@
 
 :root[data-theme='light'] .db-scrollbar::-webkit-scrollbar-thumb {
     background: #cfc8b4;
+}
+
+/* ---------- Modal (create class & future dialogs) ---------- */
+
+.db-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(4, 6, 13, 0.62);
+    backdrop-filter: blur(5px);
+    animation: db-fade-in 0.18s ease both;
+}
+
+.db-modal {
+    position: relative;
+    width: min(100%, 540px);
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    border-radius: 20px;
+    background: var(--db-card);
+    border: 1px solid var(--db-border-strong);
+    box-shadow:
+        0 30px 80px rgba(2, 4, 12, 0.6),
+        0 0 0 1px rgba(109, 90, 224, 0.08);
+    padding: 30px 32px 28px;
+    animation: db-modal-in 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+}
+
+.db-modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--db-text-3);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.db-modal-close:hover {
+    background: var(--db-accent-soft);
+    color: var(--db-text);
+}
+
+.db-modal-head {
+    margin-bottom: 22px;
+}
+
+.db-modal-title {
+    font-family: var(--db-font-display);
+    font-size: 27px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 7px;
+    color: var(--db-text);
+}
+
+.db-modal-sub {
+    font-size: 15.5px;
+    color: var(--db-text-2);
+    margin: 0;
+}
+
+.db-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.db-field {
+    display: block;
+}
+
+.db-field-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.11em;
+    color: var(--db-text-2);
+    margin-bottom: 9px;
+}
+
+.db-field-label em {
+    font-style: normal;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 500;
+    color: var(--db-text-3);
+}
+
+.db-input {
+    width: 100%;
+    padding: 13px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card-2);
+    color: var(--db-text);
+    font-family: inherit;
+    font-size: 15.5px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.db-input::placeholder {
+    color: var(--db-text-3);
+}
+
+.db-input:focus {
+    outline: none;
+    border-color: var(--db-accent);
+    box-shadow: 0 0 0 3px var(--db-accent-soft);
+}
+
+.db-input:disabled {
+    opacity: 0.6;
+}
+
+.db-textarea {
+    resize: vertical;
+    min-height: 76px;
+    line-height: 1.5;
+}
+
+.db-field-swatches {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 10px;
+    padding: 4px 0 2px;
+}
+
+/* In the modal the swatches are big, full-width circles */
+.db-field-swatches .db-swatch {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+
+.db-field-swatches .db-swatch.selected {
+    border-width: 4px;
+    box-shadow: 0 0 0 3px var(--db-text);
+    transform: scale(1.04);
+}
+
+.db-modal-error {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--db-danger);
+    background: var(--db-danger-soft);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin: 0;
+}
+
+.db-modal-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.db-btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 17px;
+    border-radius: 12px;
+    border: 1px solid var(--db-border-strong);
+    background: transparent;
+    color: var(--db-text-2);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.db-btn-ghost:hover {
+    color: var(--db-text);
+    border-color: var(--db-text-3);
+    background: var(--db-accent-soft);
+}
+
+/* Success state */
+
+.db-modal-success {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding-top: 10px;
+}
+
+.db-modal-success .db-modal-title {
+    margin-top: 16px;
+}
+
+.db-success-badge {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    color: #ffffff;
+    background: linear-gradient(135deg, #8b7bff, #5b46c9);
+    box-shadow:
+        0 0 0 8px var(--db-accent-soft),
+        0 10px 30px rgba(109, 90, 224, 0.45);
+    animation: db-pop-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+}
+
+/* Custom success animation: badge pops, rings burst outward, check draws on */
+.db-success-badge::before,
+.db-success-badge::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid rgba(139, 123, 255, 0.75);
+    opacity: 0;
+    animation: db-ring-burst 0.9s cubic-bezier(0.2, 0.6, 0.35, 1) 0.22s forwards;
+}
+
+.db-success-badge::after {
+    animation-delay: 0.4s;
+    border-color: rgba(255, 201, 77, 0.65);
+}
+
+.db-success-check {
+    width: 34px;
+    height: 34px;
+}
+
+.db-success-check path {
+    stroke: #ffffff;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: db-check-draw 0.45s cubic-bezier(0.65, 0, 0.35, 1) 0.32s forwards;
+}
+
+@keyframes db-ring-burst {
+    0% {
+        transform: scale(1);
+        opacity: 0.9;
+    }
+    100% {
+        transform: scale(2.2);
+        opacity: 0;
+    }
+}
+
+@keyframes db-check-draw {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+.db-code-hero {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    justify-content: center;
+    margin-top: 22px;
+    padding: 20px;
+    border-radius: 16px;
+    border: 2px dashed var(--db-accent-border);
+    background: var(--db-accent-soft);
+    color: var(--db-text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 38px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-indent: 0.22em; /* visually recenters spaced mono digits */
+    cursor: pointer;
+    transition: border-color 0.18s ease, background 0.18s ease, transform 0.15s ease;
+}
+
+.db-code-hero:hover {
+    border-color: var(--db-accent);
+    background: rgba(109, 90, 224, 0.24);
+}
+
+.db-code-hero:active {
+    transform: scale(0.985);
+}
+
+.db-code-hero svg {
+    color: var(--db-text-2);
+    flex: none;
+}
+
+.db-code-hero svg.db-code-copied {
+    color: var(--db-green);
+}
+
+.db-code-hint {
+    font-size: 12.5px;
+    color: var(--db-text-3);
+    margin: 12px 0 0;
+}
+
+.db-modal-success .db-modal-actions {
+    width: 100%;
+    margin-top: 26px;
+}
+
+@keyframes db-fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes db-modal-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes db-pop-in {
+    from {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 /* ---------- Responsive ---------- */
@@ -1172,6 +1542,15 @@
 
     .db-create-tile {
         min-height: 300px;
+    }
+
+    .db-modal {
+        padding: 24px 20px 22px;
+    }
+
+    .db-code-hero {
+        font-size: 27px;
+        padding: 16px;
     }
 }
 
