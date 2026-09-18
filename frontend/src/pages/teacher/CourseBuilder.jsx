@@ -215,7 +215,31 @@ export default function CourseBuilder({
     const [generationLogs, setGenerationLogs] = useState([]);
 
     // Delete State
-    const [deleteConfig, setDeleteModal] = useState({ isOpen: false, type: '', id: null });
+    const [deleteConfig, setDeleteModal] = useState({ isOpen: false, type: '', id: null, name: null, items: [] });
+
+    // Context for the confirm dialog: what's being deleted and what goes
+    // away with it (e.g. a module's lessons and quizzes).
+    const makeDeleteConfig = (type, obj) => {
+        if (type === 'module') {
+            return {
+                type,
+                id: obj.id,
+                name: obj.title,
+                items: [
+                    ...(obj.lessons?.length ? [`${obj.lessons.length} ${obj.lessons.length === 1 ? 'lesson' : 'lessons'}`] : []),
+                    ...(obj.quizzes?.length ? [`${obj.quizzes.length} ${obj.quizzes.length === 1 ? 'quiz' : 'quizzes'}`] : []),
+                ],
+            };
+        }
+        return {
+            type,
+            id: obj.id,
+            name: obj.title,
+            items: type === 'quiz' && obj.questions_count
+                ? [`${obj.questions_count} ${obj.questions_count === 1 ? 'question' : 'questions'}`]
+                : [],
+        };
+    };
     const [isDeleting, setIsDeleting] = useState(false);
 
     // Curriculum File State
@@ -570,7 +594,7 @@ export default function CourseBuilder({
                 }));
             }
 
-            setDeleteModal({ isOpen: false, type: '', id: null });
+            setDeleteModal({ isOpen: false, type: '', id: null, name: null, items: [] });
             toast.success("Deleted successfully");
 
         } catch (err) {
@@ -1629,7 +1653,7 @@ if (loading || !course) return (
                                                             title="Delete module"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                setDeleteModal({ isOpen: true, type: 'module', id: module.id });
+                                                                setDeleteModal({ isOpen: true, ...makeDeleteConfig('module', module) });
                                                             }}
                                                         >
                                                             <Trash2 size={14} />
@@ -1742,7 +1766,7 @@ if (loading || !course) return (
                                     <button
                                         type="button"
                                         className="cd-tbtn cd-tbtn-danger"
-                                        onClick={() => setDeleteModal({ isOpen: true, type: 'module', id: activeModuleId })}
+                                        onClick={() => setDeleteModal({ isOpen: true, ...makeDeleteConfig('module', activeModuleData) })}
                                     >
                                         <Trash2 size={16} />
                                         Delete
@@ -1782,7 +1806,7 @@ if (loading || !course) return (
                                             onOpen={(it) => navigate(`/dashboard/teacher/class/${course.class_id}/${it.itemType}/${it.id}`)}
                                             onToggle={toggleItemStatus}
                                             onMove={handleMoveItem}
-                                            onDelete={(it) => setDeleteModal({ isOpen: true, type: it.itemType, id: it.id })}
+                                            onDelete={(it) => setDeleteModal({ isOpen: true, ...makeDeleteConfig(it.itemType, it) })}
                                         />
                                     ))}
                                 </Reorder.Group>
@@ -1802,7 +1826,7 @@ if (loading || !course) return (
                 onSubmit={handleModuleSubmit}
             />
 
-            <DeleteModal isOpen={deleteConfig.isOpen} title={deleteConfig.type} loading={isDeleting} onClose={() => setDeleteModal({ ...deleteConfig, isOpen: false })} onConfirm={handlePermanentDelete} />
+            <DeleteModal isOpen={deleteConfig.isOpen} title={deleteConfig.type} name={deleteConfig.name} items={deleteConfig.items} loading={isDeleting} onClose={() => setDeleteModal({ ...deleteConfig, isOpen: false })} onConfirm={handlePermanentDelete} />
             <AiArchitectModal
                 isOpen={isAiModalOpen}
                 onClose={() => setIsAiModalOpen(false)}
