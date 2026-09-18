@@ -5,7 +5,7 @@ import {
     ChevronLeft, Trash2, Type, Heading1, Code, Image as ImageIcon,
     Loader2, GripVertical, Upload, Check, X,
     Bold, Italic, Underline, List, Link as LinkIcon,
-    Video, ExternalLink, Play, Eraser, ChevronUp, ChevronDown, Bot, Globe,
+    Video, ExternalLink, Play, Eraser, ChevronUp, ChevronDown, Bot, Globe, Target,
     Eye, Pencil, Plus
 } from 'lucide-react';
 
@@ -28,6 +28,7 @@ import HtmlChecksEditor from '../../components/teacher/HtmlChecksEditor';
 import { html as htmlExt } from '@codemirror/lang-html';
 import { css as cssExt } from '@codemirror/lang-css';
 import { javascript as jsExt } from '@codemirror/lang-javascript';
+import './LessonEditor.css';
 
 function cmExtensionForFile(name, languageId) {
     const kind = webFileKind(name);
@@ -72,12 +73,12 @@ function lessonMinutes(blocks) {
 }
 
 const BLOCK_TYPES = [
-    { type: 'h1', icon: Heading1, label: 'Heading', sub: 'Big section title' },
+    { type: 'h1', icon: Heading1, label: 'Heading', sub: 'A big bold title' },
     { type: 'text', icon: Type, label: 'Text', sub: 'Paragraphs & lists' },
     { type: 'code', icon: Code, label: 'Code', sub: 'Students code here' },
     { type: 'image', icon: ImageIcon, label: 'Image', sub: 'Upload a picture' },
-    { type: 'video', icon: Video, label: 'YouTube', sub: 'Embed a video' },
-    { type: 'link', icon: LinkIcon, label: 'Link', sub: 'External resource' },
+    { type: 'video', icon: Video, label: 'YouTube', sub: 'Put a video here' },
+    { type: 'link', icon: LinkIcon, label: 'Link', sub: 'Link to a website' },
 ];
 
 export default function LessonEditor() {
@@ -322,7 +323,7 @@ export default function LessonEditor() {
         <span className={`le-status ${saveState}`}>
             {saveState === 'saved' && <Check size={13} />}
             {saveState === 'saving' && <Loader2 size={13} className="animate-spin" />}
-            {saveState === 'saved' && savedLabel()}
+            {saveState === 'saved' && (latest.current.isPublished ? savedLabel() + ' · visible to students' : savedLabel())}
             {saveState === 'dirty' && 'Unsaved changes'}
             {saveState === 'error' && 'Save failed — press Save to retry'}
         </span>
@@ -389,7 +390,7 @@ export default function LessonEditor() {
                             placeholder="Lesson title…"
                         />
                         <span className="le-meta">
-                            {sectionCount} {sectionCount === 1 ? 'section' : 'sections'} &middot; about {minutes} minutes to read
+                            {sectionCount} {sectionCount === 1 ? 'part' : 'parts'} &middot; about {minutes} minutes to read
                             <span className="le-meta-sep">&middot;</span>
                             {saveStatus}
                         </span>
@@ -405,7 +406,7 @@ export default function LessonEditor() {
                                 onClick={() => { setAiEnabled(!aiEnabled); markDirty(); }}
                             >
                                 <Bot size={15} />
-                                AI tutor: {aiEnabled ? 'On' : 'Off'}
+                                Student AI tutor: {aiEnabled ? 'On' : 'Off'}
                             </button>
                             {saveState !== 'saved' && (
                                 <button type="button" className="db-btn-ghost" onClick={() => saveNow({ announce: true })} disabled={saveState === 'saving'}>
@@ -449,7 +450,7 @@ export default function LessonEditor() {
             {/* SECTION INSERTER — one obvious palette: what it adds, in plain words */}
             {!preview && (
                 <div className="le-insert">
-                    <span className="le-insert-label">Add a section to this lesson</span>
+                    <span className="le-insert-label">Add content to this lesson</span>
                     <div className="le-insert-grid">
                         {BLOCK_TYPES.map(({ type, icon: Icon, label, sub }) => (
                             <button key={type} type="button" className="le-insert-card" onClick={() => addBlock(type)}>
@@ -476,7 +477,7 @@ export default function LessonEditor() {
                 <div className="le-empty">
                     <Heading1 size={26} />
                     <h3>Start your lesson</h3>
-                    <p>Pick a section type above — a heading, some text, code, images and more. Everything saves automatically.</p>
+                    <p>Pick a part type above — a heading, some text, code, images and more. Everything saves automatically.</p>
                 </div>
             ) : (
                 <Reorder.Group axis="y" values={blocks} onReorder={handleReorder} className="le-list">
@@ -524,16 +525,17 @@ function LessonBlock({ block, index, lastIndex, onMove, update, remove, isConfir
                 setTimeout(() => { movedRef.current = false; }, 150);
             }}
         >
-            {/* Hover strip: insert a new block right here, between blocks */}
+            {/* Hover strip: insert a new section right here, between blocks */}
             <div className="le-strip">
                 <button
                     type="button"
                     className={`le-strip-btn ${insertOpen ? 'open' : ''}`}
-                    title="Insert a section here"
-                    aria-label="Insert a section here"
+                    title="Insert a part here"
+                    aria-label="Insert a part here"
                     onClick={onInsertHere}
                 >
-                    <Plus size={14} />
+                    <Plus size={13} />
+                    Insert here
                 </button>
             </div>
             {insertOpen && (
@@ -629,7 +631,7 @@ function H1Block({ block, update }) {
         <textarea
             ref={ref}
             className="le-h1"
-            placeholder="New section heading…"
+            placeholder="Part title…"
             value={block.data.text || ''}
             onChange={(e) => {
                 update(block.id, { text: e.target.value });
@@ -637,6 +639,89 @@ function H1Block({ block, update }) {
                 e.target.style.height = `${e.target.scrollHeight}px`;
             }}
         />
+    );
+}
+
+/** Image block: click or drag-and-drop to upload, replace or remove. */
+function ImageBlock({ block, update, isUploading, setUploading, clearUploading }) {
+    const [dragOver, setDragOver] = useState(false);
+    const replaceRef = useRef(null);
+
+    const uploadFile = async (file) => {
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            toast.error('Please choose an image file (JPG, PNG, GIF…)');
+            return;
+        }
+        setUploading();
+        const fd = new FormData();
+        fd.append('image', file);
+        try {
+            const res = await api.post('/teacher/lessons/upload-image', fd);
+            update(block.id, { url: res.data.url });
+            toast.success('Image uploaded');
+        } catch (err) {
+            toast.error('Upload failed');
+        } finally {
+            clearUploading();
+        }
+    };
+
+    return (
+        <div className="le-card le-image-card">
+            <AnimatePresence>
+                {isUploading && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="le-upload-overlay">
+                        <Loader2 className="animate-spin" size={28} />
+                        <span>Uploading image…</span>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+            {block.data.url ? (
+                <div className="le-image-body">
+                    <img src={block.data.url} alt={block.data.caption || ''} />
+                    <div className="le-image-actions">
+                        <button type="button" className="le-image-btn" onClick={() => replaceRef.current?.click()}>
+                            <Upload size={13} />
+                            Replace
+                        </button>
+                        <button type="button" className="le-image-btn le-image-btn-danger" onClick={() => update(block.id, { url: '' })}>
+                            <Trash2 size={13} />
+                            Remove
+                        </button>
+                    </div>
+                    <input
+                        className="le-input le-caption"
+                        placeholder="Add a caption (optional)…"
+                        value={block.data.caption || ''}
+                        onChange={(e) => update(block.id, { caption: e.target.value })}
+                    />
+                    <input
+                        ref={replaceRef}
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => { uploadFile(e.target.files[0]); e.target.value = ''; }}
+                    />
+                </div>
+            ) : (
+                <label
+                    className={`le-image-pick ${dragOver ? 'dragover' : ''}`}
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOver(false);
+                        uploadFile(e.dataTransfer.files?.[0]);
+                    }}
+                >
+                    <Upload size={26} />
+                    <p className="le-image-pick-title">{dragOver ? 'Drop to upload' : 'Click or drag an image here'}</p>
+                    <span className="le-image-pick-sub">JPG, PNG or GIF — stored with your lesson</span>
+                    <input type="file" className="hidden" accept="image/*" onChange={(e) => { uploadFile(e.target.files[0]); e.target.value = ''; }} />
+                </label>
+            )}
+        </div>
     );
 }
 
@@ -672,15 +757,21 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
                     ) : (
                         <div className="le-video-empty">
                             <Play size={34} />
-                            <p>Paste a YouTube link below</p>
+                            <p>Paste a YouTube link below — the video appears here</p>
                         </div>
                     )}
                     <input
                         className="le-input"
-                        placeholder="YouTube URL…"
+                        placeholder="Paste a youtube.com link…"
                         value={block.data.url || ''}
                         onChange={(e) => update(block.id, { url: e.target.value })}
                     />
+                    {ytId && (
+                        <a className="le-yt-check" href={`https://www.youtube.com/watch?v=${ytId}`} target="_blank" rel="noreferrer">
+                            <ExternalLink size={13} />
+                            Open on YouTube to check it
+                        </a>
+                    )}
                 </div>
             );
         }
@@ -690,99 +781,88 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
                     <span className="le-link-icon"><ExternalLink size={22} /></span>
                     <div className="le-link-fields">
                         <input
-                            placeholder="Resource title…"
+                            placeholder="Resource title… e.g. Python official tutorial"
                             value={block.data.title || ''}
                             onChange={(e) => update(block.id, { title: e.target.value })}
                         />
                         <input
-                            placeholder="https://…"
+                            placeholder="Paste the website link… https://…"
                             value={block.data.url || ''}
                             onChange={(e) => update(block.id, { url: e.target.value })}
                         />
                     </div>
+                    {block.data.url && (
+                        <a className="le-link-visit" href={block.data.url} target="_blank" rel="noreferrer" title="Open the link in a new tab">
+                            <ExternalLink size={13} />
+                            Visit
+                        </a>
+                    )}
                 </div>
             );
         case 'image':
             return (
-                <div className="le-card le-image-card">
-                    <AnimatePresence>
-                        {isUploading && (
-                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="le-upload-overlay">
-                                <Loader2 className="animate-spin" size={28} />
-                                <span>Uploading image…</span>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                    {block.data.url ? (
-                        <div className="le-image-body">
-                            <img src={block.data.url} alt="" />
-                            <input
-                                className="le-input le-caption"
-                                placeholder="Add a caption (optional)…"
-                                value={block.data.caption || ''}
-                                onChange={(e) => update(block.id, { caption: e.target.value })}
-                            />
-                            <button type="button" className="le-image-remove" title="Remove image" onClick={() => update(block.id, { url: '' })}>
-                                <Trash2 size={14} />
-                            </button>
-                        </div>
-                    ) : (
-                        <label className="le-image-pick">
-                            <Upload size={26} />
-                            <p>Select an image</p>
-                            <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
-                                const file = e.target.files[0];
-                                if (!file) return;
-                                setUploading();
-                                const fd = new FormData(); fd.append('image', file);
-                                try {
-                                    const res = await api.post('/teacher/lessons/upload-image', fd);
-                                    update(block.id, { url: res.data.url });
-                                    toast.success('Image uploaded');
-                                } catch (err) { toast.error('Upload failed'); }
-                                finally { clearUploading(); }
-                            }} />
-                        </label>
-                    )}
-                </div>
+                <ImageBlock
+                    block={block}
+                    update={update}
+                    isUploading={isUploading}
+                    setUploading={setUploading}
+                    clearUploading={clearUploading}
+                />
             );
         case 'code': {
             const langId = resolveLanguage(block.data.language, block.data.code);
             const lang = languageOf(langId);
+            const isChallenge = block.data.mode === 'challenge';
             return (
                 <div className="le-card le-code">
-                    <div className="le-code-head">
-                        <div className="le-code-options">
-                            <div className="le-seg">
-                                {['playground', 'challenge'].map(m => (
-                                    <button
-                                        key={m}
-                                        type="button"
-                                        onClick={() => update(block.id, { mode: m })}
-                                        className={block.data.mode === m ? 'active' : ''}
-                                    >
-                                        {m}
-                                    </button>
-                                ))}
-                            </div>
-                            <div className="le-seg le-seg-langs">
-                                {Object.values(CODE_LANGUAGES).map(l => (
-                                    <button
-                                        key={l.id}
-                                        type="button"
-                                        onClick={() => update(block.id, { language: l.id })}
-                                        title={l.preview ? 'Runs in the browser preview' : 'Runs on the execution engine'}
-                                        className={langId === l.id ? 'active' : ''}
-                                    >
-                                        <span className="le-lang-dot" style={{ background: l.color, boxShadow: langId === l.id ? `0 0 6px ${l.color}` : 'none' }} />
-                                        {l.label}
-                                    </button>
-                                ))}
-                            </div>
+                    <div className="le-code-row">
+                        <span className="le-card-label">What students do here</span>
+                        <div className="le-mode-grid">
+                            <button
+                                type="button"
+                                className={`le-mode-card ${!isChallenge ? 'active' : ''}`}
+                                onClick={() => update(block.id, { mode: 'playground' })}
+                            >
+                                <span className="le-mode-name"><Play size={14} /> Practice</span>
+                                <span className="le-mode-sub">Students experiment freely and run their code</span>
+                            </button>
+                            <button
+                                type="button"
+                                className={`le-mode-card ${isChallenge ? 'active' : ''}`}
+                                onClick={() => update(block.id, { mode: 'challenge' })}
+                            >
+                                <span className="le-mode-name"><Target size={14} /> Challenge</span>
+                                <span className="le-mode-sub">Students must reach a goal you define</span>
+                            </button>
                         </div>
-                        <button type="button" className="le-template-btn" onClick={() => update(block.id, { code: lang.template })}>
-                            + {lang.label} template
-                        </button>
+                    </div>
+
+                    <div className="le-code-row">
+                        <div className="le-code-lang-head">
+                            <span className="le-card-label">Language</span>
+                            <button
+                                type="button"
+                                className="le-template-btn"
+                                title="Puts example code in the editor — it replaces what is written now"
+                                onClick={() => update(block.id, { code: lang.template })}
+                            >
+                                + Add example code
+                            </button>
+                        </div>
+                        <div className="le-seg le-seg-langs">
+                            {Object.values(CODE_LANGUAGES).map(l => (
+                                <button
+                                    key={l.id}
+                                    type="button"
+                                    onClick={() => update(block.id, { language: l.id })}
+                                    title={l.preview ? 'Runs in the browser preview' : 'Runs on the execution engine'}
+                                    className={langId === l.id ? 'active' : ''}
+                                >
+                                    <span className="le-lang-dot" style={{ background: l.color, boxShadow: langId === l.id ? `0 0 6px ${l.color}` : 'none' }} />
+                                    {l.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     <MultiFileEditor
@@ -791,24 +871,25 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
                         update={update}
                     />
 
-                    {block.data.mode === 'challenge' && (
+                    {isChallenge && (
                         <div className="le-challenge">
-                            <label>{lang.preview ? 'Text that must appear on the page' : 'Required output'}</label>
+                            <label>Challenge goal — what students must produce</label>
                             <input
                                 className="le-input le-challenge-input"
+                                placeholder={lang.preview ? 'e.g. My Favorite Hobby' : 'e.g. Hello World'}
                                 value={block.data.expected || ''}
                                 onChange={(e) => update(block.id, { expected: e.target.value })}
                             />
                             {lang.preview && (
                                 <p className="le-challenge-hint">
-                                    Quick check — the rendered page must contain this text (case-insensitive). Add structured page checks below for element, attribute and style requirements.
+                                    Quick check — the page must show this text. Capital or small letters both count. You can add more checks below.
                                 </p>
                             )}
                             {lang.preview && (
                                 <div style={{ marginTop: 10 }}>
                                     <HtmlChecksEditor
                                         title="Page Checks"
-                                        accent="#f87171"
+                                        accent="#8b7bff"
                                         checks={block.data.html_checks || []}
                                         onChange={(next) => update(block.id, { html_checks: next })}
                                         referenceHtml={composeWebProject(normalizeFiles(block.data.files, block.data.code))}

@@ -106,8 +106,9 @@ export default function HtmlChecksEditor({
             </div>
 
             <p className="text-[10px] text-slate-500 font-medium" style={{ margin: 0 }}>
-                Checks run in the student's browser against the rendered page — structure, attributes, computed CSS and
-                console health. Every check must pass to complete the challenge.
+                Checks run in the student's browser against the page they build —
+                the parts on it, the words in it, and the colors and sizes of things.
+                Every check must pass to complete the challenge.
             </p>
 
             {checks.map((check, index) => (
@@ -235,6 +236,11 @@ export default function HtmlChecksEditor({
                     {testState === 'running' ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
                     Test page checks
                 </button>
+                {checks.length === 0 && (
+                    <span className="text-[10px] font-medium" style={{ color: 'var(--db-text-3)' }}>
+                        Add a check first, then test.
+                    </span>
+                )}
             </div>
 
             {onReferenceChange && (
