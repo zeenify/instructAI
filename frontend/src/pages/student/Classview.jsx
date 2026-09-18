@@ -9,7 +9,7 @@ import { useStudentClass, useStudentActivities } from '../../queries/student';
 import { SkeletonBlock } from '../../components/ui/skeletons';
 import '../../styles/dashboard.css';
 
-const TABS = ['lessons', 'classwork'];
+const TABS = ['modules', 'classwork'];
 
 /**
  * Student class page — strict 1 class = 1 course (docs/data-layer-plan.md).
@@ -22,7 +22,7 @@ export default function ClassView() {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const tabParam = searchParams.get('tab');
-    const activeTab = TABS.includes(tabParam) ? tabParam : 'lessons'; // legacy ?tab=courses lands here
+    const activeTab = TABS.includes(tabParam) ? tabParam : 'modules'; // legacy ?tab=courses lands here
     const setTab = (tab) => setSearchParams({ tab }, { replace: true });
 
     const { data: classroom, isLoading, isError } = useStudentClass(id);
@@ -86,9 +86,9 @@ export default function ClassView() {
 
             {/* Tabs */}
             <div className="cd-tab-bar">
-                <button type="button" className={`cd-tab ${activeTab === 'lessons' ? 'active' : ''}`} onClick={() => setTab('lessons')}>
+                <button type="button" className={`cd-tab ${activeTab === 'modules' ? 'active' : ''}`} onClick={() => setTab('modules')}>
                     <Layers size={17} />
-                    Lessons
+                    Modules
                 </button>
                 <button type="button" className={`cd-tab ${activeTab === 'classwork' ? 'active' : ''}`} onClick={() => setTab('classwork')}>
                     <ClipboardList size={17} />
@@ -102,24 +102,24 @@ export default function ClassView() {
                 </button>
             </div>
 
-            {/* LESSONS TAB — the single course's content, no course-picker hop */}
-            {activeTab === 'lessons' && (
+            {/* MODULES TAB — the single course's content, no course-picker hop */}
+            {activeTab === 'modules' && (
                 !course || modules.length === 0 ? (
                     <div className="cd-empty">
                         <BookOpen size={28} style={{ marginBottom: 6 }} />
                         <p className="cd-empty-title">No lessons yet</p>
-                        <p>Your teacher hasn't published any lessons. Check back soon — or switch to Classwork.</p>
+                        <p>Your teacher hasn't published any modules yet. Check back soon — or switch to Classwork.</p>
                     </div>
                 ) : (
                     <>
                         <div className="sv-progress-row">
                             <div className="sv-progress-info">
-                                <span className="sv-progress-title">{course.title}</span>
-                                <span className="sv-progress-caption">{modules.length} {modules.length === 1 ? 'module' : 'modules'}</span>
+                                <span className="sv-progress-title">Your progress</span>
+                                <span className="sv-progress-caption">{modules.length} {modules.length === 1 ? 'module' : 'modules'} · finish lessons and quizzes to grow this bar</span>
                             </div>
                             <div className="sv-progress-num-wrap">
                                 <span className="sv-progress-num">{course.progress_percent || 0}%</span>
-                                <span className="sv-progress-word">Progress</span>
+                                <span className="sv-progress-word">Done</span>
                             </div>
                         </div>
                         <div className="sv-progress-track">
