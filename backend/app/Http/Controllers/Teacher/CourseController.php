@@ -231,7 +231,9 @@ class CourseController extends Controller
     public function togglePublish(Request $request, $id)
     {
         $request->validate(['is_published' => 'required|boolean']);
-        $course = Course::findOrFail($id);
+        $course = Course::where('id', $id)
+            ->where('teacher_id', auth()->id())
+            ->firstOrFail();
         $course->update(['is_published' => $request->boolean('is_published')]);
         return response()->json(['success' => true]);
     }
@@ -351,7 +353,9 @@ class CourseController extends Controller
 
     public function publishAll(Request $request, $id)
     {
-        $course = Course::findOrFail($id);
+        $course = Course::where('id', $id)
+            ->where('teacher_id', auth()->id())
+            ->firstOrFail();
 
         // Go Live means the course itself too — is_published gates student access
         $course->update(['is_published' => true]);
@@ -378,7 +382,9 @@ class CourseController extends Controller
         ]);
 
         // Get course to access curriculum_text
-        $course = Course::findOrFail($courseId);
+        $course = Course::where('id', $courseId)
+            ->where('teacher_id', auth()->id())
+            ->firstOrFail();
 
         return new StreamedResponse(function () use ($request, $course) {
             $aiUrl = env('AI_SERVICE_URL') . '/ai/generate-curriculum-stream';
@@ -445,9 +451,14 @@ class CourseController extends Controller
     public function aiCommit(Request $request, $id)
     {
         return DB::transaction(function () use ($request, $id) {
+            // Only the owning teacher can commit AI-generated structure
+            $course = Course::where('id', $id)
+                ->where('teacher_id', auth()->id())
+                ->firstOrFail();
+
             $modules = $request->input('new_modules', []);
             $savedModules = [];
-            $baseOrderIndex = \App\Models\Module::where('course_id', $id)->count();
+            $baseOrderIndex = $course->modules()->count();
 
             foreach ($modules as $i => $m) {
                 $newModule = \App\Models\Module::create([

@@ -35,13 +35,16 @@ class QuizController extends Controller
 
     public function store(Request $request, $moduleId)
     {
-        $module = Module::findOrFail($moduleId);
-        
+        // Only the owning teacher can add quizzes to this module
+        $module = Module::whereHas('course', function ($q) {
+            $q->where('teacher_id', auth()->id());
+        })->findOrFail($moduleId);
+
         // Calculate next order index by counting ALL items in this module
         $nextOrder = $module->lessons()->count() + $module->quizzes()->count() + 1;
 
         $quiz = Quiz::create([
-            'module_id' => $moduleId,
+            'module_id' => $module->id,
             'title' => $request->title,
             'is_published' => false, // <--- ADD THIS
             'is_randomized' => false,

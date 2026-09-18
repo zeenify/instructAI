@@ -54,8 +54,13 @@ export default function ClassDetails() {
     };
 
     // The open module lives in the URL (?module=ID) so refresh, browser Back,
-    // and shared links land back inside the module — not the grid.
-    const openModuleId = searchParams.get('module') ? Number(searchParams.get('module')) : null;
+    // and shared links land back inside the module — not the grid. Only plain
+    // positive integers are accepted: anything else ('abc', '12x', '-1',
+    // '1e5') is ignored outright, and a well-formed id that isn't one of THIS
+    // class's modules self-cleans in the builder (the payload is server-scoped
+    // to the logged-in teacher, so foreign ids can never render).
+    const rawModule = searchParams.get('module');
+    const openModuleId = rawModule !== null && /^\d+$/.test(rawModule) ? Number(rawModule) : null;
     const setOpenModule = (moduleId) => {
         const next = new URLSearchParams(searchParams);
         if (moduleId) {
@@ -101,15 +106,7 @@ export default function ClassDetails() {
                         <SkeletonBlock style={{ width: 340, height: 40, borderRadius: 12 }} />
                         <SkeletonBlock style={{ width: 118, height: 36, borderRadius: 10 }} />
                     </div>
-                </div>
-                <div className="cd-stat-tiles" style={{ marginBottom: 30 }}>
-                    {[0, 1, 2, 3].map((i) => (
-                        <div key={i} className="cd-stat-tile" style={{ cursor: 'default' }}>
-                            <SkeletonBlock style={{ width: 44, height: 44, borderRadius: 14 }} />
-                            <SkeletonBlock style={{ width: 44, height: 30 }} />
-                            <SkeletonBlock style={{ width: 74, height: 12 }} />
-                        </div>
-                    ))}
+                    <SkeletonBlock style={{ width: 280, height: 14, marginTop: 14 }} />
                 </div>
                 <div className="cd-tab-bar" style={{ marginBottom: 22 }}>
                     <SkeletonBlock style={{ width: 92, height: 15 }} />
@@ -120,33 +117,9 @@ export default function ClassDetails() {
     }
 
     const modules = content?.modules ?? [];
-    const lessonCount = modules.reduce((n, m) => n + (m.lessons?.length ?? 0), 0);
     const students = classroom.students ?? [];
 
     const toGrade = classroom.to_grade_count ?? 0;
-    const statTiles = [
-        { key: 'content', icon: Users, tone: 'green', value: students.length, label: 'Students' },
-        { key: 'content', icon: Layers, tone: 'violet', value: modules.length, label: 'Modules' },
-        { key: 'classwork', icon: ClipboardList, tone: 'amber', value: classroom.activities_count ?? 0, label: 'Classwork' },
-        { key: 'classwork', icon: ClipboardList, tone: toGrade > 0 ? 'red' : 'neutral', value: toGrade, label: 'To grade' },
-    ];
-
-    const statStrip = (
-        <div className="cd-stat-tiles">
-            {statTiles.map((t) => (
-                <button
-                    key={t.label}
-                    type="button"
-                    className={`cd-stat-tile ${activeTab === t.key ? 'active' : ''}`}
-                    onClick={() => setTab(t.key)}
-                >
-                    <span className={`cd-stat-icon ${t.tone}`}><t.icon size={19} strokeWidth={2.1} /></span>
-                    <span className="cd-stat-num">{t.value}</span>
-                    <span className="cd-stat-word">{t.label}</span>
-                </button>
-            ))}
-        </div>
-    );
 
     return (
         <div>
@@ -161,9 +134,22 @@ export default function ClassDetails() {
                         {copied ? <Check size={14} /> : <Copy size={14} />}
                     </button>
                 </div>
+                {/* One quiet line instead of four cards — "to grade" only
+                    speaks up when there is something waiting */}
+                <p className="cd-hero-stats">
+                    <span>{students.length} students</span>
+                    <span className="cd-hero-stats-dot">&middot;</span>
+                    <span>{modules.length} modules</span>
+                    <span className="cd-hero-stats-dot">&middot;</span>
+                    <span>{classroom.activities_count ?? 0} classwork</span>
+                    {toGrade > 0 && (
+                        <>
+                            <span className="cd-hero-stats-dot">&middot;</span>
+                            <span className="cd-hero-stats-grade">{toGrade} to grade</span>
+                        </>
+                    )}
+                </p>
             </div>
-
-            {statStrip}
 
             {/* Tabs */}
             <div className="cd-tab-bar">

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Question;
 use App\Models\QuestionTestCase;
+use App\Models\Quiz;
 use App\Support\CodingQuestionGrader;
 use App\Support\CodeRunner;
 use Illuminate\Http\Request;
@@ -37,13 +38,18 @@ class QuestionController extends Controller
 
     public function store(Request $request, $quizId)
     {
+        // Only the owning teacher can add questions to this quiz
+        $quiz = Quiz::whereHas('module.course', function ($q) {
+            $q->where('teacher_id', auth()->id());
+        })->findOrFail($quizId);
+
         $allowedTypes = ['multiple_choice', 'true_false', 'identification', 'enumeration', 'short_answer', 'essay', 'coding'];
         $type = in_array($request->input('type'), $allowedTypes) ? $request->input('type') : 'multiple_choice';
 
         $request->validate(['language' => $this->languageRule()]);
 
         $question = Question::create([
-            'quiz_id' => $quizId,
+            'quiz_id' => $quiz->id,
             'type' => $type,
             'question_text' => 'New Question',
             'options' => ($type === 'multiple_choice') ? ['Option 1', 'Option 2', 'Option 3', 'Option 4'] :
@@ -169,9 +175,14 @@ class QuestionController extends Controller
     {
         $request->validate(['question_ids' => 'required|array']);
 
-        DB::transaction(function () use ($request, $quizId) {
+        // Only the owning teacher may reorder this quiz's questions
+        $quiz = Quiz::whereHas('module.course', function ($q) {
+            $q->where('teacher_id', auth()->id());
+        })->findOrFail($quizId);
+
+        DB::transaction(function () use ($request, $quiz) {
             foreach ($request->question_ids as $index => $id) {
-                Question::where('id', $id)->where('quiz_id', $quizId)->update(['order_index' => $index + 1]);
+                Question::where('id', $id)->where('quiz_id', $quiz->id)->update(['order_index' => $index + 1]);
             }
         });
 

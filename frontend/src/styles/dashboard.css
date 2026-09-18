@@ -1096,7 +1096,7 @@
 }
 
 .cd-eyebrow {
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.18em;
@@ -1114,7 +1114,7 @@
 
 .cd-title {
     font-family: var(--db-font-display);
-    font-size: 38px;
+    font-size: 42px;
     font-weight: 700;
     letter-spacing: -0.015em;
     line-height: 1.1;
@@ -1169,105 +1169,26 @@
     margin-bottom: 26px;
 }
 
-.cd-stat-tiles {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 14px;
-    margin-bottom: 30px;
-}
-
-.cd-stat-tile {
+/* One quiet line of class facts inside the hero (replaces four cards) */
+.cd-hero-stats {
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 16px 18px;
-    background: var(--db-card);
-    border: 1px solid var(--db-border);
-    border-radius: 16px;
-    box-shadow: var(--db-shadow-soft);
-    cursor: pointer;
-    font: inherit;
-    color: inherit;
-    text-align: left;
-    transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--db-text-2);
+    margin: 16px 0 0;
 }
 
-.cd-stat-tile:hover {
-    border-color: var(--db-accent-border);
-    transform: translateY(-2px);
-    box-shadow: var(--db-shadow);
+.cd-hero-stats-dot {
+    color: var(--db-text-3);
 }
 
-.cd-stat-tile.active {
-    border-color: var(--db-accent-border);
-    background: var(--db-accent-soft);
-}
-
-.cd-stat-icon {
-    width: 46px;
-    height: 46px;
-    flex: none;
-    display: grid;
-    place-items: center;
-    border-radius: 14px;
-}
-
-.cd-stat-icon.green {
-    color: var(--db-green);
-    background: var(--db-green-soft);
-    border: 1px solid var(--db-green-border);
-}
-
-.cd-stat-icon.violet {
-    color: var(--db-accent-bright);
-    background: var(--db-accent-soft);
-    border: 1px solid var(--db-accent-border);
-}
-
-:root[data-theme='light'] .cd-stat-icon.violet {
-    color: var(--db-accent);
-}
-
-.cd-stat-icon.sky {
-    color: #38bdf8;
-    background: rgba(56, 189, 248, 0.12);
-    border: 1px solid rgba(56, 189, 248, 0.35);
-}
-
-:root[data-theme='light'] .cd-stat-icon.sky {
-    color: #0284c7;
-}
-
-.cd-stat-icon.red {
+.cd-hero-stats-grade {
     color: var(--db-danger);
-    background: var(--db-danger-soft);
-    border: 1px solid rgba(248, 113, 113, 0.35);
-}
-
-.cd-stat-icon.neutral {
-    color: var(--db-text-3);
-    background: var(--db-card-2);
-    border: 1px solid var(--db-border);
-}
-
-.cd-stat-icon.amber {
-    color: var(--db-amber);
-    background: rgba(251, 191, 36, 0.12);
-    border: 1px solid rgba(251, 191, 36, 0.35);
-}
-
-.cd-stat-num {
-    font-family: var(--db-font-display);
-    font-size: 28px;
-    font-weight: 700;
-    line-height: 1;
-    color: var(--db-text);
-}
-
-.cd-stat-word {
-    font-size: 13px;
-    color: var(--db-text-3);
-    margin-top: 3px;
+    font-weight: 600;
 }
 
 .cd-tab-bar {
@@ -1282,11 +1203,11 @@
     display: flex;
     align-items: center;
     gap: 9px;
-    padding: 13px 18px;
+    padding: 15px 22px;
     border: none;
     background: transparent;
     color: var(--db-text-2);
-    font-size: 15.5px;
+    font-size: 16.5px;
     font-weight: 500;
     cursor: pointer;
     border-bottom: 2px solid transparent;
@@ -1309,12 +1230,12 @@
 }
 
 .cd-tab-count {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
     color: var(--db-text-2);
     background: var(--db-card-2);
     border: 1px solid var(--db-border);
-    padding: 1px 7px;
+    padding: 2px 9px;
     border-radius: 999px;
 }
 
@@ -1371,30 +1292,14 @@
 }
 
 .cd-chip {
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
-    padding: 3px 10px;
+    padding: 4px 11px;
     border-radius: 999px;
     border: 1px solid var(--db-border);
     background: var(--db-card-2);
     color: var(--db-text-2);
     white-space: nowrap;
-}
-
-.cd-chip.published {
-    color: var(--db-green);
-    border-color: var(--db-green-border);
-    background: var(--db-green-soft);
-}
-
-.cd-chip.draft {
-    color: var(--db-amber);
-    border-color: rgba(251, 191, 36, 0.35);
-    background: rgba(251, 191, 36, 0.1);
-}
-
-:root[data-theme='light'] .cd-chip.draft {
-    color: #b45309;
 }
 
 .cd-student-row {
@@ -1469,7 +1374,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -1493,11 +1398,11 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 600;
-    color: var(--db-green);
-    background: var(--db-green-soft);
-    border: 1px solid var(--db-green-border);
+    color: var(--db-text-2);
+    background: var(--db-card-2);
+    border: 1px solid var(--db-border);
     padding: 5px 10px;
     border-radius: 999px;
     max-width: 220px;
@@ -1521,12 +1426,12 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 15px;
+    padding: 11px 17px;
     border-radius: 11px;
     border: 1px solid var(--db-border);
     background: transparent;
     color: var(--db-text-2);
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
@@ -1628,8 +1533,8 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    min-height: 196px;
-    padding: 20px 22px;
+    min-height: 210px;
+    padding: 22px 24px;
     background: var(--db-card);
     border: 1px solid var(--db-border);
     border-radius: 18px;
@@ -1687,7 +1592,7 @@
 
 .cd-mod-index {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--db-text-3);
 }
@@ -1704,7 +1609,7 @@
     flex: 1;
     min-width: 0;
     font-family: var(--db-font-display);
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 700;
     color: var(--db-text);
     margin: 0;
@@ -1798,7 +1703,7 @@
 
 .cd-mod-progress-label {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--db-text-3);
     white-space: nowrap;
@@ -1816,8 +1721,8 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 12.5px;
-    padding: 5px 12px;
+    font-size: 13.5px;
+    padding: 6px 13px;
 }
 
 .cd-mod-foot {
@@ -1830,7 +1735,7 @@
 }
 
 .cd-mod-items {
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--db-text-3);
     margin-left: auto;
@@ -1900,14 +1805,14 @@
 }
 
 .cd-visibility {
-    font-size: 13px;
+    font-size: 14.5px;
     color: var(--db-text-2);
     margin: 10px 2px 0;
     padding-left: 2px;
 }
 
 .cd-mod-add-hint {
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--db-accent-bright);
     margin-left: auto;
@@ -1964,7 +1869,7 @@
     cursor: pointer;
     color: var(--db-text-3);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -2025,7 +1930,7 @@
 .cd-md-kicker {
     display: inline-block;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.16em;
     color: var(--db-text-3);
@@ -2033,7 +1938,7 @@
 
 .cd-md-title {
     font-family: var(--db-font-display);
-    font-size: 27px;
+    font-size: 30px;
     font-weight: 700;
     letter-spacing: -0.01em;
     line-height: 1.2;
@@ -2047,7 +1952,7 @@
     align-items: center;
     gap: 7px;
     flex-wrap: wrap;
-    font-size: 13.5px;
+    font-size: 14.5px;
     color: var(--db-text-2);
     margin: 0 0 16px;
 }
@@ -2096,7 +2001,7 @@
 
 .cd-md-progress-label {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--db-text-3);
     white-space: nowrap;
@@ -2127,7 +2032,7 @@
 
 .cd-md-seq-label {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
     letter-spacing: 0.16em;
     text-transform: uppercase;
@@ -2135,7 +2040,7 @@
 }
 
 .cd-md-seq-hint {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     color: var(--db-text-2);
 }
@@ -2228,7 +2133,7 @@
 
 .cd-md-num {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--db-text-3);
     width: 24px;
@@ -2240,10 +2145,10 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 11px;
+    padding: 5px 12px;
     border-radius: 999px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 11.5px;
     font-weight: 600;
     letter-spacing: 0.1em;
 }
@@ -2271,7 +2176,7 @@
 }
 
 .cd-md-name {
-    font-size: 15.5px;
+    font-size: 17px;
     font-weight: 600;
     color: var(--db-text);
     line-height: 1.35;
@@ -2282,7 +2187,7 @@
 }
 
 .cd-md-sub {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--db-text-3);
     margin-top: 2px;
 }
@@ -2297,7 +2202,7 @@
     align-items: center;
     gap: 6px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 11.5px;
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -2384,13 +2289,13 @@
     align-items: center;
     gap: 6px;
     flex: none;
-    padding: 6px 12px;
+    padding: 7px 13px;
     border-radius: 999px;
     background: var(--db-accent-soft);
     border: 1px solid var(--db-accent-border);
     color: var(--db-accent-bright);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 11.5px;
     font-weight: 600;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -2432,7 +2337,7 @@
 .cd-md-add-tag {
     flex: none;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 11.5px;
     font-weight: 600;
     letter-spacing: 0.1em;
     padding: 4px 10px;
@@ -2515,10 +2420,10 @@
     align-items: center;
     justify-content: center;
     gap: 9px;
-    padding: 15px 16px;
+    padding: 16px 16px;
     border-radius: 14px;
     border: 1.5px solid transparent;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
     cursor: pointer;
     transition: filter 0.15s ease, border-color 0.15s ease, transform 0.15s ease;

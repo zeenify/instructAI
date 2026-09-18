@@ -37,15 +37,18 @@ class LessonController extends Controller
      */
     public function store(Request $request, $moduleId)
     {
-        $module = Module::findOrFail($moduleId);
+        // Only the owning teacher can add lessons to this module
+        $module = Module::whereHas('course', function ($q) {
+            $q->where('teacher_id', auth()->id());
+        })->findOrFail($moduleId);
 
         // Calculate next order index by counting BOTH types
         $nextOrder = $module->lessons()->count() + $module->quizzes()->count() + 1;
 
         $lesson = Lesson::create([
-            'module_id' => $moduleId,
+            'module_id' => $module->id,
             'title' => $request->title,
-            'content' => [], 
+            'content' => [],
             'order_index' => $nextOrder, // <--- UPDATED LOGIC
             'is_published' => false
         ]);
@@ -60,7 +63,10 @@ class LessonController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            $lesson = Lesson::findOrFail($id);
+            // Deep security check: Lesson -> Module -> Course -> Teacher
+            $lesson = Lesson::whereHas('module.course', function ($q) {
+                $q->where('teacher_id', auth()->id());
+            })->findOrFail($id);
             
             // Use 'sometimes' so we can update JUST the visibility without sending the whole content
             $validated = $request->validate([

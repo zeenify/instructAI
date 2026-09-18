@@ -53,15 +53,21 @@ class ModuleController extends Controller
 
         $items = $request->items;
 
+        // Only the owning teacher may reorder this module's items, and each
+        // item must actually belong to the module in the URL
+        $module = Module::whereHas('course', function ($q) {
+            $q->where('teacher_id', auth()->id());
+        })->findOrFail($moduleId);
+
         // A Transaction ensures the DB doesn't save partial/messy data
-        DB::transaction(function () use ($items) {
+        DB::transaction(function () use ($items, $module) {
             foreach ($items as $index => $item) {
                 $newPosition = $index + 1;
 
                 if ($item['itemType'] === 'lesson') {
-                    DB::table('lessons')->where('id', $item['id'])->update(['order_index' => $newPosition]);
+                    DB::table('lessons')->where('id', $item['id'])->where('module_id', $module->id)->update(['order_index' => $newPosition]);
                 } elseif ($item['itemType'] === 'quiz') {
-                    DB::table('quizzes')->where('id', $item['id'])->update(['order_index' => $newPosition]);
+                    DB::table('quizzes')->where('id', $item['id'])->where('module_id', $module->id)->update(['order_index' => $newPosition]);
                 }
             }
         });
@@ -102,9 +108,15 @@ public function destroy($id)
             'modules.*' => 'required|integer|exists:modules,id'
         ]);
 
-        DB::transaction(function () use ($request) {
+        // Only the owning teacher may reorder this course's modules, and each
+        // module must actually belong to the course in the URL
+        $course = Course::where('id', $request->courseId)
+            ->where('teacher_id', $request->user()->id)
+            ->firstOrFail();
+
+        DB::transaction(function () use ($request, $course) {
             foreach ($request->modules as $index => $moduleId) {
-                DB::table('modules')->where('id', $moduleId)->update(['order_index' => $index]);
+                DB::table('modules')->where('id', $moduleId)->where('course_id', $course->id)->update(['order_index' => $index]);
             }
         });
 

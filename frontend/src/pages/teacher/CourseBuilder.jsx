@@ -1459,7 +1459,10 @@ if (loading || !course) return (
             </header>
 
             <AnimatePresence mode="wait">
-                {!activeModuleId ? (
+                {/* The module view only renders when the id actually resolves
+                    in THIS course's payload — bogus/stale ids fall back to the
+                    grid and self-clean from the URL */}
+                {!activeModuleId || !activeModuleData ? (
 <motion.div key="grid" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
                         {/* Control Toolbar (standalone route only) */}
                         {!embedded && <div style={{ padding: '20px 28px', marginBottom: '32px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', boxShadow: 'var(--card-shadow)' }} className="flex flex-wrap justify-between items-center gap-4 rounded-2xl">
@@ -1546,7 +1549,6 @@ if (loading || !course) return (
                                 const published = [...(module.lessons || []), ...(module.quizzes || [])].filter(i => i.is_published).length;
                                 const unpublished = total - published;
                                 const statusText = total === 0 ? 'Empty' : (unpublished === 0 ? 'All Published' : `${unpublished} Draft`);
-                                const statusClass = total === 0 ? '' : (unpublished === 0 ? 'published' : 'draft');
                                 const progressPct = total ? Math.round((published / total) * 100) : 0;
                                 const isDragging = draggingModuleId === module.id;
 
@@ -1653,7 +1655,7 @@ if (loading || !course) return (
                                                     <div className="cd-mod-meta">
                                                         <span className="cd-chip"><BookOpen size={14} /> {module.lessons?.length || 0} {module.lessons?.length === 1 ? 'Lesson' : 'Lessons'}</span>
                                                         <span className="cd-chip"><HelpCircle size={14} /> {module.quizzes?.length || 0} {module.quizzes?.length === 1 ? 'Quiz' : 'Quizzes'}</span>
-                                                        <span className={`cd-chip ${statusClass}`}>{statusText}</span>
+                                                        <span className="cd-chip">{statusText}</span>
                                                     </div>
                                                     <div className="cd-mod-foot">
                                                         <span className="cd-mod-items">{total} items</span>
