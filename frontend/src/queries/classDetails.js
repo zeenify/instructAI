@@ -37,3 +37,22 @@ export function useCourseContent(courseId, options = {}) {
         ...options,
     });
 }
+
+export const lessonKey = (lessonId) => ['lesson', Number(lessonId)];
+
+/** One lesson with its full content blocks — the lesson editor's payload. */
+export function useLesson(lessonId, options = {}) {
+    return useQuery({
+        queryKey: lessonKey(lessonId),
+        enabled: Boolean(lessonId),
+        staleTime: 0,
+        queryFn: async () => {
+            // bypassCache: the legacy axios layer would otherwise hand back a
+            // 5-minute-old copy. An editor must never start from stale content
+            // (same rule as CourseBuilder's fetchCourse).
+            const res = await api.get(`/teacher/lessons/${lessonId}`, { bypassCache: true });
+            return res.data;
+        },
+        ...options,
+    });
+}

@@ -136,12 +136,25 @@ at the Herd domain) — or use `php -S 127.0.0.1:8000 -t public` with
 that works without artisan's wrapper on platforms that support forking).
 
 ## Progress log
+- 2026-09-19: TEACHER SECURITY PASS — every teacher endpoint now verifies the
+  ownership chain (lesson/quiz store+update, course toggle/publishAll/
+  ai-generate/ai-commit, module+question reorders were IDOR-open before).
+- 2026-09-19: MODULE OVERVIEW + New Module modal redesigned (cd-md-*, query
+  param ?module=, drag smoothing, native DeleteModal). Teacher class page
+  de-cluttered (stat tiles → hero meta line, type scale up, green reserved
+  for live semantics).
+- 2026-09-19: LESSON EDITOR migrated (useLesson hook, bypassCache editor
+  fetch, debounced autosave via saveNow/markDirty with in-flight race
+  handling, flush-on-unmount + beforeunload, class/course cache invalidation
+  on save; fixed ai_enabled||true bug). LessonEditor redesigned (le- styles,
+  Preview mode, insert-between popover, undo delete, Draft/Live badge,
+  guarded unpublish). teacher-eye critique round 1: 7/4 → fixes applied.
+  Next teacher target: quiz editor (QuizBuilder).
 - 2026-09-19: STUDENT CLASS PAGE migrated (1:1 showClass payload + ClassView
   redesign + student hooks + student-eye skill, 4 critique passes). Course-picker
   deferred cleanup DONE. Windows artisan-serve single-worker limitation documented
   above. Teacher class page COMPLETE (hero, stat tiles, embedded builder, compact
-  toolbar, publish flow; teacher-eye last pass 7.5/5). Next teacher target:
-  module builder deep pass.
+  toolbar, publish flow; teacher-eye last pass 7.5/5).
 - 2026-09-18: Plan written; investigation complete; no implementation yet.
 - 2026-09-18: Phases 1–3 implemented and building. Remaining: Phase 4 rollout
   (per-page during redesigns), final cache cleanup, live UX verification by
