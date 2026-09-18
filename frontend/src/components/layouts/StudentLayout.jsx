@@ -14,8 +14,12 @@ export default function StudentLayout() {
     const { user, logout } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
-    const [classes, setClasses] = useState([]);
-    const [loading, setLoading] = useState(true);
+    // Last-known classes paint instantly; the network refresh corrects after.
+    const [classes, setClasses] = useState(() => {
+        try { return JSON.parse(sessionStorage.getItem('sidebar:student:classes-last') || '[]'); }
+        catch { return []; }
+    });
+    const [loading, setLoading] = useState(() => !sessionStorage.getItem('sidebar:student:classes-last'));
 
     const [isJoinModalOpen, setIsJoinModalOpen] = useState(false); 
 
@@ -33,6 +37,7 @@ export default function StudentLayout() {
         try {
             const res = await api.get('/student/classes');
             cache.set(cacheKey, res.data);
+            sessionStorage.setItem('sidebar:student:classes-last', JSON.stringify(res.data));
             setClasses(res.data);
         } finally { setLoading(false); }
     };

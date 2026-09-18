@@ -90,11 +90,10 @@ technically accepts multi-course; strictness lives in behavior/UI. Rationale:
 DepEd grades per subject; Prog 1 and Prog 2 are different subjects = different
 classes. One class = one section × one subject.
 
-- [ ] **Student side still has a course picker screen** (class → course list →
-  content). With 1:1 it's a redundant always-one-item screen. REMOVE it during
-  the student pages redesign: navigate class → straight into the single
-  course's content. Affects `pages/student/ClassView.jsx`, possibly
-  `StudentLayout`/routing under `/dashboard/student`.
+- [x] **Student side course picker REMOVED** (2026-09-19): `showClass` ships the
+  single course's published content in one payload; ClassView renders lessons
+  directly and taps through to the focus-mode CourseViewer. CourseViewer and
+  deeper student pages still to be redesigned.
 - [ ] **Monitor page course dropdown is pointless** with 1:1 (only one course
   per class). Remove the dropdown and auto-use the class's course during the
   Monitor UI redesign. (`pages/teacher/StudentMonitor.jsx`,

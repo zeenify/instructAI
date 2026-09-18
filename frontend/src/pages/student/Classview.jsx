@@ -93,7 +93,12 @@ export default function ClassView() {
                 <button type="button" className={`cd-tab ${activeTab === 'classwork' ? 'active' : ''}`} onClick={() => setTab('classwork')}>
                     <ClipboardList size={17} />
                     Classwork
-                    <span className="cd-tab-count">{activities.length}</span>
+                    <span
+                        className="cd-tab-count"
+                        title={activitiesLoading ? 'Loading classwork…' : `${activities.length} visible to you`}
+                    >
+                        {activitiesLoading ? '…' : activities.length}
+                    </span>
                 </button>
             </div>
 
