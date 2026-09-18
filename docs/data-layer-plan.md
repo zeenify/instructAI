@@ -124,6 +124,17 @@ classes. One class = one section × one subject.
 - [ ] Monitor sort/filter changes never blank the list.
 - [ ] `vite build` passes each phase.
 
+## Dev-environment note (Windows)
+
+`php artisan serve` on Windows is single-request-at-a-time ('forking is not
+supported') — concurrent page queries serialize (~2-3s each, queued), which
+makes cold page loads feel 2-4x slower than production will be. The data-layer
+caches mask this on revisits. To get parallel request handling in dev, serve
+via **Herd** (`herd link` inside backend/, then point `frontend/.env.local`
+at the Herd domain) — or use `php -S 127.0.0.1:8000 -t public` with
+`PHP_CLI_SERVER_WORKERS` directly (workers are a PHP built-in-server feature
+that works without artisan's wrapper on platforms that support forking).
+
 ## Progress log
 - 2026-09-18: Plan written; investigation complete; no implementation yet.
 - 2026-09-18: Phases 1–3 implemented and building. Remaining: Phase 4 rollout

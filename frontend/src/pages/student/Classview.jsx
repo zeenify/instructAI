@@ -38,6 +38,14 @@ export default function ClassView() {
         }
     }, [isError, navigate]);
 
+    // Mark items as seen: NEW dots only show what appeared since the last visit
+    useEffect(() => {
+        if (classroom) {
+            const t = setTimeout(() => localStorage.setItem(LAST_VISIT_KEY, new Date().toISOString()), 4000);
+            return () => clearTimeout(t);
+        }
+    }, [classroom, id]);
+
     if (isLoading || !classroom) {
         return (
             <div>
@@ -57,6 +65,18 @@ export default function ClassView() {
     // Strict 1:1 — the class's single published course IS the content
     const course = classroom.courses?.[0] ?? null;
     const modules = course?.modules ?? [];
+
+    // Due-soon strip: upcoming classwork deadlines (existing activities data)
+    const now = Date.now();
+    const dueSoon = activities
+        .filter(a => a.deadline_at && new Date(a.deadline_at).getTime() > now && a.deadline_behavior !== 'close_room')
+        .sort((a, b) => new Date(a.deadline_at) - new Date(b.deadline_at))
+        .slice(0, 3);
+
+    // NEW dots: items posted since the student's last visit to this class
+    const LAST_VISIT_KEY = `sv:lastVisit:${id}`;
+    const lastVisit = localStorage.getItem(LAST_VISIT_KEY);
+    const isNew = (createdAt) => lastVisit && createdAt && new Date(createdAt) > new Date(lastVisit);
 
     const teacherName = classroom.teacher?.teacher_profile
         ? `${classroom.teacher.teacher_profile.first_name} ${classroom.teacher.teacher_profile.last_name}`
@@ -130,6 +150,24 @@ export default function ClassView() {
                             />
                         </div>
 
+                        {dueSoon.length > 0 && (
+                            <div className="sv-due-strip">
+                                <span className="sv-due-label">Due soon</span>
+                                {dueSoon.map(a => (
+                                    <button
+                                        key={a.id}
+                                        type="button"
+                                        className="sv-due-chip"
+                                        onClick={() => navigate(`/dashboard/student/class/${id}/activity/${a.id}`)}
+                                        title={a.description || a.title}
+                                    >
+                                        {a.title}
+                                        <b>{new Date(a.deadline_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</b>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
                         {modules.map((mod, mi) => (
                             <div key={mod.id} className="sv-module">
                                 <div className="sv-module-head">
@@ -149,7 +187,15 @@ export default function ClassView() {
                                                 <span className={`sv-lesson-icon ${item.kind}`}>
                                                     {item.kind === 'lesson' ? <BookOpen size={16} /> : <ClipboardList size={16} />}
                                                 </span>
-                                                <span className="sv-lesson-title">{item.title}</span>
+                                                <span className="sv-lesson-title">
+                                                    {item.title}
+                                                    {isNew(item.created_at) && <span className="sv-new-dot" title="New" />}
+                                                </span>
+                                                {item.kind === 'lesson' && (
+                                                    <span className="sv-lesson-cost">
+                                                        ~{Math.max(5, Math.round((item.content?.length || 0) * 0.75))} min
+                                                    </span>
+                                                )}
                                                 {item.kind === 'lesson' && item.is_completed && (
                                                     <span className="sv-lesson-done"><Check size={13} /> Done</span>
                                                 )}
