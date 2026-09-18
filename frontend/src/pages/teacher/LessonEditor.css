@@ -1540,3 +1540,172 @@
     background: var(--db-accent-soft);
     transform: scale(1.04);
 }
+
+/* Test case builder (non-web challenge) */
+
+.le-tc {
+    border-top: 1px solid var(--db-border);
+    padding-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.le-tc-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.le-tc-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 15px;
+    border-radius: 10px;
+    border: 1.5px dashed var(--db-accent-border);
+    background: var(--db-accent-soft);
+    color: var(--db-accent-bright);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+:root[data-theme='light'] .le-tc-add {
+    color: var(--db-accent);
+}
+
+.le-tc-add:hover {
+    border-color: var(--db-accent);
+    border-style: solid;
+}
+
+.le-tc-hint {
+    font-size: 13px;
+    color: var(--db-text-2);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.le-tc-row {
+    display: grid;
+    grid-template-columns: auto 1fr 1fr auto;
+    gap: 12px;
+    align-items: start;
+    padding: 13px 15px;
+    border-radius: 12px;
+    background: var(--db-card-2);
+    border: 1px solid var(--db-border);
+}
+
+.le-tc-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--db-text-3);
+    padding-top: 22px;
+}
+
+.le-tc-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
+.le-tc-field-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--db-text-3);
+}
+
+.le-tc-textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 52px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card);
+    color: var(--db-text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.le-tc-textarea:focus {
+    border-color: var(--db-accent);
+    box-shadow: 0 0 0 3px var(--db-accent-soft);
+}
+
+.le-tc-textarea::placeholder {
+    color: var(--db-text-3);
+}
+
+.le-tc-remove {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    margin-top: 18px;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--db-text-3);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.le-tc-remove:hover:not(:disabled) {
+    color: var(--db-danger);
+    background: var(--db-danger-soft);
+}
+
+.le-tc-remove:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+@media (max-width: 760px) {
+    .le-tc-row {
+        grid-template-columns: auto 1fr;
+        grid-template-areas:
+            'num input'
+            'num expected'
+            'num remove';
+    }
+
+    .le-tc-field:last-of-type {
+        grid-area: expected;
+    }
+
+    .le-tc-field:first-of-type {
+        grid-area: input;
+    }
+
+    .le-tc-remove {
+        grid-area: remove;
+        margin-top: 0;
+    }
+}
+
+/* Preview: challenge case list */
+
+.le-preview-goals {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 10px;
+}
+
+.le-preview-goals .le-preview-expected {
+    margin: 0;
+}

@@ -23,7 +23,7 @@ import { lessonKey, classDetailsKey, useLesson } from '../../queries/classDetail
 import { useTheme } from '../../context/ThemeContext';
 
 import CodeMirror from '@uiw/react-codemirror';
-import { CODE_LANGUAGES, cmExtension, resolveLanguage, languageOf, normalizeFiles, composeWebProject, webFileKind, WEB_FILE_TEMPLATES } from '../../utils/codeLanguages';
+import { CODE_LANGUAGES, cmExtension, resolveLanguage, languageOf, normalizeFiles, composeWebProject, webFileKind, WEB_FILE_TEMPLATES, normalizeChallengeCases } from '../../utils/codeLanguages';
 import HtmlChecksEditor from '../../components/teacher/HtmlChecksEditor';
 import { html as htmlExt } from '@codemirror/lang-html';
 import { css as cssExt } from '@codemirror/lang-css';
@@ -791,6 +791,28 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
             const langId = resolveLanguage(block.data.language, block.data.code);
             const lang = languageOf(langId);
             const isChallenge = block.data.mode === 'challenge';
+            const storedCases = normalizeChallengeCases(block.data.test_cases, block.data.expected);
+            // A brand-new challenge starts with one blank case row
+            const cases = storedCases.length > 0 ? storedCases : [{ id: 'new', input: '', expected_output: '' }];
+
+            const setCases = (next) => {
+                const withIds = next.map((c) => ({
+                    ...c,
+                    id: !c.id || c.id === 'new' ? crypto.randomUUID() : c.id,
+                }));
+                update(block.id, {
+                    test_cases: withIds,
+                    // keep the legacy quick-check field pointing at the first case
+                    expected: withIds[0]?.expected_output ?? '',
+                });
+            };
+            const updateCase = (i, patch) => setCases(cases.map((c, j) => (j === i ? { ...c, ...patch } : c)));
+            const addCase = () => setCases([...cases, { input: '', expected_output: '' }]);
+            const removeCase = (i) => {
+                if (cases.length <= 1) return;
+                setCases(cases.filter((_, j) => j !== i));
+            };
+
             return (
                 <div className="le-card le-code">
                     <div className="le-code-row">
@@ -849,31 +871,76 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
                         update={update}
                     />
 
-                    {isChallenge && (
+                    {isChallenge && lang.preview && (
                         <div className="le-challenge">
                             <label>Challenge goal — what students must produce</label>
                             <input
                                 className="le-input le-challenge-input"
-                                placeholder={lang.preview ? 'e.g. My Favorite Hobby' : 'e.g. Hello World'}
+                                placeholder="e.g. My Favorite Hobby"
                                 value={block.data.expected || ''}
                                 onChange={(e) => update(block.id, { expected: e.target.value })}
                             />
-                            {lang.preview && (
-                                <p className="le-challenge-hint">
-                                    Quick check — the page must show this text. Capital or small letters both count. You can add more checks below.
-                                </p>
-                            )}
-                            {lang.preview && (
-                                <div style={{ marginTop: 10 }}>
-                                    <HtmlChecksEditor
-                                        title="Page Checks"
-                                        accent="#8b7bff"
-                                        checks={block.data.html_checks || []}
-                                        onChange={(next) => update(block.id, { html_checks: next })}
-                                        referenceHtml={composeWebProject(normalizeFiles(block.data.files, block.data.code))}
-                                    />
+                            <p className="le-challenge-hint">
+                                Quick check — the page must show this text. Capital or small letters both count. You can add more checks below.
+                            </p>
+                            <div style={{ marginTop: 10 }}>
+                                <HtmlChecksEditor
+                                    title="Page Checks"
+                                    accent="#8b7bff"
+                                    checks={block.data.html_checks || []}
+                                    onChange={(next) => update(block.id, { html_checks: next })}
+                                    referenceHtml={composeWebProject(normalizeFiles(block.data.files, block.data.code))}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {isChallenge && !lang.preview && (
+                        <div className="le-tc">
+                            <div className="le-tc-head">
+                                <span className="le-card-label">Test cases</span>
+                                <button type="button" className="le-tc-add" onClick={addCase}>
+                                    <Plus size={13} />
+                                    Add a case
+                                </button>
+                            </div>
+                            <p className="le-tc-hint">
+                                Every case runs the student's code with the input, and the console output must match exactly. The challenge is solved when all cases pass.
+                            </p>
+                            {cases.map((c, i) => (
+                                <div className="le-tc-row" key={c.id}>
+                                    <span className="le-tc-num">#{i + 1}</span>
+                                    <div className="le-tc-field">
+                                        <span className="le-tc-field-label">Input the program reads</span>
+                                        <textarea
+                                            className="le-tc-textarea"
+                                            rows={2}
+                                            value={c.input}
+                                            placeholder="Leave empty if the program reads nothing"
+                                            onChange={(e) => updateCase(i, { input: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="le-tc-field">
+                                        <span className="le-tc-field-label">Expected console output</span>
+                                        <textarea
+                                            className="le-tc-textarea"
+                                            rows={2}
+                                            value={c.expected_output}
+                                            placeholder="Exact console output"
+                                            onChange={(e) => updateCase(i, { expected_output: e.target.value })}
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="le-tc-remove"
+                                        title={cases.length <= 1 ? 'A challenge needs at least one case' : 'Remove this case'}
+                                        disabled={cases.length <= 1}
+                                        onClick={() => removeCase(i)}
+                                    >
+                                        <Trash2 size={13} />
+                                    </button>
                                 </div>
-                            )}
+                            ))}
                         </div>
                     )}
                 </div>
@@ -920,6 +987,7 @@ function PreviewBlock({ block }) {
             ) : null;
         case 'code': {
             const files = normalizeFiles(block.data.files, block.data.code || '');
+            const cases = normalizeChallengeCases(block.data.test_cases, block.data.expected);
             return (
                 <div className="le-preview-code">
                     <div className="le-preview-code-head">
@@ -931,8 +999,18 @@ function PreviewBlock({ block }) {
                             <pre>{f.content}</pre>
                         </div>
                     ))}
-                    {block.data.mode === 'challenge' && block.data.expected && (
-                        <p className="le-preview-expected">Your goal: {block.data.expected}</p>
+                    {block.data.mode === 'challenge' && (
+                        <div className="le-preview-goals">
+                            {cases.length > 0 ? (
+                                cases.map((c, i) => (
+                                    <p key={c.id || i} className="le-preview-expected">
+                                        {`Case ${i + 1}${c.input ? ` (input: ${c.input})` : ''}: expected output "${c.expected_output}"`}
+                                    </p>
+                                ))
+                            ) : (
+                                <p className="le-preview-expected">Your goal: {block.data.expected}</p>
+                            )}
+                        </div>
                     )}
                 </div>
             );

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
-import { Play, CheckCircle, AlertCircle, RefreshCw, Terminal as TerminalIcon, Eye, Code2, ChevronDown, ChevronUp, Square, SquareTerminal } from 'lucide-react';
+import { Play, CheckCircle, CheckCircle2, XCircle, AlertCircle, RefreshCw, Terminal as TerminalIcon, Eye, Code2, ChevronDown, ChevronUp, Square, SquareTerminal } from 'lucide-react';
 import api from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ import {
     resolveLanguage,
     cmExtension,
     normalizeHtmlChecks,
+    normalizeChallengeCases,
     htmlCheckLabel,
     detectStdinUsage,
     composeWebProject,
@@ -29,6 +30,20 @@ function cmExtensionForFile(name, languageId) {
     if (kind === 'html') return htmlExt();
     return cmExtension(languageId);
 }
+
+const CASE_PRE_STYLE = {
+    margin: '0 0 8px',
+    padding: '10px 12px',
+    borderRadius: '9px',
+    background: 'rgba(13, 13, 26, 0.55)',
+    border: '1px solid var(--accent-glow)',
+    fontFamily: 'Courier New, monospace',
+    fontSize: '12.5px',
+    lineHeight: 1.55,
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    color: 'var(--text-primary)',
+};
 
 const OUTPUT_COLORS = {
     compile: { bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.3)', text: '#ef4444', label: '⚠️ COMPILATION ERROR' },
@@ -88,6 +103,14 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
     const htmlChecks = isHtml && mode === 'challenge'
         ? normalizeHtmlChecks(block.data.html_checks, block.data.expected)
         : [];
+    // Non-web challenges grade against test cases: each case runs the program
+    // with its own stdin and compares console output exactly. Legacy content
+    // without test cases grades on the single `expected` goal (one case).
+    const challengeCases = mode === 'challenge' && !isHtml
+        ? normalizeChallengeCases(block.data.test_cases, block.data.expected)
+        : [];
+    const [caseResults, setCaseResults] = useState(null);
+    const [runningCase, setRunningCase] = useState(0);
     const [checkResults, setCheckResults] = useState(null);
     const pendingCheckRef = useRef(null);
     const runCountRef = useRef(0);
@@ -204,8 +227,78 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         setErrorType(null);
         setOutput('');
         setResultMeta(null);
+        setCaseResults(null);
 
         try {
+            if (challengeCases.length > 0) {
+                // Multi-case challenge: run the program once per case with the
+                // case's stdin, then compare console output exactly.
+                const results = [];
+                let lastData = null;
+
+                for (let i = 0; i < challengeCases.length; i += 1) {
+                    const c = challengeCases[i];
+                    setRunningCase(i + 1);
+                    setOutput(`Running case ${i + 1} of ${challengeCases.length}…`);
+
+                    const res = await api.post('/student/execute', {
+                        code,
+                        language: languageId,
+                        input: c.input || undefined,
+                    });
+                    const data = res.data;
+                    lastData = data;
+                    setResultMeta({
+                        duration_ms: data.duration_ms,
+                        exit_code: data.exit_code,
+                        timed_out: data.timed_out,
+                    });
+
+                    if (data.compile_output) {
+                        setErrorType('compile');
+                        setOutput(data.compile_output);
+                        setIsCorrect(false);
+                        return;
+                    }
+                    if (data.timed_out || (data.stderr && data.stderr.includes('Execution Timed Out'))) {
+                        setErrorType('timeout');
+                        setOutput(data.stderr || 'Execution Timed Out');
+                        setIsCorrect(false);
+                        return;
+                    }
+                    if (data.stderr) {
+                        setErrorType('runtime');
+                        setOutput(data.stderr);
+                        setIsCorrect(false);
+                        return;
+                    }
+
+                    const cleanOutput = (data.stdout || '').trim().replace(/\r\n/g, '\n');
+                    // An empty expected output means the program must print nothing
+                    results.push({
+                        ...c,
+                        actual: cleanOutput,
+                        passed: cleanOutput === c.expected_output.replace(/\r\n/g, '\n'),
+                    });
+                }
+
+                setRunningCase(0);
+                setOutput((results[results.length - 1]?.actual) || '');
+                setCaseResults(results);
+
+                if (results.every((r) => r.passed) && results.length > 0) {
+                    await markSolved();
+                } else {
+                    const failed = results.filter((r) => !r.passed).length;
+                    setIsCorrect(false);
+                    setIsWrong(true);
+                    toast.error(`${failed} of ${results.length} test cases failed — compare your output with each case.`);
+                    setTimeout(() => setIsWrong(false), 8000);
+                }
+                return;
+            }
+
+            // Single run — playground, or a legacy challenge with only a goal
             const res = await api.post('/student/execute', {
                 code,
                 language: languageId,
@@ -264,6 +357,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             setOutput('System Error: Could not reach the execution engine. Please check your internet.');
         } finally {
             setIsRunning(false);
+            setRunningCase(0);
         }
     };
 
@@ -721,16 +815,50 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             </div>
 
 
-            {/* Expected Output - For Challenge Mode. Hidden for HTML blocks
-                with page checks: the checklist above IS the expectation
-                (the quick expected text appears in it as a page-text check). */}
-            {mode === 'challenge' && !(isHtml && htmlChecks.length > 0) && (
+            {/* Test Cases - For non-web Challenge Mode. Before running, each
+                case shows its input and the expected output; after running,
+                each shows what the student's program actually printed. */}
+            {mode === 'challenge' && !isHtml && challengeCases.length > 0 && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ padding: '20px 24px', borderTop: '1px solid var(--accent-glow)', background: 'var(--accent-light)' }}>
                     <p style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 900, textTransform: 'uppercase', margin: '0 0 12px 0' }}>
-                        {isHtml ? 'Expected On Page:' : 'Expected Output:'}
+                        Test Cases — all must pass
                     </p>
-                    <div style={{ background: 'var(--accent-light)', border: '1px solid var(--accent-glow)', padding: '16px', borderRadius: '12px', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'Courier New, monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                        {block.data.expected}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {challengeCases.map((c, i) => {
+                            const r = caseResults?.[i];
+                            const passed = Boolean(r && r.passed);
+                            const failed = Boolean(r && !r.passed);
+                            return (
+                                <div key={c.id || i} style={{
+                                    background: 'var(--accent-light)',
+                                    border: `1px solid ${r ? (passed ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)') : 'var(--accent-glow)'}`,
+                                    borderRadius: '12px',
+                                    padding: '12px 16px',
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                                        <span style={{ fontSize: '10px', fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                                            Case {i + 1}{c.input ? ` — reads: ${c.input}` : ' — no input'}
+                                        </span>
+                                        {r && (
+                                            <span style={{
+                                                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                                fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em',
+                                                padding: '3px 10px', borderRadius: '999px',
+                                                background: passed ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                                                color: passed ? '#10b981' : '#ef4444',
+                                            }}>
+                                                {passed ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
+                                                {passed ? 'Passed' : 'Failed'}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <pre style={CASE_PRE_STYLE}>{`expected output:\n${c.expected_output}`}</pre>
+                                    {r && failed && (
+                                        <pre style={{ ...CASE_PRE_STYLE, color: '#f87171' }}>{`your output:\n${r.actual || '(no output)'}`}</pre>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 </motion.div>
             )}

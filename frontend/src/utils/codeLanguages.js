@@ -231,6 +231,27 @@ export const CHECK_KINDS = [
     { id: 'no-console-errors', label: 'No console errors', needs: [] },
 ];
 
+/**
+ * Lesson challenge test cases for non-web languages. Each case runs the
+ * student's program with `input` on stdin; the console output must match
+ * `expected_output` exactly (trimmed, newline-normalized).
+ *
+ * Backward compatible: a challenge authored before test cases existed has
+ * only the single `expected` goal — that becomes one case with empty input,
+ * which is precisely the old behavior.
+ */
+export function normalizeChallengeCases(testCases, expected) {
+    if (Array.isArray(testCases) && testCases.length > 0) {
+        return testCases.map((c, i) => ({
+            id: c.id || `case-${i}`,
+            input: String(c.input || ''),
+            expected_output: String(c.expected_output ?? ''),
+        }));
+    }
+    const goal = String(expected || '').trim();
+    return goal ? [{ id: 'goal', input: '', expected_output: goal }] : [];
+}
+
 export function newHtmlCheck(kind = 'exists') {
     const base = { id: 'check-' + Math.random().toString(36).slice(2, 9), kind };
     if (kind === 'exists') return { ...base, selector: '', count: 1 };
