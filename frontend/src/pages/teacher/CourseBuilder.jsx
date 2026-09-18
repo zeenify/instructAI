@@ -1007,6 +1007,16 @@ if (loading || !course) return (
 
     const activeModuleData = activeModuleId ? course.modules.find(m => m.id === activeModuleId) : null;
 
+    // What students actually see right now — plain-language presentation of
+    // the existing publish states (no new logic, just honesty in the UI).
+    const totalItems = course?.modules?.reduce((n, m) => n + (m.lessons?.length || 0) + (m.quizzes?.length || 0), 0) ?? 0;
+    const publishedItems = course?.modules?.reduce((n, m) => n + (m.lessons || []).filter(l => l.is_published).length + (m.quizzes || []).filter(q => q.is_published).length, 0) ?? 0;
+    const visibilityText = !isPublished
+        ? 'Hidden from students until you Go Live.'
+        : totalItems === 0 || publishedItems === 0
+            ? 'Live — but nothing is published yet. Students see an empty class.'
+            : `Students can see ${publishedItems} of ${totalItems} items.`;
+
     return (
         <div className="builder-container" style={embedded ? { maxWidth: 'none', padding: 0, margin: 0 } : undefined}>
             <header style={{ marginBottom: '40px' }} className="mb-10">
@@ -1037,15 +1047,15 @@ if (loading || !course) return (
                         <span className="cd-tsep" />
                         <button type="button" className="cd-tbtn" onClick={() => setShowCurriculumModal(true)} title={course.curriculum_file_url ? 'View or replace your curriculum file' : 'Upload your curriculum file (PDF or DOC) — AI uses it as the source for generated content'}>
                             <FileText size={16} />
-                            Curriculum
+                            {course.curriculum_file_url ? 'Curriculum' : 'Upload Curriculum'}
                         </button>
                         <button type="button" className="cd-tbtn cd-tbtn-ai" onClick={() => setIsAiModalOpen(true)} title="Generate modules, lessons, and quizzes automatically from your curriculum">
                             <Sparkles size={16} />
-                            AI Generate
+                            Generate with AI
                         </button>
-                        <button type="button" className="cd-tbtn" onClick={handleIndexCourse} disabled={isUpdatingStatus} title="Let the student AI tutor answer questions using this class's content">
+                        <button type="button" className="cd-tbtn" onClick={handleIndexCourse} disabled={isUpdatingStatus} title="Choose what the student AI tutor can answer from">
                             <BookOpen size={16} />
-                            Teach the Tutor
+                            AI Tutor Setup
                         </button>
                         <span className="cd-tspacer" />
                         <button type="button" className={`cd-tbtn ${isReorderMode ? 'cd-tbtn-on' : ''}`} onClick={() => setIsReorderMode(!isReorderMode)}>
@@ -1067,6 +1077,9 @@ if (loading || !course) return (
                             New Module
                         </button>
                     </div>
+                )}
+                {!activeModuleId && embedded && (
+                    <p className="cd-visibility">{visibilityText}</p>
                 )}
 
                 {/* Top Control Bar - Enhanced (standalone route only) */}
@@ -1272,16 +1285,14 @@ if (loading || !course) return (
                                         : 'Upload your curriculum first so AI can build your course from it — or create modules by hand.'}
                                 </p>
                                 <div className="cd-empty-build-actions">
-                                    <button type="button" className="cd-tbtn cd-tbtn-ai cd-tbtn-lg" onClick={() => setIsAiModalOpen(true)}>
-                                        <Sparkles size={16} />
-                                        Generate with AI
+                                    <button
+                                        type="button"
+                                        className={`cd-tbtn cd-tbtn-lg ${course.curriculum_file_url ? 'cd-tbtn-ai' : 'cd-tbtn-accent'}`}
+                                        onClick={() => (course.curriculum_file_url ? setIsAiModalOpen(true) : setShowCurriculumModal(true))}
+                                    >
+                                        {course.curriculum_file_url ? <Sparkles size={16} /> : <FileText size={16} />}
+                                        {course.curriculum_file_url ? 'Generate with AI' : 'Upload Curriculum'}
                                     </button>
-                                    {!course.curriculum_file_url && (
-                                        <button type="button" className="cd-tbtn" onClick={() => setShowCurriculumModal(true)}>
-                                            <FileText size={16} />
-                                            Upload Curriculum
-                                        </button>
-                                    )}
                                     <button type="button" className="cd-tbtn" onClick={() => setModuleModal({ isOpen: true, mode: 'create', id: null, title: '' })}>
                                         <Plus size={16} />
                                         New Module
@@ -1388,14 +1399,27 @@ if (loading || !course) return (
                                                 <div className="cd-mod-progress"><span style={{ width: `${progressPct}%` }} /></div>
                                                 <span className="cd-mod-progress-label">{progressPct}% published</span>
                                             </div>
-                                            <div className="cd-mod-meta">
-                                                <span className="cd-chip"><BookOpen size={14} /> {module.lessons?.length || 0} {module.lessons?.length === 1 ? 'Lesson' : 'Lessons'}</span>
-                                                <span className="cd-chip"><HelpCircle size={14} /> {module.quizzes?.length || 0} {module.quizzes?.length === 1 ? 'Quiz' : 'Quizzes'}</span>
-                                                <span className={`cd-chip ${statusClass}`}>{statusText}</span>
-                                            </div>
-                                            <div className="cd-mod-foot">
-                                                <span className="cd-mod-items">{total} items</span>
-                                            </div>
+                                            {total === 0 ? (
+                                                <>
+                                                    <div className="cd-mod-meta">
+                                                        <span className="cd-chip">Empty module</span>
+                                                    </div>
+                                                    <div className="cd-mod-foot">
+                                                        <span className="cd-mod-add-hint">Click to add lessons &amp; quizzes</span>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="cd-mod-meta">
+                                                        <span className="cd-chip"><BookOpen size={14} /> {module.lessons?.length || 0} {module.lessons?.length === 1 ? 'Lesson' : 'Lessons'}</span>
+                                                        <span className="cd-chip"><HelpCircle size={14} /> {module.quizzes?.length || 0} {module.quizzes?.length === 1 ? 'Quiz' : 'Quizzes'}</span>
+                                                        <span className={`cd-chip ${statusClass}`}>{statusText}</span>
+                                                    </div>
+                                                    <div className="cd-mod-foot">
+                                                        <span className="cd-mod-items">{total} items</span>
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     </motion.div>
                                 );

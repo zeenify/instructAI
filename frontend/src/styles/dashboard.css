@@ -1877,6 +1877,24 @@
     border-radius: 12px;
 }
 
+.cd-visibility {
+    font-size: 13px;
+    color: var(--db-text-2);
+    margin: 10px 2px 0;
+    padding-left: 2px;
+}
+
+.cd-mod-add-hint {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--db-accent-bright);
+    margin-left: auto;
+}
+
+:root[data-theme='light'] .cd-mod-add-hint {
+    color: var(--db-accent);
+}
+
 /* ---------- Modal (create class & future dialogs) ---------- */
 
 .db-modal-backdrop {
