@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useClasses } from '../../context/ClassContext';
-import { LayoutDashboard, BarChart3, Settings, LogOut, Plus, Loader2, Eye, ChevronRight, PanelLeftClose, Menu } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Settings, LogOut, Plus, Eye, ChevronRight, PanelLeftClose, Menu } from 'lucide-react';
 import ThemeToggle from '../ui/ThemeToggle';
 import CreateClassModal, { OPEN_CREATE_CLASS } from '../teacher/CreateClassModal';
 import '../../styles/dashboard.css';
@@ -77,8 +77,11 @@ export default function TeacherLayout() {
                 <div className="db-side-label">Your Classes</div>
                 <div className="db-scrollbar" style={{ overflowY: 'auto', maxHeight: '300px', marginBottom: '8px' }}>
                     {loading && classes.length === 0 ? (
-                        <div style={{ display: 'flex', justifyContent: 'center', padding: '16px' }}>
-                            <Loader2 size={16} className="animate-spin" style={{ color: '#5f6a89' }} />
+                        // Skeleton rows — a lone spinner reads as "broken"
+                        <div style={{ padding: '10px 6px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div className="db-skeleton" style={{ height: '15px', borderRadius: '7px', width: '86%' }} />
+                            <div className="db-skeleton" style={{ height: '15px', borderRadius: '7px', width: '68%' }} />
+                            <div className="db-skeleton" style={{ height: '15px', borderRadius: '7px', width: '78%' }} />
                         </div>
                     ) : (
                         classes.map((c) => (

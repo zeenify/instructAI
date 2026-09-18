@@ -201,7 +201,8 @@ class CourseController extends Controller
             ->with([
                 'modules' => fn($q) => $q->orderBy('order_index', 'asc'),
                 'modules.lessons' => fn($q) => $q->orderBy('order_index', 'asc'),
-                'modules.quizzes' => fn($q) => $q->orderBy('order_index', 'asc')
+                // questions_count powers the "N questions" meta on module rows
+                'modules.quizzes' => fn($q) => $q->withCount('questions')->orderBy('order_index', 'asc')
             ])->firstOrFail();
 
         return response()->json($course);

@@ -32,6 +32,7 @@
     --db-green-border: rgba(52, 211, 153, 0.4);
     --db-danger: #f87171;
     --db-danger-soft: rgba(248, 113, 113, 0.1);
+    --db-amber: #fbbf24;
     --db-shimmer: rgba(255, 255, 255, 0.06);
     --db-glow-top: radial-gradient(1100px 380px at 12% -8%, rgba(109, 90, 224, 0.14), transparent 70%);
     --db-glow-bottom: radial-gradient(900px 420px at 4% 108%, rgba(109, 90, 224, 0.12), transparent 70%);
@@ -61,6 +62,7 @@
     --db-green-border: rgba(14, 159, 110, 0.32);
     --db-danger: #dc2626;
     --db-danger-soft: rgba(220, 38, 38, 0.07);
+    --db-amber: #b45309;
     --db-shimmer: rgba(23, 25, 35, 0.06);
     --db-glow-top: radial-gradient(1100px 380px at 12% -8%, rgba(109, 90, 224, 0.09), transparent 70%);
     --db-glow-bottom: radial-gradient(900px 420px at 4% 108%, rgba(109, 90, 224, 0.07), transparent 70%);
@@ -424,8 +426,9 @@
     gap: 12px;
     flex: 1;
     color: var(--side-text-2);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
+    white-space: nowrap;
 }
 
 .db-theme-track {
@@ -710,6 +713,13 @@
 .db-btn-primary:hover {
     filter: brightness(1.12);
     transform: translateY(-1px);
+}
+
+.db-btn-primary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    filter: none;
+    transform: none;
 }
 
 /* ---------- Class cards ---------- */
@@ -1127,6 +1137,18 @@
     border-radius: 10px;
     cursor: pointer;
     transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+/* the word "Copy" before the code — no more mystery icon */
+.cd-code-chip-hint {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--db-text-3);
+    border-right: 1px solid var(--db-border-strong);
+    padding-right: 9px;
+    margin-right: -2px;
 }
 
 .cd-code-chip-lg:hover {
@@ -1893,6 +1915,675 @@
 
 :root[data-theme='light'] .cd-mod-add-hint {
     color: var(--db-accent);
+}
+
+/* ---------- Module modal (create/rename) ---------- */
+
+.db-modal-sm {
+    width: min(100%, 470px);
+}
+
+.db-kicker-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: var(--db-accent-soft);
+    border: 1px solid var(--db-accent-border);
+    color: var(--db-accent-bright);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+}
+
+:root[data-theme='light'] .db-kicker-chip {
+    color: var(--db-accent);
+}
+
+.db-field-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--db-text-3);
+    margin: -8px 2px 0;
+}
+
+/* ---------- Module detail (cd-md-) — the page inside a module ---------- */
+
+.cd-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--db-text-3);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    transition: color 0.15s ease;
+}
+
+.cd-back:hover {
+    color: var(--db-text);
+}
+
+.cd-md-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 26px 28px 24px;
+    border-radius: 18px;
+    background: var(--db-card);
+    border: 1px solid var(--db-border);
+    margin-bottom: 26px;
+}
+
+/* Oversized chapter number, a quiet watermark at the base (never crowding
+   the action buttons at the top right) */
+.cd-md-num-bg {
+    position: absolute;
+    top: auto;
+    bottom: -26px;
+    right: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 118px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: var(--db-accent-soft);
+    pointer-events: none;
+    user-select: none;
+}
+
+:root[data-theme='light'] .cd-md-num-bg {
+    color: rgba(109, 90, 224, 0.1);
+}
+
+.cd-md-hero-top {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.cd-md-kicker-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.cd-md-kicker {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    color: var(--db-text-3);
+}
+
+.cd-md-title {
+    font-family: var(--db-font-display);
+    font-size: 27px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    color: var(--db-text);
+    margin: 0 0 10px;
+    overflow-wrap: anywhere;
+}
+
+.cd-md-meta {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+    font-size: 13.5px;
+    color: var(--db-text-2);
+    margin: 0 0 16px;
+}
+
+.cd-md-meta b {
+    font-weight: 600;
+    color: var(--db-text);
+}
+
+.cd-md-meta-dot {
+    color: var(--db-text-3);
+}
+
+.cd-md-vis.ok {
+    color: var(--db-green);
+    font-weight: 600;
+}
+
+.cd-md-vis.warn {
+    color: var(--db-amber);
+    font-weight: 600;
+}
+
+.cd-md-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 420px;
+}
+
+.cd-md-progress {
+    flex: 1;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--db-card-2);
+    overflow: hidden;
+}
+
+.cd-md-progress span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--db-accent-bright), var(--db-accent));
+    transition: width 0.3s ease;
+}
+
+.cd-md-progress-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--db-text-3);
+    white-space: nowrap;
+}
+
+.cd-md-hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+/* The destructive action gets breathing room from the routine ones */
+.cd-md-hero-actions .cd-tbtn-danger {
+    margin-left: 8px;
+}
+
+.cd-md-seq-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 0 2px 12px;
+}
+
+.cd-md-seq-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--db-text-2);
+}
+
+.cd-md-seq-hint {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--db-text-2);
+}
+
+.cd-md-list {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.cd-md-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 15px 18px;
+    border-radius: 14px;
+    background: var(--db-card);
+    border: 1px solid var(--db-border);
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.cd-md-row:hover {
+    border-color: var(--db-accent-border);
+    box-shadow: var(--db-shadow-soft);
+}
+
+.cd-md-row.is-draft .cd-md-name {
+    color: var(--db-text-2);
+}
+
+.cd-md-row.dragging {
+    border-color: var(--db-accent);
+    background: var(--db-accent-soft);
+    box-shadow: 0 14px 34px rgba(2, 5, 16, 0.45);
+    z-index: 5;
+}
+
+.cd-md-grip {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 38px;
+    flex: none;
+    margin: -15px 0 -15px -10px;
+    border-radius: 9px;
+    border: none;
+    background: transparent;
+    color: var(--db-text-3);
+    cursor: grab;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.cd-md-grip:hover {
+    color: var(--db-accent-bright);
+    background: var(--db-accent-soft);
+}
+
+:root[data-theme='light'] .cd-md-grip:hover {
+    color: var(--db-accent);
+}
+
+.cd-md-grip:active {
+    cursor: grabbing;
+}
+
+.cd-md-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--db-text-3);
+    width: 24px;
+    flex: none;
+}
+
+.cd-md-type {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 11px;
+    border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+}
+
+.cd-md-type.lesson {
+    color: var(--db-accent-bright);
+    background: var(--db-accent-soft);
+    border: 1px solid var(--db-accent-border);
+}
+
+:root[data-theme='light'] .cd-md-type.lesson {
+    color: var(--db-accent);
+}
+
+.cd-md-type.quiz {
+    color: var(--db-amber);
+    background: rgba(251, 191, 36, 0.12);
+    border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.cd-md-body {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+}
+
+.cd-md-name {
+    font-size: 15.5px;
+    font-weight: 600;
+    color: var(--db-text);
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color 0.15s ease;
+}
+
+.cd-md-sub {
+    font-size: 12.5px;
+    color: var(--db-text-3);
+    margin-top: 2px;
+}
+
+.cd-md-sub.warn {
+    color: var(--db-amber);
+}
+
+.cd-md-status {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.cd-md-status:disabled {
+    opacity: 0.55;
+    cursor: wait;
+}
+
+.cd-md-status.live {
+    color: var(--db-green);
+    background: var(--db-green-soft);
+    border: 1px solid var(--db-green-border);
+}
+
+.cd-md-status.live:hover {
+    background: rgba(52, 211, 153, 0.22);
+}
+
+:root[data-theme='light'] .cd-md-status.live:hover {
+    background: rgba(14, 159, 110, 0.16);
+}
+
+.cd-md-status.draft {
+    color: var(--db-text-2);
+    background: var(--db-card-2);
+    border: 1px solid var(--db-border-strong);
+}
+
+.cd-md-status.draft:hover {
+    color: var(--db-accent-bright);
+    border-color: var(--db-accent-border);
+    background: var(--db-accent-soft);
+}
+
+:root[data-theme='light'] .cd-md-status.draft:hover {
+    color: var(--db-accent);
+}
+
+.cd-md-tools {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.cd-md-row:hover .cd-md-tools,
+.cd-md-row:focus-within .cd-md-tools {
+    opacity: 1;
+}
+
+.cd-md-tools button {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--db-text-3);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cd-md-tools button.cd-tool-del:hover {
+    color: var(--db-danger);
+    background: var(--db-danger-soft);
+}
+
+.cd-md-tools button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.cd-md-go {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--db-accent-soft);
+    border: 1px solid var(--db-accent-border);
+    color: var(--db-accent-bright);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.7;
+    transition: opacity 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+:root[data-theme='light'] .cd-md-go {
+    color: var(--db-accent);
+    background: rgba(109, 90, 224, 0.14);
+}
+
+.cd-md-row:hover .cd-md-go {
+    opacity: 1;
+}
+
+/* Add lesson / add quiz */
+
+.cd-md-add {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.cd-md-add-form {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: var(--db-card);
+    border: 1.5px solid var(--db-accent);
+    box-shadow: 0 0 0 3px var(--db-accent-soft);
+    animation: db-pop-in 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+}
+
+.cd-md-add-tag {
+    flex: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    padding: 4px 10px;
+    border-radius: 999px;
+}
+
+.cd-md-add-tag.lesson {
+    color: var(--db-accent-bright);
+    background: var(--db-accent-soft);
+    border: 1px solid var(--db-accent-border);
+}
+
+:root[data-theme='light'] .cd-md-add-tag.lesson {
+    color: var(--db-accent);
+}
+
+.cd-md-add-tag.quiz {
+    color: var(--db-amber);
+    background: rgba(251, 191, 36, 0.12);
+    border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.cd-md-add-form input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    color: var(--db-text);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    outline: none;
+}
+
+.cd-md-add-form input::placeholder {
+    color: var(--db-text-3);
+    font-weight: 500;
+}
+
+.cd-md-add-cancel,
+.cd-md-add-create {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cd-md-add-cancel {
+    border: none;
+    background: transparent;
+    color: var(--db-text-3);
+}
+
+.cd-md-add-cancel:hover {
+    color: var(--db-text);
+    background: var(--db-card-2);
+}
+
+.cd-md-add-create {
+    border: none;
+    background: var(--db-accent);
+    color: #ffffff;
+}
+
+.cd-md-add-create:hover {
+    background: var(--db-accent-bright);
+}
+
+.cd-md-add-create:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.cd-md-add-tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    padding: 15px 16px;
+    border-radius: 14px;
+    border: 1.5px solid transparent;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+/* Solid, loud — the primary action of this page must never look disabled */
+.cd-md-add-tile.lesson {
+    color: var(--db-accent-bright);
+    background: var(--db-accent-soft);
+    border-color: var(--db-accent-border);
+}
+
+:root[data-theme='light'] .cd-md-add-tile.lesson {
+    color: var(--db-accent);
+}
+
+.cd-md-add-tile.lesson:hover {
+    filter: brightness(1.12);
+    transform: translateY(-1px);
+}
+
+.cd-md-add-tile.quiz {
+    color: var(--db-amber);
+    background: rgba(251, 191, 36, 0.16);
+    border-color: rgba(251, 191, 36, 0.45);
+}
+
+.cd-md-add-tile.quiz:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+}
+
+.cd-md-add-inset {
+    width: 100%;
+    max-width: 470px;
+    margin: 20px auto 0;
+}
+
+/* Touch devices: hover-only affordances must always be visible */
+@media (hover: none) {
+    .cd-md-tools {
+        opacity: 1;
+    }
+
+    .cd-md-go {
+        opacity: 1;
+    }
+}
+
+@media (max-width: 760px) {
+    .cd-md-hero-top {
+        flex-direction: column;
+    }
+
+    .cd-md-hero-actions {
+        justify-content: flex-start;
+        width: 100%;
+    }
+
+    .cd-md-num-bg {
+        font-size: 84px;
+    }
+
+    .cd-md-num {
+        display: none;
+    }
+
+    .cd-md-row {
+        padding: 13px 14px;
+        gap: 10px;
+    }
+
+    .cd-md-name {
+        white-space: normal;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+}
+
+@media (max-width: 560px) {
+    .cd-md-add {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* ---------- Student class page (sv-) ---------- */

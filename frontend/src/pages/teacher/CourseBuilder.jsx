@@ -4,19 +4,132 @@ import { queryClient } from '../../lib/queryClient';
 import { courseContentKey } from '../../queries/classDetails';
 import { motion, AnimatePresence, useDragControls, Reorder } from 'framer-motion';
 import {
-    ChevronLeft, Plus, FileText, HelpCircle, Loader2,
+    ChevronLeft, ChevronUp, ChevronDown, Plus, FileText, HelpCircle, Loader2,
     Sparkles, ExternalLink, X, Check, GripVertical, Eye, EyeOff, Globe, Lock, Rocket, Trash2, Edit3, Send, Layers, GripHorizontal, Upload, CheckCircle, BookOpen, ArrowRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
 import Button from '../../components/ui/Button';
 import DeleteModal from '../../components/ui/DeleteModal';
+import ModuleModal from '../../components/teacher/ModuleModal';
 import AiArchitectModal from './AiArchitectModal';
 import CurriculumReviewModal from './CurriculumReviewModal.jsx';
 import ContentParametersModal from './ContentParametersModal.jsx';
 import GenerationConsole from './GenerationConsole.jsx';
 import IndexingStatsModal from '../../components/teacher/IndexingStatsModal';
 import './CourseBuilder.css';
+
+/** Rough student reading cost from lesson content blocks (same heuristic as the student view). */
+function lessonMinutes(lesson) {
+    const blocks = Array.isArray(lesson.content) ? lesson.content : [];
+    if (!blocks.length) return null;
+    const words = blocks.reduce((n, b) => {
+        const t = b?.type === 'text' || b?.type === 'h1' ? String(b?.data?.text || '') : '';
+        return n + t.replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
+    }, 0);
+    const videos = blocks.filter((b) => b.type === 'video').length;
+    return Math.max(1, Math.round(words / 180) + videos * 3);
+}
+
+/**
+ * One draggable row in a module's content sequence. Dragging starts only
+ * from the grip (dragListener={false}) so the row's click-to-editor never
+ * fights the drag gesture.
+ */
+function ModuleItemRow({ item, index, lastIndex, onOpen, onToggle, onMove, onDelete, toggling }) {
+    const controls = useDragControls();
+    const [dragging, setDragging] = useState(false);
+    const movedRef = useRef(false);
+    const isLesson = item.itemType === 'lesson';
+    const mins = isLesson ? lessonMinutes(item) : null;
+    const qCount = item.questions_count;
+
+    return (
+        <Reorder.Item
+            value={item}
+            dragListener={false}
+            dragControls={controls}
+            className={`cd-md-row ${!item.is_published ? 'is-draft' : ''} ${dragging ? 'dragging' : ''}`}
+            onDragStart={() => { movedRef.current = true; setDragging(true); }}
+            onDragEnd={() => {
+                setDragging(false);
+                // The click event fires right after pointer-up on a drag; keep
+                // the guard up for a tick so a drop never opens the editor.
+                setTimeout(() => { movedRef.current = false; }, 150);
+            }}
+            onClick={() => { if (!movedRef.current && !dragging) onOpen(item); }}
+        >
+            <button
+                type="button"
+                className="cd-md-grip"
+                title="Drag to reorder"
+                aria-label="Drag to reorder"
+                onPointerDown={(e) => controls.start(e)}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <GripVertical size={16} />
+            </button>
+            <span className="cd-md-num">{String(index + 1).padStart(2, '0')}</span>
+            <span className={`cd-md-type ${isLesson ? 'lesson' : 'quiz'}`}>
+                {isLesson ? <FileText size={12} /> : <HelpCircle size={12} />}
+                {isLesson ? 'LESSON' : 'QUIZ'}
+            </span>
+            <div className="cd-md-body">
+                <div className="cd-md-name">{item.title}</div>
+                <div className={`cd-md-sub ${(isLesson && mins === null) || (!isLesson && qCount === 0) ? 'warn' : ''}`}>
+                    {isLesson
+                        ? (mins === null ? 'No content yet — open to write it' : `~${mins} min read`)
+                        : (qCount === undefined
+                            ? ' '
+                            : (qCount === 0 ? 'No questions yet' : `${qCount} question${qCount === 1 ? '' : 's'}`))}
+                </div>
+            </div>
+            {/* The status pill IS the per-item publish switch — the eye icon
+                says "this toggles visibility" at a glance */}
+            <button
+                type="button"
+                className={`cd-md-status ${item.is_published ? 'live' : 'draft'}`}
+                title={item.is_published
+                    ? 'Live — students can see this. Click to hide it.'
+                    : "Draft — students can't see this yet. Click to publish."}
+                disabled={toggling === item.id}
+                onClick={() => onToggle(item)}
+            >
+                {toggling === item.id ? <Loader2 size={11} className="animate-spin" /> : (item.is_published ? <Eye size={11} /> : <EyeOff size={11} />)}
+                {item.is_published ? 'Live' : 'Draft'}
+            </button>
+            <div className="cd-md-tools" onClick={(e) => e.stopPropagation()}>
+                <button
+                    type="button"
+                    className="cd-tool-move"
+                    title="Move up"
+                    aria-label="Move up"
+                    disabled={index === 0}
+                    onClick={() => onMove(item, -1)}
+                >
+                    <ChevronUp size={15} />
+                </button>
+                <button
+                    type="button"
+                    className="cd-tool-move"
+                    title="Move down"
+                    aria-label="Move down"
+                    disabled={index === lastIndex}
+                    onClick={() => onMove(item, 1)}
+                >
+                    <ChevronDown size={15} />
+                </button>
+                <button type="button" className="cd-tool-del" title="Delete" onClick={() => onDelete(item)}>
+                    <Trash2 size={16} />
+                </button>
+            </div>
+            <span className="cd-md-go">
+                Open
+                <ArrowRight size={13} />
+            </span>
+        </Reorder.Item>
+    );
+}
 
 /**
  * Course editor. Normally a page (route param supplies the course id), but it
@@ -53,7 +166,7 @@ export default function CourseBuilder({ courseId = null, embedded = false, initi
     const [isBulkDeleteMode, setIsBulkDeleteMode] = useState(false);
     const [selectedModuleIds, setSelectedModuleIds] = useState(new Set());
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-    const [isDragging, setIsDragging] = useState(false);
+    const [confirmUnpublishAll, setConfirmUnpublishAll] = useState(false);
     const [isSubmittingItem, setIsSubmittingItem] = useState(false);
     const [togglingItemId, setTogglingItemId] = useState(null);
     
@@ -183,28 +296,65 @@ export default function CourseBuilder({ courseId = null, embedded = false, initi
         }
     };
 
-    const handleModuleSubmit = async (e) => {
-        e.preventDefault();
-        if (!moduleModal.title.trim()) return;
-        setIsSubmittingItem(true);
+    // Called by ModuleModal; throws bubble back into the dialog so the error
+    // shows inline and the typed title isn't lost.
+    const handleModuleSubmit = async (title) => {
+        if (moduleModal.mode === 'create') {
+            const res = await api.post(`/teacher/courses/${id}/modules`, { title });
+            refreshContent();
+            setCourse(prev => ({ ...prev, modules: [...prev.modules, { ...res.data, lessons: [], quizzes: [] }] }));
+            toast.success("Module created");
+        } else {
+            await api.put(`/teacher/modules/${moduleModal.id}`, { title });
+            refreshContent();
+            setCourse(prev => ({
+                ...prev,
+                modules: prev.modules.map(m => m.id === moduleModal.id ? { ...m, title } : m)
+            }));
+            toast.success("Module renamed");
+        }
+    };
+
+    // Publish / unpublish every lesson and quiz in the open module.
+    // Unpublishing blanks the module for every student, so it takes two
+    // clicks: the first arms the button, the second commits.
+    const handleToggleAllItems = async () => {
+        const mod = course.modules.find(m => m.id === activeModuleId);
+        if (!mod) return;
+        const items = [...(mod.lessons || []), ...(mod.quizzes || [])];
+        if (items.length === 0) return;
+        const allPublished = items.every(i => i.is_published);
+
+        if (allPublished && !confirmUnpublishAll) {
+            setConfirmUnpublishAll(true);
+            setTimeout(() => setConfirmUnpublishAll(false), 3000);
+            return;
+        }
+        setConfirmUnpublishAll(false);
+
+        setIsUpdatingStatus(true);
+        setCourse(prev => ({
+            ...prev,
+            modules: prev.modules.map(m => m.id === activeModuleId ? {
+                ...m,
+                lessons: m.lessons.map(l => ({ ...l, is_published: !allPublished })),
+                quizzes: m.quizzes.map(q => ({ ...q, is_published: !allPublished })),
+            } : m)
+        }));
         try {
-            if (moduleModal.mode === 'create') {
-                const res = await api.post(`/teacher/courses/${id}/modules`, { title: moduleModal.title });
-                refreshContent();
-                setCourse(prev => ({ ...prev, modules: [...prev.modules, { ...res.data, lessons: [], quizzes: [] }] }));
-                toast.success("Created");
-            } else {
-                await api.put(`/teacher/modules/${moduleModal.id}`, { title: moduleModal.title });
-                refreshContent();
-                setCourse(prev => ({
-                    ...prev,
-                    modules: prev.modules.map(m => m.id === moduleModal.id ? { ...m, title: moduleModal.title } : m)
-                }));
-                toast.success("Renamed");
-            }
-            setModuleModal({ isOpen: false, mode: 'create', id: null, title: '' });
-        } catch (err) { toast.error("Failed"); }
-        finally { setIsSubmittingItem(false); }
+            await Promise.all([
+                ...mod.lessons.map(l => api.put(`/teacher/lessons/${l.id}`, { is_published: !allPublished })),
+                ...mod.quizzes.map(q => api.put(`/teacher/quizzes/${q.id}`, { is_published: !allPublished })),
+            ]);
+            refreshContent();
+            if (allPublished) toast.warning('All items unpublished');
+            else toast.success('All items published');
+        } catch (err) {
+            toast.error('Failed to update');
+            fetchCourse();
+        } finally {
+            setIsUpdatingStatus(false);
+        }
     };
 
     const handleCourseTitle = async (newTitle) => {
@@ -252,6 +402,19 @@ export default function CourseBuilder({ courseId = null, embedded = false, initi
         setCourse(prev => ({ ...prev, modules: newOrder }));
     };
 
+    // Arrow-button reorder (touch-friendly fallback for drag): swap the item
+    // with its neighbour and reuse the debounced drag-save pipeline.
+    const handleMoveItem = (item, dir) => {
+        const mod = course.modules.find(m => m.id === activeModuleId);
+        if (!mod) return;
+        const items = [...getSortedItems(mod)];
+        const idx = items.findIndex(i => `${i.itemType}-${i.id}` === `${item.itemType}-${item.id}`);
+        const to = idx + dir;
+        if (idx === -1 || to < 0 || to >= items.length) return;
+        [items[idx], items[to]] = [items[to], items[idx]];
+        handleReorderItems(items);
+    };
+
     const handleReorderItems = (newOrder) => {
         setCourse(prev => ({
             ...prev,
@@ -275,8 +438,22 @@ export default function CourseBuilder({ courseId = null, embedded = false, initi
 
     const getSortedItems = useCallback((module) => {
         if (!module) return [];
-        if (module._lastOrder) return module._lastOrder;
-        return [...module.lessons, ...module.quizzes].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+        const live = [...(module.lessons || []), ...(module.quizzes || [])]
+            .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+        // Reconcile the last drag order with the live items: drop deleted
+        // ones, append new ones, and always resolve to the CURRENT item
+        // objects — a stale _lastOrder snapshot would render ghost rows and
+        // out-of-date publish flags.
+        if (Array.isArray(module._lastOrder)) {
+            const byKey = new Map(live.map((i) => [`${i.itemType}-${i.id}`, i]));
+            const ordered = module._lastOrder.map((i) => byKey.get(`${i.itemType}-${i.id}`)).filter(Boolean);
+            const seen = new Set(ordered.map((i) => `${i.itemType}-${i.id}`));
+            for (const i of live) {
+                if (!seen.has(`${i.itemType}-${i.id}`)) ordered.push(i);
+            }
+            return ordered;
+        }
+        return live;
     }, []);
 
     const toggleItemStatus = async (item) => {
@@ -316,7 +493,7 @@ export default function CourseBuilder({ courseId = null, embedded = false, initi
     };
 
     const handleCreateItem = async () => {
-        if (!activeInput.value.trim() || !activeModuleId) return;
+        if (isSubmittingItem || !activeInput.value.trim() || !activeModuleId) return;
         setIsSubmittingItem(true);
         const { type, value } = activeInput;
         const endpoint = `/teacher/modules/${activeModuleId}/${type === 'lesson' ? 'lessons' : 'quizzes'}`;
@@ -1006,6 +1183,48 @@ if (loading || !course) return (
     );
 
     const activeModuleData = activeModuleId ? course.modules.find(m => m.id === activeModuleId) : null;
+    const moduleIndex = activeModuleId ? course.modules.findIndex(m => m.id === activeModuleId) : -1;
+    const mTotal = activeModuleData ? (activeModuleData.lessons?.length || 0) + (activeModuleData.quizzes?.length || 0) : 0;
+    const mPublished = activeModuleData
+        ? [...(activeModuleData.lessons || []), ...(activeModuleData.quizzes || [])].filter(i => i.is_published).length
+        : 0;
+    const mPct = mTotal ? Math.round((mPublished / mTotal) * 100) : 0;
+    const mAllPublished = mTotal > 0 && mPublished === mTotal;
+
+    // "Add lesson / add quiz" — shown at the bottom of a populated module and
+    // inside the empty state (one source, two homes).
+    const addItemsBlock = activeInput.type ? (
+        <form
+            className="cd-md-add-form"
+            onSubmit={(e) => { e.preventDefault(); handleCreateItem(); }}
+        >
+            <span className={`cd-md-add-tag ${activeInput.type}`}>{activeInput.type === 'lesson' ? 'LESSON' : 'QUIZ'}</span>
+            <input
+                autoFocus
+                placeholder={`Name the new ${activeInput.type}…`}
+                value={activeInput.value}
+                onChange={(e) => setActiveInput({ ...activeInput, value: e.target.value })}
+                onKeyDown={(e) => { if (e.key === 'Escape') setActiveInput({ type: null, value: '' }); }}
+            />
+            <button type="button" className="cd-md-add-cancel" aria-label="Cancel" onClick={() => setActiveInput({ type: null, value: '' })}>
+                <X size={16} />
+            </button>
+            <button type="submit" className="cd-md-add-create" aria-label="Add" disabled={isSubmittingItem || !activeInput.value.trim()}>
+                {isSubmittingItem ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+            </button>
+        </form>
+    ) : (
+        <>
+            <button type="button" className="cd-md-add-tile lesson" onClick={() => setActiveInput({ type: 'lesson', value: '' })}>
+                <Plus size={16} />
+                New lesson
+            </button>
+            <button type="button" className="cd-md-add-tile quiz" onClick={() => setActiveInput({ type: 'quiz', value: '' })}>
+                <Plus size={16} />
+                New quiz
+            </button>
+        </>
+    );
 
     // What students actually see right now — plain-language presentation of
     // the existing publish states (no new logic, just honesty in the UI).
@@ -1021,9 +1240,9 @@ if (loading || !course) return (
         <div className="builder-container" style={embedded ? { maxWidth: 'none', padding: 0, margin: 0 } : undefined}>
             <header style={{ marginBottom: '40px' }} className="mb-10">
 {(!embedded || activeModuleId) && (
-                <button onClick={() => activeModuleId ? setActiveModuleId(null) : navigate(-1)} style={{ marginBottom: '24px', padding: '12px 0' }} className="border-none bg-transparent cursor-pointer text-slate-500 hover:text-brand-text transition-colors flex items-center gap-2">
-                    <ChevronLeft size={18} />
-                    <span className="text-xs font-bold uppercase tracking-[0.1em]">{activeModuleId ? 'Return to Modules' : 'Exit to Classroom'}</span>
+                <button type="button" onClick={() => activeModuleId ? setActiveModuleId(null) : navigate(-1)} className="cd-back">
+                    <ChevronLeft size={15} />
+                    {activeModuleId ? 'Return to Modules' : 'Exit to Classroom'}
                 </button>
                 )}
 
@@ -1113,10 +1332,10 @@ if (loading || !course) return (
                     </div>
                 )}
 
-                {/* Header Title and Action Buttons (standalone route only for the course level) */}
-                {(!embedded || activeModuleId) && <div style={{ marginBottom: '32px', gap: '24px' }} className="flex flex-col md:flex-row md:items-end md:justify-between">
+                {/* Course title (standalone route only — the embedded class page has its own header) */}
+                {!embedded && <div style={{ marginBottom: '32px', gap: '24px' }} className="flex flex-col md:flex-row md:items-end md:justify-between">
                     <div className="flex-1">
-                        {!activeModuleId ? (
+                        {(
                             <>
                                 {!embedded && <span className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">Course</span>}
                                 <div style={{ marginTop: '12px', gap: '12px' }} className="flex items-center group">
@@ -1165,13 +1384,6 @@ if (loading || !course) return (
                                 {course.description && !embedded && (
                                     <p style={{ color: 'var(--text-secondary)' }} className="text-sm mt-3 max-w-2xl">{course.description}</p>
                                 )}
-                            </>
-) : (
-                            <>
-                                <span className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">Module</span>
-                                <h1 style={{ marginTop: '12px', color: 'var(--text-primary)' }} className="text-5xl font-black tracking-tight">
-                                    {activeModuleData?.title}
-                                </h1>
                             </>
                         )}
                     </div>
@@ -1377,7 +1589,7 @@ if (loading || !course) return (
                                                             title="Edit module"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                setModuleModal({ isOpen: true, mode: 'edit', id: module.id, title: module.title });
+                                                                setModuleModal({ isOpen: true, mode: 'edit', id: module.id, index: moduleIndex, title: module.title });
                                                             }}
                                                         >
                                                             <Edit3 size={14} />
@@ -1427,129 +1639,133 @@ if (loading || !course) return (
                         </div>
                     </motion.div>
 ) : (
-                    <motion.div key="timeline" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} style={{ padding: '40px 48px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }} className="rounded-[45px] shadow-2xl">
-<div style={{ marginBottom: '32px', paddingBottom: '24px', borderBottom: '1px solid var(--border-color)' }} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
-<div className="flex items-center gap-4">
-<div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-<BookOpen size={24}/>
-</div>
-<p className="text-sm text-slate-300 font-semibold">{(activeModuleData?.lessons?.length || 0)} lessons • {(activeModuleData?.quizzes?.length || 0)} quizzes</p>
-</div>
-<div className="flex gap-2 flex-wrap md:flex-nowrap">
-<button
-disabled={isUpdatingStatus}
-onClick={() => {
-setIsUpdatingStatus(true);
-const lessonIds = activeModuleData?.lessons?.map(l => l.id) || [];
-const quizIds = activeModuleData?.quizzes?.map(q => q.id) || [];
-const allPublished = [...(activeModuleData?.lessons || []), ...(activeModuleData?.quizzes || [])].every(i => i.is_published);
-                                    Promise.all([
-                                        ...lessonIds.map(lid => api.put(`/teacher/lessons/${lid}`, { is_published: !allPublished })),
-                                        ...quizIds.map(qid => api.put(`/teacher/quizzes/${qid}`, { is_published: !allPublished }))
-                                    ]).then(() => {
-                                        refreshContent();
-                                        fetchCourse();
-                                        if (allPublished) {
-                                          toast.warning('All unpublished');
-                                        } else {
-                                          toast.success('All published');
-                                        }
-}).catch(() => toast.error('Failed to update')).finally(() => setIsUpdatingStatus(false));
-                                }}
-                                style={{ padding: '12px 20px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
-                                className="text-xs font-bold uppercase tracking-wider rounded-lg transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
-                            >
-                                {isUpdatingStatus ? <Loader2 size={14} className="animate-spin" /> : 'Toggle All'}
-                            </button>
-                                <button onClick={() => setDeleteModal({ isOpen: true, type: 'module', id: activeModuleId })} style={{ padding: '12px 14px' }} className="bg-white/5 hover:bg-red-500/10 hover:text-red-400 text-slate-400 rounded-xl border-none cursor-pointer transition-all shadow-sm"><Trash2 size={18}/></button>
+                    <motion.div key="timeline" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.24, ease: 'easeOut' }}>
+                        <div className="cd-md-hero">
+                            {mTotal > 0 && <span className="cd-md-num-bg" aria-hidden="true">{String(moduleIndex + 1).padStart(2, '0')}</span>}
+                            <div className="cd-md-hero-top">
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                    <div className="cd-md-kicker-row">
+                                        <span className="cd-md-kicker">MODULE {String(moduleIndex + 1).padStart(2, '0')}</span>
+                                        {isPublished ? (
+                                            <span className="cd-live on" title="This class is live — published content is visible to students.">
+                                                <Check size={11} />
+                                                Class live
+                                            </span>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                className="cd-tbtn cd-tbtn-accent"
+                                                onClick={handleGoLive}
+                                                disabled={isUpdatingStatus}
+                                                title="Students can't see this class yet. Publish the class and its content now."
+                                            >
+                                                <Rocket size={14} />
+                                                Make class live
+                                            </button>
+                                        )}
+                                    </div>
+                                    <h2 className="cd-md-title">{activeModuleData?.title}</h2>
+                                    {mTotal > 0 && (
+                                        <>
+                                            <p className="cd-md-meta">
+                                                <b>{activeModuleData?.lessons?.length || 0} {(activeModuleData?.lessons?.length || 0) === 1 ? 'lesson' : 'lessons'}</b>
+                                                <span className="cd-md-meta-dot">&middot;</span>
+                                                <b>{activeModuleData?.quizzes?.length || 0} {(activeModuleData?.quizzes?.length || 0) === 1 ? 'quiz' : 'quizzes'}</b>
+                                                <span className="cd-md-meta-dot">&middot;</span>
+                                                {/* One line that names whichever gate is blocking students */}
+                                                {!isPublished ? (
+                                                    <span className="cd-md-vis warn">students can&apos;t see anything yet &mdash; the class isn&apos;t live</span>
+                                                ) : mPublished === mTotal ? (
+                                                    <span className="cd-md-vis ok">students can see all {mTotal} items</span>
+                                                ) : (
+                                                    <span className="cd-md-vis warn">students can see {mPublished} of {mTotal} &mdash; {mTotal - mPublished} still {mTotal - mPublished === 1 ? 'draft' : 'drafts'}</span>
+                                                )}
+                                            </p>
+                                            <div className="cd-md-progress-row">
+                                                <div className="cd-md-progress"><span style={{ width: `${mPct}%` }} /></div>
+                                                <span className="cd-md-progress-label">{mPct}%</span>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                                <div className="cd-md-hero-actions">
+                                    {mTotal > 0 && (
+                                        <button
+                                            type="button"
+                                            className={`cd-tbtn ${confirmUnpublishAll ? 'cd-tbtn-danger-solid' : ''}`}
+                                            onClick={handleToggleAllItems}
+                                            disabled={isUpdatingStatus}
+                                            title={mAllPublished ? 'Unpublish every lesson and quiz in this module' : 'Publish every lesson and quiz in this module'}
+                                        >
+                                            {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
+                                            {confirmUnpublishAll ? 'Confirm unpublish' : (mAllPublished ? 'Unpublish all' : 'Publish all')}
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        className="cd-tbtn"
+                                        onClick={() => setModuleModal({ isOpen: true, mode: 'edit', id: activeModuleId, index: moduleIndex, title: activeModuleData?.title || '' })}
+                                    >
+                                        <Edit3 size={16} />
+                                        Rename
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="cd-tbtn cd-tbtn-danger"
+                                        onClick={() => setDeleteModal({ isOpen: true, type: 'module', id: activeModuleId })}
+                                    >
+                                        <Trash2 size={16} />
+                                        Delete
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Creation UI At Top */}
-                        <div style={{ marginBottom: '32px', paddingBottom: '32px' }} className="border-b border-white/5">
-                            <AnimatePresence mode="wait">
-{activeInput.type ? (
-                                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ padding: '16px 20px', gap: '12px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }} className="flex items-center rounded-2xl shadow-xl">
-                                        <input autoFocus placeholder={`Name your new ${activeInput.type}...`} value={activeInput.value} onChange={(e) => setActiveInput({ ...activeInput, value: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && handleCreateItem()} style={{ color: 'var(--text-primary)' }} className="flex-grow bg-transparent border-none outline-none font-bold" />
-                                        <button onClick={() => setActiveInput({ type: null, value: '' })} style={{ padding: '8px 10px' }} className="text-slate-500 border-none bg-transparent cursor-pointer"><X size={20}/></button>
-                                        <button disabled={isSubmittingItem || !activeInput.value.trim()} onClick={handleCreateItem} style={{ padding: '12px 14px', minWidth: '44px' }} className="bg-purple-600 text-white rounded-xl flex items-center justify-center border-none cursor-pointer hover:bg-purple-500 transition-all">{isSubmittingItem ? <Loader2 className="animate-spin" size={18}/> : <Check size={18}/>}</button>
-                                    </motion.div>
-                                ) : (
-<div className="grid grid-cols-2 gap-4">
-                                        <button 
-                                            onClick={() => setActiveInput({ type: 'lesson', value: '' })} 
-                                            style={{ padding: '20px 16px', background: 'var(--bg-tertiary)', border: '2px dashed var(--border-color)' }} 
-                                            className="rounded-2xl text-slate-500 hover:text-purple-600 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all cursor-pointer flex items-center justify-center gap-3"
-                                        >
-                                            <Plus size={18}/><span className="text-[10px] font-black uppercase tracking-widest">New Lesson</span>
-                                        </button>
-                                        <button 
-                                            onClick={() => setActiveInput({ type: 'quiz', value: '' })} 
-                                            style={{ padding: '20px 16px', background: 'var(--bg-tertiary)', border: '2px dashed var(--border-color)' }} 
-                                            className="rounded-2xl text-slate-500 hover:text-cyan-600 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all cursor-pointer flex items-center justify-center gap-3"
-                                        >
-                                            <Plus size={18}/><span className="text-[10px] font-black uppercase tracking-widest">New Quiz</span>
-                                        </button>
-                                    </div>
-                                )}
-                            </AnimatePresence>
+                        <div className="cd-md-seq-head">
+                            <span className="cd-md-seq-label">Content sequence</span>
+                            <span className="cd-md-seq-hint">Drag the dots to reorder &mdash; hover a row for move, publish, and delete.</span>
                         </div>
 
-                        <Reorder.Group axis="y" values={getSortedItems(activeModuleData)} onReorder={handleReorderItems} className="timeline-group list-none p-0">
-                            {getSortedItems(activeModuleData).map((item) => (
-                                <Reorder.Item key={`${item.itemType}-${item.id}`} value={item} onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)} 
-                                    className={`timeline-item ${item.itemType}-item ${!item.is_published ? 'is-draft' : ''}`}
-                                >
-                                    <div className="flex items-center gap-5 w-full">
-                                        <div className="item-drag-handle"><GripVertical size={16} /></div>
-<div style={{ 
-                                            backgroundColor: item.itemType === 'lesson' ? 'rgba(167, 139, 250, 0.15)' : 'rgba(34, 211, 238, 0.15)',
-                                            color: item.itemType === 'lesson' ? '#7e22ce' : '#0891b2'
-                                        }} className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0">
-                                            {item.itemType === 'lesson' ? <FileText size={20}/> : <HelpCircle size={20}/>}
-                                        </div>
-                                        <div className="flex-grow text-left">
-<div className="flex items-center gap-3">
-                                                <span style={{ color: 'var(--text-primary)' }} className="text-lg font-bold">{item.title}</span>
-                                                <span className={`status-badge ${item.is_published ? 'published' : 'draft'}`}>{item.is_published ? 'Live' : 'Draft'}</span>
-                                            </div>
-                                            <span className="text-[9px] font-black uppercase text-slate-600 tracking-widest">{item.itemType}</span>
-                                        </div>
-{!isDragging && (
-<div style={{ gap: '12px' }} className="flex items-center">
-<button onClick={() => toggleItemStatus(item)} disabled={togglingItemId === item.id} style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: '#7e22ce', opacity: togglingItemId === item.id ? 0.5 : 1 }} className="p-2 px-3 rounded-lg cursor-pointer disabled:cursor-wait">
-{togglingItemId === item.id ? <Loader2 className="animate-spin" size={18} /> : (item.is_published ? <EyeOff size={18} /> : <Eye size={18} />)}
-</button>
-<button onClick={() => navigate(`/dashboard/teacher/class/${course.class_id}/${item.itemType}/${item.id}`)} style={{ padding: '12px 28px' }} className="bg-purple-600 text-white rounded-lg border-none cursor-pointer font-bold text-[10px] uppercase hover:bg-purple-500 transition-all">Open</button>
-<button onClick={() => setDeleteModal({ isOpen: true, type: item.itemType, id: item.id })} className="p-2 bg-transparent border-none text-slate-500 hover:text-red-600 cursor-pointer"><Trash2 size={18}/></button>
-</div>
-)}
-                                    </div>
-                                </Reorder.Item>
-                            ))}
-                        </Reorder.Group>
+                        {mTotal === 0 ? (
+                            <div className="cd-empty-build" style={{ padding: '42px 28px' }}>
+                                <span className="cd-empty-build-spark"><Layers size={24} /></span>
+                                <h3 className="cd-empty-build-title">This module is empty</h3>
+                                <p className="cd-empty-build-text">Add your first lesson or quiz below &mdash; students see them once the class is live and they&apos;re published.</p>
+                                <div className="cd-md-add cd-md-add-inset">{addItemsBlock}</div>
+                            </div>
+                        ) : (
+                            <>
+                                <Reorder.Group axis="y" values={getSortedItems(activeModuleData)} onReorder={handleReorderItems} className="cd-md-list">
+                                    {getSortedItems(activeModuleData).map((item, i) => (
+                                        <ModuleItemRow
+                                            key={`${item.itemType}-${item.id}`}
+                                            item={item}
+                                            index={i}
+                                            lastIndex={mTotal - 1}
+                                            toggling={togglingItemId}
+                                            onOpen={(it) => navigate(`/dashboard/teacher/class/${course.class_id}/${it.itemType}/${it.id}`)}
+                                            onToggle={toggleItemStatus}
+                                            onMove={handleMoveItem}
+                                            onDelete={(it) => setDeleteModal({ isOpen: true, type: it.itemType, id: it.id })}
+                                        />
+                                    ))}
+                                </Reorder.Group>
+                                <div className="cd-md-add">{addItemsBlock}</div>
+                            </>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>
 
             {/* MODALS */}
-            <AnimatePresence>
-                {moduleModal.isOpen && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setModuleModal({ ...moduleModal, isOpen: false })} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
-<motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} style={{ padding: '50px 40px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }} className="relative z-10 w-full max-w-md rounded-[40px] shadow-2xl">
-                            <h2 style={{ marginBottom: '32px', fontSize: '1.75rem', color: 'var(--text-primary)' }} className="font-black">{moduleModal.mode === 'create' ? 'New Module' : 'Rename Module'}</h2>
-                            <form onSubmit={handleModuleSubmit} className="space-y-6">
-<input autoFocus value={moduleModal.title} onChange={(e) => setModuleModal({ ...moduleModal, title: e.target.value })} placeholder="Chapter Name..." style={{ padding: '16px 20px', backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }} className="w-full rounded-2xl font-bold outline-none focus:border-purple-500/50" />
-                                <div className="flex gap-4">
-<button type="button" onClick={() => setModuleModal({ ...moduleModal, isOpen: false })} style={{ padding: '16px 24px', backgroundColor: 'var(--bg-tertiary)' }} className="flex-1 rounded-2xl text-slate-500 font-black text-[10px] uppercase border-none cursor-pointer hover:bg-red-500/10 hover:text-red-500 transition-all">Cancel</button>
-                                    <button disabled={isSubmittingItem || !moduleModal.title.trim()} type="submit" style={{ padding: '16px 24px' }} className="flex-1 bg-purple-600 text-white font-black text-[10px] uppercase rounded-2xl border-none cursor-pointer hover:bg-purple-500 transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50">{isSubmittingItem ? <Loader2 className="animate-spin mx-auto" size={16}/> : 'Confirm'}</button>
-                                </div>
-                            </form>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+            <ModuleModal
+                open={moduleModal.isOpen}
+                mode={moduleModal.mode}
+                initialTitle={moduleModal.title}
+                moduleNumber={moduleModal.mode === 'edit' ? (moduleModal.index ?? 0) + 1 : (course?.modules?.length || 0) + 1}
+                onClose={() => setModuleModal({ isOpen: false, mode: 'create', id: null, title: '' })}
+                onSubmit={handleModuleSubmit}
+            />
 
             <DeleteModal isOpen={deleteConfig.isOpen} title={deleteConfig.type} loading={isDeleting} onClose={() => setDeleteModal({ ...deleteConfig, isOpen: false })} onConfirm={handlePermanentDelete} />
             <AiArchitectModal

@@ -17,7 +17,7 @@ const ThemeToggle = ({ variant }) => {
             >
                 <span className="db-theme-label">
                     {isDark ? <Sun size={18} color="#fbbf24" /> : <Moon size={18} color="#8ab4ff" />}
-                    <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+                    <span>{isDark ? 'Switch to light mode' : 'Switch to dark mode'}</span>
                 </span>
                 <span className={`db-theme-track ${isDark ? '' : 'on'}`}>
                     <span className="db-theme-knob" />

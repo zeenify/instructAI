@@ -136,7 +136,8 @@ export default function ClassDetails() {
                 <p className="cd-eyebrow">Class</p>
                 <div className="cd-title-row">
                     <h1 className="cd-title">{classroom.name}</h1>
-                    <button type="button" className="cd-code-chip-lg" onClick={copyCode} title="Copy class code">
+                    <button type="button" className="cd-code-chip-lg" onClick={copyCode} title="Copy class code — share it with students so they can join">
+                        <span className="cd-code-chip-hint">Copy</span>
                         {classroom.class_code}
                         {copied ? <Check size={14} /> : <Copy size={14} />}
                     </button>

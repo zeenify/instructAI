@@ -154,7 +154,8 @@ class ClassroomController extends Controller
                 // round trip (no serial content waterfall).
                 'courses.modules' => fn($q) => $q->orderBy('order_index', 'asc'),
                 'courses.modules.lessons' => fn($q) => $q->orderBy('order_index', 'asc'),
-                'courses.modules.quizzes' => fn($q) => $q->orderBy('order_index', 'asc'),
+                // questions_count powers the "N questions" meta on module rows
+                'courses.modules.quizzes' => fn($q) => $q->withCount('questions')->orderBy('order_index', 'asc'),
                 'students.studentProfile'
             ])
             ->withCount(['students', 'courses', 'activities'])
