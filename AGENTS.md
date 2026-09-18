@@ -28,6 +28,9 @@ We are redesigning the web app **page by page**, one page at a time:
 3. **Implement in this repo** (never let AutoClaw write code here), then the user
    reviews the running page. Proceed to the next page only after their sign-off.
 4. **Commit checkpoints** at meaningful milestones.
+5. **Teacher-eye critique before sign-off.** Run the `teacher-eye` skill
+   (fresh-agent unbiased teacher critique with screenshots) once a page's UI is
+   implemented; relay the verdict and let the user pick which fixes to apply.
 
 Pages done: landing (Paper & Ink), login, teacher register, student register,
 EUNA chatbot section. Next up: teacher dashboard/overview, then the rest of the

@@ -1035,17 +1035,17 @@ if (loading || !course) return (
                             </span>
                         )}
                         <span className="cd-tsep" />
-                        <button type="button" className="cd-tbtn" onClick={() => setShowCurriculumModal(true)}>
+                        <button type="button" className="cd-tbtn" onClick={() => setShowCurriculumModal(true)} title={course.curriculum_file_url ? 'View or replace your curriculum file' : 'Upload your curriculum file (PDF or DOC) — AI uses it as the source for generated content'}>
                             <FileText size={16} />
-                            {course.curriculum_file_url ? 'Manage' : 'Upload'}
+                            Curriculum
                         </button>
-                        <button type="button" className="cd-tbtn cd-tbtn-ai" onClick={() => setIsAiModalOpen(true)}>
+                        <button type="button" className="cd-tbtn cd-tbtn-ai" onClick={() => setIsAiModalOpen(true)} title="Generate modules, lessons, and quizzes automatically from your curriculum">
                             <Sparkles size={16} />
-                            AI
+                            AI Generate
                         </button>
-                        <button type="button" className="cd-tbtn" onClick={handleIndexCourse} disabled={isUpdatingStatus}>
+                        <button type="button" className="cd-tbtn" onClick={handleIndexCourse} disabled={isUpdatingStatus} title="Let the student AI tutor answer questions using this class's content">
                             <BookOpen size={16} />
-                            Index for AI
+                            Teach the Tutor
                         </button>
                         <span className="cd-tspacer" />
                         <button type="button" className={`cd-tbtn ${isReorderMode ? 'cd-tbtn-on' : ''}`} onClick={() => setIsReorderMode(!isReorderMode)}>
@@ -1262,6 +1262,33 @@ if (loading || !course) return (
                             </div>
                         </div>}
 
+                        {course.modules.length === 0 && (
+                            <div className="cd-empty-build">
+                                <span className="cd-empty-build-spark"><Sparkles size={26} /></span>
+                                <h3 className="cd-empty-build-title">Build your class content</h3>
+                                <p className="cd-empty-build-text">
+                                    {course.curriculum_file_url
+                                        ? 'Your curriculum is uploaded. Let AI turn it into modules, lessons, and quizzes — or build them yourself.'
+                                        : 'Upload your curriculum first so AI can build your course from it — or create modules by hand.'}
+                                </p>
+                                <div className="cd-empty-build-actions">
+                                    <button type="button" className="cd-tbtn cd-tbtn-ai cd-tbtn-lg" onClick={() => setIsAiModalOpen(true)}>
+                                        <Sparkles size={16} />
+                                        Generate with AI
+                                    </button>
+                                    {!course.curriculum_file_url && (
+                                        <button type="button" className="cd-tbtn" onClick={() => setShowCurriculumModal(true)}>
+                                            <FileText size={16} />
+                                            Upload Curriculum
+                                        </button>
+                                    )}
+                                    <button type="button" className="cd-tbtn" onClick={() => setModuleModal({ isOpen: true, mode: 'create', id: null, title: '' })}>
+                                        <Plus size={16} />
+                                        New Module
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 list-none p-0 relative">
                             {course.modules.map((module, moduleIndex) => {
                                 const total = (module.lessons?.length || 0) + (module.quizzes?.length || 0);

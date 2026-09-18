@@ -149,6 +149,12 @@ class ClassroomController extends Controller
             ->where('teacher_id', auth()->id())
             ->with([
                 'courses' => fn($q) => $q->orderBy('order_index', 'asc'),
+                // Strict 1 class = 1 course: the single course's full content
+                // ships in this one payload so the page renders in ONE query
+                // round trip (no serial content waterfall).
+                'courses.modules' => fn($q) => $q->orderBy('order_index', 'asc'),
+                'courses.modules.lessons' => fn($q) => $q->orderBy('order_index', 'asc'),
+                'courses.modules.quizzes' => fn($q) => $q->orderBy('order_index', 'asc'),
                 'students.studentProfile'
             ])
             ->withCount(['students', 'courses', 'activities'])
@@ -157,6 +163,12 @@ class ClassroomController extends Controller
         if (!$classroom) {
             return response()->json(['message' => 'Class not found or unauthorized'], 403);
         }
+
+        // Teacher signal: submitted classwork waiting to be graded
+        $classroom->to_grade_count = \App\Models\ActivitySubmission::whereIn(
+            'activity_id',
+            \App\Models\ClassActivity::where('class_id', $classroom->id)->pluck('id')
+        )->where('status', 'submitted')->count();
 
         return response()->json($classroom);
     }

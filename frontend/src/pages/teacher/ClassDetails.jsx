@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'sonner';
-import { useClassDetails, useCourseContent } from '../../queries/classDetails';
+import { useClassDetails } from '../../queries/classDetails';
 import Classwork from './Classwork';
 import CourseBuilder from './CourseBuilder';
 import { SkeletonBlock } from '../../components/ui/skeletons';
@@ -50,10 +50,11 @@ export default function ClassDetails() {
     const setTab = (tab) => navigate(`/dashboard/teacher/class/${id}?tab=${tab}`, { replace: true });
 
     const { data: classroom, isLoading, isError } = useClassDetails(id);
-    // Strict 1:1 — first course by order_index renders; legacy multi-course
-    // classes simply show their first course (nothing breaks).
+    // Strict 1:1 — first course by order_index IS the class content, shipped
+    // (with modules, lessons, quizzes) inside the class payload: one query,
+    // no serial waterfall. Legacy multi-course classes show their first.
     const course = classroom?.courses?.[0] ?? null;
-    const { data: content, isLoading: loadingContent } = useCourseContent(course?.id);
+    const content = course ?? null;
 
     const [copied, setCopied] = useState(false);
 
@@ -103,11 +104,12 @@ export default function ClassDetails() {
     const lessonCount = modules.reduce((n, m) => n + (m.lessons?.length ?? 0), 0);
     const students = classroom.students ?? [];
 
+    const toGrade = classroom.to_grade_count ?? 0;
     const statTiles = [
         { key: 'content', icon: Users, tone: 'green', value: students.length, label: 'Students' },
-        { key: 'content', icon: Layers, tone: 'violet', value: loadingContent && !content ? '—' : modules.length, label: 'Modules' },
-        { key: 'content', icon: BookOpen, tone: 'sky', value: loadingContent && !content ? '—' : lessonCount, label: 'Lessons' },
+        { key: 'content', icon: Layers, tone: 'violet', value: modules.length, label: 'Modules' },
         { key: 'classwork', icon: ClipboardList, tone: 'amber', value: classroom.activities_count ?? 0, label: 'Classwork' },
+        { key: 'classwork', icon: ClipboardList, tone: toGrade > 0 ? 'red' : 'neutral', value: toGrade, label: 'To grade' },
     ];
 
     const statStrip = (
@@ -164,11 +166,7 @@ export default function ClassDetails() {
             {/* CONTENT TAB — the embedded builder IS the management surface */}
             {activeTab === 'content' && (
                 <>
-                    {loadingContent && course ? (
-                        // One skeleton while the course content loads — the
-                        // builder mounts pre-filled, so no second skeleton.
-                        <ContentTabSkeleton />
-                    ) : !course ? (
+                    {!course ? (
                         // Legacy classes created before auto-course: create their content course on demand.
                         <div className="cd-empty">
                             <BookOpen size={28} style={{ marginBottom: 6 }} />
