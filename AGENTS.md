@@ -33,8 +33,21 @@ We are redesigning the web app **page by page**, one page at a time:
    implemented; relay the verdict and let the user pick which fixes to apply.
 
 Pages done: landing (Paper & Ink), login, teacher register, student register,
-EUNA chatbot section. Next up: teacher dashboard/overview, then the rest of the
-app. Old file versions were replaced outright (no V2/V3 suffixes) — keep it that way.
+EUNA chatbot section, teacher home/overview, class page + embedded content
+builder (ClassDetails + CourseBuilder), student class page (1:1 course logic).
+Next up: module builder deep pass (teacher lesson/quiz editing), then the rest.
+Old file versions were replaced outright (no V2/V3 suffixes) — keep it that way.
+
+Dashboard-side conventions: styles live in \`styles/dashboard.css\` (\`db-\` prefix,
+Sora display font, night navy + morning paper themes). Data via \`src/queries/\`
+TanStack hooks. Loading = skeletons (\`components/ui/skeletons.jsx\`), never
+spinners for page content. Unbiased critiques: \`teacher-eye\` / \`student-eye\`
+skills before page sign-off.
+
+Parked UX decisions (need user sign-off): grading-queue door from the To-grade
+tile; vocabulary pass (Classwork everywhere, Monitor/Analytics renames); floating
+AI-tutor button on student pages; light mode as projector default. Due-soon strip
+on student Modules tab already shipped.
 
 ## Design system — "Paper & Ink" (applies to every redesigned page)
 

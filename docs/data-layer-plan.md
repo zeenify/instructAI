@@ -136,6 +136,12 @@ at the Herd domain) — or use `php -S 127.0.0.1:8000 -t public` with
 that works without artisan's wrapper on platforms that support forking).
 
 ## Progress log
+- 2026-09-19: STUDENT CLASS PAGE migrated (1:1 showClass payload + ClassView
+  redesign + student hooks + student-eye skill, 4 critique passes). Course-picker
+  deferred cleanup DONE. Windows artisan-serve single-worker limitation documented
+  above. Teacher class page COMPLETE (hero, stat tiles, embedded builder, compact
+  toolbar, publish flow; teacher-eye last pass 7.5/5). Next teacher target:
+  module builder deep pass.
 - 2026-09-18: Plan written; investigation complete; no implementation yet.
 - 2026-09-18: Phases 1–3 implemented and building. Remaining: Phase 4 rollout
   (per-page during redesigns), final cache cleanup, live UX verification by
