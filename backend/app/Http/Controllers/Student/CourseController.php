@@ -20,9 +20,19 @@ class CourseController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        // Fetch Class and its published courses
+        // Fetch Class and its published courses.
+        // Strict 1 class = 1 course (docs/data-layer-plan.md): the course's full
+        // published content ships in this one payload so the student class page
+        // renders in a single round trip — no course-picker hop.
         $classroom = Classroom::with(['teacher.teacherProfile', 'courses' => function($q) {
-            $q->where('is_published', true)->orderBy('order_index', 'asc');
+            $q->where('is_published', true)->orderBy('order_index', 'asc')
+              ->with(['modules' => function($qm) {
+                  $qm->where('is_published', true)->orderBy('order_index', 'asc')
+                     ->with([
+                         'lessons' => fn($ql) => $ql->where('is_published', true)->orderBy('order_index', 'asc'),
+                         'quizzes' => fn($qq) => $qq->where('is_published', true)->orderBy('order_index', 'asc'),
+                     ]);
+              }]);
         }])->findOrFail($id);
 
         // Get all course IDs for batch queries
@@ -76,6 +86,21 @@ class CourseController extends Controller
             $total = ($lessonCounts[$course->id] ?? 0) + ($quizCounts[$course->id] ?? 0);
             $done = ($completedLessonCounts[$course->id] ?? 0) + ($passedQuizCounts[$course->id] ?? 0);
             $course->progress_percent = $total > 0 ? (int) round(($done / $total) * 100) : 0;
+        }
+
+        // Per-lesson completion flags for this student (lesson checkmarks)
+        $lessonIds = $classroom->courses->flatMap->modules->flatMap->lessons->pluck('id');
+        $completedLessonIds = DB::table('lesson_completions')
+            ->where('student_id', $studentId)
+            ->whereIn('lesson_id', $lessonIds)
+            ->pluck('lesson_id');
+
+        foreach ($classroom->courses as $course) {
+            foreach ($course->modules as $module) {
+                foreach ($module->lessons as $lesson) {
+                    $lesson->is_completed = $completedLessonIds->contains($lesson->id);
+                }
+            }
         }
 
         return response()->json($classroom);

@@ -1,265 +1,260 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import api from '../../services/api';
-import { ChevronRight, Loader2, BookOpen, ClipboardList, Radio } from 'lucide-react';
-// eslint-disable-next-line no-unused-vars
+import { BookOpen, Check, ChevronRight, ClipboardList, Layers, Radio } from 'lucide-react';
+import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import StudentActivityCard from '../../components/student/StudentActivityCard';
 import { deriveState as activityCardState } from '../../utils/activityState';
+import { useStudentClass, useStudentActivities } from '../../queries/student';
+import { SkeletonBlock } from '../../components/ui/skeletons';
+import '../../styles/dashboard.css';
 
+const TABS = ['lessons', 'classwork'];
+
+/**
+ * Student class page — strict 1 class = 1 course (docs/data-layer-plan.md).
+ * The class page IS the content: modules and lessons render directly (no
+ * course-picker hop). Tapping a lesson/quiz opens the focus-mode viewer.
+ */
 export default function ClassView() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    const activeTab = searchParams.get('tab') || 'courses';
 
-    const [classroom, setClassroom] = useState(null);
-    const [activities, setActivities] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [activitiesLoading, setActivitiesLoading] = useState(false);
+    const tabParam = searchParams.get('tab');
+    const activeTab = TABS.includes(tabParam) ? tabParam : 'lessons'; // legacy ?tab=courses lands here
+    const setTab = (tab) => setSearchParams({ tab }, { replace: true });
 
-    useEffect(() => {
-        let isMounted = true;
-        const fetchClassData = async () => {
-            setLoading(true);
-            try {
-                const res = await api.get(`/student/classes/${id}`);
-                if (isMounted) {
-                    setClassroom(res.data);
-                    setLoading(false);
-                }
-            } catch {
-                navigate('/dashboard/student');
-            }
-        };
-        fetchClassData();
-        return () => { isMounted = false; };
-    }, [id, navigate]);
+    const { data: classroom, isLoading, isError } = useStudentClass(id);
+    const { data: activities = [], isLoading: activitiesLoading } = useStudentActivities(
+        id,
+        { poll: activeTab === 'classwork' },
+    );
 
     useEffect(() => {
-        if (activeTab !== 'activities') return;
-        let isMounted = true;
-        const fetchActivities = async () => {
-            setActivitiesLoading(true);
-            try {
-                const res = await api.get(`/student/classes/${id}/activities`);
-                if (isMounted) setActivities(res.data);
-            } catch { /* ignore */ } finally {
-                if (isMounted) setActivitiesLoading(false);
-            }
-        };
-        fetchActivities();
-        const poll = setInterval(fetchActivities, 15000);
-        return () => { isMounted = false; clearInterval(poll); };
-    }, [id, activeTab]);
+        if (isError) {
+            toast.error('Could not load this class');
+            navigate('/dashboard/student', { replace: true });
+        }
+    }, [isError, navigate]);
 
-    const switchTab = (tab) => {
-        setSearchParams({ tab });
-    };
-
-    if (loading) {
+    if (isLoading || !classroom) {
         return (
-            <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 20px', display: 'flex', flexDirection: 'column', gap: '32px', animation: 'pulse 2s infinite' }}>
-                <div style={{ height: '280px', background: 'var(--accent-light)', borderRadius: '40px' }} />
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '32px' }}>
-                    {[1, 2].map(i => <div key={i} style={{ height: '300px', background: 'var(--accent-light)', borderRadius: '40px' }} />)}
+            <div>
+                <div className="cd-hero" style={{ marginBottom: 20 }}>
+                    <SkeletonBlock style={{ width: 52, height: 11, marginBottom: 12 }} />
+                    <SkeletonBlock style={{ width: 320, height: 40, borderRadius: 12 }} />
+                    <SkeletonBlock style={{ width: 420, height: 14, marginTop: 12 }} />
                 </div>
+                <div className="cd-tab-bar" style={{ marginBottom: 22 }}>
+                    <SkeletonBlock style={{ width: 92, height: 15 }} />
+                </div>
+                <ContentSkeleton />
             </div>
         );
     }
 
-    if (!classroom) return null;
+    // Strict 1:1 — the class's single published course IS the content
+    const course = classroom.courses?.[0] ?? null;
+    const modules = course?.modules ?? [];
+
+    const teacherName = classroom.teacher?.teacher_profile
+        ? `${classroom.teacher.teacher_profile.first_name} ${classroom.teacher.teacher_profile.last_name}`
+        : 'Your teacher';
 
     return (
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 20px' }}>
-            <div style={{ marginBottom: '48px', padding: '40px', borderRadius: '40px', background: 'linear-gradient(135deg, var(--accent-light) 0%, transparent 100%)', border: '1px solid var(--accent-light)', position: 'relative', overflow: 'hidden' }}>
-                <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: '32px' }}>
-                    <div style={{ flex: 1 }}>
-                        <h1 style={{ fontSize: '40px', fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 16px 0', lineHeight: '1.2', letterSpacing: '-0.02em' }}>{classroom.name}</h1>
-                        <p style={{ fontSize: '16px', color: 'var(--text-secondary)', lineHeight: '1.6', margin: '0', maxWidth: '600px' }}>{classroom.description || "Welcome to your digital classroom."}</p>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: 'var(--bg-secondary)', padding: '16px 20px', borderRadius: '32px', border: '1px solid var(--border-color)', backdropFilter: 'blur(10px)', boxShadow: 'var(--card-shadow)', minWidth: '200px' }}>
-                        {(() => {
-                            const avatar = classroom.teacher?.avatar;
-                            const hasValidAvatar = avatar && avatar.trim() !== "" && avatar !== "null";
-
-                            if (hasValidAvatar) {
-                                return (
-                                    <img
-                                        src={avatar}
-                                        style={{ width: '56px', height: '56px', borderRadius: '16px', border: '1.5px solid var(--accent-glow)', objectFit: 'cover', boxShadow: 'var(--card-shadow)', flexShrink: 0 }}
-                                        alt="Instructor"
-                                    />
-                                );
-                            } else {
-                                return (
-                                    <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 900, fontSize: '20px', boxShadow: 'var(--card-shadow)', flexShrink: 0 }}>
-                                        {classroom.teacher?.teacher_profile?.first_name?.charAt(0) || 'T'}
-                                        {classroom.teacher?.teacher_profile?.last_name?.charAt(0) || ''}
-                                    </div>
-                                );
-                            }
-                        })()}
-
-                        <div>
-                            <p style={{ fontSize: '10px', fontWeight: 900, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.2em', margin: '0 0 4px 0' }}>Lead Instructor</p>
-                            <p style={{ fontSize: '16px', fontWeight: 900, color: 'var(--text-primary)', margin: '0', letterSpacing: '-0.02em', lineHeight: '1.2' }}>
-                                {classroom.teacher?.teacher_profile?.first_name} {classroom.teacher?.teacher_profile?.last_name}
-                            </p>
-                        </div>
-                    </div>
+        <div>
+            {/* Hero — class identity + teacher */}
+            <div className="cd-hero" style={{ '--class-color': classroom.color || '#3e8e7e' }}>
+                <p className="cd-eyebrow">Class</p>
+                <div className="cd-title-row">
+                    <h1 className="cd-title">{classroom.name}</h1>
+                </div>
+                <p className="sv-hero-desc">{classroom.description || `Welcome to ${teacherName}'s digital classroom.`}</p>
+                <div className="sv-teacher-chip">
+                    {classroom.teacher?.avatar ? (
+                        <img src={classroom.teacher.avatar} alt="" className="db-profile-avatar" style={{ width: 30, height: 30 }} />
+                    ) : (
+                        <span className="sv-teacher-avatar">
+                            {classroom.teacher?.teacher_profile?.first_name?.charAt(0) || 'T'}
+                        </span>
+                    )}
+                    <span className="sv-teacher-name">{teacherName}</span>
+                    <span className="sv-teacher-role">Teacher</span>
                 </div>
             </div>
 
-            {/* TABS */}
-            <div style={{ display: 'flex', gap: '4px', marginBottom: '32px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                <button onClick={() => switchTab('courses')}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '13px', background: activeTab === 'courses' ? 'var(--accent-light)' : 'transparent', color: activeTab === 'courses' ? 'var(--accent)' : 'var(--text-secondary)', transition: 'all 0.2s' }}>
-                    <BookOpen size={16} /> Courses
+            {/* Tabs */}
+            <div className="cd-tab-bar">
+                <button type="button" className={`cd-tab ${activeTab === 'lessons' ? 'active' : ''}`} onClick={() => setTab('lessons')}>
+                    <Layers size={17} />
+                    Lessons
                 </button>
-                <button onClick={() => switchTab('activities')}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '13px', background: activeTab === 'activities' ? 'var(--accent-light)' : 'transparent', color: activeTab === 'activities' ? 'var(--accent)' : 'var(--text-secondary)', transition: 'all 0.2s' }}>
-                    <ClipboardList size={16} /> Activities
+                <button type="button" className={`cd-tab ${activeTab === 'classwork' ? 'active' : ''}`} onClick={() => setTab('classwork')}>
+                    <ClipboardList size={17} />
+                    Classwork
+                    <span className="cd-tab-count">{activities.length}</span>
                 </button>
             </div>
 
-            {/* COURSES TAB */}
-            {activeTab === 'courses' && (
-                <>
-                    <h2 style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: 'var(--text-tertiary)', margin: '0 0 32px 0' }}>Published Curriculum</h2>
+            {/* LESSONS TAB — the single course's content, no course-picker hop */}
+            {activeTab === 'lessons' && (
+                !course || modules.length === 0 ? (
+                    <div className="cd-empty">
+                        <BookOpen size={28} style={{ marginBottom: 6 }} />
+                        <p className="cd-empty-title">No lessons yet</p>
+                        <p>Your teacher hasn't published any lessons. Check back soon — or switch to Classwork.</p>
+                    </div>
+                ) : (
+                    <>
+                        <div className="sv-progress-row">
+                            <div className="sv-progress-info">
+                                <span className="sv-progress-title">{course.title}</span>
+                                <span className="sv-progress-caption">{modules.length} {modules.length === 1 ? 'module' : 'modules'}</span>
+                            </div>
+                            <div className="sv-progress-num-wrap">
+                                <span className="sv-progress-num">{course.progress_percent || 0}%</span>
+                                <span className="sv-progress-word">Progress</span>
+                            </div>
+                        </div>
+                        <div className="sv-progress-track">
+                            <motion.span
+                                initial={{ width: 0 }}
+                                animate={{ width: `${course.progress_percent || 0}%` }}
+                                transition={{ duration: 0.8, ease: 'easeOut' }}
+                            />
+                        </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '32px', paddingBottom: '80px' }}>
-                        {classroom.courses?.map(course => (
-                            <div key={course.id} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', padding: '28px', borderRadius: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', position: 'relative', overflow: 'hidden', transition: 'all 0.3s', cursor: 'pointer', boxShadow: 'var(--card-shadow)' }}>
-                                <div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '16px' }}>
-                                        <h3 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-primary)', margin: '0', lineHeight: '1.3', letterSpacing: '-0.02em' }}>{course.title}</h3>
-                                        <div style={{ fontSize: '10px', fontWeight: 900, color: 'var(--accent)', background: 'var(--accent-light)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--accent-glow)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
-                                            {course.progress_percent || 0}% Done
-                                        </div>
-                                    </div>
-                                    <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.6', margin: '0 0 24px 0', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                        {course.description || "Master these concepts with interactive logic tasks."}
-                                    </p>
+                        {modules.map((mod, mi) => (
+                            <div key={mod.id} className="sv-module">
+                                <div className="sv-module-head">
+                                    <span className="cd-mod-index">{String(mi + 1).padStart(2, '0')}</span>
+                                    <h3 className="cd-mod-title">{mod.title}</h3>
                                 </div>
-
-                                <div style={{ marginTop: 'auto', paddingTop: '24px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-tertiary)', margin: '0' }}>Progress</span>
-                                            <span style={{ fontSize: '10px', fontWeight: 900, color: 'var(--accent)', margin: '0' }}>{course.progress_percent || 0}%</span>
-                                        </div>
-                                        <div style={{ height: '6px', width: '100%', background: 'var(--bg-tertiary)', borderRadius: '999px', overflow: 'hidden' }}>
-                                            <motion.div
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${course.progress_percent || 0}%` }}
-                                                transition={{ duration: 1, ease: "easeOut" }}
-                                                style={{ height: '100%', background: 'linear-gradient(90deg, #06b6d4, var(--accent))', boxShadow: '0 0 15px var(--accent-glow)' }}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        onClick={() => navigate(`/dashboard/student/course/${course.id}`)}
-                                        style={{ width: '100%', padding: '16px 20px', borderRadius: '20px', background: 'var(--accent)', color: '#fff', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', transition: 'all 0.3s', border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px var(--accent-glow)' }}
-                                    >
-                                        Launch Course <ChevronRight size={18} />
-                                    </button>
+                                <div className="sv-lesson-list">
+                                    {[...(mod.lessons || []).map(l => ({ ...l, kind: 'lesson' })), ...(mod.quizzes || []).map(q => ({ ...q, kind: 'quiz' }))]
+                                        .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+                                        .map((item) => (
+                                            <button
+                                                key={`${item.kind}-${item.id}`}
+                                                type="button"
+                                                className="db-card sv-lesson-row db-clickable"
+                                                onClick={() => navigate(`/dashboard/student/course/${course.id}/${item.kind}/${item.id}`)}
+                                            >
+                                                <span className={`sv-lesson-icon ${item.kind}`}>
+                                                    {item.kind === 'lesson' ? <BookOpen size={16} /> : <ClipboardList size={16} />}
+                                                </span>
+                                                <span className="sv-lesson-title">{item.title}</span>
+                                                {item.kind === 'lesson' && item.is_completed && (
+                                                    <span className="sv-lesson-done"><Check size={13} /> Done</span>
+                                                )}
+                                                <span className="db-class-footer-arrow" style={{ width: 28, height: 28 }}>
+                                                    <ChevronRight size={14} />
+                                                </span>
+                                            </button>
+                                        ))}
                                 </div>
                             </div>
                         ))}
-                    </div>
-                </>
+                    </>
+                )
             )}
 
-            {/* ACTIVITIES TAB */}
-            {activeTab === 'activities' && (
-                <>
-                    <h2 style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: 'var(--text-tertiary)', margin: '0 0 32px 0' }}>Class Activities</h2>
-
-                    {activities.some(a => a.is_live) && (
-                        <motion.div
-                            initial={{ opacity: 0, y: -8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            style={{ marginBottom: '24px', padding: '18px 24px', borderRadius: '20px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)', display: 'flex', alignItems: 'center', gap: '14px' }}
-                        >
-                            <span style={{ position: 'relative', display: 'flex', width: '12px', height: '12px', flexShrink: 0 }}>
-                                <span style={{ position: 'absolute', inset: 0, borderRadius: '999px', background: '#ef4444', animation: 'pulse 1.5s infinite' }} />
-                                <span style={{ position: 'absolute', inset: 0, borderRadius: '999px', background: '#ef4444' }} />
-                            </span>
-                            <div style={{ flex: 1 }}>
-                                <p style={{ fontSize: '15px', fontWeight: 800, color: '#ef4444', margin: 0 }}>Quiz in progress</p>
-                                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                                    {activities.filter(a => a.is_live).map(a => a.title).join(', ')} — tap "Join now" to start.
-                                </p>
+            {/* CLASSWORK TAB — status-first grouped activities */}
+            {activeTab === 'classwork' && (
+                activitiesLoading ? (
+                    <ContentSkeleton rows={4} flat />
+                ) : activities.length === 0 ? (
+                    <div className="cd-empty">
+                        <ClipboardList size={28} style={{ marginBottom: 6 }} />
+                        <p className="cd-empty-title">No activities yet</p>
+                        <p>Your teacher hasn't posted any activities yet.</p>
+                    </div>
+                ) : (
+                    <div>
+                        {activities.some(a => a.is_live) && (
+                            <div className="sv-live-banner">
+                                <span className="sv-live-dot" />
+                                <div style={{ flex: 1 }}>
+                                    <p style={{ fontSize: 15, fontWeight: 800, color: '#ef4444', margin: 0 }}>Quiz in progress</p>
+                                    <p style={{ fontSize: 12, color: 'var(--db-text-2)', margin: '4px 0 0 0' }}>
+                                        {activities.filter(a => a.is_live).map(a => a.title).join(', ')} — tap "Join now" to start.
+                                    </p>
+                                </div>
+                                <Radio size={20} color="#ef4444" style={{ flexShrink: 0 }} />
                             </div>
-                            <Radio size={20} color="#ef4444" style={{ flexShrink: 0 }} />
-                        </motion.div>
-                    )}
+                        )}
 
-                    {activitiesLoading ? (
-                        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}>
-                            <Loader2 className="animate-spin" size={28} color="var(--text-tertiary)" />
-                        </div>
-                    ) : activities.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '60px 24px', borderRadius: '24px', border: '1px dashed var(--border-color)', background: 'var(--bg-secondary)' }}>
-                            <ClipboardList size={48} color="var(--text-tertiary)" style={{ marginBottom: '16px', opacity: 0.4 }} />
-                            <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px 0' }}>No activities yet</h3>
-                            <p style={{ fontSize: '14px', color: 'var(--text-tertiary)', margin: 0 }}>Your teacher hasn't posted any activities yet.</p>
-                        </div>
-                    ) : (
-                        <div style={{ paddingBottom: '80px' }}>
-                            {(() => {
-                                // Status-first grouping: a student should see in one
-                                // glance what's live, what's coming, what's done, what's missed.
-                                const buckets = { live: [], todo: [], done: [], missed: [] };
-                                activities.forEach((a) => {
-                                    const s = activityCardState(a);
-                                    if (s === 'live' || s === 'in_progress') buckets.live.push(a);
-                                    else if (s === 'waiting' || s === 'todo') buckets.todo.push(a);
-                                    else if (s === 'graded' || s === 'submitted') buckets.done.push(a);
-                                    else buckets.missed.push(a);
-                                });
-                                const sectionMeta = {
-                                    live: { title: 'Live now', color: '#ef4444' },
-                                    todo: { title: 'To do', color: 'var(--text-tertiary)' },
-                                    done: { title: 'Completed', color: 'var(--text-tertiary)' },
-                                    missed: { title: 'Missed', color: '#ef4444' },
-                                };
-                                const renderSection = (key, list) => {
-                                    if (!list.length) return null;
-                                    const meta = sectionMeta[key];
-                                    return (
-                                        <div style={{ marginBottom: '32px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-                                                {key === 'live' && (
-                                                    <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: meta.color, animation: 'livePulse 1.1s ease-in-out infinite' }} />
-                                                )}
-                                                <h3 style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: meta.color, margin: 0 }}>{meta.title}</h3>
-                                                <span style={{ fontSize: '11px', fontWeight: 700, color: meta.color, background: key === 'live' ? 'rgba(239, 68, 68, 0.12)' : 'var(--bg-tertiary)', padding: '2px 10px', borderRadius: '999px' }}>{list.length}</span>
-                                            </div>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                                {list.map(activity => (
-                                                    <StudentActivityCard key={activity.id} activity={activity} classId={id} />
-                                                ))}
-                                            </div>
-                                        </div>
-                                    );
-                                };
+                        {(() => {
+                            const buckets = { live: [], todo: [], done: [], missed: [] };
+                            activities.forEach((a) => {
+                                const st = activityCardState(a);
+                                if (st === 'live' || st === 'in_progress') buckets.live.push(a);
+                                else if (st === 'waiting' || st === 'todo') buckets.todo.push(a);
+                                else if (st === 'graded' || st === 'submitted') buckets.done.push(a);
+                                else buckets.missed.push(a);
+                            });
+                            const sectionMeta = {
+                                live: { title: 'Live now' },
+                                todo: { title: 'To do' },
+                                done: { title: 'Completed' },
+                                missed: { title: 'Missed' },
+                            };
+                            const renderSection = (key, list) => {
+                                if (!list.length) return null;
                                 return (
-                                    <>
-                                        {renderSection('live', buckets.live)}
-                                        {renderSection('todo', buckets.todo)}
-                                        {renderSection('done', buckets.done)}
-                                        {renderSection('missed', buckets.missed)}
-                                    </>
+                                    <div key={key} style={{ marginBottom: 30 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                                            {key === 'live' && <span className="sv-live-dot" style={{ width: 9, height: 9 }} />}
+                                            <h3 style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.14em', color: key === 'live' || key === 'missed' ? 'var(--db-danger)' : 'var(--db-text-2)', margin: 0 }}>{sectionMeta[key].title}</h3>
+                                            <span className="cd-tab-count">{list.length}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                            {list.map(activity => (
+                                                <StudentActivityCard key={activity.id} activity={activity} classId={id} />
+                                            ))}
+                                        </div>
+                                    </div>
                                 );
-                            })()}
-                        </div>
-                    )}
-                </>
+                            };
+                            return (
+                                <>
+                                    {renderSection('live', buckets.live)}
+                                    {renderSection('todo', buckets.todo)}
+                                    {renderSection('done', buckets.done)}
+                                    {renderSection('missed', buckets.missed)}
+                                </>
+                            );
+                        })()}
+                    </div>
+                )
             )}
         </div>
+    );
+}
+
+/** Mirrors the lessons tab: progress row + module sections with lesson rows. */
+function ContentSkeleton({ rows = 2, flat = false }) {
+    return (
+        <>
+            {!flat && (
+                <>
+                    <SkeletonBlock style={{ height: 46, borderRadius: 14, marginBottom: 16 }} />
+                    <SkeletonBlock style={{ height: 8, borderRadius: 999, marginBottom: 24, width: '60%' }} />
+                </>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+                {Array.from({ length: rows }).map((_, m) => (
+                    <div key={m}>
+                        <SkeletonBlock style={{ width: 200, height: 18, marginBottom: 12 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {[0, 1].map((i) => (
+                                <SkeletonBlock key={i} style={{ height: 58, borderRadius: 14 }} />
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </>
     );
 }

@@ -55,7 +55,15 @@ export default function StudentLayout() {
                     <div className="nav-group">
                         <label className="sidebar-section-label">Your Classes</label>
                         <div className="class-stack">
-                            {loading ? <Loader2 className="animate-spin mx-auto text-cyan-800" size={16}/> : 
+                            {loading ? (
+                                // Skeleton rows, not a spinner — the class list must look alive
+                                Array.from({ length: 2 }).map((_, i) => (
+                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
+                                        <div className="db-skeleton" style={{ width: 8, height: 8, borderRadius: '50%' }} />
+                                        <div className="db-skeleton" style={{ width: `${70 - i * 18}%`, height: 12 }} />
+                                    </div>
+                                ))
+                            ) :
                                 classes.map(c => (
                                     <Link key={c.id} to={`/dashboard/student/class/${c.id}`} 
                                         className={`nav-item ${location.pathname.includes(`/class/${c.id}`) ? 'active' : ''}`}>
