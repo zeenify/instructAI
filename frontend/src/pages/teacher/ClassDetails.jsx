@@ -41,13 +41,32 @@ function ContentTabSkeleton() {
 export default function ClassDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     // Legacy ?tab=courses links land on the Content tab (the old grid is gone).
     const tabParam = searchParams.get('tab');
     const activeTab = TABS.includes(tabParam) ? tabParam : 'content';
 
-    const setTab = (tab) => navigate(`/dashboard/teacher/class/${id}?tab=${tab}`, { replace: true });
+    const setTab = (tab) => {
+        const next = new URLSearchParams(searchParams);
+        next.set('tab', tab);
+        setSearchParams(next, { replace: true });
+    };
+
+    // The open module lives in the URL (?module=ID) so refresh, browser Back,
+    // and shared links land back inside the module — not the grid.
+    const openModuleId = searchParams.get('module') ? Number(searchParams.get('module')) : null;
+    const setOpenModule = (moduleId) => {
+        const next = new URLSearchParams(searchParams);
+        if (moduleId) {
+            next.set('module', String(moduleId));
+            next.set('tab', 'content');
+        } else {
+            next.delete('module');
+        }
+        // push (not replace): browser Back then returns to the module grid
+        setSearchParams(next);
+    };
 
     const { data: classroom, isLoading, isError } = useClassDetails(id);
     // Strict 1:1 — first course by order_index IS the class content, shipped
@@ -198,6 +217,8 @@ export default function ClassDetails() {
                             courseId={course.id}
                             embedded
                             initialCourse={content}
+                            openModuleId={openModuleId}
+                            onOpenModule={setOpenModule}
                         />
                     )}
                 </>

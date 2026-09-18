@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { queryClient } from '../../lib/queryClient';
 import { courseContentKey } from '../../queries/classDetails';
@@ -137,8 +137,18 @@ function ModuleItemRow({ item, index, lastIndex, onOpen, onToggle, onMove, onDel
  * `embedded` — embedded hides the page chrome (back link, course title) that
  * would duplicate the class page header, keeping every content action.
  * See docs/data-layer-plan.md (strict 1 class = 1 course).
+ *
+ * The open module can be CONTROLLED (openModuleId + onOpenModule — the class
+ * page mirrors it into ?module= so refresh/back/share keep the view) or left
+ * uncontrolled (standalone route keeps it in local state).
  */
-export default function CourseBuilder({ courseId = null, embedded = false, initialCourse = null }) {
+export default function CourseBuilder({
+    courseId = null,
+    embedded = false,
+    initialCourse = null,
+    openModuleId = null,
+    onOpenModule = null,
+}) {
     const params = useParams();
     const id = courseId ?? params.id;
     const navigate = useNavigate();
@@ -161,7 +171,14 @@ export default function CourseBuilder({ courseId = null, embedded = false, initi
     const [isPublished, setIsPublished] = useState(Boolean(initialCourse?.is_published));
     
     // UI View States
-    const [activeModuleId, setActiveModuleId] = useState(null);
+    const [internalModuleId, setInternalModuleId] = useState(null);
+    const activeModuleId = onOpenModule ? (openModuleId ?? null) : internalModuleId;
+    // Single entry point for opening/closing a module — keeps the URL param
+    // (controlled) and local state (standalone) in step.
+    const openModule = useCallback((moduleId) => {
+        setInternalModuleId(moduleId);
+        onOpenModule?.(moduleId);
+    }, [onOpenModule]);
     const [isReorderMode, setIsReorderMode] = useState(false);
     const [isBulkDeleteMode, setIsBulkDeleteMode] = useState(false);
     const [selectedModuleIds, setSelectedModuleIds] = useState(new Set());
@@ -211,6 +228,13 @@ export default function CourseBuilder({ courseId = null, embedded = false, initi
     const [indexingStats, setIndexingStats] = useState(null);
 
     useEffect(() => { fetchCourse(!initialCourse); }, [id]);
+
+    // A ?module= param pointing at a deleted/nonexistent module closes itself
+    // (also covers switching classes with a stale param in the URL).
+    useEffect(() => {
+        if (activeModuleId == null || !course?.modules) return;
+        if (!course.modules.some(m => m.id === activeModuleId)) openModule(null);
+    }, [activeModuleId, course, openModule]);
 
     const fetchCourse = async (showLoading = true) => {
         try {
@@ -533,7 +557,7 @@ export default function CourseBuilder({ courseId = null, embedded = false, initi
                     ...prev,
                     modules: prev.modules.filter(m => m.id !== itemId)
                 }));
-                if (itemId === activeModuleId) setActiveModuleId(null);
+                if (itemId === activeModuleId) openModule(null);
             } else {
                 // For lessons and quizzes, update all modules to remove the item
                 setCourse(prev => ({
@@ -582,7 +606,7 @@ export default function CourseBuilder({ courseId = null, embedded = false, initi
             // Invalidate cache
             refreshContent();
             if (activeModuleId && selectedModuleIds.has(activeModuleId)) {
-                setActiveModuleId(null);
+                openModule(null);
             }
 
             setSelectedModuleIds(new Set());
@@ -1190,6 +1214,10 @@ if (loading || !course) return (
         : 0;
     const mPct = mTotal ? Math.round((mPublished / mTotal) * 100) : 0;
     const mAllPublished = mTotal > 0 && mPublished === mTotal;
+    // Stable identity per course-state change: Reorder.Group re-syncs when the
+    // values array identity moves, so computing it once per render keeps drags
+    // smooth instead of fighting mid-gesture re-renders.
+    const moduleItems = useMemo(() => getSortedItems(activeModuleData), [activeModuleData]);
 
     // "Add lesson / add quiz" — shown at the bottom of a populated module and
     // inside the empty state (one source, two homes).
@@ -1240,7 +1268,7 @@ if (loading || !course) return (
         <div className="builder-container" style={embedded ? { maxWidth: 'none', padding: 0, margin: 0 } : undefined}>
             <header style={{ marginBottom: '40px' }} className="mb-10">
 {(!embedded || activeModuleId) && (
-                <button type="button" onClick={() => activeModuleId ? setActiveModuleId(null) : navigate(-1)} className="cd-back">
+                <button type="button" onClick={() => activeModuleId ? openModule(null) : navigate(-1)} className="cd-back">
                     <ChevronLeft size={15} />
                     {activeModuleId ? 'Return to Modules' : 'Exit to Classroom'}
                 </button>
@@ -1559,7 +1587,7 @@ if (loading || !course) return (
                                                 }
                                                 setSelectedModuleIds(newSelected);
                                             } else if (!isReorderMode) {
-                                                setActiveModuleId(module.id);
+                                                openModule(module.id);
                                             }
                                         }}
                                     >
@@ -1721,6 +1749,12 @@ if (loading || !course) return (
                             </div>
                         </div>
 
+                        {/* Add lesson / quiz sit ABOVE the list — reachable without
+                            scrolling no matter how long the module grows */}
+                        {mTotal > 0 && (
+                            <div className="cd-md-add">{addItemsBlock}</div>
+                        )}
+
                         <div className="cd-md-seq-head">
                             <span className="cd-md-seq-label">Content sequence</span>
                             <span className="cd-md-seq-hint">Drag the dots to reorder &mdash; hover a row for move, publish, and delete.</span>
@@ -1735,8 +1769,8 @@ if (loading || !course) return (
                             </div>
                         ) : (
                             <>
-                                <Reorder.Group axis="y" values={getSortedItems(activeModuleData)} onReorder={handleReorderItems} className="cd-md-list">
-                                    {getSortedItems(activeModuleData).map((item, i) => (
+                                <Reorder.Group axis="y" values={moduleItems} onReorder={handleReorderItems} className="cd-md-list">
+                                    {moduleItems.map((item, i) => (
                                         <ModuleItemRow
                                             key={`${item.itemType}-${item.id}`}
                                             item={item}
@@ -1750,7 +1784,6 @@ if (loading || !course) return (
                                         />
                                     ))}
                                 </Reorder.Group>
-                                <div className="cd-md-add">{addItemsBlock}</div>
                             </>
                         )}
                     </motion.div>
