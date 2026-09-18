@@ -173,53 +173,78 @@
     margin: 0 0 20px;
 }
 
-.le-ai-toggle {
+.le-ai-chip {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    border: none;
-    background: transparent;
-    padding: 0;
-    color: var(--db-text-3);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    font-weight: 600;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--db-border);
+    background: var(--db-card);
     cursor: pointer;
-    transition: color 0.15s ease;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
-.le-ai-toggle:hover {
-    color: var(--db-text);
+.le-ai-chip.on {
+    border-color: var(--db-accent-border);
+    background: var(--db-accent-soft);
 }
 
-.le-ai-switch {
-    position: relative;
-    width: 28px;
-    height: 16px;
+.le-ai-chip-label {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.2;
+}
+
+.le-ai-chip-label > :first-child {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.le-ai-chip-state {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--db-text-3);
+}
+
+.le-ai-chip.on .le-ai-chip-label > :first-child {
+    color: var(--db-accent-bright);
+}
+
+:root[data-theme='light'] .le-ai-chip.on .le-ai-chip-label > :first-child {
+    color: var(--db-accent);
+}
+
+.le-ai-chip.on .le-ai-chip-state {
+    color: var(--db-green);
+}
+
+/* Compact round back button for the editor header */
+.le-back-icon {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
     flex: none;
     border-radius: 999px;
-    background: var(--db-border-strong);
-    transition: background 0.15s ease;
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card);
+    color: var(--db-accent-bright);
+    cursor: pointer;
+    box-shadow: var(--db-shadow-soft);
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
-.le-ai-switch.on {
-    background: var(--db-accent);
+:root[data-theme='light'] .le-back-icon {
+    color: var(--db-accent);
 }
 
-.le-ai-knob {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 12px;
-    height: 12px;
-    border-radius: 999px;
-    background: #ffffff;
-    box-shadow: 0 1px 3px rgba(2, 5, 16, 0.4);
-    transition: transform 0.15s ease;
-}
-
-.le-ai-switch.on .le-ai-knob {
-    transform: translateX(12px);
+.le-back-icon:hover {
+    border-color: var(--db-accent-border);
+    background: var(--db-accent-soft);
 }
 
 /* Section inserter — one obvious palette of big, described, clickable cards */
@@ -1109,12 +1134,16 @@
     color: var(--db-accent);
 }
 
-.le-files-hint {
-    font-size: 13px;
-    line-height: 1.5;
-    max-width: 760px;
+.le-file-main {
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     color: var(--db-text-3);
-    margin: 0 0 8px;
+    background: var(--db-card-2);
+    border: 1px solid var(--db-border);
+    border-radius: 5px;
+    padding: 1px 5px;
 }
 
 /* Empty state */

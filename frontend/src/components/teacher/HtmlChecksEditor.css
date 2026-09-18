@@ -69,27 +69,81 @@
     flex: 1;
 }
 
-.hc-select {
-    appearance: none;
-    -webkit-appearance: none;
-    padding: 9px 34px 9px 13px;
+.hc-dd {
+    position: relative;
+}
+
+.hc-dd-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
     border-radius: 10px;
     border: 1px solid var(--db-border-strong);
-    background: var(--db-card-2)
-        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>")
-        no-repeat right 11px center / 12px;
+    background: var(--db-card-2);
     color: var(--db-text);
     font-family: inherit;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    outline: none;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.hc-select:focus {
-    border-color: var(--db-accent);
-    box-shadow: 0 0 0 3px var(--db-accent-soft);
+.hc-dd-btn:hover {
+    border-color: var(--db-text-3);
+}
+
+.hc-dd-caret {
+    color: var(--db-text-3);
+    transition: transform 0.15s ease;
+}
+
+.hc-dd-caret.open {
+    transform: rotate(180deg);
+}
+
+.hc-dd-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 60;
+    min-width: 210px;
+    padding: 6px;
+    border-radius: 12px;
+    background: var(--db-card);
+    border: 1px solid var(--db-border-strong);
+    box-shadow: var(--db-shadow);
+    animation: db-pop-in 0.14s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+.hc-dd-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--db-text-2);
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.hc-dd-item:hover {
+    background: var(--db-accent-soft);
+    color: var(--db-text);
+}
+
+.hc-dd-item.active {
+    color: var(--db-accent-bright);
+    font-weight: 700;
+}
+
+:root[data-theme='light'] .hc-dd-item.active {
+    color: var(--db-accent);
 }
 
 .hc-fields {
@@ -153,29 +207,19 @@
     flex-wrap: wrap;
 }
 
-.hc-add {
-    appearance: none;
-    -webkit-appearance: none;
-    padding: 10px 36px 10px 14px;
-    border-radius: 11px;
-    border: 1.5px dashed var(--db-accent-border);
-    background: var(--db-accent-soft)
-        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23b3a5ff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>")
-        no-repeat right 12px center / 12px;
+.hc-dd-plus .hc-dd-btn {
+    border-style: dashed;
+    border-color: var(--db-accent-border);
+    background: var(--db-accent-soft);
     color: var(--db-accent-bright);
-    font-family: inherit;
-    font-size: 13.5px;
-    font-weight: 700;
-    cursor: pointer;
-    outline: none;
-    transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-:root[data-theme='light'] .hc-add {
+:root[data-theme='light'] .hc-dd-plus .hc-dd-btn {
     color: var(--db-accent);
 }
 
-.hc-add:hover {
+.hc-dd-plus .hc-dd-btn:hover {
+    border-style: solid;
     border-color: var(--db-accent);
 }
 

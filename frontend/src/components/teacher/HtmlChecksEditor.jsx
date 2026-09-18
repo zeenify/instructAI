@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { CheckCircle2, XCircle, FlaskConical, Loader2, Play, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { CheckCircle2, ChevronDown, XCircle, FlaskConical, Loader2, Play, Plus, Trash2 } from 'lucide-react';
 import {
     CHECK_KINDS,
     htmlCheckLabel,
@@ -7,6 +7,51 @@ import {
     newHtmlCheck,
 } from '../../utils/codeLanguages';
 import './HtmlChecksEditor.css';
+
+/**
+ * A styled dropdown (native <select> option lists can't be themed). Opens a
+ * floating menu of `options` ({value, label}); `plus` renders it as the
+ * dashed "add" affordance with a "+ Add a check…" placeholder.
+ */
+function HcDropdown({ value, options, onChange, plus = false }) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+
+    useEffect(() => {
+        if (!open) return undefined;
+        const onDoc = (e) => {
+            if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+        };
+        document.addEventListener('mousedown', onDoc);
+        return () => document.removeEventListener('mousedown', onDoc);
+    }, [open]);
+
+    const current = options.find((o) => o.value === value);
+
+    return (
+        <div className={`hc-dd ${plus ? 'hc-dd-plus' : ''}`} ref={ref}>
+            <button type="button" className="hc-dd-btn" onClick={() => setOpen(!open)}>
+                {plus && <Plus size={13} />}
+                {plus && !current ? 'Add a check…' : (current ? current.label : 'Choose…')}
+                <ChevronDown size={13} className={`hc-dd-caret ${open ? 'open' : ''}`} />
+            </button>
+            {open && (
+                <div className="hc-dd-menu">
+                    {options.map((o) => (
+                        <button
+                            key={o.value}
+                            type="button"
+                            className={`hc-dd-item ${o.value === value ? 'active' : ''}`}
+                            onClick={() => { onChange(o.value); setOpen(false); }}
+                        >
+                            {o.label}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
 
 // let checksFailHarmlessly = true -> placeholder to keep lint quiet when unused
 /**
@@ -112,25 +157,21 @@ export default function HtmlChecksEditor({
             {checks.map((check, index) => (
                 <div key={check.id || index} className="hc-row">
                     <div className="hc-row-top">
-                        <select
-                            value={check.kind}
-                            onChange={(e) => update(index, { ...newHtmlCheck(e.target.value), id: check.id })}
-                            className="hc-select"
-                        >
-                            {CHECK_KINDS.map((k) => (
-                                <option key={k.id} value={k.id}>{k.label}</option>
-                            ))}
-                        </select>
-                        <div className="hc-row-spacer" />
-                        <button
-                            type="button"
-                            onClick={() => remove(index)}
-                            className="hc-remove"
-                            title="Remove this check"
-                        >
-                            <Trash2 size={13} />
-                        </button>
-                    </div>
+                    <HcDropdown
+                        value={check.kind}
+                        options={CHECK_KINDS.map((k) => ({ value: k.id, label: k.label }))}
+                        onChange={(v) => update(index, { ...newHtmlCheck(v), id: check.id })}
+                    />
+                    <div className="hc-row-spacer" />
+                    <button
+                        type="button"
+                        onClick={() => remove(index)}
+                        className="hc-remove"
+                        title="Remove this check"
+                    >
+                        <Trash2 size={13} />
+                    </button>
+                </div>
 
                     <div className="hc-fields">
                         {needsField(check.kind, 'selector') && (
@@ -168,14 +209,11 @@ export default function HtmlChecksEditor({
                             />
                         )}
                         {needsField(check.kind, 'match') && (
-                            <select
+                            <HcDropdown
                                 value={check.match || 'contains'}
-                                onChange={(e) => update(index, { match: e.target.value })}
-                                className="hc-select"
-                            >
-                                <option value="contains">contains</option>
-                                <option value="equals">equals</option>
-                            </select>
+                                options={[{ value: 'contains', label: 'contains' }, { value: 'equals', label: 'is exactly' }]}
+                                onChange={(v) => update(index, { match: v })}
+                            />
                         )}
                         {needsField(check.kind, 'text') && (
                             <input
@@ -200,16 +238,12 @@ export default function HtmlChecksEditor({
             ))}
 
             <div className="hc-actions">
-                <select
+                <HcDropdown
+                    plus
                     value=""
-                    onChange={(e) => { if (e.target.value) onChange([...checks, newHtmlCheck(e.target.value)]); }}
-                    className="hc-add"
-                >
-                    <option value="">+ Add a check…</option>
-                    {CHECK_KINDS.map((k) => (
-                        <option key={k.id} value={k.id}>{k.label}</option>
-                    ))}
-                </select>
+                    options={CHECK_KINDS.map((k) => ({ value: k.id, label: k.label }))}
+                    onChange={(v) => onChange([...checks, newHtmlCheck(v)])}
+                />
 
                 {onReferenceChange && (
                     <button

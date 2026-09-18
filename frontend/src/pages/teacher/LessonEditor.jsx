@@ -59,19 +59,6 @@ const TIPTAP_EXTENSIONS = [
     BubbleMenuPlugin,
 ];
 
-/** Rough student reading cost, same heuristic as the module view. */
-function lessonMinutes(blocks) {
-    if (!Array.isArray(blocks)) return 0;
-    let words = 0;
-    let videos = 0;
-    for (const b of blocks) {
-        const t = b?.type === 'text' || b?.type === 'h1' ? String(b?.data?.text || '') : '';
-        words += t.replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
-        if (b?.type === 'video') videos += 1;
-    }
-    return Math.max(1, Math.round(words / 180) + videos * 3);
-}
-
 const BLOCK_TYPES = [
     { type: 'h1', icon: Heading1, label: 'Heading', sub: 'A big bold title' },
     { type: 'text', icon: Type, label: 'Text', sub: 'Paragraphs & lists' },
@@ -136,7 +123,7 @@ export default function LessonEditor() {
         clearTimeout(timerRef.current);
     }, [id]);
 
-    const saveNow = useCallback(async ({ announce = false, publishOverride } = {}) => {
+    const saveNow = useCallback(async ({ announce = false, publishOverride, isRetry = false } = {}) => {
         const l = latest.current;
         clearTimeout(timerRef.current);
         timerRef.current = null;
@@ -170,7 +157,11 @@ export default function LessonEditor() {
         } catch (err) {
             dirtyRef.current = true;
             setSaveState('error');
-            if (announce) toast.error('Could not save the lesson. Try again.');
+            if (announce) toast.error('Could not save the lesson. It will retry in a moment.');
+            // No manual Save button exists — the editor retries on its own.
+            if (!isRetry) {
+                timerRef.current = setTimeout(() => saveNow({ publishOverride, isRetry: true }), 5000);
+            }
         }
     }, [id, classId]);
 
@@ -323,7 +314,7 @@ export default function LessonEditor() {
         <span className={`le-status ${saveState}`}>
             {saveState === 'saved' && <Check size={13} />}
             {saveState === 'saving' && <Loader2 size={13} className="animate-spin" />}
-            {saveState === 'saved' && (latest.current.isPublished ? savedLabel() + ' · visible to students' : savedLabel())}
+            {saveState === 'saved' && savedLabel()}
             {saveState === 'dirty' && 'Unsaved changes'}
             {saveState === 'error' && 'Save failed — press Save to retry'}
         </span>
@@ -354,20 +345,13 @@ export default function LessonEditor() {
         );
     }
 
-    const minutes = lessonMinutes(blocks);
-    // Count the way a teacher would: headings are sections
-    const sectionCount = blocks.filter(b => b.type === 'h1').length
-        || blocks.filter(b => b.type === 'text').length
-        || blocks.length;
-
     return (
         <div className="le-shell">
             {/* STICKY HEADER — navigation, identity, save state, actions */}
             <div className="le-header">
                 <div className="le-header-left">
-                    <button type="button" className="cd-back" onClick={goBack} title="Back to the module">
-                        <ChevronLeft size={16} />
-                        Back to module
+                    <button type="button" className="le-back-icon" onClick={goBack} title="Back to module" aria-label="Back to module">
+                        <ChevronLeft size={19} />
                     </button>
                     <div className="le-title-block">
                         <div className="le-kicker-row">
@@ -390,22 +374,7 @@ export default function LessonEditor() {
                             placeholder="Lesson title…"
                         />
                         <span className="le-meta">
-                            {sectionCount} {sectionCount === 1 ? 'part' : 'parts'} &middot; about {minutes} minutes to read
-                            <span className="le-meta-sep">&middot;</span>
                             {saveStatus}
-                            <span className="le-meta-sep">&middot;</span>
-                            <button
-                                type="button"
-                                className="le-ai-toggle"
-                                title="When on, the students' AI Tutor can answer questions using this lesson"
-                                onClick={() => { setAiEnabled(!aiEnabled); markDirty(); }}
-                            >
-                                <Bot size={13} />
-                                AI tutor
-                                <span className={`le-ai-switch ${aiEnabled ? 'on' : ''}`}>
-                                    <span className="le-ai-knob" />
-                                </span>
-                            </button>
                         </span>
                     </div>
                 </div>
@@ -413,12 +382,15 @@ export default function LessonEditor() {
                     {!preview && (
                         <button
                             type="button"
-                            className="db-btn-ghost"
-                            onClick={() => saveNow({ announce: true })}
-                            disabled={saveState === 'saving' || saveState === 'saved'}
-                            title={saveState === 'saved' ? 'Everything is already saved' : 'Save your changes now'}
+                            className={`le-ai-chip ${aiEnabled ? 'on' : ''}`}
+                            title="When on, the students' AI Tutor can answer questions using this lesson"
+                            onClick={() => { setAiEnabled(!aiEnabled); markDirty(); }}
                         >
-                            Save
+                            <Bot size={17} />
+                            <span className="le-ai-chip-label">
+                                AI Tutor
+                                <span className="le-ai-chip-state">{aiEnabled ? 'On for students' : 'Off'}</span>
+                            </span>
                         </button>
                     )}
                     <button
@@ -1087,6 +1059,7 @@ function MultiFileEditor({ block, langId, update }) {
                         className={`le-file-tab ${safeIdx === i ? 'active' : ''}`}
                         style={{ '--file-color': kindColor(f.name) }}
                     >
+                        {webFileKind(f.name) === 'html' && <span className="le-file-main">main</span>}
                         {f.name}
                         {files.length > 1 && webFileKind(f.name) !== 'html' && (
                             <span
@@ -1125,9 +1098,6 @@ function MultiFileEditor({ block, langId, update }) {
                     </button>
                 )}
             </div>
-            <p className="le-files-hint">
-                index.html is the page students see. style.css and script.js are optional extras — click one to add it, remove it with the × on its tab. Everything ships together as one project, shown to students as file tabs.
-            </p>
             <div className="le-cm">
                 <CodeMirror
                     value={active ? active.content : ''}
