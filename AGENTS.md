@@ -46,6 +46,12 @@ TanStack hooks. Loading = skeletons (\`components/ui/skeletons.jsx\`), never
 spinners for page content. Unbiased critiques: \`teacher-eye\` / \`student-eye\`
 skills before page sign-off.
 
+CSS architecture rule (user-mandated): REUSED styles/components go in the shared
+\`dashboard.css\` (or a shared component file); PAGE-SPECIFIC styles live in a
+dedicated CSS file next to the page (e.g. \`LessonEditor.css\`, \`CourseBuilder.css\`),
+imported by that page/component only. Never pile single-page styles into
+dashboard.css.
+
 Parked UX decisions (need user sign-off): grading-queue door from the To-grade
 tile; vocabulary pass (Classwork everywhere, Monitor/Analytics renames); floating
 AI-tutor button on student pages; light mode as projector default. Due-soon strip

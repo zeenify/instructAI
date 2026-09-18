@@ -393,27 +393,33 @@ export default function LessonEditor() {
                             {sectionCount} {sectionCount === 1 ? 'part' : 'parts'} &middot; about {minutes} minutes to read
                             <span className="le-meta-sep">&middot;</span>
                             {saveStatus}
+                            <span className="le-meta-sep">&middot;</span>
+                            <button
+                                type="button"
+                                className="le-ai-toggle"
+                                title="When on, the students' AI Tutor can answer questions using this lesson"
+                                onClick={() => { setAiEnabled(!aiEnabled); markDirty(); }}
+                            >
+                                <Bot size={13} />
+                                AI tutor
+                                <span className={`le-ai-switch ${aiEnabled ? 'on' : ''}`}>
+                                    <span className="le-ai-knob" />
+                                </span>
+                            </button>
                         </span>
                     </div>
                 </div>
                 <div className="le-header-actions">
                     {!preview && (
-                        <>
-                            <button
-                                type="button"
-                                className={`le-ai-chip ${aiEnabled ? 'on' : ''}`}
-                                title="When on, the students' AI Tutor can answer questions using this lesson"
-                                onClick={() => { setAiEnabled(!aiEnabled); markDirty(); }}
-                            >
-                                <Bot size={15} />
-                                Student AI tutor: {aiEnabled ? 'On' : 'Off'}
-                            </button>
-                            {saveState !== 'saved' && (
-                                <button type="button" className="db-btn-ghost" onClick={() => saveNow({ announce: true })} disabled={saveState === 'saving'}>
-                                    Save
-                                </button>
-                            )}
-                        </>
+                        <button
+                            type="button"
+                            className="db-btn-ghost"
+                            onClick={() => saveNow({ announce: true })}
+                            disabled={saveState === 'saving' || saveState === 'saved'}
+                            title={saveState === 'saved' ? 'Everything is already saved' : 'Save your changes now'}
+                        >
+                            Save
+                        </button>
                     )}
                     <button
                         type="button"
@@ -1067,6 +1073,8 @@ function MultiFileEditor({ block, langId, update }) {
     }
 
     const kindColor = (name) => (webFileKind(name) === 'css' ? '#7dd3fc' : webFileKind(name) === 'js' ? '#fbbf24' : '#fb923c');
+    const hasCss = files.some((f) => webFileKind(f.name) === 'css');
+    const hasJs = files.some((f) => webFileKind(f.name) === 'js');
 
     return (
         <div>
@@ -1085,22 +1093,40 @@ function MultiFileEditor({ block, langId, update }) {
                                 role="button"
                                 tabIndex={-1}
                                 onClick={(e) => { e.stopPropagation(); removeFile(i); }}
-                                title="Remove file"
+                                title="Remove this file"
                             >
                                 ×
                             </span>
                         )}
                     </button>
                 ))}
-                {!files.some((f) => webFileKind(f.name) === 'css') && (
-                    <button type="button" onClick={() => addFile('css')} className="le-file-add">+ style.css</button>
+                {/* Optional files show as ghost slots until added — the whole
+                    HTML/CSS/JS model is visible at a glance */}
+                {!hasCss && (
+                    <button
+                        type="button"
+                        className="le-file-slot"
+                        onClick={() => addFile('css')}
+                        title="Adds an optional style.css file to this project"
+                    >
+                        <Plus size={12} />
+                        style.css
+                    </button>
                 )}
-                {!files.some((f) => webFileKind(f.name) === 'js') && (
-                    <button type="button" onClick={() => addFile('js')} className="le-file-add">+ script.js</button>
+                {!hasJs && (
+                    <button
+                        type="button"
+                        className="le-file-slot"
+                        onClick={() => addFile('js')}
+                        title="Adds an optional script.js file to this project"
+                    >
+                        <Plus size={12} />
+                        script.js
+                    </button>
                 )}
             </div>
             <p className="le-files-hint">
-                CSS and JS files are injected into every page automatically — students see them as file tabs.
+                index.html is the page students see. style.css and script.js are optional extras — click one to add it, remove it with the × on its tab. Everything ships together as one project, shown to students as file tabs.
             </p>
             <div className="le-cm">
                 <CodeMirror

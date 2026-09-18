@@ -1,0 +1,309 @@
+/**
+ * Page-checks builder styles — component-specific, lives with the component.
+ * Shared by the lesson editor, quiz builder and activity editor.
+ */
+
+.hc-box {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 14px;
+    background: var(--db-card-2);
+    border: 1px solid var(--db-border);
+}
+
+.hc-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.hc-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--db-text-2);
+}
+
+.hc-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--db-text-3);
+}
+
+.hc-desc {
+    font-size: 13px;
+    color: var(--db-text-2);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* One check = one card */
+
+.hc-row {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--db-card);
+    border: 1px solid var(--db-border);
+}
+
+.hc-row-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.hc-row-spacer {
+    flex: 1;
+}
+
+.hc-select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding: 9px 34px 9px 13px;
+    border-radius: 10px;
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card-2)
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>")
+        no-repeat right 11px center / 12px;
+    color: var(--db-text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hc-select:focus {
+    border-color: var(--db-accent);
+    box-shadow: 0 0 0 3px var(--db-accent-soft);
+}
+
+.hc-fields {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.hc-input {
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card-2);
+    color: var(--db-text);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hc-input:focus {
+    border-color: var(--db-accent);
+    box-shadow: 0 0 0 3px var(--db-accent-soft);
+}
+
+.hc-input::placeholder {
+    color: var(--db-text-3);
+}
+
+.hc-remove {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    flex: none;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--db-text-3);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.hc-remove:hover {
+    color: var(--db-danger);
+    background: var(--db-danger-soft);
+}
+
+.hc-row-label {
+    font-size: 12.5px;
+    color: var(--db-text-3);
+}
+
+/* Add + actions row */
+
+.hc-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.hc-add {
+    appearance: none;
+    -webkit-appearance: none;
+    padding: 10px 36px 10px 14px;
+    border-radius: 11px;
+    border: 1.5px dashed var(--db-accent-border);
+    background: var(--db-accent-soft)
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23b3a5ff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>")
+        no-repeat right 12px center / 12px;
+    color: var(--db-accent-bright);
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+:root[data-theme='light'] .hc-add {
+    color: var(--db-accent);
+}
+
+.hc-add:hover {
+    border-color: var(--db-accent);
+}
+
+.hc-btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 15px;
+    border-radius: 10px;
+    border: 1px solid var(--db-border-strong);
+    background: transparent;
+    color: var(--db-text-2);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.hc-btn-ghost:hover {
+    color: var(--db-text);
+    border-color: var(--db-text-3);
+}
+
+.hc-btn-ghost:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.hc-btn-test {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 10px;
+    background: var(--db-accent);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.15s ease;
+}
+
+.hc-btn-test:hover {
+    filter: brightness(1.1);
+}
+
+.hc-btn-test:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.hc-hint {
+    font-size: 12.5px;
+    color: var(--db-text-3);
+}
+
+/* Reference page textarea */
+
+.hc-reference {
+    width: 100%;
+    min-height: 84px;
+    resize: vertical;
+    padding: 11px 13px;
+    border-radius: 11px;
+    border: 1px solid var(--db-border);
+    background: var(--db-card);
+    color: var(--db-text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.hc-reference:focus {
+    border-color: var(--db-accent);
+}
+
+.hc-reference::placeholder {
+    color: var(--db-text-3);
+}
+
+/* Test results */
+
+.hc-results {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 13px 15px;
+    border-radius: 12px;
+    background: var(--db-card);
+    border: 1px solid var(--db-border);
+}
+
+.hc-results-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.hc-results-title.pass {
+    color: var(--db-green);
+}
+
+.hc-results-title.fail {
+    color: var(--db-amber);
+}
+
+.hc-result-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 13px;
+    color: var(--db-text-2);
+}
+
+.hc-result-row.pass {
+    color: var(--db-text);
+}
+
+.hc-result-row.fail {
+    color: var(--db-text-2);
+}
+
+.hc-result-detail {
+    font-size: 12px;
+    color: var(--db-danger);
+}

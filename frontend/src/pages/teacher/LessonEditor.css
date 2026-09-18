@@ -173,42 +173,53 @@
     margin: 0 0 20px;
 }
 
-.le-ai-chip {
+.le-ai-toggle {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 9px 14px;
-    border-radius: 11px;
-    border: 1px solid var(--db-border);
-    background: var(--db-card);
-    color: var(--db-text-2);
-    font-size: 13.5px;
+    gap: 7px;
+    border: none;
+    background: transparent;
+    padding: 0;
+    color: var(--db-text-3);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    transition: color 0.15s ease;
 }
 
-.le-ai-chip.on {
-    color: var(--db-accent-bright);
-    border-color: var(--db-accent-border);
-    background: var(--db-accent-soft);
+.le-ai-toggle:hover {
+    color: var(--db-text);
 }
 
-:root[data-theme='light'] .le-ai-chip.on {
-    color: var(--db-accent);
-}
-
-.le-ai-dot {
-    width: 8px;
-    height: 8px;
+.le-ai-switch {
+    position: relative;
+    width: 28px;
+    height: 16px;
+    flex: none;
     border-radius: 999px;
     background: var(--db-border-strong);
     transition: background 0.15s ease;
 }
 
-.le-ai-dot.on {
-    background: var(--db-green);
-    box-shadow: 0 0 6px var(--db-green);
+.le-ai-switch.on {
+    background: var(--db-accent);
+}
+
+.le-ai-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(2, 5, 16, 0.4);
+    transition: transform 0.15s ease;
+}
+
+.le-ai-switch.on .le-ai-knob {
+    transform: translateX(12px);
 }
 
 /* Section inserter — one obvious palette of big, described, clickable cards */
@@ -1072,26 +1083,36 @@
     background: var(--db-card-2);
 }
 
-.le-file-add {
-    padding: 9px 13px;
+.le-file-slot {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 15px;
     border-radius: 9px;
     background: transparent;
-    border: 1px dashed var(--db-border-strong);
-    color: var(--db-text-2);
+    border: 1.5px dashed var(--db-border-strong);
+    color: var(--db-text-3);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 700;
     cursor: pointer;
-    transition: color 0.15s ease, border-color 0.15s ease;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
-.le-file-add:hover {
-    color: var(--db-text);
-    border-color: var(--db-text-3);
+.le-file-slot:hover {
+    color: var(--db-accent-bright);
+    border-color: var(--db-accent-border);
+    background: var(--db-accent-soft);
+}
+
+:root[data-theme='light'] .le-file-slot:hover {
+    color: var(--db-accent);
 }
 
 .le-files-hint {
     font-size: 13px;
+    line-height: 1.5;
+    max-width: 760px;
     color: var(--db-text-3);
     margin: 0 0 8px;
 }

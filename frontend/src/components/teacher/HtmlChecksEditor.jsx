@@ -6,6 +6,7 @@ import {
     injectPreviewBridge,
     newHtmlCheck,
 } from '../../utils/codeLanguages';
+import './HtmlChecksEditor.css';
 
 // let checksFailHarmlessly = true -> placeholder to keep lint quiet when unused
 /**
@@ -90,57 +91,54 @@ export default function HtmlChecksEditor({
     };
 
     return (
-        <div
-            className="rounded-2xl border p-4 flex flex-col gap-3"
-            style={{ borderColor: `${accent}33`, background: `${accent}0a` }}
-        >
-            <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2 font-black text-[10px] uppercase tracking-[0.2em]" style={{ color: accent }}>
+        <div className="hc-box">
+            <div className="hc-head">
+                <span className="hc-title">
                     <FlaskConical size={14} /> {title}
-                </div>
+                </span>
                 {checks.length > 0 && (
-                    <span className="text-[10px] font-bold text-slate-400">
+                    <span className="hc-count">
                         {checks.length} check{checks.length !== 1 ? 's' : ''} · all must pass
                     </span>
                 )}
             </div>
 
-            <p className="text-[10px] text-slate-500 font-medium" style={{ margin: 0 }}>
+            <p className="hc-desc">
                 Checks run in the student's browser against the page they build —
                 the parts on it, the words in it, and the colors and sizes of things.
                 Every check must pass to complete the challenge.
             </p>
 
             {checks.map((check, index) => (
-                <div key={check.id || index} className="rounded-xl border border-white/10 bg-black/20 p-3 flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
+                <div key={check.id || index} className="hc-row">
+                    <div className="hc-row-top">
                         <select
                             value={check.kind}
                             onChange={(e) => update(index, { ...newHtmlCheck(e.target.value), id: check.id })}
-                            className="bg-black/40 border border-white/10 rounded-lg text-[11px] font-bold px-2 py-1.5 text-white/90 outline-none"
+                            className="hc-select"
                         >
                             {CHECK_KINDS.map((k) => (
                                 <option key={k.id} value={k.id}>{k.label}</option>
                             ))}
                         </select>
-                        <div className="flex-1" />
+                        <div className="hc-row-spacer" />
                         <button
                             type="button"
                             onClick={() => remove(index)}
-                            className="text-rose-400/80 hover:text-rose-300 p-1"
-                            title="Remove check"
+                            className="hc-remove"
+                            title="Remove this check"
                         >
                             <Trash2 size={13} />
                         </button>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 items-center">
+                    <div className="hc-fields">
                         {needsField(check.kind, 'selector') && (
                             <input
                                 value={check.selector || ''}
                                 onChange={(e) => update(index, { selector: e.target.value })}
                                 placeholder="CSS selector (e.g. #title, ul li)"
-                                className="bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white/90 outline-none w-52"
+                                className="hc-input w-52"
                             />
                         )}
                         {needsField(check.kind, 'count') && (
@@ -149,7 +147,7 @@ export default function HtmlChecksEditor({
                                 min="1"
                                 value={check.count ?? 1}
                                 onChange={(e) => update(index, { count: Number(e.target.value) || 1 })}
-                                className="bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white/90 outline-none w-16"
+                                className="hc-input w-16"
                                 title="Minimum count"
                             />
                         )}
@@ -158,7 +156,7 @@ export default function HtmlChecksEditor({
                                 value={check.attribute || ''}
                                 onChange={(e) => update(index, { attribute: e.target.value })}
                                 placeholder="attribute (href)"
-                                className="bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white/90 outline-none w-32"
+                                className="hc-input w-32"
                             />
                         )}
                         {needsField(check.kind, 'property') && (
@@ -166,14 +164,14 @@ export default function HtmlChecksEditor({
                                 value={check.property || ''}
                                 onChange={(e) => update(index, { property: e.target.value })}
                                 placeholder="CSS property (color)"
-                                className="bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white/90 outline-none w-32"
+                                className="hc-input w-32"
                             />
                         )}
                         {needsField(check.kind, 'match') && (
                             <select
                                 value={check.match || 'contains'}
                                 onChange={(e) => update(index, { match: e.target.value })}
-                                className="bg-black/40 border border-white/10 rounded-lg text-[11px] font-bold px-2 py-1.5 text-white/90 outline-none"
+                                className="hc-select"
                             >
                                 <option value="contains">contains</option>
                                 <option value="equals">equals</option>
@@ -184,7 +182,7 @@ export default function HtmlChecksEditor({
                                 value={check.text || ''}
                                 onChange={(e) => update(index, { text: e.target.value })}
                                 placeholder="expected text"
-                                className="bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white/90 outline-none flex-1 min-w-40"
+                                className="hc-input flex-1 min-w-40"
                             />
                         )}
                         {needsField(check.kind, 'value') && (
@@ -192,22 +190,22 @@ export default function HtmlChecksEditor({
                                 value={check.value || ''}
                                 onChange={(e) => update(index, { value: e.target.value })}
                                 placeholder={check.kind === 'style' ? 'expected value (e.g. red)' : 'expected value'}
-                                className="bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white/90 outline-none flex-1 min-w-40"
+                                className="hc-input flex-1 min-w-40"
                             />
                         )}
                     </div>
 
-                    <div className="text-[10px] text-slate-500 font-medium">{htmlCheckLabel(check)}</div>
+                    <div className="hc-row-label">{htmlCheckLabel(check)}</div>
                 </div>
             ))}
 
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="hc-actions">
                 <select
                     value=""
                     onChange={(e) => { if (e.target.value) onChange([...checks, newHtmlCheck(e.target.value)]); }}
-                    className="bg-black/40 border border-white/10 rounded-lg text-[11px] font-bold px-2 py-1.5 text-white/80 outline-none"
+                    className="hc-add"
                 >
-                    <option value="">+ Add check…</option>
+                    <option value="">+ Add a check…</option>
                     {CHECK_KINDS.map((k) => (
                         <option key={k.id} value={k.id}>{k.label}</option>
                     ))}
@@ -218,7 +216,7 @@ export default function HtmlChecksEditor({
                         type="button"
                         onClick={() => { onReferenceChange(reference); setSavedReference(reference); }}
                         disabled={reference === savedReference}
-                        className="text-[10px] font-bold uppercase tracking-wider px-2 py-1.5 rounded-lg border border-white/10 text-slate-300 disabled:opacity-40"
+                        className="hc-btn-ghost"
                         title="Save this page as your reference solution"
                     >
                         Save Reference Page
@@ -229,15 +227,14 @@ export default function HtmlChecksEditor({
                     type="button"
                     onClick={runTests}
                     disabled={checks.length === 0 || !reference.trim() || testState === 'running'}
-                    className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg text-white disabled:opacity-40"
-                    style={{ background: accent }}
+                    className="hc-btn-test"
                     title={reference.trim() ? 'Run the checks against the reference page' : 'Add a reference page first'}
                 >
                     {testState === 'running' ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
                     Test page checks
                 </button>
                 {checks.length === 0 && (
-                    <span className="text-[10px] font-medium" style={{ color: 'var(--db-text-3)' }}>
+                    <span className="hc-hint">
                         Add a check first, then test.
                     </span>
                 )}
@@ -248,22 +245,22 @@ export default function HtmlChecksEditor({
                     value={reference}
                     onChange={(e) => setReference(e.target.value)}
                     placeholder="Your reference page (full HTML) — used by “Test page checks”, not shown to students."
-                    className="bg-black/40 border border-white/10 rounded-xl p-2 font-mono text-[11px] text-white/80 outline-none min-h-20"
+                    className="hc-reference"
                 />
             )}
 
             {Array.isArray(testState) && (
-                <div className="rounded-xl border border-white/10 bg-black/30 p-3 flex flex-col gap-1.5">
-                    <div className={`text-[10px] font-black uppercase tracking-wider ${testState.every((r) => r.passed) ? 'text-emerald-400' : 'text-amber-400'}`}>
+                <div className="hc-results">
+                    <div className={`hc-results-title ${testState.every((r) => r.passed) ? 'pass' : 'fail'}`}>
                         {testState.filter((r) => r.passed).length}/{testState.length} checks pass on the reference page
                     </div>
                     {testState.map((r, i) => (
-                        <div key={r.id || i} className="flex items-center gap-2 text-[11px]">
+                        <div key={r.id || i} className={`hc-result-row ${r.passed ? 'pass' : 'fail'}`}>
                             {r.passed ? <CheckCircle2 size={13} className="text-emerald-400" /> : <XCircle size={13} className="text-rose-400" />}
-                            <span className={r.passed ? 'text-white/80' : 'text-white/60'}>
+                            <span>
                                 {r.label || htmlCheckLabel(checks[i] || {})}
                             </span>
-                            {!r.passed && r.detail && <span className="text-rose-300/80 text-[10px]">— {r.detail}</span>}
+                            {!r.passed && r.detail && <span className="hc-result-detail">— {r.detail}</span>}
                         </div>
                     ))}
                 </div>
