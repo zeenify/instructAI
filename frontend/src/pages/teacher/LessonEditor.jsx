@@ -72,12 +72,12 @@ function lessonMinutes(blocks) {
 }
 
 const BLOCK_TYPES = [
-    { type: 'h1', icon: Heading1, label: 'Heading' },
-    { type: 'text', icon: Type, label: 'Text' },
-    { type: 'code', icon: Code, label: 'Code' },
-    { type: 'image', icon: ImageIcon, label: 'Image' },
-    { type: 'video', icon: Video, label: 'YouTube' },
-    { type: 'link', icon: LinkIcon, label: 'Link' },
+    { type: 'h1', icon: Heading1, label: 'Heading', sub: 'Big section title' },
+    { type: 'text', icon: Type, label: 'Text', sub: 'Paragraphs & lists' },
+    { type: 'code', icon: Code, label: 'Code', sub: 'Students code here' },
+    { type: 'image', icon: ImageIcon, label: 'Image', sub: 'Upload a picture' },
+    { type: 'video', icon: Video, label: 'YouTube', sub: 'Embed a video' },
+    { type: 'link', icon: LinkIcon, label: 'Link', sub: 'External resource' },
 ];
 
 export default function LessonEditor() {
@@ -446,15 +446,18 @@ export default function LessonEditor() {
                 <p className="le-hint">Click any text to edit it — everything saves automatically as you type.</p>
             )}
 
-            {/* BLOCK INSERTER — reachable at the top, repeated after the last block */}
+            {/* SECTION INSERTER — one obvious palette: what it adds, in plain words */}
             {!preview && (
                 <div className="le-insert">
-                    <span className="le-insert-label">Add a section</span>
-                    <div className="le-insert-row">
-                        {BLOCK_TYPES.map(({ type, icon: Icon, label }) => (
-                            <button key={type} type="button" className="le-insert-chip" onClick={() => addBlock(type)}>
-                                <Icon size={15} />
-                                {label}
+                    <span className="le-insert-label">Add a section to this lesson</span>
+                    <div className="le-insert-grid">
+                        {BLOCK_TYPES.map(({ type, icon: Icon, label, sub }) => (
+                            <button key={type} type="button" className="le-insert-card" onClick={() => addBlock(type)}>
+                                <span className="le-insert-icon"><Icon size={19} /></span>
+                                <span className="le-insert-text">
+                                    <span className="le-insert-name">{label}</span>
+                                    <span className="le-insert-sub">{sub}</span>
+                                </span>
                             </button>
                         ))}
                     </div>
@@ -499,19 +502,6 @@ export default function LessonEditor() {
                 </Reorder.Group>
             )}
 
-            {!preview && blocks.length > 0 && (
-                <div className="le-insert le-insert-bottom">
-                    <span className="le-insert-label">Add another section</span>
-                    <div className="le-insert-row">
-                        {BLOCK_TYPES.map(({ type, icon: Icon, label }) => (
-                            <button key={type} type="button" className="le-insert-chip" onClick={() => addBlock(type)}>
-                                <Icon size={15} />
-                                {label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
