@@ -79,8 +79,8 @@ function CountCard({ icon, label, value, color }) {
   return (
     <div
       style={{
-        backgroundColor: "var(--bg-secondary)",
-        border: "1px solid var(--border-color)",
+        backgroundColor: "var(--db-card)",
+        border: "1px solid var(--db-border)",
         borderRadius: "12px",
         padding: "16px",
         display: "flex",
@@ -101,7 +101,7 @@ function CountCard({ icon, label, value, color }) {
           style={{
             fontSize: "13px",
             fontWeight: "600",
-            color: "var(--text-secondary)",
+            color: "var(--db-text-2)",
           }}
         >
           {label}
@@ -111,7 +111,7 @@ function CountCard({ icon, label, value, color }) {
         style={{
           fontSize: "28px",
           fontWeight: "700",
-          color: "var(--text-primary)",
+          color: "var(--db-text)",
           letterSpacing: "-0.02em",
         }}
       >
@@ -210,8 +210,8 @@ function TeacherPacingControls({
   return (
     <div
       style={{
-        backgroundColor: "var(--bg-secondary)",
-        border: "1px solid var(--border-color)",
+        backgroundColor: "var(--db-card)",
+        border: "1px solid var(--db-border)",
         borderRadius: "12px",
         padding: "20px",
         marginBottom: "28px",
@@ -276,15 +276,15 @@ function TeacherPacingControls({
             flex: 1,
             minWidth: "220px",
             padding: "14px 16px",
-            backgroundColor: "var(--bg-primary)",
+            backgroundColor: "var(--db-canvas)",
             borderRadius: "10px",
-            border: "1px solid var(--border-color)",
+            border: "1px solid var(--db-border)",
           }}
         >
           <p
             style={{
               fontSize: "12px",
-              color: "var(--text-tertiary)",
+              color: "var(--db-text-3)",
               margin: "0 0 6px",
               textTransform: "uppercase",
               letterSpacing: "0.06em",
@@ -300,7 +300,7 @@ function TeacherPacingControls({
           <p
             style={{
               fontSize: "13px",
-              color: "var(--text-secondary)",
+              color: "var(--db-text-2)",
               margin: "6px 0 0",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -334,15 +334,15 @@ function TeacherPacingControls({
             flex: 1,
             minWidth: "220px",
             padding: "14px 16px",
-            backgroundColor: "var(--bg-primary)",
+            backgroundColor: "var(--db-canvas)",
             borderRadius: "10px",
-            border: "1px solid var(--border-color)",
+            border: "1px solid var(--db-border)",
           }}
         >
           <p
             style={{
               fontSize: "12px",
-              color: "var(--text-tertiary)",
+              color: "var(--db-text-3)",
               margin: "0 0 6px",
               textTransform: "uppercase",
               letterSpacing: "0.06em",
@@ -385,7 +385,7 @@ function TeacherPacingControls({
             <p
               style={{
                 fontSize: "14px",
-                color: "var(--text-tertiary)",
+                color: "var(--db-text-3)",
                 margin: 0,
               }}
             >
@@ -477,10 +477,10 @@ const controlBtn = {
   alignItems: "center",
   gap: "8px",
   padding: "10px 18px",
-  backgroundColor: "var(--bg-primary)",
-  border: "1px solid var(--border-color)",
+  backgroundColor: "var(--db-canvas)",
+  border: "1px solid var(--db-border)",
   borderRadius: "8px",
-  color: "var(--text-secondary)",
+  color: "var(--db-text-2)",
   fontWeight: "600",
   fontSize: "14px",
   cursor: "pointer",
@@ -659,8 +659,8 @@ export default function LiveQuizMonitor() {
     <div
       style={{
         minHeight: "100vh",
-        backgroundColor: "var(--bg-primary)",
-        color: "var(--text-primary)",
+        backgroundColor: "var(--db-canvas)",
+        color: "var(--db-text)",
         transition: "all 0.3s ease",
       }}
     >
@@ -682,10 +682,10 @@ export default function LiveQuizMonitor() {
             alignItems: "center",
             gap: "8px",
             padding: "10px 16px",
-            backgroundColor: "var(--bg-secondary)",
-            border: "1px solid var(--border-color)",
+            backgroundColor: "var(--db-card)",
+            border: "1px solid var(--db-border)",
             borderRadius: "8px",
-            color: "var(--text-secondary)",
+            color: "var(--db-text-2)",
             fontWeight: "500",
             fontSize: "14px",
             cursor: "pointer",
@@ -723,7 +723,7 @@ export default function LiveQuizMonitor() {
               minHeight: "300px",
               flexDirection: "column",
               gap: "12px",
-              color: "var(--text-tertiary)",
+              color: "var(--db-text-3)",
             }}
           >
             <RotateCw size={32} className="animate-spin" />
@@ -853,7 +853,7 @@ export default function LiveQuizMonitor() {
                 <p
                   style={{
                     fontSize: "15px",
-                    color: "var(--text-secondary)",
+                    color: "var(--db-text-2)",
                     margin: 0,
                   }}
                 >
@@ -987,9 +987,9 @@ export default function LiveQuizMonitor() {
                       gap: "8px",
                       padding: "12px 20px",
                       borderRadius: "8px",
-                      backgroundColor: "var(--bg-secondary)",
-                      border: "1px solid var(--border-color)",
-                      color: "var(--text-tertiary)",
+                      backgroundColor: "var(--db-card)",
+                      border: "1px solid var(--db-border)",
+                      color: "var(--db-text-3)",
                       fontWeight: "600",
                       fontSize: "14px",
                     }}
@@ -1013,7 +1013,7 @@ export default function LiveQuizMonitor() {
                 icon={Users}
                 label="Enrolled"
                 value={counts.enrolled ?? 0}
-                color="var(--text-secondary)"
+                color="var(--db-text-2)"
               />
               <CountCard
                 icon={Activity}
@@ -1061,8 +1061,8 @@ export default function LiveQuizMonitor() {
 
             <div
               style={{
-                backgroundColor: "var(--bg-secondary)",
-                border: "1px solid var(--border-color)",
+                backgroundColor: "var(--db-card)",
+                border: "1px solid var(--db-border)",
                 borderRadius: "12px",
                 overflow: "hidden",
               }}
@@ -1070,7 +1070,7 @@ export default function LiveQuizMonitor() {
               <div
                 style={{
                   padding: "16px 20px",
-                  borderBottom: "1px solid var(--border-color)",
+                  borderBottom: "1px solid var(--db-border)",
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
@@ -1082,7 +1082,7 @@ export default function LiveQuizMonitor() {
                 <span
                   style={{
                     fontSize: "13px",
-                    color: "var(--text-tertiary)",
+                    color: "var(--db-text-3)",
                     display: "inline-flex",
                     alignItems: "center",
                     gap: "6px",
@@ -1098,7 +1098,7 @@ export default function LiveQuizMonitor() {
                   style={{
                     padding: "48px 20px",
                     textAlign: "center",
-                    color: "var(--text-tertiary)",
+                    color: "var(--db-text-3)",
                   }}
                 >
                   <Users
@@ -1121,7 +1121,7 @@ export default function LiveQuizMonitor() {
                     <thead>
                       <tr
                         style={{
-                          borderBottom: "1px solid var(--border-color)",
+                          borderBottom: "1px solid var(--db-border)",
                         }}
                       >
                         {[
@@ -1142,7 +1142,7 @@ export default function LiveQuizMonitor() {
                               fontWeight: "600",
                               textTransform: "uppercase",
                               letterSpacing: "0.06em",
-                              color: "var(--text-tertiary)",
+                              color: "var(--db-text-3)",
                             }}
                           >
                             {h}
@@ -1159,7 +1159,7 @@ export default function LiveQuizMonitor() {
                             key={row.student?.id}
                             onClick={() => openDetails(row)}
                             style={{
-                              borderBottom: "1px solid var(--border-color)",
+                              borderBottom: "1px solid var(--db-border)",
                               cursor: "pointer",
                               transition: "background 150ms ease-in-out",
                               backgroundColor:
@@ -1223,7 +1223,7 @@ export default function LiveQuizMonitor() {
                               style={{
                                 padding: "14px 16px",
                                 fontSize: "13px",
-                                color: "var(--text-secondary)",
+                                color: "var(--db-text-2)",
                               }}
                             >
                               {formatClock(row.started_at)}
@@ -1236,7 +1236,7 @@ export default function LiveQuizMonitor() {
                                   row.idle_seconds !== null &&
                                   row.idle_seconds > 15
                                     ? "#f59e0b"
-                                    : "var(--text-secondary)",
+                                    : "var(--db-text-2)",
                                 fontWeight:
                                   row.idle_seconds !== null &&
                                   row.idle_seconds > 15
@@ -1250,7 +1250,7 @@ export default function LiveQuizMonitor() {
                               style={{
                                 padding: "14px 16px",
                                 fontSize: "13px",
-                                color: "var(--text-secondary)",
+                                color: "var(--db-text-2)",
                               }}
                             >
                               {row.status === "taking"
@@ -1261,7 +1261,7 @@ export default function LiveQuizMonitor() {
                               style={{
                                 padding: "14px 16px",
                                 fontSize: "13px",
-                                color: "var(--text-secondary)",
+                                color: "var(--db-text-2)",
                               }}
                             >
                               {row.submission_id
@@ -1276,7 +1276,7 @@ export default function LiveQuizMonitor() {
                                 color:
                                   row.status === "submitted"
                                     ? "#8b5cf6"
-                                    : "var(--text-tertiary)",
+                                    : "var(--db-text-3)",
                               }}
                             >
                               {row.status === "submitted"
@@ -1291,7 +1291,7 @@ export default function LiveQuizMonitor() {
                             >
                               <ChevronRight
                                 size={16}
-                                color="var(--text-tertiary)"
+                                color="var(--db-text-3)"
                               />
                             </td>
                           </tr>
@@ -1308,7 +1308,7 @@ export default function LiveQuizMonitor() {
                 textAlign: "center",
                 marginTop: "16px",
                 fontSize: "12px",
-                color: "var(--text-tertiary)",
+                color: "var(--db-text-3)",
               }}
             >
               Last refresh{" "}
@@ -1332,8 +1332,8 @@ export default function LiveQuizMonitor() {
           >
             <div
               style={{
-                backgroundColor: "var(--bg-secondary)",
-                border: "1px solid var(--border-color)",
+                backgroundColor: "var(--db-card)",
+                border: "1px solid var(--db-border)",
                 borderRadius: "12px",
                 padding: "28px",
                 maxWidth: "440px",
@@ -1356,7 +1356,7 @@ export default function LiveQuizMonitor() {
               <p
                 style={{
                   fontSize: "14px",
-                  color: "var(--text-secondary)",
+                  color: "var(--db-text-2)",
                   marginBottom: "24px",
                   lineHeight: 1.6,
                 }}
@@ -1378,9 +1378,9 @@ export default function LiveQuizMonitor() {
                   style={{
                     padding: "10px 16px",
                     backgroundColor: "transparent",
-                    border: "1px solid var(--border-color)",
+                    border: "1px solid var(--db-border)",
                     borderRadius: "8px",
-                    color: "var(--text-secondary)",
+                    color: "var(--db-text-2)",
                     fontSize: "14px",
                     fontWeight: "600",
                     cursor: "pointer",
@@ -1418,8 +1418,8 @@ export default function LiveQuizMonitor() {
               right: 0,
               bottom: 0,
               width: "min(420px, 100vw)",
-              backgroundColor: "var(--bg-secondary)",
-              borderLeft: "1px solid var(--border-color)",
+              backgroundColor: "var(--db-card)",
+              borderLeft: "1px solid var(--db-border)",
               zIndex: 90,
               display: "flex",
               flexDirection: "column",
@@ -1429,7 +1429,7 @@ export default function LiveQuizMonitor() {
             <div
               style={{
                 padding: "20px",
-                borderBottom: "1px solid var(--border-color)",
+                borderBottom: "1px solid var(--db-border)",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "flex-start",
@@ -1440,7 +1440,7 @@ export default function LiveQuizMonitor() {
                 <p
                   style={{
                     fontSize: "12px",
-                    color: "var(--text-tertiary)",
+                    color: "var(--db-text-3)",
                     textTransform: "uppercase",
                     letterSpacing: "0.06em",
                     margin: "0 0 4px",
@@ -1464,7 +1464,7 @@ export default function LiveQuizMonitor() {
                 style={{
                   background: "transparent",
                   border: "none",
-                  color: "var(--text-tertiary)",
+                  color: "var(--db-text-3)",
                   cursor: "pointer",
                   padding: "4px",
                 }}
@@ -1478,7 +1478,7 @@ export default function LiveQuizMonitor() {
                 <div
                   style={{
                     textAlign: "center",
-                    color: "var(--text-tertiary)",
+                    color: "var(--db-text-3)",
                     paddingTop: "48px",
                   }}
                 >
@@ -1502,7 +1502,7 @@ export default function LiveQuizMonitor() {
                   <RotateCw
                     size={28}
                     className="animate-spin"
-                    color="var(--text-tertiary)"
+                    color="var(--db-text-3)"
                   />
                 </div>
               ) : progress ? (
@@ -1518,15 +1518,15 @@ export default function LiveQuizMonitor() {
                     <div
                       style={{
                         padding: "14px",
-                        backgroundColor: "var(--bg-primary)",
+                        backgroundColor: "var(--db-canvas)",
                         borderRadius: "10px",
-                        border: "1px solid var(--border-color)",
+                        border: "1px solid var(--db-border)",
                       }}
                     >
                       <p
                         style={{
                           fontSize: "12px",
-                          color: "var(--text-tertiary)",
+                          color: "var(--db-text-3)",
                           margin: "0 0 4px",
                         }}
                       >
@@ -1545,15 +1545,15 @@ export default function LiveQuizMonitor() {
                     <div
                       style={{
                         padding: "14px",
-                        backgroundColor: "var(--bg-primary)",
+                        backgroundColor: "var(--db-canvas)",
                         borderRadius: "10px",
-                        border: "1px solid var(--border-color)",
+                        border: "1px solid var(--db-border)",
                       }}
                     >
                       <p
                         style={{
                           fontSize: "12px",
-                          color: "var(--text-tertiary)",
+                          color: "var(--db-text-3)",
                           margin: "0 0 4px",
                         }}
                       >
@@ -1575,7 +1575,7 @@ export default function LiveQuizMonitor() {
                   <p
                     style={{
                       fontSize: "12px",
-                      color: "var(--text-tertiary)",
+                      color: "var(--db-text-3)",
                       textTransform: "uppercase",
                       letterSpacing: "0.06em",
                       margin: "0 0 12px",
@@ -1598,12 +1598,12 @@ export default function LiveQuizMonitor() {
                           alignItems: "center",
                           gap: "12px",
                           padding: "12px 14px",
-                          backgroundColor: "var(--bg-primary)",
+                          backgroundColor: "var(--db-canvas)",
                           borderRadius: "10px",
-                          border: "1px solid var(--border-color)",
+                          border: "1px solid var(--db-border)",
                           borderColor: q.is_current
                             ? "#10b981"
-                            : "var(--border-color)",
+                            : "var(--db-border)",
                           boxShadow: q.is_current
                             ? "0 0 0 1px rgba(16,185,129,0.4)"
                             : "none",
@@ -1619,7 +1619,7 @@ export default function LiveQuizMonitor() {
                               : "rgba(148,163,184,0.1)",
                             color: q.answered
                               ? "#10b981"
-                              : "var(--text-tertiary)",
+                              : "var(--db-text-3)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -1646,7 +1646,7 @@ export default function LiveQuizMonitor() {
                           <p
                             style={{
                               fontSize: "12px",
-                              color: "var(--text-tertiary)",
+                              color: "var(--db-text-3)",
                               margin: "2px 0 0",
                             }}
                           >
@@ -1714,7 +1714,7 @@ export default function LiveQuizMonitor() {
                         <span
                           style={{
                             fontSize: "14px",
-                            color: "var(--text-tertiary)",
+                            color: "var(--db-text-3)",
                           }}
                         >
                           / {progress.max_score ?? "—"}
@@ -1727,7 +1727,7 @@ export default function LiveQuizMonitor() {
                 <div
                   style={{
                     textAlign: "center",
-                    color: "var(--text-tertiary)",
+                    color: "var(--db-text-3)",
                     paddingTop: "48px",
                   }}
                 >
