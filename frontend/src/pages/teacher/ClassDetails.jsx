@@ -145,7 +145,13 @@ export default function ClassDetails() {
                     {toGrade > 0 && (
                         <>
                             <span className="cd-hero-stats-dot">&middot;</span>
-                            <span className="cd-hero-stats-grade">{toGrade} to grade</span>
+                            <button type="button" className="cd-hero-stats-grade" style={{
+                                background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
+                                font: 'inherit', color: 'inherit',
+                            }} onClick={() => navigate('/dashboard/teacher/grading')}
+                                title="Open the grading inbox">
+                                {toGrade} to grade
+                            </button>
                         </>
                     )}
                 </p>

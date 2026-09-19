@@ -199,6 +199,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/teacher/classes/{classId}/courses/{courseId}/analytics/content-engagement', [AnalyticsController::class, 'getContentEngagement']);
 
     // ── Classwork / Activities (Standalone assessments, quizzes, assignments) ──
+    Route::get('/teacher/grading-queue', [ClassActivityController::class, 'gradingQueue']);
     Route::get('/teacher/classes/{classId}/activities', [ClassActivityController::class, 'index']);
     Route::post('/teacher/classes/{classId}/activities', [ClassActivityController::class, 'store']);
     Route::get('/teacher/activities/{id}', [ClassActivityController::class, 'show']);

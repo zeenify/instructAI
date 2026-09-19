@@ -2,14 +2,16 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useClasses } from '../../context/ClassContext';
-import { LayoutDashboard, LogOut, Plus, ChevronRight, PanelLeftClose, Menu } from 'lucide-react';
+import { LayoutDashboard, ClipboardCheck, LogOut, Plus, ChevronRight, PanelLeftClose, Menu } from 'lucide-react';
 import ThemeToggle from '../ui/ThemeToggle';
+import { useGradingQueue } from '../../queries/grading';
 import CreateClassModal, { OPEN_CREATE_CLASS } from '../teacher/CreateClassModal';
 import '../../styles/dashboard.css';
 
 export default function TeacherLayout() {
     const { user, logout } = useAuth();
     const { classes, loading } = useClasses();
+    const { data: gradingQueue = [] } = useGradingQueue();
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -38,10 +40,11 @@ export default function TeacherLayout() {
         navigate('/login');
     };
 
-    const NavLink = ({ to, icon: Icon, label }) => (
+    const NavLink = ({ to, icon: Icon, label, badge = 0 }) => (
         <Link to={to} className={`db-nav-item ${location.pathname === to ? 'active' : ''}`}>
             <Icon size={18} />
             <span>{label}</span>
+            {badge > 0 && <span className="db-nav-badge">{badge > 99 ? '99+' : badge}</span>}
         </Link>
     );
 
@@ -107,6 +110,7 @@ export default function TeacherLayout() {
                 <div className="db-side-label">Management</div>
                 <nav style={{ display: 'flex', flexDirection: 'column' }}>
                     <NavLink to="/dashboard/teacher" icon={LayoutDashboard} label="Overview" />
+                    <NavLink to="/dashboard/teacher/grading" icon={ClipboardCheck} label="To grade" badge={gradingQueue.length} />
                     <div style={{ marginTop: '8px', padding: '0 4px' }}>
                         <ThemeToggle variant="dark-panel" />
                     </div>

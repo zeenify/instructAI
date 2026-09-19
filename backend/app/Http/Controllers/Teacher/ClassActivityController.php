@@ -19,6 +19,36 @@ use Illuminate\Support\Facades\DB;
 
 class ClassActivityController extends Controller
 {
+    // GET /api/teacher/grading-queue — every submitted-but-ungraded submission
+    // across the teacher's classes, newest first (the sidebar "To grade" inbox)
+    public function gradingQueue(Request $request)
+    {
+        $classIds = Classroom::where('teacher_id', auth()->id())->pluck('id');
+
+        $submissions = ActivitySubmission::whereIn('activity_id',
+                ClassActivity::whereIn('class_id', $classIds)->where('is_published', true)->pluck('id'))
+            ->where('status', 'submitted')
+            ->with([
+                'activity:id,class_id,title,activity_type,submission_type,deadline_at',
+                'student:id,email,avatar',
+                'student.studentProfile',
+            ])
+            ->orderBy('submitted_at', 'desc')
+            ->get();
+
+        $classNames = Classroom::whereIn('id', $classIds)->pluck('name', 'id');
+
+        $submissions->each(function ($s) use ($classNames) {
+            $profile = $s->student?->studentProfile;
+            $s->student_name = $profile
+                ? trim($profile->first_name . ' ' . $profile->last_name)
+                : ($s->student?->email ?? 'Unknown');
+            $s->class_name = $classNames[$s->activity->class_id] ?? '';
+            $s->avatar = $s->student?->avatar;
+        });
+
+        return response()->json($submissions);
+    }
     private function cloudinary(): ?UploadApi
     {
         $cloudName = env('CLOUDINARY_CLOUD_NAME');

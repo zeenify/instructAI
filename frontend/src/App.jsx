@@ -21,6 +21,7 @@ import QuizBuilder from './pages/teacher/QuizBuilder';
 import ActivityEditor from './pages/teacher/ActivityEditor';
 import ActivityGrading from './pages/teacher/ActivityGrading';
 import LiveQuizMonitor from './pages/teacher/LiveQuizMonitor';
+import GradingQueue from './pages/teacher/GradingQueue';
 import ActivityResults from './pages/teacher/ActivityResults';
 
 // Admin Pages
@@ -96,6 +97,7 @@ function App() {
             } 
           >
             <Route index element={<TeacherOverview />} />
+            <Route path="grading" element={<GradingQueue />} />
             <Route path="students" element={<div>Students Page</div>} />
             <Route path="classes/new" element={<CreateClass />} />
             <Route path="class/:id" element={<ClassDetails />} />
