@@ -690,9 +690,11 @@ export default function CourseBuilder({
             formData.append('pacing', params.pacing);
             if (file) formData.append('file', file);
 
-            // Fetch with correct base URL
-            const baseURL = import.meta.env.VITE_API_URL || 'http://instructai.test/api';
-            const response = await fetch(`${baseURL}/teacher/courses/${id}/ai-generate`, {
+            // Streams hit the dedicated relay server (a second PHP process):
+            // the single-worker dev server would block every save behind the
+            // generation otherwise
+            const streamBase = import.meta.env.VITE_AI_RELAY_URL || import.meta.env.VITE_API_URL || 'http://instructai.test/api';
+            const response = await fetch(`${streamBase}/teacher/courses/${id}/ai-generate`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -990,7 +992,7 @@ export default function CourseBuilder({
             const baseURL = import.meta.env.VITE_API_URL || 'http://instructai.test/api';
 
             // Convert to streaming response
-            const fetchResponse = await fetch(`${baseURL}/teacher/courses/${id}/ai-generate-content`, {
+            const fetchResponse = await fetch(`${streamBase}/teacher/courses/${id}/ai-generate-content`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,

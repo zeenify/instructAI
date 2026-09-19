@@ -120,7 +120,13 @@ on student Modules tab already shipped.
 ## Environment gotchas
 
 - Backend needs **PHP 8.4+** — use Herd (`C:/Users/EDRICK/.config/herd/bin/php.bat`);
-  XAMPP's 8.2 fails Composer's platform check. Run: `php artisan serve --port=8000`.
+    XAMPP's 8.2 fails Composer's platform check. Run: `php artisan serve --port=8000`.
+    - **Two backend servers in dev** (artisan serve = 1 worker on Windows, so a
+      live AI stream blocks every other request): run a second one with
+      `php artisan serve --port=8010` and set `VITE_AI_RELAY_URL=http://localhost:8010/api`
+      in `frontend/.env.local` — the AI stream calls use it, saves stay instant.
+      Production (php-fpm) doesn't need this; unset there the fallback is the
+      normal API URL.
 - Frontend dev API URL is pinned in `frontend/.env.local`
   (`VITE_API_URL=http://localhost:8000/api`, gitignored). The committed `.env`
   still points at `instructai.test` (currently not served).

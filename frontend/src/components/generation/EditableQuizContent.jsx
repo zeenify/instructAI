@@ -335,7 +335,7 @@ function QuestionCard({ question, index, total, onChange, onMove, onDelete }) {
     >
       {typeof index === 'number' && (
         <div
-          className="group-hover/tools:flex hidden items-center gap-1"
+          className="flex items-center gap-1"
           style={{ position: 'absolute', top: -13, left: 14, zIndex: 12, padding: 3, borderRadius: 9, background: 'var(--db-card)', border: '1px solid var(--db-border)', boxShadow: 'var(--db-shadow-soft)' }}
           onMouseLeave={() => setConfirmDelete(false)}
         >

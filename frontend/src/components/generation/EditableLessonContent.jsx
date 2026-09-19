@@ -296,10 +296,10 @@ export default function EditableLessonContent({ lesson, onBlocksChange, courseLa
 
                     const tools = editable && (
                         <div
-                            className="group-hover/tools:flex hidden items-center gap-1"
+                            className="flex items-center gap-1"
                             style={{ position: 'absolute', top: -13, right: 0, zIndex: 12, padding: 3, borderRadius: 9, background: 'var(--db-card)', border: '1px solid var(--db-border)', boxShadow: 'var(--db-shadow-soft)' }}
-                            onMouseLeave={() => { }}
                         >
+                            <ToolBtn title="Edit this block" onClick={() => editable && setEditingIdx(idx)}><Pencil size={13} /></ToolBtn>
                             <ToolBtn title="Move up" disabled={idx === 0} onClick={() => moveBlock(idx, -1)}><ArrowUp size={13} /></ToolBtn>
                             <ToolBtn title="Move down" disabled={idx === blocks.length - 1} onClick={() => moveBlock(idx, 1)}><ArrowDown size={13} /></ToolBtn>
                             <DeleteBtn onConfirm={() => removeBlock(idx)} />
