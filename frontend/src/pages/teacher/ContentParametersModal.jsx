@@ -61,15 +61,13 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
     if (!isOpen) return null;
 
     const distributionOptions = hasProgrammingContent ? [
-        { value: 'balanced', label: 'Balanced', detail: '40 · 20 · 20 · 10 · 10' },
-        { value: 'coding_heavy', label: 'Coding-heavy', detail: '20 · 10 · 10 · 5 · 55' },
-        { value: 'theory_focused', label: 'Theory-focused', detail: '50 · 25 · 20 · 5 · 0' },
-        { value: 'non_coding', label: 'Non-coding', detail: '40 · 25 · 25 · 10 · 0' },
-        { value: 'custom', label: 'Custom', detail: 'set your own mix' },
+        { value: 'balanced', label: 'A mix of everything', detail: '40 · 20 · 20 · 10 · 10' },
+        { value: 'coding_heavy', label: 'Mostly coding', detail: '20 · 10 · 10 · 5 · 55' },
+        { value: 'non_coding', label: 'No coding', detail: '40 · 25 · 25 · 10 · 0' },
+        { value: 'custom', label: "I'll set the mix", detail: 'adjust percentages yourself' },
     ] : [
-        { value: 'theory_focused', label: 'Theory-focused', detail: '50 · 25 · 20 · 5 · 0' },
-        { value: 'non_coding', label: 'Non-coding', detail: '40 · 25 · 25 · 10 · 0' },
-        { value: 'custom', label: 'Custom', detail: 'coding locked to 0%' },
+        { value: 'non_coding', label: 'No coding', detail: '40 · 25 · 25 · 10 · 0' },
+        { value: 'custom', label: "I'll set the mix", detail: 'no coding questions' },
     ];
 
     const stepper = (key, label) => (
@@ -106,7 +104,7 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
                 >
                     <div className="gen-head">
                         <div>
-                            <span className="ed-card-label">Stage 2 · content settings</span>
+                            <span className="ed-card-label">Step 3 of 3 · Settings</span>
                             <h2 className="gen-title">How should lessons and quizzes feel?</h2>
                         </div>
                         <button type="button" onClick={onClose} className="gen-close" title="Close">
@@ -256,10 +254,9 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
                         <button
                             type="button"
                             onClick={handleGenerate}
-                            disabled={isSavingStructure}
                             className="gen-btn gen-btn-primary"
                         >
-                            <Sparkles size={14} /> {isSavingStructure ? 'Saving structure…' : 'Generate content'}
+                            <Sparkles size={14} /> Generate my lessons &amp; quizzes
                         </button>
                     </div>
                 </motion.div>

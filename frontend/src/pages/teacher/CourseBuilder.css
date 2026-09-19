@@ -770,3 +770,58 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ---------- Generation studio: small screens ---------- */
+
+@media (max-width: 900px) {
+    .gc-header {
+        padding: 14px 16px;
+    }
+
+    /* Stack the studio: content on top (the thing being edited), activity
+       feed below as a shorter strip */
+    .gc-root {
+        flex-direction: column;
+    }
+
+    .gc-pane-activity {
+        order: 2;
+        width: 100% !important;
+        flex: none;
+        height: 32vh;
+        border-right: none !important;
+        border-top: 1px solid var(--db-border);
+        padding: 14px 16px !important;
+    }
+
+    .gc-pane-content {
+        order: 1;
+        width: 100% !important;
+        flex: 1;
+    }
+}
+
+/* Review modal item titles: they are inputs, make them look it on hover */
+.review-item-input:hover {
+    border-bottom: 1px dashed var(--db-border-strong) !important;
+    border-radius: 0;
+}
+
+/* Sticky footer inside gen- modals — the next action is always on screen,
+   even when the card scrolls on a phone */
+.gen-card > .gen-foot {
+    position: sticky;
+    bottom: -24px;
+    margin: auto -24px -24px;
+    padding: 12px 24px 20px;
+    background: var(--db-card);
+    border-top: 1px solid var(--db-border);
+}
+
+@media (max-width: 560px) {
+    .gen-card > .gen-foot {
+        bottom: -20px;
+        margin: auto -16px -20px;
+        padding: 10px 16px 16px;
+    }
+}

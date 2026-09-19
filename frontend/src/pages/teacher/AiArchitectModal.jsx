@@ -58,7 +58,7 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
                 >
                     <div className="gen-head">
                         <div>
-                            <span className="ed-card-label">AI curriculum architect</span>
+                            <span className="ed-card-label">Course planner</span>
                             <h2 className="gen-title">Describe the course you want</h2>
                         </div>
                         <button type="button" onClick={onClose} className="gen-close" title="Close">
@@ -68,7 +68,7 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
 
                     {curriculumFile ? (
                         <p className="gen-note">
-                            <FileText size={13} style={{ verticalAlign: '-2px' }} /> Grounded in your uploaded curriculum:{' '}
+                            <FileText size={13} style={{ verticalAlign: '-2px' }} /> Using your file:{' '}
                             <strong>{curriculumFile}</strong>
                         </p>
                     ) : (

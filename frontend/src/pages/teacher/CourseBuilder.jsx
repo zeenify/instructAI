@@ -215,9 +215,12 @@ export default function CourseBuilder({
     const [generationLogs, setGenerationLogs] = useState([]);
     const contentAbortRef = useRef(null);
     const [structureError, setStructureError] = useState(null);
+    const [contentStartedAt, setContentStartedAt] = useState(null);
     const structureAbortRef = useRef(null);
     const lastStructureRequestRef = useRef(null);
     const lastContentParamsRef = useRef(null);
+    const savedModulesDataRef = useRef([]);
+    const commitPromiseRef = useRef(null);
     // Delete State
     const [deleteConfig, setDeleteModal] = useState({ isOpen: false, type: '', id: null, name: null, items: [] });
 
@@ -800,32 +803,42 @@ export default function CourseBuilder({
 
         // Show content parameters modal instantly - teacher can select options while saving
         setSavedModulesData(finalData.new_modules);
+        savedModulesDataRef.current = finalData.new_modules;
         setIsContentParamsOpen(true);
         setIsSavingStructure(true); // Lock confirm button
 
-        // Save structure to DB in background and fetch real IDs
-        const toastId = toast.loading('Saving curriculum structure...');
-        try {
-            await api.post(`/teacher/courses/${id}/ai-commit`, finalData);
-            toast.success('Structure saved!', { id: toastId });
+        // Save structure to DB in the background and fetch real IDs. The
+        // settings modal opens immediately with a LIVE button — content
+        // generation simply waits for this promise before streaming.
+        commitPromiseRef.current = (async () => {
+            const toastId = toast.loading('Saving your outline…');
+            try {
+                const saved = await api.post(`/teacher/courses/${id}/ai-commit`, finalData);
+                toast.success('Outline saved!', { id: toastId });
 
-            // Fetch the saved course with real module/lesson/quiz IDs.
-            // bypassCache is REQUIRED: this GET was cached when the page loaded
-            // (before any modules existed), so the cached response would hand
-            // content generation an empty structure.
-            const courseData = await api.get(`/teacher/courses/${id}`, { bypassCache: true });
-            setSavedModulesData(courseData.data.modules || []);
+            // The commit response carries exactly the saved modules WITH their
+            // real IDs — generating against the whole course payload here would
+            // re-generate every module the class already had.
+            savedModulesDataRef.current = saved.data.new_modules || [];
+            setSavedModulesData(saved.data.new_modules || []);
 
             // Invalidate cache so new modules appear
             refreshContent();
-        } catch (err) {
-            toast.error('Failed to save curriculum', { id: toastId });
-        } finally {
-            setIsSavingStructure(false); // Unlock confirm button
-        }
+            } catch (err) {
+                toast.error('Failed to save the outline', { id: toastId });
+            } finally {
+                setIsSavingStructure(false);
+            }
+        })();
     };
 
-    const handleStartContentGeneration = (allParams) => {
+    const handleStartContentGeneration = async (allParams) => {
+        // The outline may still be saving in the background — hold here until
+        // real lesson/quiz IDs exist, then stream against those
+        if (commitPromiseRef.current) {
+            await commitPromiseRef.current.catch(() => {});
+            commitPromiseRef.current = null;
+        }
         // A curriculum PDF is optional: the structure prompt from the architect
         // modal drives generation when there's no file (backend already treats
         // curriculum_text as optional context)
@@ -836,7 +849,7 @@ export default function CourseBuilder({
         }
 
         // Start content generation immediately with params
-        generateLessonContent(savedModulesData, allParams);
+        generateLessonContent(savedModulesDataRef.current, allParams);
     };
 
     // Add log entry for generation console with optional stagger delay
@@ -858,6 +871,7 @@ export default function CourseBuilder({
 
     const generateLessonContent = async (modules, params) => {
         lastContentParamsRef.current = params;
+        setContentStartedAt(Date.now());
         setIsGeneratingContent(true);
         setIsContentModalOpen(true);
         setGenerationLogs([]); // Clear previous logs
@@ -890,9 +904,7 @@ export default function CourseBuilder({
             quizzes: m.quizzes.map(q => ({ ...q, questionCount: 0, generating: false, generated: false }))
         }))});
 
-        // Add initial logs
-        addLog('start', 'Initializing AI content generation pipeline...');
-        addLog('info', 'Connecting to the AI engine…');
+        addLog('start', 'Writing your content…');
 
         // Add artificial delay to show streaming UI
         await new Promise(resolve => setTimeout(resolve, 800));
@@ -943,7 +955,11 @@ export default function CourseBuilder({
                             const data = JSON.parse(line.slice(6));
 
                             if (data.type === 'status') {
-                                console.log('Status:', data.message);
+                                // Teacher-facing feed only: skip transport chatter
+                                // and section echoes (the ✓ line already covers them)
+                                if (/^Connecting to AI service|^Starting content generation|^Section \d+\/\d+:/.test(data.message)) {
+                                    continue;
+                                }
                                 addLog('progress', data.message, logDelayOffset);
                                 logDelayOffset += 40;
                             } else if (data.type === 'section_complete') {
@@ -1887,6 +1903,7 @@ if (loading || !course) return (
                 logs={generationLogs}
                 onContentChange={setGeneratedContent}
                 onContinue={handleContinueGeneration}
+                startedAt={contentStartedAt}
             />
 
             {/* Curriculum Management Modal */}
@@ -2059,7 +2076,7 @@ if (loading || !course) return (
                         >
                             <div className="gen-head">
                                 <div>
-                                    <span className="ed-card-label">Stage 1 · designing</span>
+                                    <span className="ed-card-label">Step 1 of 3</span>
                                     <h2 className="gen-title">Building your curriculum…</h2>
                                 </div>
                                 <button

@@ -87,7 +87,8 @@ export default function GenerationConsole({
   logs = [],
   onClose,
   onContentChange,
-  onContinue
+  onContinue,
+  startedAt
 }) {
   const [overallProgress, setOverallProgress] = useState(0);
   const [completedLessons, setCompletedLessons] = useState(0);
@@ -204,10 +205,9 @@ export default function GenerationConsole({
   // teacher can push the AI to finish exactly those — nothing starts over.
   const interrupted = !isGenerating && totalItems > 0 && remainingItems > 0;
 
-  const estimatedTime =
-    totalItems > 0
-      ? Math.max(1, Math.ceil(remainingItems * 45 / 1000))
-      : 0;
+  // Honest clock: how long this run has actually been going (a fabricated
+  // "minutes remaining" was always wrong the moment an LLM call varied)
+  const elapsedMin = startedAt ? Math.max(1, Math.round((Date.now() - startedAt) / 60000)) : 0;
 
   const selectedLesson = completedLessonsList.find(l => l.id === selectedLessonId);
   const visibleBlockCount = displayedBlocks[selectedLessonId] || 0;
@@ -274,13 +274,13 @@ export default function GenerationConsole({
 
   return (
     <div
-      className="fixed inset-0 flex flex-col"
+      className="gc-root fixed inset-0 flex flex-col"
       style={{ zIndex: 200, background: 'var(--db-canvas)', color: 'var(--db-text)' }}
     >
       {/* Header */}
       <div
         style={{
-          padding: '18px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '18px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap',
           gap: 16, borderBottom: '1px solid var(--db-border)', flexShrink: 0,
           background: 'var(--db-card)',
         }}
@@ -296,7 +296,7 @@ export default function GenerationConsole({
             AI
           </div>
           <div>
-            <span className="ed-card-label">AI generation studio</span>
+            <span className="ed-card-label">Making your content</span>
             <h1 style={{ margin: 0, color: 'var(--db-text)', fontFamily: 'var(--db-font-display)', fontSize: 19, fontWeight: 700 }}>
               Your content, as it's built
             </h1>
@@ -346,13 +346,13 @@ export default function GenerationConsole({
         <ProgressBar value={overallProgress} label={`${completedLessons} of ${totalItems} items generated`} />
         <div style={{ gap: 14, marginTop: 10, color: 'var(--db-text-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }} className="flex items-center">
           <span>{overallProgress}% complete</span>
-          {isGenerating && <span>· ~{estimatedTime} min remaining</span>}
+          {isGenerating && <span>· started {elapsedMin} min ago</span>}
         </div>
         {interrupted && (
           <div
             style={{
               marginTop: 12, padding: '12px 16px', borderRadius: 12, gap: 12,
-              display: 'flex', alignItems: 'center',
+              display: 'flex', alignItems: 'center', flexWrap: 'wrap',
               background: 'rgba(251, 191, 36, 0.08)', border: '1px solid var(--db-amber)',
             }}
           >
@@ -375,7 +375,7 @@ export default function GenerationConsole({
         {/* Left: Activity feed */}
         <div
           style={{ padding: '22px 26px', borderRight: '1px solid var(--db-border)', background: 'var(--db-card)' }}
-          className="w-1/2 overflow-hidden flex flex-col"
+          className="gc-pane-activity w-1/2 overflow-hidden flex flex-col"
         >
           <span className="ed-card-label" style={{ marginBottom: 16 }}>Activity</span>
           <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4 }}>
@@ -399,7 +399,7 @@ export default function GenerationConsole({
         </div>
 
         {/* Right: content materializing + inline editing */}
-        <div className="w-1/2 overflow-hidden flex flex-col" style={{ background: 'var(--db-canvas)' }}>
+        <div className="gc-pane-content w-1/2 overflow-hidden flex flex-col" style={{ background: 'var(--db-canvas)' }}>
           {/* Item tabs */}
           <div style={{ padding: '16px 26px', borderBottom: '1px solid var(--db-border)', overflowX: 'auto', flexShrink: 0, background: 'var(--db-card)' }}>
             <div style={{ gap: 8 }} className="flex">

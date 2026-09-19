@@ -120,8 +120,8 @@ export default function CurriculumReviewModal({ isOpen, data, expectedParams, on
             >
                 <div className="gen-head">
                     <div>
-                        <span className="ed-card-label">Stage 1 · review</span>
-                        <h2 className="gen-title">Check the blueprint before saving</h2>
+                        <span className="ed-card-label">Step 2 of 3 · Review</span>
+                        <h2 className="gen-title">Check your course outline</h2>
                         <p className="gen-note" style={{ marginTop: 4 }}>
                             Edit any title or remove items — nothing is saved to your class yet.
                         </p>
@@ -215,7 +215,7 @@ export default function CurriculumReviewModal({ isOpen, data, expectedParams, on
                                             : <HelpCircle size={15} style={{ color: 'var(--db-amber)', flex: 'none' }} />}
                                         <input
                                             aria-label={`${item.type} title`}
-                                            className="gen-input"
+                                            className="gen-input review-item-input"
                                             style={{ border: 'none', background: 'transparent', padding: '4px 2px', boxShadow: 'none' }}
                                             value={item.title}
                                             onChange={(e) => {
@@ -252,7 +252,7 @@ export default function CurriculumReviewModal({ isOpen, data, expectedParams, on
                 <div className="gen-foot" style={{ borderTop: '1px solid var(--db-border)', paddingTop: 16 }}>
                     <button type="button" onClick={onCancel} className="gen-btn gen-btn-ghost">Discard</button>
                     <button type="button" onClick={() => onConfirm(pendingData)} className="gen-btn gen-btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
-                        Save to course timeline
+                        Save to my class
                     </button>
                 </div>
             </motion.div>

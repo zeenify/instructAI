@@ -66,8 +66,8 @@ def build_curriculum_user_prompt(
     param_instructions = f"""
 PARAMETERS:
 - Difficulty: {difficulty}
-- Modules: {module_count} (max 8)
-- Lessons/Module: {lessons_per_module} (max 8)
+- Modules: EXACTLY {module_count} module(s) — this is a HARD requirement, not a suggestion. Generate exactly this many, no more.
+- Lessons/Module: EXACTLY {lessons_per_module} lesson(s) per module — hard requirement.
 - Quizzes: {include_quiz}
 - Coding: {include_coding}
 - Pacing: {pacing}

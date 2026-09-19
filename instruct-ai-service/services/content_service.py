@@ -491,7 +491,7 @@ async def generate_content_stream(
                 if not is_programming_course and coding_percentage > 0:
                     original_preset = question_type_distribution
                     distribution = parse_distribution("non_coding")
-                    block_msg = f"ℹ️ Auto-switched from '{original_preset}' to 'non_coding' because this course has no programming content. Coding questions would have no context and generate poor quality content."
+                    block_msg = "Heads up: quiz questions will skip coding because this course isn't marked as a programming course. To allow coding questions, open the Curriculum modal and switch the course type to Programming."
                     print(f"\n[QUIZ-AUTO-BLOCK] {block_msg}\n")
                     yield f"data: {json.dumps({'type': 'info', 'message': block_msg})}\n\n"
 
