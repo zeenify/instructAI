@@ -260,6 +260,12 @@ export default function CourseBuilder({
     const [courseLanguage, setCourseLanguage] = useState(course?.language || '');
     const [savingLanguage, setSavingLanguage] = useState(false);
 
+    // Re-sync when the modal opens — an upload may have detected a language
+    // after this component first rendered
+    useEffect(() => {
+        if (showCurriculumModal) setCourseLanguage(course?.language || '');
+    }, [showCurriculumModal, course?.language]);
+
     // Indexing Stats Modal State
     const [showIndexingStats, setShowIndexingStats] = useState(false);
     const [indexingStats, setIndexingStats] = useState(null);

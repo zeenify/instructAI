@@ -50,7 +50,12 @@ studio' console, all on gen- styles in CourseBuilder.css; rate-limit
 wait-and-retry in the Python service; coding questions/lesson challenges
 require stdin-driven programs and engine-verified test cases; quiz
 regeneration REPLACES questions; an interrupted run keeps finished items and
-offers 'Continue generation' for only the missing ones). Mobile pass done for class
+offers 'Continue generation' for only the missing ones; courses carry a
+teacher-set `language` (courses.language, picker in the Curriculum modal) that
+the AI must use for ALL generated code; the studio is tabbed
+(Activity / Lessons & quizzes) with Pause-Resume and builder-parity editing
+(add/reorder/delete blocks and questions) in the right pane; HTML challenges
+may arrive as files[] projects; html_checks are teacher-only, never AI-generated). Mobile pass done for class
 page, content tab/module view, lesson + quiz editors (mobile top bar in
 TeacherLayout replaced
 the floating burger; verify pages at 390px with `tools/browser/mobile-audit.mjs`).

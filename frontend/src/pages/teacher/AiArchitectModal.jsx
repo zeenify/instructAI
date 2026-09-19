@@ -4,7 +4,7 @@ import { X, Zap, FileText, BookOpen, Code2, Gauge, Layers, ListOrdered, Route } 
 import { toast } from 'sonner';
 import Dropdown from '../../components/ui/Dropdown';
 
-export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculumFile }) {
+export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculumFile, courseLanguage }) {
     const [prompt, setPrompt] = useState("");
 
     // Structure Generation Parameters (ONLY these shown in this modal)
