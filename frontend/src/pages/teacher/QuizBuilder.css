@@ -1,0 +1,687 @@
+/**
+ * Quiz builder page-specific styles (qb-). The shared editor chrome
+ * (ed- shell/header/palette/blocks) lives in styles/dashboard.css.
+ */
+
+/* Settings dashboard */
+
+.qb-settings {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 14px;
+    margin-bottom: 30px;
+}
+
+.qb-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 20px;
+    border-radius: 16px;
+    background: var(--db-card);
+    border: 1px solid var(--db-border);
+}
+
+.qb-card.muted .ed-card-label,
+.qb-card.muted .qb-card-hint {
+    opacity: 0.55;
+}
+
+.qb-card.invalid {
+    border-color: rgba(248, 113, 113, 0.45);
+}
+
+.qb-card-hint {
+    font-size: 12.5px;
+    color: var(--db-text-3);
+    line-height: 1.45;
+    margin: -6px 0 0;
+}
+
+.qb-card-error {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--db-danger);
+    margin: 0;
+}
+
+.qb-input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border-radius: 11px;
+    background: var(--db-card-2);
+    border: 1px solid var(--db-border);
+    color: var(--db-text-2);
+}
+
+.qb-input-row input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    outline: none;
+    color: var(--db-text);
+    font-family: var(--db-font-display);
+    font-size: 17px;
+    font-weight: 700;
+    text-align: right;
+}
+
+.qb-input-row input:disabled {
+    opacity: 0.45;
+}
+
+.qb-input-row input::placeholder {
+    color: var(--db-text-3);
+    font-weight: 500;
+}
+
+.qb-unit {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--db-text-3);
+    white-space: nowrap;
+}
+
+.qb-summary {
+    justify-content: center;
+    gap: 14px;
+}
+
+.qb-summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13.5px;
+    color: var(--db-text-2);
+}
+
+.qb-summary-row b {
+    font-family: var(--db-font-display);
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--db-text);
+}
+
+/* Question block */
+
+.qb-q {
+    padding: 18px 22px 20px;
+}
+
+.qb-q-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.qb-q-num {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    flex: none;
+    border-radius: 12px;
+    background: var(--db-accent);
+    color: #ffffff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.qb-q-type {
+    flex: 1;
+    min-width: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--db-text-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.qb-q-weight {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 12px;
+    border-radius: 10px;
+    background: var(--db-card-2);
+    border: 1px solid var(--db-border);
+}
+
+.qb-q-weight input {
+    width: 46px;
+    border: none;
+    background: transparent;
+    outline: none;
+    color: var(--db-text);
+    font-family: var(--db-font-display);
+    font-size: 16px;
+    font-weight: 700;
+    text-align: right;
+}
+
+/* hide number spinners */
+.qb-q-weight input::-webkit-outer-spin-button,
+.qb-q-weight input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.qb-q-weight span {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--db-accent-bright);
+}
+
+:root[data-theme='light'] .qb-q-weight span {
+    color: var(--db-accent);
+}
+
+.qb-q-text {
+    width: 100%;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    outline: none;
+    resize: none;
+    overflow: hidden;
+    color: var(--db-text);
+    font-family: var(--db-font-display);
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.35;
+    padding: 4px 10px;
+    margin: 0 -10px;
+    width: calc(100% + 20px);
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.qb-q:hover .qb-q-text {
+    border-color: var(--db-border);
+}
+
+.qb-q-text:focus {
+    border-color: var(--db-accent);
+    background: var(--db-card-2);
+}
+
+.qb-q-text::placeholder {
+    color: var(--db-text-3);
+}
+
+.qb-q-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 16px;
+}
+
+.qb-field-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--db-text-3);
+}
+
+.qb-input {
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card-2);
+    color: var(--db-text);
+    font-family: inherit;
+    font-size: 14.5px;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.qb-input:focus {
+    border-color: var(--db-accent);
+    box-shadow: 0 0 0 3px var(--db-accent-soft);
+}
+
+.qb-input::placeholder {
+    color: var(--db-text-3);
+}
+
+/* Multiple choice */
+
+.qb-choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.qb-choice {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--db-border);
+    background: var(--db-card-2);
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.qb-choice.correct {
+    border-color: var(--db-accent);
+    background: var(--db-accent-soft);
+}
+
+.qb-choice-radio {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    flex: none;
+    border-radius: 999px;
+    border: 2px solid var(--db-border-strong);
+    background: transparent;
+    color: #ffffff;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.qb-choice.correct .qb-choice-radio {
+    background: var(--db-accent);
+    border-color: var(--db-accent);
+    transform: scale(1.05);
+}
+
+.qb-choice input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    outline: none;
+    color: var(--db-text);
+    font-size: 14.5px;
+    font-weight: 500;
+}
+
+.qb-choice input::placeholder {
+    color: var(--db-text-3);
+}
+
+/* True / False */
+
+.qb-tf {
+    display: flex;
+    gap: 10px;
+}
+
+.qb-tf-btn {
+    flex: 1;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid var(--db-border);
+    background: var(--db-card-2);
+    color: var(--db-text-2);
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.qb-tf-btn:hover {
+    border-color: var(--db-border-strong);
+    color: var(--db-text);
+}
+
+.qb-tf-btn.active {
+    background: var(--db-accent);
+    border-color: var(--db-accent);
+    color: #ffffff;
+}
+
+/* Enumeration */
+
+.qb-enum {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.qb-enum-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.qb-enum-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--db-text-3);
+    width: 22px;
+    flex: none;
+    text-align: right;
+}
+
+.qb-enum-row input {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 13px;
+    border-radius: 10px;
+    border: 1px solid var(--db-border);
+    background: var(--db-card-2);
+    color: var(--db-text);
+    font-size: 14.5px;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.qb-enum-row input:focus {
+    border-color: var(--db-accent);
+}
+
+.qb-enum-row input::placeholder {
+    color: var(--db-text-3);
+}
+
+.qb-enum-del {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    flex: none;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--db-text-3);
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.qb-enum-del:hover {
+    color: var(--db-danger);
+    background: var(--db-danger-soft);
+}
+
+.qb-enum-add {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
+    border: 1.5px dashed var(--db-border-strong);
+    border-radius: 9px;
+    background: transparent;
+    color: var(--db-text-3);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.qb-enum-add:hover {
+    color: var(--db-text);
+    border-color: var(--db-text-3);
+}
+
+/* Coding question */
+
+.qb-coding {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.qb-code-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.qb-seg {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.qb-seg button {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
+    border: 1px solid var(--db-border);
+    border-radius: 9px;
+    background: var(--db-card-2);
+    color: var(--db-text-2);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.qb-seg button:hover {
+    color: var(--db-text);
+    border-color: var(--db-border-strong);
+}
+
+.qb-seg button.active {
+    color: #ffffff;
+    background: var(--db-accent);
+    border-color: var(--db-accent);
+}
+
+.qb-seg-fill {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    padding: 4px;
+    border-radius: 11px;
+    background: var(--db-card-2);
+    border: 1px solid var(--db-border);
+}
+
+.qb-seg-fill button {
+    border-color: transparent;
+    background: transparent;
+    padding: 9px 12px;
+}
+
+.qb-lang-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+}
+
+.qb-cm {
+    border-radius: 11px;
+    overflow: hidden;
+    border: 1px solid var(--db-border);
+}
+
+.qb-coding-goal {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--db-border);
+}
+
+/* Partial credit */
+
+.qb-partial {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--db-border);
+    background: var(--db-card-2);
+    color: var(--db-text-2);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.qb-partial.on {
+    color: var(--db-amber);
+    border-color: rgba(251, 191, 36, 0.4);
+    background: rgba(251, 191, 36, 0.08);
+}
+
+.qb-partial-track {
+    display: inline-flex;
+    align-items: center;
+    width: 30px;
+    height: 16px;
+    border-radius: 999px;
+    padding: 2px;
+    background: var(--db-border-strong);
+    justify-content: flex-start;
+    transition: background 0.2s ease, justify-content 0.2s ease;
+}
+
+.qb-partial-track.on {
+    background: var(--db-amber);
+    justify-content: flex-end;
+}
+
+.qb-partial-knob {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: #ffffff;
+}
+
+/* Creating placeholder + delete note */
+
+.qb-creating {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 34px;
+    margin-top: 20px;
+    border-radius: 16px;
+    border: 1.5px dashed var(--db-accent-border);
+    background: var(--db-accent-soft);
+    color: var(--db-accent-bright);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+:root[data-theme='light'] .qb-creating {
+    color: var(--db-accent);
+}
+
+.qb-delete-note {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 90;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    max-width: min(90vw, 640px);
+    padding: 12px 18px;
+    border-radius: 13px;
+    background: var(--db-danger-soft);
+    border: 1px solid rgba(248, 113, 113, 0.4);
+    color: var(--db-text);
+    font-size: 13.5px;
+    font-weight: 600;
+    box-shadow: var(--db-shadow);
+}
+
+.qb-delete-note svg {
+    color: var(--db-danger);
+    flex: none;
+}
+
+.qb-delete-note > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.qb-delete-note button {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    flex: none;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--db-text-2);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.qb-delete-note button:hover {
+    background: var(--db-card-2);
+    color: var(--db-text);
+}
+
+/* Warnings: questions with no correct answer marked yet */
+
+.ed-status.warn {
+    color: var(--db-amber);
+    font-weight: 600;
+}
+
+.qb-q-warn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--db-amber);
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.qb-card-action {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 9px;
+    background: var(--db-accent);
+    color: #ffffff;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.15s ease;
+}
+
+.qb-card-action:hover {
+    filter: brightness(1.1);
+}

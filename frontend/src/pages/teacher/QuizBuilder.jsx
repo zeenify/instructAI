@@ -1,456 +1,574 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useTheme } from '../../context/ThemeContext';
-import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
-import { 
-    ChevronLeft, Trash2, CheckCircle2, Code, Clock,
-    Loader2, Hash, Type, ListOrdered, Shuffle,
-    Bot, BotOff, Check, CloudCheck, AlertCircle,
-    GripVertical, Target, Hourglass, Timer, Sparkles, Filter, Settings, Plus, Lock
+import { motion, Reorder, useDragControls } from 'framer-motion';
+import {
+    ChevronLeft, ChevronUp, ChevronDown, Trash2, Loader2, Plus, X, Check,
+    CheckCircle2, Code, Type, ListOrdered, Hash, Shuffle, Bot, Globe,
+    GripVertical, Clock, Target, Filter, Hourglass
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
-import Button from '../../components/ui/Button';
-import DeleteModal from '../../components/ui/DeleteModal';
+import { queryClient } from '../../lib/queryClient';
+import { quizKey, useQuiz } from '../../queries/quiz';
+import { classDetailsKey } from '../../queries/classDetails';
+import { SkeletonBlock } from '../../components/ui/skeletons';
 import TestCaseEditor from '../../components/teacher/TestCaseEditor';
 import HtmlChecksEditor from '../../components/teacher/HtmlChecksEditor';
-
 import CodeMirror from '@uiw/react-codemirror';
 import { CODE_LANGUAGES, cmExtension, resolveLanguage, languageOf } from '../../utils/codeLanguages';
+import './QuizBuilder.css';
 
-function DraggableQuestion({ q, index, quiz, deleteModalOpen, setDeleteModalOpen, isSyncingId, updateQuestion }) {
-    const dragControls = useDragControls();
-    const { theme } = useTheme();
-    const [isHovered, setIsHovered] = useState(false);
+/** A question "has no correct answer" when the teacher hasn't marked one yet. */
+function needsAnswer(q) {
+    if (q.type === 'multiple_choice') return !(q.expected_output !== '' && q.expected_output != null);
+    if (q.type === 'identification') return !(String(q.expected_output || '').trim());
+    if (q.type === 'true_false') return q.expected_output !== 'True' && q.expected_output !== 'False';
+    if (q.type === 'enumeration') return !(q.options || []).some((o) => String(o || '').trim());
+    if (q.type === 'coding') return !(String(q.expected_output || '').trim());
+    return false;
+}
+
+/** One quiz question block with hover toolbar (drag / move / delete). */
+function QuestionBlock({ q, index, lastIndex, onMove, update, remove, randomized, isConfirming, setConfirming }) {
+    const controls = useDragControls();
+    const [dragging, setDragging] = useState(false);
+    const movedRef = useRef(false);
+    const qLang = q.type === 'coding' ? languageOf(resolveLanguage(q.language, q.boilerplate || q.expected_output)) : null;
 
     return (
         <Reorder.Item
             value={q}
             dragListener={false}
-            dragControls={dragControls}
-            className="relative overflow-visible"
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
+            dragControls={controls}
+            className={`ed-block qb-q ${dragging ? 'dragging' : ''}`}
+            onDragStart={() => { movedRef.current = true; setDragging(true); }}
+            onDragEnd={() => {
+                setDragging(false);
+                setTimeout(() => { movedRef.current = false; }, 150);
+            }}
+            onClick={() => { if (!movedRef.current && !dragging) return; }}
         >
-            <div className={`absolute -left-16 top-0 h-full flex flex-col items-center gap-2 transition-opacity duration-300 opacity-100 z-50`}>
-                {!quiz.is_randomized && (
-                    <div
-                        onPointerDown={(e) => dragControls.start(e)}
-                        className={`cursor-grab active:cursor-grabbing p-3 rounded-xl transition-all hover:scale-110 shadow-lg ${
-                            theme === 'dark'
-                                ? 'bg-white/5 text-slate-500 hover:text-purple-400 hover:bg-white/10'
-                                : 'bg-slate-200 text-slate-600 hover:text-purple-500 hover:bg-slate-300'
-                        }`}
-                    >
-                        <GripVertical size={20} />
-                    </div>
-                )}
+            <div className="ed-block-tools" onClick={(e) => e.stopPropagation()}>
                 <button
-                    onClick={() => setDeleteModalOpen(q.id)}
-                    className={`p-3 rounded-xl transition-all border-none cursor-pointer ${
-                        theme === 'dark'
-                            ? 'text-slate-600 hover:text-red-500 hover:bg-red-500/10 bg-transparent'
-                            : 'text-slate-600 hover:text-red-500 hover:bg-red-500/10 bg-transparent'
-                    }`}
+                    type="button"
+                    className="ed-tool ed-tool-grip"
+                    title={randomized ? 'Shuffle is on — the order is random per attempt' : 'Drag to reorder'}
+                    aria-label="Drag to reorder"
+                    disabled={randomized}
+                    onPointerDown={(e) => { if (!randomized) controls.start(e); }}
+                    onClick={(e) => e.stopPropagation()}
                 >
-                    <Trash2 size={20} />
+                    <GripVertical size={15} />
                 </button>
+                <button
+                    type="button"
+                    className="ed-tool"
+                    title="Move up"
+                    aria-label="Move up"
+                    disabled={index === 0 || randomized}
+                    onClick={() => onMove(index, -1)}
+                >
+                    <ChevronUp size={15} />
+                </button>
+                <button
+                    type="button"
+                    className="ed-tool"
+                    title="Move down"
+                    aria-label="Move down"
+                    disabled={index === lastIndex || randomized}
+                    onClick={() => onMove(index, 1)}
+                >
+                    <ChevronDown size={15} />
+                </button>
+                {isConfirming ? (
+                    <motion.button
+                        type="button"
+                        initial={{ scale: 0.8 }} animate={{ scale: 1 }}
+                        className="ed-tool ed-tool-confirm"
+                        title="Confirm delete"
+                        onClick={() => remove(q)}
+                    >
+                        <Check size={15} />
+                    </motion.button>
+                ) : (
+                    <button
+                        type="button"
+                        className="ed-tool ed-tool-del"
+                        title="Delete question"
+                        onClick={() => setConfirming(true)}
+                    >
+                        <Trash2 size={15} />
+                    </button>
+                )}
+                {isConfirming && (
+                    <button type="button" className="ed-tool ed-tool-cancel" title="Keep question" onClick={() => setConfirming(false)}>
+                        <X size={15} />
+                    </button>
+                )}
             </div>
 
-            <div
-                style={{ padding: '32px 40px' }}
-                className={`rounded-[40px] border shadow-2xl relative overflow-hidden transition-all duration-300 hover:border-purple-500/30 ${
-                    theme === 'dark'
-                        ? 'bg-[#050505] border-white/5'
-                        : 'bg-white border-slate-200'
-                }`}
-                onMouseEnter={() => setIsHovered(true)}
-                onMouseLeave={() => setIsHovered(false)}
-            >
-                <div className={`absolute top-0 left-0 right-0 h-32 opacity-50 pointer-events-none ${
-                    theme === 'dark'
-                        ? 'bg-gradient-to-br from-purple-900/20 to-transparent'
-                        : 'bg-gradient-to-br from-purple-200/30 to-transparent'
-                }`} />
-
-                <div style={{ gap: '12px', marginBottom: '24px' }} className="flex items-center relative z-10">
-                    <span className="w-12 h-12 rounded-2xl bg-purple-600 flex items-center justify-center text-lg font-black text-white shadow-xl shadow-purple-500/30">{index + 1}</span>
-                    <span style={{ padding: '6px 12px' }} className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-400 bg-purple-400/10 rounded-xl">{q.type?.replace('_', ' ')}</span>
+            <div className="qb-q-head">
+                <span className="qb-q-num">{String(index + 1).padStart(2, '0')}</span>
+                <span className="qb-q-type">{(q.type || 'question').replace('_', ' / ')}</span>
+                {needsAnswer(q) && (
+                    <span className="qb-q-warn" title="Students can't answer this correctly yet — mark the correct answer">
+                        no correct answer
+                    </span>
+                )}
+                <div className="qb-q-weight" title="Points this question is worth">
+                    <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={q.points ?? 1}
+                        onChange={(e) => update(q.id, { points: Math.max(1, Number(e.target.value) || 1) })}
+                    />
+                    <span>pts</span>
                 </div>
+            </div>
 
-                <textarea
-                    value={q.question_text || ""}
-                    onChange={(e) => updateQuestion(q.id, { question_text: e.target.value })}
-                    style={{ marginBottom: '24px' }}
-                    className={`w-full bg-transparent border-none outline-none text-2xl font-bold resize-none leading-snug relative z-10 ${
-                        theme === 'dark'
-                            ? 'text-white placeholder:text-slate-700'
-                            : 'text-slate-900 placeholder:text-slate-400'
-                    }`}
-                    placeholder="Compose your question here..."
-                    onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
-                />
+            <textarea
+                className="qb-q-text"
+                rows={1}
+                placeholder="Compose your question here…"
+                value={q.question_text || ''}
+                onChange={(e) => update(q.id, { question_text: e.target.value })}
+                onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = `${e.target.scrollHeight}px`; }}
+            />
 
-                <div style={{ gap: '16px' }} className="flex flex-col relative z-10">
-                    {q.type === 'multiple_choice' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {q.options?.map((opt, i) => (
-                                <div key={i} style={{ gap: '12px', padding: '12px 16px' }} className={`flex items-center rounded-2xl border transition-all duration-300 ${
-                                    String(q.expected_output) === String(i)
-                                        ? 'bg-purple-500/10 border-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.15)]'
-                                        : theme === 'dark'
-                                            ? 'bg-white/[0.02] border-white/10 hover:border-white/20'
-                                            : 'bg-slate-100 border-slate-300 hover:border-slate-400'
-                                }`}>
-                                    <button onClick={() => updateQuestion(q.id, { expected_output: String(i) })} className={`w-8 h-8 rounded-full border-[3px] flex items-center justify-center cursor-pointer transition-all flex-shrink-0 ${
-                                        String(q.expected_output) === String(i)
-                                            ? 'bg-purple-500 border-purple-500 scale-110 shadow-lg'
-                                            : theme === 'dark'
-                                                ? 'border-slate-700 hover:border-slate-500 bg-transparent'
-                                                : 'border-slate-400 hover:border-slate-500 bg-transparent'
-                                    }`}>
-                                        {String(q.expected_output) === String(i) && <Check size={16} className="text-white" strokeWidth={3} />}
+            <div className="qb-q-body">
+                {q.type === 'multiple_choice' && (
+                    <div className="qb-choices">
+                        {q.options?.map((opt, i) => {
+                            const correct = String(q.expected_output) === String(i);
+                            return (
+                                <div key={i} className={`qb-choice ${correct ? 'correct' : ''}`}>
+                                    <button
+                                        type="button"
+                                        className="qb-choice-radio"
+                                        title={correct ? 'This is the correct answer' : 'Mark as the correct answer'}
+                                        onClick={() => update(q.id, { expected_output: String(i) })}
+                                    >
+                                        {correct && <Check size={14} strokeWidth={3} />}
                                     </button>
-                                    <input value={opt ?? ""} onChange={(e) => { const n = [...q.options]; n[i] = e.target.value; updateQuestion(q.id, { options: n }); }} className={`bg-transparent border-none outline-none text-base w-full font-medium ${
-                                        theme === 'dark'
-                                            ? 'text-slate-200'
-                                            : 'text-slate-800'
-                                    }`} placeholder={`Option ${i+1}`} />
+                                    <input
+                                        value={opt ?? ''}
+                                        placeholder={`Option ${i + 1}`}
+                                        onChange={(e) => {
+                                            const n = [...q.options];
+                                            n[i] = e.target.value;
+                                            update(q.id, { options: n });
+                                        }}
+                                    />
                                 </div>
-                            ))}
-                        </div>
-                    )}
+                            );
+                        })}
+                    </div>
+                )}
 
-                    {q.type === 'identification' && (
-                        <div className="relative group/input">
-                            <Sparkles className="absolute left-6 top-1/2 -translate-y-1/2 text-purple-500/50 transition-colors group-focus-within/input:text-purple-400" size={20} />
-                            <input value={q.expected_output ?? ""} onChange={(e) => updateQuestion(q.id, { expected_output: e.target.value })} style={{ padding: '12px 16px 12px 48px' }} className={`w-full rounded-[24px] text-xl font-bold outline-none transition-all shadow-inner ${
-                                theme === 'dark'
-                                    ? 'bg-white/[0.02] border border-white/10 text-purple-400 focus:border-purple-500/50 focus:bg-purple-500/5'
-                                    : 'bg-slate-100 border border-slate-300 text-purple-600 focus:border-purple-400 focus:bg-purple-50'
-                            }`} placeholder="Enter precise answer..." />
-                        </div>
-                    )}
+                {q.type === 'identification' && (
+                    <div className="qb-answer">
+                        <span className="qb-field-label">Correct answer</span>
+                        <input
+                            className="qb-input"
+                            placeholder="The exact answer students must type…"
+                            value={q.expected_output ?? ''}
+                            onChange={(e) => update(q.id, { expected_output: e.target.value })}
+                        />
+                    </div>
+                )}
 
-                    {q.type === 'true_false' && (
-                        <div style={{ gap: '16px' }} className="flex">
-                            {['True', 'False'].map(val => (
-                                <button key={val} onClick={() => updateQuestion(q.id, { expected_output: val })} style={{ padding: '16px 20px' }} className={`flex-1 rounded-[24px] border text-xl font-black transition-all duration-300 cursor-pointer tracking-widest uppercase ${
-                                    q.expected_output === val
-                                        ? 'bg-purple-600 border-purple-500 text-white shadow-[0_10px_30px_rgba(147,51,234,0.3)] scale-[1.02]'
-                                        : theme === 'dark'
-                                            ? 'bg-white/[0.02] border-white/10 text-slate-500 hover:bg-white/5 hover:text-white'
-                                            : 'bg-slate-100 border-slate-300 text-slate-600 hover:bg-slate-200 hover:text-slate-700'
-                                }`}>{val}</button>
-                            ))}
-                        </div>
-                    )}
-
-                    {q.type === 'enumeration' && (
-                        <div style={{ gap: '12px' }} className="flex flex-col">
-                            <AnimatePresence>
-                                {q.options?.map((opt, i) => (
-                                    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, scale: 0.95 }} key={i} style={{ gap: '12px' }} className="flex">
-                                        <input value={opt ?? ""} onChange={(e) => { const n = [...q.options]; n[i] = e.target.value; updateQuestion(q.id, { options: n }); }} style={{ padding: '10px 12px' }} className={`flex-grow rounded-2xl font-medium outline-none transition-colors ${
-                                            theme === 'dark'
-                                                ? 'bg-white/[0.02] border border-white/10 text-white focus:border-purple-500/40'
-                                                : 'bg-slate-100 border border-slate-300 text-slate-800 focus:border-purple-400'
-                                        }`} placeholder={`Entry ${i+1}...`} />
-                                        <button onClick={() => { const n = q.options.filter((_, idx) => idx !== i); updateQuestion(q.id, { options: n }); }} style={{ padding: '10px 12px' }} className={`w-16 flex items-center justify-center rounded-2xl transition-colors border-none cursor-pointer ${
-                                            theme === 'dark'
-                                                ? 'text-slate-600 hover:text-red-500 hover:bg-red-500/10 bg-white/5'
-                                                : 'text-slate-600 hover:text-red-500 hover:bg-red-500/10 bg-slate-200'
-                                        }`}><Trash2 size={20}/></button>
-                                    </motion.div>
-                                ))}
-                            </AnimatePresence>
-                            <button onClick={() => updateQuestion(q.id, { options: [...(q.options || []), ''] })} style={{ padding: '10px 16px', gap: '8px', marginTop: '8px' }} className={`flex items-center rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-none cursor-pointer ${
-                                theme === 'dark'
-                                    ? 'bg-purple-500/10 text-purple-400 hover:bg-purple-500/20'
-                                    : 'bg-purple-100 text-purple-600 hover:bg-purple-200'
-                            }`}>
-                                <Plus size={14} /> Append Entry
+                {q.type === 'true_false' && (
+                    <div className="qb-tf">
+                        {['True', 'False'].map((val) => (
+                            <button
+                                key={val}
+                                type="button"
+                                className={`qb-tf-btn ${q.expected_output === val ? 'active' : ''}`}
+                                onClick={() => update(q.id, { expected_output: val })}
+                            >
+                                {val}
                             </button>
-                        </div>
-                    )}
+                        ))}
+                    </div>
+                )}
 
-                    {q.type === 'coding' && (() => {
-                        const qLang = languageOf(resolveLanguage(q.language, q.boilerplate || q.expected_output));
-                        return (
-                        <div style={{ gap: '24px' }} className="flex flex-col">
-                            <div style={{ gap: '12px' }} className="flex flex-col">
-                                <div style={{ gap: '12px', paddingLeft: '4px' }} className="flex justify-between items-end flex-wrap">
-                                    <div style={{ gap: '10px', flexWrap: 'wrap' }} className="flex items-center">
-                                        <label style={{ gap: '8px' }} className={`text-[10px] font-black uppercase tracking-[0.3em] flex items-center ${
-                                            theme === 'dark' ? 'text-slate-500' : 'text-slate-600'
-                                        }`}><Code size={14}/> Language</label>
-                                        <div style={{ padding: '4px', gap: '4px' }} className="flex rounded-xl flex-wrap bg-slate-500/10">
-                                            {Object.values(CODE_LANGUAGES).map(l => (
-                                                <button
-                                                    key={l.id}
-                                                    onClick={() => updateQuestion(q.id, { language: l.id })}
-                                                    type="button"
-                                                    title={l.preview ? 'Student pages render in a browser preview' : 'Runs on the execution engine'}
-                                                    style={{ padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                                                    className={`rounded-lg text-[9px] font-black uppercase transition-all border-none cursor-pointer ${
-                                                        qLang.id === l.id
-                                                            ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30'
-                                                            : theme === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-800'
-                                                    }`}
-                                                >
-                                                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: l.color }} />
-                                                    {l.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <button onClick={() => updateQuestion(q.id, { boilerplate: qLang.template })} style={{ padding: '6px 12px' }} className={`text-[9px] font-black rounded-lg border-none cursor-pointer transition-colors ${
-                                        theme === 'dark'
-                                            ? 'text-purple-400 bg-purple-500/10 hover:bg-purple-500/20'
-                                            : 'text-purple-600 bg-purple-100 hover:bg-purple-200'
-                                    }`}>+ Inject {qLang.label} Template</button>
-                                </div>
-                                <div className={`rounded-3xl border overflow-hidden shadow-inner ${
-                                    theme === 'dark'
-                                        ? 'border-white/10 bg-[#020202]'
-                                        : 'border-slate-300 bg-slate-50'
-                                }`}>
-                                    <CodeMirror value={q.boilerplate || ""} height="250px" theme={theme === 'dark' ? 'dark' : 'light'} extensions={[cmExtension(qLang.id)]} onChange={(val) => updateQuestion(q.id, { boilerplate: val })} />
-                                </div>
-                            </div>
-                            <div style={{ padding: '16px 20px', gap: '12px' }} className={`rounded-3xl group focus-within:transition-all flex flex-col ${
-                                theme === 'dark'
-                                    ? 'bg-cyan-500/[0.03] border border-cyan-500/10 focus-within:border-cyan-500/30'
-                                    : 'bg-cyan-50 border border-cyan-200 focus-within:border-cyan-400'
-                            }`}>
-                                <div style={{ gap: '8px' }} className={`flex items-center font-black text-[10px] uppercase tracking-[0.2em] ${
-                                    theme === 'dark' ? 'text-cyan-500' : 'text-cyan-600'
-                                }`}><Target size={14} /> {qLang.preview ? 'Expected Content On The Page' : 'Expected Console Output Validation'}</div>
-                                <input value={q.expected_output ?? ""} onChange={(e) => updateQuestion(q.id, { expected_output: e.target.value })} className={`w-full bg-transparent border-none outline-none font-mono text-base ${
-                                    theme === 'dark'
-                                        ? 'text-cyan-400 placeholder:text-cyan-900'
-                                        : 'text-cyan-700 placeholder:text-cyan-400'
-                                }`} placeholder={qLang.preview ? 'Text that must appear on the rendered page...' : 'Required system output string...'} />
-                                {qLang.preview && (
-                                    <p className={`text-[10px] font-medium ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`} style={{ margin: 0 }}>
-                                        Quick check only — the rendered page must contain this text. Add structured page checks below for element, attribute and style requirements; students see the checklist live while answering.
-                                    </p>
-                                )}
-                            </div>
-                            {qLang.preview && (
-                                <HtmlChecksEditor
-                                    title="Page Checks"
-                                    checks={q.html_checks || []}
-                                    onChange={(next) => updateQuestion(q.id, { html_checks: next })}
-                                    referenceHtml={q.reference_code || ''}
-                                    onReferenceChange={(text) => updateQuestion(q.id, { reference_code: text })}
+                {q.type === 'enumeration' && (
+                    <div className="qb-enum">
+                        {q.options?.map((opt, i) => (
+                            <div key={i} className="qb-enum-row">
+                                <span className="qb-enum-num">{i + 1}.</span>
+                                <input
+                                    value={opt ?? ''}
+                                    placeholder={`Entry ${i + 1}…`}
+                                    onChange={(e) => {
+                                        const n = [...q.options];
+                                        n[i] = e.target.value;
+                                        update(q.id, { options: n });
+                                    }}
                                 />
-                            )}
-                            {!qLang.preview && <TestCaseEditor question={q} />}
-                            {!qLang.preview && (
                                 <button
                                     type="button"
-                                    onClick={() => updateQuestion(q.id, { partial_credit: !q.partial_credit })}
-                                    style={{ padding: '10px 16px', gap: '10px', alignSelf: 'flex-start' }}
-                                    className={`flex items-center rounded-2xl border text-[11px] font-bold transition-all cursor-pointer ${
-                                        q.partial_credit
-                                            ? 'bg-amber-500/10 border-amber-500/40 text-amber-400'
-                                            : theme === 'dark'
-                                                ? 'bg-white/5 border-white/10 text-slate-400'
-                                                : 'bg-slate-100 border-slate-300 text-slate-600'
-                                    }`}
-                                    title="Off: every test must pass for full points. On: points × tests passed."
+                                    className="qb-enum-del"
+                                    title="Remove this entry"
+                                    onClick={() => update(q.id, { options: q.options.filter((_, idx) => idx !== i) })}
                                 >
-                                    <span
-                                        style={{
-                                            width: '30px', height: '16px', borderRadius: '999px', display: 'inline-flex',
-                                            alignItems: 'center', padding: '2px', transition: 'all .2s',
-                                            background: q.partial_credit ? '#f59e0b' : 'rgba(148,163,184,.4)',
-                                            justifyContent: q.partial_credit ? 'flex-end' : 'flex-start',
-                                        }}
-                                    >
-                                        <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#fff', display: 'block' }} />
-                                    </span>
-                                    Allow partial credit
+                                    <X size={14} />
                                 </button>
-                            )}
-                        </div>
-                        );
-                    })()}
-                </div>
-
-                <div style={{ marginTop: '24px', paddingTop: '24px' }} className={`border-t flex justify-end relative z-10 ${
-                    theme === 'dark' ? 'border-white/5' : 'border-slate-200'
-                }`}>
-                    <div style={{ gap: '12px', padding: '10px 16px' }} className={`flex items-center rounded-2xl border transition-all ${
-                        theme === 'dark'
-                            ? 'bg-white/5 border-white/10 focus-within:border-purple-500/50 focus-within:bg-white/10'
-                            : 'bg-slate-100 border-slate-300 focus-within:border-purple-400 focus-within:bg-purple-50'
-                    }`}>
-                        <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${
-                            theme === 'dark' ? 'text-slate-500' : 'text-slate-600'
-                        }`}>Weight</span>
-                        <input
-                            type="number"
-                            min="1"
-                            step="1"
-                            value={q.points ?? 1}
-                            onChange={(e) => {
-                                const val = Math.max(1, Number(e.target.value));
-                                updateQuestion(q.id, { points: val });
-                            }}
-                            className={`w-16 bg-transparent border-none outline-none text-right font-black text-xl ${
-                                theme === 'dark' ? 'text-white' : 'text-slate-800'
-                            }`}
-                        />
-                        <span className="text-[10px] font-black text-purple-500 uppercase">PTS</span>
+                            </div>
+                        ))}
+                        <button
+                            type="button"
+                            className="qb-enum-add"
+                            onClick={() => update(q.id, { options: [...(q.options || []), ''] })}
+                        >
+                            <Plus size={13} /> Add another entry
+                        </button>
                     </div>
-                </div>
+                )}
+
+                {q.type === 'coding' && qLang && (
+                    <div className="qb-coding">
+                        <div className="qb-code-row">
+                            <span className="ed-card-label">Language</span>
+                            <button
+                                type="button"
+                                className="le-template-btn"
+                                title="Puts example code in the editor — it replaces what is written now"
+                                onClick={() => update(q.id, { boilerplate: qLang.template })}
+                            >
+                                + Add example code
+                            </button>
+                        </div>
+                        <div className="qb-seg">
+                            {Object.values(CODE_LANGUAGES).map((l) => (
+                                <button
+                                    key={l.id}
+                                    type="button"
+                                    onClick={() => update(q.id, { language: l.id })}
+                                    title={l.preview ? 'Answers render in a browser preview' : 'Runs on the execution engine'}
+                                    className={qLang.id === l.id ? 'active' : ''}
+                                >
+                                    <span className="qb-lang-dot" style={{ background: l.color, boxShadow: qLang.id === l.id ? `0 0 6px ${l.color}` : 'none' }} />
+                                    {l.label}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="qb-coding-goal">
+                            <span className="ed-card-label">Starter code students see</span>
+                            <p className="qb-card-hint">Optional — leave empty and students start from scratch.</p>
+                        </div>
+                        <div className="qb-cm">
+                            <CodeMirror
+                                value={q.boilerplate || ''}
+                                height="240px"
+                                theme="dark"
+                                extensions={[cmExtension(qLang.id)]}
+                                onChange={(val) => update(q.id, { boilerplate: val })}
+                            />
+                        </div>
+                        <div className="qb-coding-goal">
+                            <span className="ed-card-label">
+                                {qLang.preview ? 'Challenge goal — the page must show' : 'Challenge goal — the console must print'}
+                            </span>
+                            <input
+                                className="qb-input"
+                                placeholder={qLang.preview ? 'e.g. My Favorite Hobby' : 'e.g. Hello World'}
+                                value={q.expected_output ?? ''}
+                                onChange={(e) => update(q.id, { expected_output: e.target.value })}
+                            />
+                        </div>
+                        {qLang.preview && (
+                            <HtmlChecksEditor
+                                title="Page Checks"
+                                checks={q.html_checks || []}
+                                onChange={(next) => update(q.id, { html_checks: next })}
+                                referenceHtml={q.reference_code || ''}
+                                onReferenceChange={(text) => update(q.id, { reference_code: text })}
+                            />
+                        )}
+                        {!qLang.preview && <TestCaseEditor question={q} />}
+                        {!qLang.preview && (
+                            <button
+                                type="button"
+                                className={`qb-partial ${q.partial_credit ? 'on' : ''}`}
+                                title="Off: every test must pass for full points. On: points × tests passed."
+                                onClick={() => update(q.id, { partial_credit: !q.partial_credit })}
+                            >
+                                Allow partial credit
+                                <span className={`qb-partial-track ${q.partial_credit ? 'on' : ''}`}>
+                                    <span className="qb-partial-knob" />
+                                </span>
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
         </Reorder.Item>
     );
 }
 
-function AddTypeBtn({ label, icon: Icon, onClick, disabled }) {
-    const { theme } = useTheme();
-
-    return (
-        <button disabled={disabled} onClick={onClick} style={{ padding: '24px 28px', gap: '12px' }} className={`flex flex-col items-center justify-center rounded-[32px] border-dashed border transition-all cursor-pointer disabled:opacity-30 group ${
-            theme === 'dark'
-                ? 'bg-white/[0.02] border-white/5 hover:border-purple-500/40 hover:bg-purple-500/5 hover:shadow-[0_10px_30px_rgba(168,85,247,0.1)]'
-                : 'bg-slate-100 border-slate-300 hover:border-purple-400 hover:bg-purple-50 hover:shadow-[0_10px_30px_rgba(168,85,247,0.1)]'
-        }`}>
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-all shadow-lg ${
-                theme === 'dark'
-                    ? 'bg-white/5 text-slate-500 group-hover:text-purple-400 group-hover:bg-purple-500/10'
-                    : 'bg-slate-200 text-slate-600 group-hover:text-purple-500 group-hover:bg-purple-100'
-            }`}>
-                <Icon size={28} />
-            </div>
-            <span className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${
-                theme === 'dark'
-                    ? 'text-slate-600 group-hover:text-slate-300'
-                    : 'text-slate-600 group-hover:text-slate-700'
-            }`}>{label}</span>
-        </button>
-    );
-}
-
 export default function QuizBuilder() {
-    const { id } = useParams();
+    const { classId, id } = useParams();
     const navigate = useNavigate();
-    const { theme } = useTheme();
+
+    const { data: quizData } = useQuiz(id);
 
     const [quiz, setQuiz] = useState(null);
     const [questions, setQuestions] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
-    const [deleteModalOpen, setDeleteModalOpen] = useState(null);
-    const [isSyncingId, setIsSyncingId] = useState(null);
-    const [saveStatus, setSaveStatus] = useState('saved');
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [confirmDraft, setConfirmDraft] = useState(false);
+    const [loaded, setLoaded] = useState(false);
 
-    const debounceTimer = useRef(null);
+    // Save lifecycle: 'saved' | 'dirty' | 'saving' | 'error'
+    const [saveState, setSaveState] = useState('saved');
+    const [lastSavedAt, setLastSavedAt] = useState(null);
 
-    const stats = useMemo(() => {
-        const total = questions.reduce((acc, q) => acc + (Math.max(0, Number(q.points)) || 0), 0);
-        const activeCount = quiz?.is_randomized && quiz?.question_limit ? quiz.question_limit : questions.length;
-        
-        // Calculate worst-case scenario: sort questions by points ascending and sum up the limit amount
-        const sortedByPoints = [...questions].sort((a, b) => (Number(a.points) || 0) - (Number(b.points) || 0));
-        const minPossiblePoints = sortedByPoints.slice(0, activeCount).reduce((acc, q) => acc + (Number(q.points) || 0), 0);
+    const seededRef = useRef(false);
+    const dirtyRef = useRef(false);
+    const timerRef = useRef(null);
+    // Question edits persist through their OWN endpoints (the quiz PUT does
+    // not touch question rows) — patches queue here and flush on save.
+    const pendingQ = useRef(new Map());
+    const latest = useRef(null);
+    latest.current = { quiz, questions };
 
-        return {
-            totalPoints: total,
-            minPossiblePoints: minPossiblePoints,
-            poolSize: questions.length,
-            activeCount: activeCount,
-            isPassingInvalid: (quiz?.passing_score || 0) > minPossiblePoints,
-            isLimitInvalid: quiz?.is_randomized && quiz?.question_limit > questions.length
-        };
-    }, [questions, quiz?.passing_score, quiz?.is_randomized, quiz?.question_limit]);
+    useEffect(() => {
+        if (quizData && !seededRef.current) {
+            seededRef.current = true;
+            const sorted = (quizData.questions || []).sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+            setQuiz(quizData);
+            setQuestions(sorted);
+            setLoaded(true);
+        }
+    }, [quizData]);
 
-    useEffect(() => { fetchQuiz(); }, [id]);
+    useEffect(() => {
+        seededRef.current = false;
+        setLoaded(false);
+        setSaveState('saved');
+        dirtyRef.current = false;
+        clearTimeout(timerRef.current);
+    }, [id]);
 
-    const fetchQuiz = async () => {
+    const saveAll = useCallback(async ({ announce = false, publishOverride, isRetry = false } = {}) => {
+        const l = latest.current;
+        if (!l.quiz) return;
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+        dirtyRef.current = false;
+        setSaveState('saving');
         try {
-            const res = await api.get(`/teacher/quizzes/${id}`);
-            setQuiz(res.data);
-            const sortedQuestions = (res.data.questions || []).sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-            setQuestions(sortedQuestions);
-        } catch (err) { navigate(-1); }
-        finally { setLoading(false); }
+            const res = await api.put(`/teacher/quizzes/${id}`, {
+                ...l.quiz,
+                is_published: publishOverride ?? l.quiz.is_published,
+            });
+            if (publishOverride !== undefined) setQuiz((prev) => ({ ...prev, is_published: publishOverride }));
+            setSaveState('saved');
+            setLastSavedAt(new Date());
+            queryClient.setQueryData(quizKey(id), res.data?.quiz || res.data);
+            invalidateCache(`/teacher/quizzes/${id}`);
+            invalidateCache('/teacher/courses/');
+            queryClient.invalidateQueries({ queryKey: classDetailsKey(classId) });
+            // Flush queued question patches (each through its own endpoint)
+            const entries = [...pendingQ.current.entries()];
+            if (entries.length) {
+                const results = await Promise.allSettled(entries.map(([qId, patch]) => api.put(`/teacher/questions/${qId}`, patch)));
+                const stillPending = new Map(entries.filter((_, i) => results[i].status === 'rejected'));
+                pendingQ.current = stillPending;
+                if (stillPending.size) throw new Error('question patches failed');
+            }
+            if (announce) {
+                toast.success(publishOverride === undefined
+                    ? 'Quiz saved'
+                    : (publishOverride ? 'Published — students can see this quiz' : 'Moved back to draft'));
+            }
+            if (dirtyRef.current) {
+                timerRef.current = setTimeout(() => saveAll(), 1600);
+            }
+        } catch (err) {
+            dirtyRef.current = true;
+            setSaveState('error');
+            if (announce) toast.error('Could not save the quiz. It will retry in a moment.');
+            if (!isRetry) timerRef.current = setTimeout(() => saveAll({ publishOverride, isRetry: true }), 5000);
+        }
+    }, [id, classId]);
+
+    const markDirty = useCallback(() => {
+        dirtyRef.current = true;
+        setSaveState('dirty');
+        clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => saveAll(), 1600);
+    }, [saveAll]);
+
+    const togglePublish = async () => {
+        const current = latest.current.quiz;
+        if (!current) return;
+        const next = !current.is_published;
+        // Unpublishing hides the quiz from every student — confirm first
+        if (!next && !confirmDraft) {
+            setConfirmDraft(true);
+            setTimeout(() => setConfirmDraft(false), 3500);
+            return;
+        }
+        setConfirmDraft(false);
+        const newQuiz = { ...current, is_published: next };
+        latest.current = { ...latest.current, quiz: newQuiz };
+        setQuiz(newQuiz);
+        await saveAll({ announce: true, publishOverride: next });
+    };
+
+    const goBack = async () => {
+        if (dirtyRef.current) await saveAll();
+        navigate(`/dashboard/teacher/class/${classId}?module=${quiz?.module_id}&tab=content`);
+    };
+
+    // Tab close / reload safety net while there are unsaved edits
+    useEffect(() => {
+        const onBeforeUnload = (e) => {
+            if (dirtyRef.current || saveState === 'saving' || saveState === 'error') {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', onBeforeUnload);
+        return () => window.removeEventListener('beforeunload', onBeforeUnload);
+    }, [saveState]);
+
+    // Leaving the editor flushes pending edits (best effort)
+    useEffect(() => () => {
+        clearTimeout(timerRef.current);
+        if (dirtyRef.current && latest.current.quiz) {
+            api.put(`/teacher/quizzes/${id}`, {
+                ...latest.current.quiz,
+            }).catch(() => {});
+        }
+    }, [id]);
+
+    const updateSetting = (updates) => {
+        setQuiz((prev) => ({ ...prev, ...updates }));
+        markDirty();
+    };
+
+    const updateQuestion = (qId, data) => {
+        setQuestions((prev) => prev.map((q) => (q.id === qId ? { ...q, ...data } : q)));
+        pendingQ.current.set(qId, { ...(pendingQ.current.get(qId) || {}), ...data });
+        markDirty();
+    };
+
+    const handleReorder = (newOrder) => {
+        setQuestions(newOrder);
+        markDirty();
+        api.post(`/teacher/quizzes/${id}/reorder-questions`, { question_ids: newOrder.map((q) => q.id) })
+            .then(() => { setSaveState((s) => (s === 'dirty' ? s : 'saved')); setLastSavedAt(new Date()); })
+            .catch(() => { setSaveState('error'); toast.error('Could not save the new order'); });
+    };
+
+    const moveQuestion = (index, dir) => {
+        setQuestions((prev) => {
+            const next = [...prev];
+            const to = index + dir;
+            if (to < 0 || to >= next.length) return prev;
+            [next[index], next[to]] = [next[to], next[index]];
+            return next;
+        });
+        markDirty();
+    };
+
+    const removeQuestion = (q) => {
+        setQuestions((prev) => prev.filter((x) => x.id !== q.id));
+        setDeleteTarget(null);
+        markDirty();
+        pendingQ.current.delete(q.id);
+        api.delete(`/teacher/questions/${q.id}`).catch(() => {
+            toast.error('Could not delete the question on the server — reloading.');
+            api.get(`/teacher/quizzes/${id}`, { bypassCache: true }).then((res) => {
+                seededRef.current = false;
+                if (res.data) {
+                    const sorted = (res.data.questions || []).sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+                    setQuiz(res.data);
+                    setQuestions(sorted);
+                }
+            });
+        });
     };
 
     const addQuestion = async (type = 'multiple_choice') => {
         setIsCreating(true);
-        setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50);
         try {
             const res = await api.post(`/teacher/quizzes/${id}/questions`, {
                 type,
                 language: type === 'coding' ? 'java' : undefined,
-                order_index: questions.length + 1
+                order_index: (latest.current.questions?.length || 0) + 1,
             });
-            setQuestions(prev => [...prev, res.data]);
-            toast.success("Question created");
-        } catch (err) { toast.error("Generation failed"); }
-        finally { setIsCreating(false); }
-    };
-
-    const updateQuestion = (qId, data) => {
-        setQuestions(prev => prev.map(q => q.id === qId ? { ...q, ...data } : q));
-        setSaveStatus('saving');
-        if (debounceTimer.current) clearTimeout(debounceTimer.current);
-        debounceTimer.current = setTimeout(async () => {
-            try { await api.put(`/teacher/questions/${qId}`, data); setSaveStatus('saved'); } 
-            catch (err) { setSaveStatus('error'); }
-        }, 1000);
-    };
-
-    const handleReorder = async (newOrder) => {
-        setQuestions(newOrder);
-        setSaveStatus('saving');
-        try {
-            await api.post(`/teacher/quizzes/${id}/reorder-questions`, { question_ids: newOrder.map(q => q.id) });
-            setSaveStatus('saved');
+            setQuestions((prev) => [...prev, res.data]);
+            markDirty();
+            setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
         } catch (err) {
-            setSaveStatus('error');
-            toast.error("Failed to reorder questions");
+            toast.error('Could not add the question');
+        } finally {
+            setIsCreating(false);
         }
     };
 
-    const removeQuestion = async () => {
-        const qId = deleteModalOpen;
-        setIsSyncingId(qId);
-        try {
-            await api.delete(`/teacher/questions/${qId}`);
-            setQuestions(prev => prev.filter(q => q.id !== qId));
-            toast.success("Question deleted");
-        } catch {
-            toast.error("Failed to delete question");
-        } finally { setDeleteModalOpen(null); setIsSyncingId(null); }
-    };
+    const stats = useMemo(() => {
+        const total = questions.reduce((acc, q) => acc + (Math.max(0, Number(q.points)) || 0), 0);
+        const activeCount = quiz?.is_randomized && quiz?.question_limit ? quiz.question_limit : questions.length;
+        const sortedByPoints = [...questions].sort((a, b) => (Number(a.points) || 0) - (Number(b.points) || 0));
+        const minPossiblePoints = sortedByPoints.slice(0, activeCount).reduce((acc, q) => acc + (Number(q.points) || 0), 0);
+        return {
+            totalPoints: total,
+            minPossiblePoints,
+            poolSize: questions.length,
+            activeCount,
+            isPassingInvalid: (quiz?.passing_score || 0) > minPossiblePoints,
+            isLimitInvalid: quiz?.is_randomized && quiz?.question_limit > questions.length,
+        };
+    }, [questions, quiz?.passing_score, quiz?.is_randomized, quiz?.question_limit]);
 
-    const handleSaveSettings = async (updates = {}) => {
-        const newQuiz = { ...quiz, ...updates };
-        setQuiz(newQuiz);
-        setSaveStatus('saving');
+    const unanswered = questions.filter((q) => needsAnswer(q)).length;
 
-        if (newQuiz.passing_score > stats.totalPoints) toast.error("Passing score cannot exceed total points.");
+    const saveStatus = (
+        <span className={`ed-status ${saveState}`}>
+            {saveState === 'saved' && <Check size={13} />}
+            {saveState === 'saving' && <Loader2 size={13} className="animate-spin" />}
+            {saveState === 'saved' && (lastSavedAt ? 'Saved just now' : 'All changes saved')}{saveState === 'saved' && quiz?.is_published ? ' · live to students' : ''}
+            {saveState === 'dirty' && 'Unsaved changes'}
+            {saveState === 'error' && 'Save failed — retrying…'}
+        </span>
+    );
 
-        try {
-            await api.put(`/teacher/quizzes/${id}`, newQuiz);
-
-            // Invalidate cache for this quiz and related courses
-            invalidateCache(`/teacher/quizzes/${id}`);
-            invalidateCache(`/teacher/courses/`);
-
-            setSaveStatus('saved');
-            if (Object.keys(updates).length > 0) toast.success("Settings applied");
-        } catch (err) { setSaveStatus('error'); }
-    };
+    if (!loaded || !quiz) {
+        return (
+            <div className="ed-shell">
+                <div className="ed-header">
+                    <div className="ed-header-left">
+                        <SkeletonBlock style={{ width: 40, height: 40, borderRadius: 999 }} />
+                        <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                                <SkeletonBlock style={{ width: 46, height: 11 }} />
+                                <SkeletonBlock style={{ width: 70, height: 20, borderRadius: 999 }} />
+                            </div>
+                            <SkeletonBlock style={{ width: '70%', height: 24 }} />
+                        </div>
+                    </div>
+                    <div className="ed-header-actions">
+                        <SkeletonBlock style={{ width: 130, height: 40, borderRadius: 12 }} />
+                        <SkeletonBlock style={{ width: 100, height: 40, borderRadius: 12 }} />
+                    </div>
+                </div>
+                <div className="qb-settings">
+                    {[0, 1, 2, 3].map((i) => (
+                        <SkeletonBlock key={i} style={{ height: 140, borderRadius: 16 }} />
+                    ))}
+                </div>
+                <SkeletonBlock style={{ width: '100%', height: 220, borderRadius: 16, display: 'block' }} />
+            </div>
+        );
+    }
 
     const getDisplayTime = () => {
-        if (!quiz) return 0;
         return quiz.timer_mode === 'per_question' ? Math.round((quiz.time_limit_minutes || 0) * 60) : (quiz.time_limit_minutes || 0);
     };
 
@@ -459,338 +577,285 @@ export default function QuizBuilder() {
         if (numericVal < 0) numericVal = 0;
         let minutes = quiz.timer_mode === 'per_question' ? numericVal / 60 : numericVal;
         if (minutes > 300) minutes = 300;
-        handleSaveSettings({ time_limit_minutes: minutes });
+        updateSetting({ time_limit_minutes: minutes });
     };
 
-    if (loading || !quiz) return <div style={{ backgroundColor: 'var(--bg-primary)' }} className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-purple-500" size={48} /></div>;
+    const deleteQuestionText = deleteTarget ? (questions.find((q) => q.id === deleteTarget)?.question_text || '') : '';
 
     return (
-        <div style={{ backgroundColor: 'var(--bg-primary)', transition: 'all 0.3s ease' }} className="min-h-screen overflow-visible">
-        <div className="w-full px-4 overflow-visible">
-            <div style={{ padding: '20px 0', marginBottom: '32px', gap: '24px' }} className={`flex flex-col md:flex-row justify-between items-center sticky top-0 z-40 backdrop-blur-xl border-b ${
-                theme === 'dark'
-                    ? 'bg-[#030014]/90 border-white/5'
-                    : 'bg-slate-50/90 border-slate-200'
-            }`}>
-                <div style={{ gap: '16px' }} className="flex items-center w-full md:w-auto">
-                    <button onClick={() => navigate(-1)} style={{ padding: '10px 12px' }} className={`rounded-full transition-all border-none cursor-pointer ${
-                        theme === 'dark'
-                            ? 'text-slate-500 hover:text-white hover:bg-white/5'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                    }`}>
-                        <ChevronLeft size={24} />
+        <div className="ed-shell">
+            {/* STICKY HEADER */}
+            <div className="ed-header">
+                <div className="ed-header-left">
+                    <button type="button" className="ed-back-icon" onClick={goBack} title="Back to module" aria-label="Back to module">
+                        <ChevronLeft size={19} />
                     </button>
-                    <div className="flex flex-col flex-grow">
-                        <span style={{ marginBottom: '4px', gap: '8px' }} className="text-[10px] font-bold uppercase tracking-widest text-purple-500 flex items-center"><Settings size={12}/> Quiz Settings</span>
+                    <div className="ed-title-block">
+                        <div className="ed-kicker-row">
+                            <span className="ed-kicker">Quiz</span>
+                            {quiz.is_published ? (
+                                <span className="ed-badge published" title="Students can see this quiz">
+                                    <Check size={11} />
+                                    Published
+                                </span>
+                            ) : (
+                                <span className="ed-badge draft" title="Only you can see this quiz — press Publish when ready">
+                                    Draft
+                                </span>
+                            )}
+                        </div>
                         <input
-                            value={quiz.title || ""}
-                            onChange={(e) => setQuiz({...quiz, title: e.target.value})}
-                            onBlur={() => handleSaveSettings()}
-                            className={`bg-transparent border-none outline-none text-3xl font-black w-full tracking-tight ${
-                                theme === 'dark'
-                                    ? 'text-white placeholder:text-slate-800'
-                                    : 'text-slate-900 placeholder:text-slate-400'
-                            }`}
-                            placeholder="Name your quiz..."
+                            value={quiz.title || ''}
+                            onChange={(e) => { setQuiz({ ...quiz, title: e.target.value }); markDirty(); }}
+                            className="ed-title-input"
+                            placeholder="Quiz title…"
+                        />
+                        <span className="ed-meta">
+                            {saveStatus}
+                            {unanswered > 0 && (
+                                <>
+                                    <span className="ed-meta-sep">&middot;</span>
+                                    <span className="ed-status warn">
+                                        {unanswered} {unanswered === 1 ? 'question has' : 'questions have'} no correct answer yet
+                                    </span>
+                                </>
+                            )}
+                        </span>
+                    </div>
+                </div>
+                <div className="ed-header-actions">
+                    <button
+                        type="button"
+                        className={`ed-ai-chip ${quiz.is_randomized ? 'on' : ''}`}
+                        title="Each student gets a random slice of the question bank"
+                        onClick={() => updateSetting({ is_randomized: !quiz.is_randomized })}
+                    >
+                        <Shuffle size={17} />
+                        <span className="ed-ai-chip-label">
+                            Shuffle
+                            <span className="ed-ai-chip-state">
+                                {quiz.is_randomized ? `On · ${quiz.question_limit || questions.length} of ${questions.length}` : 'Off'}
+                            </span>
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        className={`ed-ai-chip ${quiz.allow_ai_assistance ? 'on' : ''}`}
+                        title="When on, the students' AI Tutor can answer questions about this quiz while they take it. It never edits your questions."
+                        onClick={() => updateSetting({ allow_ai_assistance: !quiz.allow_ai_assistance })}
+                    >
+                        <Bot size={17} />
+                        <span className="ed-ai-chip-label">
+                            AI Tutor
+                            <span className="ed-ai-chip-state">{quiz.allow_ai_assistance ? 'Helps students' : 'Off'}</span>
+                        </span>
+                    </button>
+                    {quiz.is_published ? (
+                        <button
+                            type="button"
+                            className={`db-btn-ghost ${confirmDraft ? 'ed-btn-warn' : ''}`}
+                            onClick={togglePublish}
+                            disabled={saveState === 'saving'}
+                            title="Hides this quiz from students"
+                        >
+                            {confirmDraft ? 'Students will lose access — confirm' : 'Return to draft'}
+                        </button>
+                    ) : (
+                        <button type="button" className="db-btn-primary" onClick={togglePublish} disabled={saveState === 'saving'}>
+                            {saveState === 'saving' ? <Loader2 size={15} className="animate-spin" /> : <Globe size={15} />}
+                            Publish
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* SETTINGS DASHBOARD */}
+            <div className="qb-settings">
+                <div className="qb-card">
+                    <span className="ed-card-label"><Clock size={14} /> Timer</span>
+                    <div className="qb-seg qb-seg-fill">
+                        {['entire_quiz', 'per_question'].map((m) => (
+                            <button
+                                key={m}
+                                type="button"
+                                className={quiz.timer_mode === m ? 'active' : ''}
+                                onClick={() => updateSetting({ timer_mode: m })}
+                            >
+                                {m === 'entire_quiz' ? 'Whole quiz' : 'Per question'}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="qb-input-row">
+                        <Hourglass size={15} />
+                        <span className="qb-unit">{quiz.timer_mode === 'per_question' ? 'Seconds' : 'Minutes'}</span>
+                        <input
+                            type="number"
+                            min="1"
+                            max="300"
+                            value={getDisplayTime()}
+                            onChange={(e) => handleTimeInput(e.target.value)}
                         />
                     </div>
                 </div>
-                <div style={{ gap: '12px' }} className="flex items-center w-full md:w-auto">
-                    <div style={{ gap: '8px', padding: '10px 12px' }} className={`flex items-center rounded-2xl border ${
-                        theme === 'dark'
-                            ? 'bg-white/5 border-white/5'
-                            : 'bg-slate-100 border-slate-300'
-                    }`}>
-                        {saveStatus === 'saving' ? <Loader2 size={14} className="text-purple-400 animate-spin" /> : <CloudCheck size={14} className="text-emerald-500" />}
-                        <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${
-                            saveStatus === 'saving'
-                                ? 'text-purple-400'
-                                : theme === 'dark'
-                                    ? 'text-slate-500'
-                                    : 'text-slate-600'
-                        }`}>{saveStatus === 'saving' ? 'Syncing' : 'Saved'}</span>
-                    </div>
-                    <button onClick={() => handleSaveSettings({ is_randomized: !quiz.is_randomized })} style={{ padding: '12px 16px', gap: '8px' }} className={`rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-none cursor-pointer flex items-center ${
-                        quiz.is_randomized
-                            ? 'bg-cyan-500 text-black shadow-[0_0_20px_rgba(34,211,238,0.3)]'
-                            : theme === 'dark'
-                                ? 'bg-white/5 border border-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
-                                : 'bg-slate-200 border border-slate-300 text-slate-600 hover:bg-slate-300 hover:text-slate-700'
-                    }`}><Shuffle size={14} /> Shuffle</button>
-                    <button onClick={() => handleSaveSettings({ allow_ai_assistance: !quiz.allow_ai_assistance })} style={{ padding: '12px 16px', gap: '8px' }} className={`rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-none cursor-pointer flex items-center ${
-                        quiz.allow_ai_assistance
-                            ? 'bg-purple-600 text-white shadow-[0_0_20px_rgba(147,51,234,0.3)]'
-                            : theme === 'dark'
-                                ? 'bg-white/5 border border-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
-                                : 'bg-slate-200 border border-slate-300 text-slate-600 hover:bg-slate-300 hover:text-slate-700'
-                    }`}>{quiz.allow_ai_assistance ? <Bot size={14} /> : <BotOff size={14} />} AI Agent</button>
-                </div>
-            </div>
 
-            {/* CONFIGURATION DASHBOARD */}
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 mb-48 max-w-full px-0">
-                {/* Timer Card */}
-                <div style={{ padding: '20px 24px' }} className={`rounded-[24px] border shadow-xl flex flex-col justify-between group transition-all relative overflow-hidden ${
-                    theme === 'dark'
-                        ? 'bg-[#050505] border-white/5 hover:border-white/10'
-                        : 'bg-white border-slate-200 hover:border-slate-300'
-                }`}>
-                    <div style={{ marginBottom: '16px' }}>
-                        <div style={{ gap: '8px', marginBottom: '12px' }} className={`flex items-center text-xs font-bold uppercase tracking-wider ${
-                            theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
-                        }`}><Timer size={16} /><span>Timer Settings</span></div>
-                        <div style={{ padding: '4px', gap: '4px', marginBottom: '12px' }} className={`flex rounded-xl border ${
-                            theme === 'dark'
-                                ? 'bg-white/[0.03] border-white/5'
-                                : 'bg-slate-100 border-slate-300'
-                        }`}>
-                            {['entire_quiz', 'per_question'].map(m => (
-                                <button key={m} onClick={() => handleSaveSettings({ timer_mode: m })} style={{ padding: '8px 12px' }} className={`flex-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border-none cursor-pointer transition-all ${
-                                    quiz.timer_mode === m
-                                        ? 'bg-purple-600 text-white shadow-md'
-                                        : theme === 'dark'
-                                            ? 'bg-transparent text-slate-500 hover:text-white'
-                                            : 'bg-transparent text-slate-600 hover:text-slate-700'
-                                }`}>{m === 'entire_quiz' ? 'Entire Quiz' : 'Per Question'}</button>
-                            ))}
-                        </div>
+                <div className={`qb-card ${stats.isPassingInvalid ? 'invalid' : ''}`}>
+                    <span className="ed-card-label"><Target size={14} /> Passing score</span>
+                    <p className="qb-card-hint">Minimum points a student needs to pass.</p>
+                    <div className="qb-input-row">
+                        <span className="qb-unit">Required</span>
+                        <input
+                            type="number"
+                            min="0"
+                            value={quiz.passing_score ?? 0}
+                            onChange={(e) => {
+                                const val = Math.max(0, Number(e.target.value) || 0);
+                                updateSetting({ passing_score: Math.min(val, stats.minPossiblePoints) });
+                            }}
+                        />
+                        <span className="qb-unit">of {stats.minPossiblePoints} total</span>
                     </div>
-                    <div style={{ padding: '12px 16px', gap: '8px' }} className={`flex items-center justify-between rounded-xl border transition-all ${
-                        theme === 'dark'
-                            ? 'bg-black border-white/5 focus-within:border-white/20'
-                            : 'bg-slate-50 border-slate-300 focus-within:border-slate-400'
-                    }`}>
-                        <div style={{ gap: '8px' }} className="flex items-center">
-                            <Hourglass size={16} className="text-purple-500" />
-                            <span className={`text-[10px] font-bold uppercase tracking-widest ${
-                                theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
-                            }`}>{quiz.timer_mode === 'per_question' ? 'Seconds' : 'Minutes'}</span>
-                        </div>
-                        <input type="number" min="1" max="300" className={`bg-transparent border-none outline-none font-black text-xl w-16 text-right ${
-                            theme === 'dark' ? 'text-white' : 'text-slate-800'
-                        }`} value={getDisplayTime()} onChange={(e) => handleTimeInput(e.target.value)} onBlur={() => handleSaveSettings()} />
-                    </div>
-                </div>
-
-                {/* Score Card */}
-                <div style={{ padding: '20px 24px' }} className={`rounded-[24px] border shadow-xl flex flex-col justify-between group transition-all relative overflow-hidden ${
-                    theme === 'dark'
-                        ? 'bg-[#050505] border-white/5 hover:border-white/10'
-                        : 'bg-white border-slate-200 hover:border-slate-300'
-                }`}>
-                    <div style={{ marginBottom: '16px' }}>
-                        <div style={{ gap: '8px', marginBottom: '8px' }} className={`flex items-center text-xs font-bold uppercase tracking-wider ${
-                            theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
-                        }`}><Target size={16} /><span>Passing Score</span></div>
-                        <p className={`text-[10px] font-medium pr-2 leading-relaxed ${
-                            theme === 'dark' ? 'text-slate-500' : 'text-slate-600'
-                        }`}>Minimum points required to pass this quiz.</p>
-                    </div>
-                    <div style={{ padding: '12px 16px', gap: '16px' }} className={`flex items-center justify-between rounded-xl border transition-all ${
-                        stats.isPassingInvalid
-                            ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.1)]'
-                            : theme === 'dark'
-                                ? 'bg-black border-white/5 focus-within:border-white/20'
-                                : 'bg-slate-50 border-slate-300 focus-within:border-slate-400'
-                    }`}>
-                        <div className="flex flex-col">
-                            <span style={{ marginBottom: '4px' }} className={`text-[9px] font-bold uppercase tracking-wider ${
-                                stats.isPassingInvalid
-                                    ? 'text-red-400'
-                                    : theme === 'dark'
-                                        ? 'text-slate-500'
-                                        : 'text-slate-600'
-                            }`}>Required</span>
-                            <input
-                                type="number"
-                                min="0"
-                                max={stats.totalPoints}
-                                className={`bg-transparent border-none outline-none font-black text-xl w-16 ${
-                                    stats.isPassingInvalid
-                                        ? 'text-red-500'
-                                        : theme === 'dark'
-                                            ? 'text-white'
-                                            : 'text-slate-800'
-                                }`}
-                                value={quiz.passing_score ?? 0}
-                                onChange={(e) => {
-                                    const val = Math.max(0, Number(e.target.value));
-                                    const clamped = val > stats.minPossiblePoints ? stats.minPossiblePoints : val;
-                                    setQuiz({...quiz, passing_score: clamped});
-                                }}
-                                onBlur={() => handleSaveSettings()}
-                            />
-                        </div>
-                        <div className="text-right">
-                            <span style={{ marginBottom: '4px' }} className={`text-[9px] font-bold uppercase tracking-wider block ${
-                                theme === 'dark' ? 'text-slate-500' : 'text-slate-600'
-                            }`}>Max Safe</span>
-                            <span className={`text-lg font-black ${
-                                theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-                            }`}>{stats.minPossiblePoints}</span>
-                        </div>
-                    </div>
-                    {stats.isPassingInvalid && <p style={{ marginTop: '12px' }} className="text-[9px] font-bold text-red-500 uppercase">Error: Exceeds safe limit</p>}
-                </div>
-
-                {/* Pool Limit Card */}
-                <div style={{ padding: '20px 24px' }} className={`rounded-[24px] border shadow-xl flex flex-col justify-between group transition-all relative overflow-hidden ${
-                    theme === 'dark'
-                        ? 'bg-[#050505] border-white/5 hover:border-white/10'
-                        : 'bg-white border-slate-200 hover:border-slate-300'
-                }`}>
-                    {!quiz.is_randomized && (
-                        <div style={{ padding: '16px' }} className={`absolute inset-0 z-20 backdrop-blur-sm flex flex-col items-center justify-center text-center ${
-                            theme === 'dark' ? 'bg-[#030014]/90' : 'bg-white/90'
-                        }`}>
-                            <Lock size={16} className={`mb-2 ${
-                                theme === 'dark' ? 'text-slate-600' : 'text-slate-400'
-                            }`} />
-                            <p className={`text-[9px] font-bold uppercase tracking-wider ${
-                                theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
-                            }`}>Turn on Shuffle to limit questions</p>
-                        </div>
+                    {stats.isPassingInvalid && (
+                        <p className="qb-card-error">Exceeds the worst-case total — lower it.</p>
                     )}
-                    <div style={{ marginBottom: '16px' }}>
-                        <div style={{ gap: '8px', marginBottom: '8px' }} className={`flex items-center text-xs font-bold uppercase tracking-wider ${
-                            theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
-                        }`}><Filter size={16} /><span>Question Limit</span></div>
-                        <p className={`text-[10px] font-medium pr-2 leading-relaxed ${
-                            theme === 'dark' ? 'text-slate-500' : 'text-slate-600'
-                        }`}>Limit how many questions appear per attempt.</p>
-                    </div>
-                    <div style={{ padding: '12px 16px', gap: '16px' }} className={`flex items-center justify-between rounded-xl border transition-all ${
-                        stats.isLimitInvalid
-                            ? 'border-red-500/50'
-                            : theme === 'dark'
-                                ? 'bg-black border-white/5 focus-within:border-white/20'
-                                : 'bg-slate-50 border-slate-300 focus-within:border-slate-400'
-                    }`}>
-                        <div className="flex flex-col">
-                            <span style={{ marginBottom: '4px' }} className={`text-[9px] font-bold uppercase tracking-wider ${
-                                stats.isLimitInvalid
-                                    ? 'text-red-400'
-                                    : theme === 'dark'
-                                        ? 'text-slate-500'
-                                        : 'text-slate-600'
-                            }`}>Show</span>
-                            <input
-                                type="number"
-                                min="1"
-                                max={questions.length}
-                                placeholder="All"
-                                className={`bg-transparent border-none outline-none font-black text-xl w-16 ${
-                                    stats.isLimitInvalid
-                                        ? 'text-red-500'
-                                        : theme === 'dark'
-                                            ? 'text-white'
-                                            : 'text-slate-800'
-                                }`}
-                                value={quiz.question_limit || ""}
-                                onChange={(e) => {
-                                    if (e.target.value === "") {
-                                        handleSaveSettings({ question_limit: null });
-                                        return;
-                                    }
-                                    const val = Math.max(1, Number(e.target.value));
-                                    const clamped = val > questions.length ? questions.length : val;
-                                    handleSaveSettings({ question_limit: clamped });
-                                }}
-                            />
-                        </div>
-                        <div className="text-right">
-                            <span style={{ marginBottom: '4px' }} className={`text-[9px] font-bold uppercase tracking-wider block ${
-                                theme === 'dark' ? 'text-slate-500' : 'text-slate-600'
-                            }`}>Total Bank</span>
-                            <span className={`text-lg font-black ${
-                                theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-                            }`}>{stats.poolSize}</span>
-                        </div>
+                </div>
+
+                <div className={`qb-card ${!quiz.is_randomized ? 'muted' : ''}`}>
+                    <span className="ed-card-label"><Filter size={14} /> Question limit</span>
+                    <p className="qb-card-hint">
+                        {quiz.is_randomized
+                            ? 'How many of the banked questions appear per attempt.'
+                            : 'Turn on Shuffle to give each student a random slice of the question bank.'}
+                    </p>
+                    {!quiz.is_randomized && (
+                        <button
+                            type="button"
+                            className="qb-card-action"
+                            onClick={() => updateSetting({ is_randomized: true })}
+                        >
+                            Turn on Shuffle
+                        </button>
+                    )}
+                    <div className="qb-input-row">
+                        <span className="qb-unit">Show</span>
+                        <input
+                            type="number"
+                            min="1"
+                            max={questions.length}
+                            placeholder="All"
+                            disabled={!quiz.is_randomized}
+                            value={quiz.question_limit || ''}
+                            onChange={(e) => {
+                                if (e.target.value === '') return updateSetting({ question_limit: null });
+                                const val = Math.max(1, Number(e.target.value) || 1);
+                                updateSetting({ question_limit: Math.min(val, questions.length) });
+                            }}
+                        />
+                        <span className="qb-unit">of {stats.poolSize}</span>
                     </div>
                 </div>
 
-                {/* Summary Stats Card */}
-                <div style={{ padding: '20px 24px', gap: '16px' }} className={`rounded-[24px] border shadow-xl flex flex-col justify-center relative overflow-hidden ${
-                    theme === 'dark'
-                        ? 'bg-[#050505] border-white/5'
-                        : 'bg-white border-slate-200'
-                }`}>
-                    <div className="flex justify-between items-center">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                            theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
-                        }`}>Questions in Quiz</span>
-                        <span className={`text-xl font-black ${
-                            theme === 'dark' ? 'text-white' : 'text-slate-800'
-                        }`}>{stats.activeCount}</span>
+                <div className="qb-card qb-summary">
+                    <div className="qb-summary-row">
+                        <span>Questions in quiz</span>
+                        <b>{stats.activeCount}</b>
                     </div>
-                    <div className={`h-[1px] w-full ${
-                        theme === 'dark' ? 'bg-white/5' : 'bg-slate-300'
-                    }`} />
-                    <div className="flex justify-between items-center">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                            theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
-                        }`}>Total Points</span>
-                        <span className="text-xl font-black text-purple-400">{stats.totalPoints}</span>
+                    <div className="qb-summary-row">
+                        <span>Total points</span>
+                        <b>{stats.totalPoints}</b>
+                    </div>
+                    <div className="qb-summary-row">
+                        <span>Passing score</span>
+                        <b>{quiz.passing_score ?? 0}</b>
                     </div>
                 </div>
             </div>
 
-            {/* CANVAS */}
-            <div className="pb-40 overflow-visible">
-                <Reorder.Group axis="y" values={questions} onReorder={handleReorder} style={{ gap: '32px' }} className="flex flex-col list-none p-0 overflow-visible w-full">
+            {/* QUESTIONS */}
+            {questions.length === 0 ? (
+                <div className="ed-empty">
+                    <CheckCircle2 size={26} />
+                    <h3>Start your quiz</h3>
+                    <p>Pick a question type above — multiple choice, true or false, coding and more. Everything saves automatically.</p>
+                </div>
+            ) : (
+                <Reorder.Group axis="y" values={questions} onReorder={handleReorder} className="ed-list">
                     {questions.map((q, index) => (
-                        <DraggableQuestion key={q.id} q={q} index={index} quiz={quiz} deleteModalOpen={deleteModalOpen} setDeleteModalOpen={setDeleteModalOpen} isSyncingId={isSyncingId} updateQuestion={updateQuestion} />
+                        <QuestionBlock
+                            key={q.id}
+                            q={q}
+                            index={index}
+                            lastIndex={questions.length - 1}
+                            onMove={moveQuestion}
+                            update={updateQuestion}
+                            remove={removeQuestion}
+                            randomized={Boolean(quiz.is_randomized)}
+                            isConfirming={deleteTarget === q.id}
+                            setConfirming={(v) => setDeleteTarget(v ? q.id : null)}
+                        />
                     ))}
                 </Reorder.Group>
+            )}
 
-                <AnimatePresence>
-                    {isCreating && (
-                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className={`p-12 rounded-[40px] border shadow-2xl flex flex-col items-center justify-center gap-4 mt-12 relative overflow-hidden ${
-                            theme === 'dark'
-                                ? 'border-white/5 bg-[#050505]'
-                                : 'border-slate-200 bg-slate-50'
-                        }`}>
-                            <div className={`absolute inset-0 animate-pulse ${
-                                theme === 'dark'
-                                    ? 'bg-gradient-to-r from-transparent via-purple-500/5 to-transparent'
-                                    : 'bg-gradient-to-r from-transparent via-purple-200/5 to-transparent'
-                            }`} />
-                            <Loader2 className="animate-spin text-purple-500" size={32} />
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-purple-400">Adding Question...</span>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+            {isCreating && (
+                <div className="qb-creating">
+                    <Loader2 size={20} className="animate-spin" />
+                    Adding question…
+                </div>
+            )}
 
-                {/* INSERTER HUB */}
-                <div style={{ marginTop: '48px' }}>
-                    <div style={{ gap: '16px', marginBottom: '24px' }} className="flex items-center">
-                        <div className={`h-[1px] flex-grow bg-gradient-to-r from-transparent ${
-                            theme === 'dark' ? 'to-white/10' : 'to-slate-300'
-                        }`} />
-                        <span className={`text-[10px] font-black uppercase tracking-[0.5em] ${
-                            theme === 'dark' ? 'text-slate-600' : 'text-slate-500'
-                        }`}>Append Element</span>
-                        <div className={`h-[1px] flex-grow bg-gradient-to-l from-transparent ${
-                            theme === 'dark' ? 'to-white/10' : 'to-slate-300'
-                        }`} />
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-                        <AddTypeBtn label="Choice" icon={CheckCircle2} onClick={() => addQuestion('multiple_choice')} disabled={isCreating} />
-                        <AddTypeBtn label="Identify" icon={Type} onClick={() => addQuestion('identification')} disabled={isCreating} />
-                        <AddTypeBtn label="List" icon={ListOrdered} onClick={() => addQuestion('enumeration')} disabled={isCreating} />
-                        <AddTypeBtn label="T / F" icon={Hash} onClick={() => addQuestion('true_false')} disabled={isCreating} />
-                        <AddTypeBtn label="Coding" icon={Code} onClick={() => addQuestion('coding')} disabled={isCreating} />
-                    </div>
+            {/* QUESTION PALETTE */}
+            <div className="ed-insert">
+                <span className="ed-insert-label">Add a question to this quiz</span>
+                <div className="ed-insert-grid">
+                    <button type="button" className="ed-insert-card" onClick={() => addQuestion('multiple_choice')} disabled={isCreating}>
+                        <span className="ed-insert-icon"><CheckCircle2 size={19} /></span>
+                        <span className="ed-insert-text">
+                            <span className="ed-insert-name">Multiple choice</span>
+                            <span className="ed-insert-sub">Pick one answer</span>
+                        </span>
+                    </button>
+                    <button type="button" className="ed-insert-card" onClick={() => addQuestion('identification')} disabled={isCreating}>
+                        <span className="ed-insert-icon"><Type size={19} /></span>
+                        <span className="ed-insert-text">
+                            <span className="ed-insert-name">Identification</span>
+                            <span className="ed-insert-sub">Type the exact answer</span>
+                        </span>
+                    </button>
+                    <button type="button" className="ed-insert-card" onClick={() => addQuestion('enumeration')} disabled={isCreating}>
+                        <span className="ed-insert-icon"><ListOrdered size={19} /></span>
+                        <span className="ed-insert-text">
+                            <span className="ed-insert-name">Enumeration</span>
+                            <span className="ed-insert-sub">List several answers</span>
+                        </span>
+                    </button>
+                    <button type="button" className="ed-insert-card" onClick={() => addQuestion('true_false')} disabled={isCreating}>
+                        <span className="ed-insert-icon"><Hash size={19} /></span>
+                        <span className="ed-insert-text">
+                            <span className="ed-insert-name">True or False</span>
+                            <span className="ed-insert-sub">Two options only</span>
+                        </span>
+                    </button>
+                    <button type="button" className="ed-insert-card" onClick={() => addQuestion('coding')} disabled={isCreating}>
+                        <span className="ed-insert-icon"><Code size={19} /></span>
+                        <span className="ed-insert-text">
+                            <span className="ed-insert-name">Coding</span>
+                            <span className="ed-insert-sub">Students write code</span>
+                        </span>
+                    </button>
                 </div>
             </div>
-            <DeleteModal
-                isOpen={deleteModalOpen !== null}
-                onClose={() => setDeleteModalOpen(null)}
-                onConfirm={removeQuestion}
-                title="Question"
-                loading={isSyncingId !== null}
-            />
-        </div>
+
+            {/* Delete confirmation banner: the two-step confirm lives in the
+                question's hover toolbar; this names the question while armed. */}
+            {deleteTarget && (
+                <div className="qb-delete-note">
+                    <Trash2 size={14} />
+                    Press the check to delete “{(questions.find((q) => q.id === deleteTarget)?.question_text || '').slice(0, 60)}” — or the × to keep it.
+                    <button type="button" onClick={() => setDeleteTarget(null)} aria-label="Cancel delete">
+                        <X size={14} />
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

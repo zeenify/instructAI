@@ -3420,3 +3420,607 @@
         margin-left: 0;
     }
 }
+
+
+/* ---------- Shared editor chrome (ed-) — the sticky-header + block-canvas
+   pattern reused by the lesson editor and the quiz builder ---------- */
+
+
+/* ---------- Lesson editor (le-) ---------- */
+
+.ed-shell {
+    max-width: none;
+    margin: 0 auto;
+    padding: 0 26px 160px;
+}
+
+.ed-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 14px 4px 14px;
+    margin-bottom: 18px;
+    background: color-mix(in srgb, var(--db-canvas) 86%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--db-border);
+}
+
+.ed-header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    min-width: 280px;
+}
+
+.ed-title-block {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.ed-kicker-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.ed-kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--db-text-2);
+    margin-bottom: 2px;
+}
+
+.ed-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+
+.ed-badge.draft {
+    color: var(--db-text-2);
+    background: var(--db-card-2);
+    border: 1px solid var(--db-border-strong);
+}
+
+.ed-title-input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: var(--db-text);
+    font-family: var(--db-font-display);
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    outline: none;
+    padding: 2px 0;
+    border-bottom: 1.5px solid transparent;
+    transition: border-color 0.15s ease;
+}
+
+.ed-title-input:focus {
+    border-bottom-color: var(--db-accent);
+}
+
+.ed-title-input::placeholder {
+    color: var(--db-text-3);
+    font-weight: 500;
+}
+
+.ed-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--db-text-3);
+    margin-top: 4px;
+}
+
+.ed-meta-sep {
+    color: var(--db-text-3);
+}
+
+.ed-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex-wrap: wrap;
+}
+
+.ed-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--db-text-3);
+    white-space: nowrap;
+}
+
+.ed-status.saved {
+    color: var(--db-text-2);
+    font-weight: 600;
+}
+
+.ed-status.dirty {
+    color: var(--db-amber);
+    font-weight: 600;
+}
+
+.ed-status.saving {
+    color: var(--db-text-2);
+}
+
+.ed-status.error {
+    color: var(--db-danger);
+    font-weight: 600;
+}
+
+.ed-btn-warn {
+    color: var(--db-danger) !important;
+    border-color: rgba(248, 113, 113, 0.45) !important;
+    background: var(--db-danger-soft) !important;
+}
+
+/* Compact round back button for the editor header */
+.ed-back-icon {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    flex: none;
+    border-radius: 999px;
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card);
+    color: var(--db-accent-bright);
+    cursor: pointer;
+    box-shadow: var(--db-shadow-soft);
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+:root[data-theme='light'] .ed-back-icon {
+    color: var(--db-accent);
+}
+
+.ed-back-icon:hover {
+    border-color: var(--db-accent-border);
+    background: var(--db-accent-soft);
+}
+
+/* Section inserter — one obvious palette of big, described, clickable cards */
+
+.ed-insert {
+    margin: 0 0 30px;
+}
+
+.ed-insert-label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--db-text-2);
+    margin-bottom: 12px;
+}
+
+.ed-insert-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+}
+
+.ed-insert-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid var(--db-border);
+    background: var(--db-card);
+    cursor: pointer;
+    text-align: left;
+    box-shadow: var(--db-shadow-soft);
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ed-insert-card:hover {
+    border-color: var(--db-accent-border);
+    background: var(--db-accent-soft);
+    transform: translateY(-2px);
+    box-shadow: var(--db-shadow);
+}
+
+.ed-insert-icon {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    flex: none;
+    border-radius: 12px;
+    color: var(--db-accent-bright);
+    background: var(--db-accent-soft);
+    border: 1px solid var(--db-accent-border);
+}
+
+:root[data-theme='light'] .ed-insert-icon {
+    color: var(--db-accent);
+}
+
+.ed-insert-card:hover .ed-insert-icon {
+    background: var(--db-card);
+}
+
+.ed-insert-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.ed-insert-name {
+    font-size: 15.5px;
+    font-weight: 700;
+    color: var(--db-text);
+}
+
+.ed-insert-sub {
+    font-size: 12.5px;
+    color: var(--db-text-3);
+    line-height: 1.35;
+}
+
+.ed-insert-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ed-insert-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 15px;
+    border-radius: 11px;
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card);
+    color: var(--db-text);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.ed-insert-chip:hover {
+    color: var(--db-accent-bright);
+    border-color: var(--db-accent-border);
+    background: var(--db-accent-soft);
+    transform: translateY(-1px);
+}
+
+:root[data-theme='light'] .ed-insert-chip:hover {
+    color: var(--db-accent);
+}
+
+/* Blocks */
+
+.ed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.ed-block {
+    position: relative;
+}
+
+.ed-block-tools {
+    position: absolute;
+    top: -14px;
+    right: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px;
+    border-radius: 10px;
+    background: var(--db-card);
+    border: 1px solid var(--db-border);
+    box-shadow: var(--db-shadow-soft);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.ed-block:hover .ed-block-tools,
+.ed-block:focus-within .ed-block-tools {
+    opacity: 1;
+}
+
+.ed-tool {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--db-text-3);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ed-tool:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.ed-tool-grip {
+    cursor: grab;
+    touch-action: none;
+}
+
+.ed-tool-grip:active {
+    cursor: grabbing;
+}
+
+.ed-tool-grip:hover,
+.ed-tool:hover {
+    color: var(--db-text);
+    background: var(--db-card-2);
+}
+
+.ed-tool-confirm {
+    color: #ffffff;
+    background: var(--db-danger);
+}
+
+.ed-tool-confirm:hover {
+    color: #ffffff;
+    filter: brightness(1.1);
+}
+
+.ed-tool-del:hover {
+    color: var(--db-danger);
+    background: var(--db-danger-soft);
+}
+
+.ed-tool-cancel:hover {
+    color: var(--db-text);
+    background: var(--db-card-2);
+}
+
+.ed-block.dragging .ed-block {
+    pointer-events: none;
+}
+
+.ed-block.dragging {
+    cursor: grabbing;
+}
+
+/* While one block is dragged, freeze the rest */
+.ed-list:has(.ed-block.dragging) .ed-block:not(.dragging) .ed-block-tools {
+    opacity: 0 !important;
+}
+
+.ed-list:has(.ed-block.dragging) .ed-block:not(.dragging) > *:not(.ed-block-tools) {
+    opacity: 0.45;
+}
+
+/* Insert-here strip between blocks */
+
+.ed-strip {
+    position: absolute;
+    top: -17px;
+    left: 0;
+    right: 0;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 5;
+}
+
+.ed-block:hover .ed-strip {
+    opacity: 1;
+}
+
+.ed-list:has(.ed-block.dragging) .ed-strip {
+    opacity: 0 !important;
+}
+
+.ed-insert-pop {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 8px;
+    border-radius: 12px;
+    background: var(--db-card);
+    border: 1px solid var(--db-border-strong);
+    box-shadow: var(--db-shadow);
+    animation: db-pop-in 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+}
+
+.ed-insert-pop .ed-insert-chip {
+    padding: 7px 12px;
+    font-size: 12.5px;
+}
+
+.ed-block:hover .le-h1 {
+    border-color: var(--db-border);
+}
+
+.ed-card-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--db-text-2);
+}
+
+/* Empty state */
+
+.ed-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 46px 28px;
+    border-radius: 18px;
+    border: 1.5px dashed var(--db-border-strong);
+    color: var(--db-text-3);
+    gap: 6px;
+}
+
+.ed-empty h3 {
+    font-family: var(--db-font-display);
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--db-text);
+    margin: 8px 0 0;
+}
+
+.ed-empty p {
+    font-size: 15px;
+    max-width: 420px;
+    margin: 0;
+    line-height: 1.55;
+}@media (max-width: 720px) {
+
+    .ed-header-left {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .ed-title-input {
+        font-size: 20px;
+    }
+
+    .ed-header-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }}
+
+
+/* Insert-here strip: labeled pill instead of a bare plus */
+
+.ed-strip-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 13px;
+    border-radius: 999px;
+    border: 1px solid var(--db-accent-border);
+    background: var(--db-card);
+    color: var(--db-accent-bright);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    box-shadow: var(--db-shadow-soft);
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+:root[data-theme='light'] .ed-strip-btn {
+    color: var(--db-accent);
+}
+
+.ed-strip-btn:hover,
+.ed-strip-btn.open {
+    background: var(--db-accent-soft);
+    transform: scale(1.04);
+}
+/* Touch devices: hover-only editor block tools stay visible */
+@media (hover: none) {
+    .ed-block-tools {
+        opacity: 1;
+    }
+}
+
+/* Shared AI/state chip — "AI Tutor"/"AI Agent" toggles on editor headers */
+.ed-ai-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--db-border);
+    background: var(--db-card);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.ed-ai-chip.on {
+    border-color: var(--db-accent-border);
+    background: var(--db-accent-soft);
+}
+
+.ed-ai-chip-label {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.2;
+}
+
+.ed-ai-chip-label > :first-child {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--db-text);
+}
+
+.ed-ai-chip-state {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--db-text-3);
+}
+
+.ed-ai-chip.on .ed-ai-chip-label > :first-child {
+    color: var(--db-accent-bright);
+}
+
+:root[data-theme='light'] .ed-ai-chip.on .ed-ai-chip-label > :first-child {
+    color: var(--db-accent);
+}
+
+.ed-ai-chip.on .ed-ai-chip-state {
+    color: var(--db-green);
+}

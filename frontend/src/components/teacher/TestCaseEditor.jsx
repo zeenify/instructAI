@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Plus, Trash2, Save, ShieldCheck, Eye, EyeOff, Loader2, CheckCircle2, XCircle, FlaskConical } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
+import './TestCaseEditor.css';
 
 export default function TestCaseEditor({ question, apiBase = '/teacher/questions' }) {
     const [tests, setTests] = useState(null); // null while loading
@@ -58,7 +59,7 @@ export default function TestCaseEditor({ question, apiBase = '/teacher/questions
             });
             setTests(res.data.test_cases);
             setSavedSnapshot(JSON.stringify(res.data.test_cases));
-            invalidateCache(`get:/teacher/quizzes`);
+            invalidateCache('get:/teacher/quizzes');
             toast.success('Test cases saved');
         } catch {
             toast.error('Failed to save test cases');
@@ -81,34 +82,23 @@ export default function TestCaseEditor({ question, apiBase = '/teacher/questions
         try {
             const res = await api.post(`${apiBase}/${question.id}/verify`, {
                 reference_code: referenceCode,
-            }, { timeout: 120000 });
+            });
             setVerifyResults(res.data);
-            if (res.data.all_passed) {
-                toast.success(`Challenge verified — ${res.data.passed}/${res.data.total} tests pass`);
-            } else {
-                toast.warning(`${res.data.passed}/${res.data.total} tests pass — check the failures`);
-            }
-        } catch (err) {
-            toast.error(err.response?.data?.message || 'Verification failed');
+        } catch {
+            toast.error('Verification failed — try again');
         } finally {
             setVerifying(false);
         }
     };
 
     return (
-        <div style={{ padding: '16px 20px', gap: '12px' }} className={`rounded-3xl flex flex-col ${
-            question.language === 'html'
-                ? 'bg-slate-500/[0.04] border border-slate-400/20'
-                : 'bg-emerald-500/[0.03] border border-emerald-500/15'
-        }`}>
-            <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className={`flex items-center gap-2 font-black text-[10px] uppercase tracking-[0.2em] ${
-                    question.language === 'html' ? 'text-slate-500' : 'text-emerald-600'
-                }`}>
-                    <FlaskConical size={14} /> Test Cases
-                </div>
+        <div className="tce-box">
+            <div className="tce-head">
+                <span className="tce-title">
+                    <FlaskConical size={14} /> Test cases
+                </span>
                 {tests !== null && tests.length > 0 && (
-                    <span className={`text-[10px] font-bold ${dirty ? 'text-amber-500' : 'text-slate-400'}`}>
+                    <span className="tce-count">
                         {tests.length} test{tests.length !== 1 ? 's' : ''}{dirty ? ' · unsaved' : ''}
                     </span>
                 )}
@@ -118,29 +108,27 @@ export default function TestCaseEditor({ question, apiBase = '/teacher/questions
                 null
             ) : (
                 <>
-                    <p className="text-[10px] text-slate-500 font-medium" style={{ margin: 0 }}>
-                        Each test runs the student's code with the given input and compares stdout. All tests must pass for full points unless “Allow partial credit” is on. Hidden tests aren't shown to students.
+                    <p className="tce-desc">
+                        Each test runs the student's code with the given input and compares what it prints. All tests must pass for full points unless “Allow partial credit” is on. Hidden tests aren't shown to students.
                     </p>
 
                     {tests === null ? (
-                        <div className="flex items-center gap-2 text-slate-400 text-xs py-2">
-                            <Loader2 size={14} className="animate-spin" /> Loading test cases...
+                        <div className="tce-loading">
+                            <Loader2 size={14} className="animate-spin" /> Loading test cases…
                         </div>
                     ) : (
                         <>
-                            <div className="flex flex-col gap-3">
+                            <div className="tce-rows">
                                 {tests.map((t, i) => (
-                                    <div key={i} className="rounded-2xl border border-white/10 bg-black/20 p-3 flex flex-col gap-2">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Test {i + 1}</span>
-                                            <div className="flex items-center gap-2">
+                                    <div key={t.id || i} className="tce-row">
+                                        <div className="tce-row-top">
+                                            <span className="tce-row-num">Test {i + 1}</span>
+                                            <div className="tce-row-tools">
                                                 <button
                                                     type="button"
                                                     onClick={() => update(i, { hidden: !t.hidden })}
                                                     title={t.hidden ? 'Hidden from students' : 'Visible to students as a sample'}
-                                                    className={`text-[9px] font-black uppercase tracking-wider rounded-lg border-none cursor-pointer px-2 py-1 flex items-center gap-1 ${
-                                                        t.hidden ? 'text-amber-500 bg-amber-500/10' : 'text-emerald-600 bg-emerald-500/10'
-                                                    }`}
+                                                    className={`tce-visibility ${t.hidden ? 'hidden' : ''}`}
                                                 >
                                                     {t.hidden ? <EyeOff size={10} /> : <Eye size={10} />}
                                                     {t.hidden ? 'Hidden' : 'Sample'}
@@ -148,31 +136,32 @@ export default function TestCaseEditor({ question, apiBase = '/teacher/questions
                                                 <button
                                                     type="button"
                                                     onClick={() => removeTest(i)}
-                                                    className="text-red-400 hover:text-red-300 bg-transparent border-none cursor-pointer p-1"
+                                                    className="tce-remove"
+                                                    title="Remove this test"
                                                 >
                                                     <Trash2 size={12} />
                                                 </button>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                        <div className="tce-fields">
                                             <div>
-                                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-1">Input (stdin)</label>
+                                                <label className="tce-field-label">Input (stdin)</label>
                                                 <textarea
                                                     value={t.input || ''}
                                                     onChange={(e) => update(i, { input: e.target.value })}
                                                     rows={2}
-                                                    placeholder={'e.g. 5'}
-                                                    className="w-full rounded-lg border border-white/10 bg-[#0b1120] text-cyan-300 font-mono text-xs p-2 outline-none focus:border-cyan-500/40 resize-y"
+                                                    placeholder="e.g. 5"
+                                                    className="tce-textarea"
                                                 />
                                             </div>
                                             <div>
-                                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-1">Expected output</label>
+                                                <label className="tce-field-label">Expected output</label>
                                                 <textarea
                                                     value={t.expected_output || ''}
                                                     onChange={(e) => update(i, { expected_output: e.target.value })}
                                                     rows={2}
-                                                    placeholder="What stdout must be"
-                                                    className="w-full rounded-lg border border-white/10 bg-[#0b1120] text-emerald-300 font-mono text-xs p-2 outline-none focus:border-emerald-500/40 resize-y"
+                                                    placeholder="What the console must print"
+                                                    className="tce-textarea"
                                                 />
                                             </div>
                                         </div>
@@ -180,38 +169,35 @@ export default function TestCaseEditor({ question, apiBase = '/teacher/questions
                                 ))}
                             </div>
 
-                            <div className="flex items-center gap-3 flex-wrap">
+                            <div className="tce-actions">
                                 <button
                                     type="button"
                                     onClick={addTest}
-                                    className="text-[10px] font-black uppercase tracking-widest rounded-lg border-none cursor-pointer px-3 py-2 flex items-center gap-1 text-emerald-600 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
+                                    className="tce-add"
                                 >
-                                    <Plus size={12} /> Add test case
+                                    <Plus size={12} /> Add a test
                                 </button>
                                 <button
                                     type="button"
                                     onClick={save}
                                     disabled={saving || !dirty}
-                                    className={`text-[10px] font-black uppercase tracking-widest rounded-lg border-none cursor-pointer px-3 py-2 flex items-center gap-1 transition-colors ${
-                                        dirty ? 'text-white bg-emerald-600 hover:bg-emerald-500' : 'text-slate-500 bg-slate-500/10 cursor-not-allowed'
-                                    }`}
+                                    className={`tce-save ${dirty ? 'armed' : ''}`}
                                 >
                                     {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
                                     Save test cases
                                 </button>
                             </div>
 
-                            {/* Reference solution verifier */}
-                            <div className="rounded-2xl border border-white/10 bg-black/20 p-3 flex flex-col gap-2">
-                                <div className="flex items-center justify-between flex-wrap gap-2">
-                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                            <div className="tce-verify">
+                                <div className="tce-verify-head">
+                                    <label className="tce-verify-label">
                                         Reference solution — run it against every test before publishing
                                     </label>
                                     <button
                                         type="button"
                                         onClick={verify}
                                         disabled={verifying || tests.length === 0 || dirty}
-                                        className="text-[10px] font-black uppercase tracking-widest rounded-lg border-none cursor-pointer px-3 py-2 flex items-center gap-1 text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                        className="tce-verify-btn"
                                         title={tests.length === 0 ? 'Add test cases first' : dirty ? 'Save test cases first' : 'Run reference solution'}
                                     >
                                         {verifying ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
@@ -222,25 +208,25 @@ export default function TestCaseEditor({ question, apiBase = '/teacher/questions
                                     value={referenceCode}
                                     onChange={(e) => setReferenceCode(e.target.value)}
                                     rows={4}
-                                    placeholder="Paste your solution here..."
-                                    className="w-full rounded-lg border border-white/10 bg-[#0b1120] text-slate-200 font-mono text-xs p-2 outline-none focus:border-purple-500/40 resize-y"
+                                    placeholder="Paste your solution here…"
+                                    className="tce-reference"
                                 />
                                 {verifyResults && (
-                                    <div className="flex flex-col gap-1">
-                                        <div className={`text-[11px] font-black flex items-center gap-1 ${verifyResults.all_passed ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                    <div className="tce-results">
+                                        <div className={`tce-results-title ${verifyResults.all_passed ? 'pass' : 'fail'}`}>
                                             {verifyResults.all_passed ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
                                             {verifyResults.passed}/{verifyResults.total} tests pass{verifyResults.all_passed ? ' — safe to publish' : ' — fix before publishing'}
                                         </div>
                                         {verifyResults.results.map((r, i) => (
-                                            <div key={i} className="text-[11px] font-mono flex items-start gap-2">
+                                            <div key={i} className={`tce-result-row ${r.passed ? 'pass' : 'fail'}`}>
                                                 {r.passed
-                                                    ? <CheckCircle2 size={11} className="text-emerald-400 mt-0.5 flex-shrink-0" />
-                                                    : <XCircle size={11} className="text-red-400 mt-0.5 flex-shrink-0" />}
-                                                <span className="text-slate-500">Test {i + 1}:</span>
+                                                    ? <CheckCircle2 size={11} className="tce-result-icon pass" />
+                                                    : <XCircle size={11} className="tce-result-icon fail" />}
+                                                <span className="tce-result-num">Test {i + 1}:</span>
                                                 {r.passed ? (
-                                                    <span className="text-emerald-400">ok</span>
+                                                    <span className="tce-result-ok">ok</span>
                                                 ) : (
-                                                    <span className="text-red-300 break-all">
+                                                    <span className="tce-result-detail">
                                                         got {r.timed_out ? 'TIMEOUT' : JSON.stringify(r.actual_output || (r.compile_output ? r.compile_output.slice(0, 200) : r.stderr?.slice(0, 200)))}
                                                     </span>
                                                 )}

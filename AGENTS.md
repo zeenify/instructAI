@@ -35,9 +35,10 @@ We are redesigning the web app **page by page**, one page at a time:
 Pages done: landing (Paper & Ink), login, teacher register, student register,
 EUNA chatbot section, teacher home/overview, class page + embedded content
 builder (ClassDetails + CourseBuilder), lesson editor (LessonEditor: autosave,
-preview, insert-between; `useLesson` hook), student class page (1:1 course
-logic). Next up: quiz editor (QuizBuilder) + remaining teacher pages, then the
-rest of the student side.
+preview, insert-between, challenge test cases; `useLesson` hook), quiz editor
+(QuizBuilder: autosave, settings cards, per-question pipeline; `useQuiz` hook),
+student class page (1:1 course logic). Next up: student side (quiz-taking view,
+remaining pages), then analytics/monitor refresh.
 Old file versions were replaced outright (no V2/V3 suffixes) — keep it that way.
 
 Dashboard-side conventions: styles live in \`styles/dashboard.css\` (\`db-\` prefix,

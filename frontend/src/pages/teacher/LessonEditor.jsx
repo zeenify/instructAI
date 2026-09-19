@@ -311,7 +311,7 @@ export default function LessonEditor() {
     };
 
     const saveStatus = (
-        <span className={`le-status ${saveState}`}>
+        <span className={`ed-status ${saveState}`}>
             {saveState === 'saved' && <Check size={13} />}
             {saveState === 'saving' && <Loader2 size={13} className="animate-spin" />}
             {saveState === 'saved' && savedLabel()}
@@ -322,9 +322,9 @@ export default function LessonEditor() {
 
     if (queryLoading || !loaded) {
         return (
-            <div className="le-shell">
-                <div className="le-header">
-                    <div className="le-header-left">
+            <div className="ed-shell">
+                <div className="ed-header">
+                    <div className="ed-header-left">
                         <span className="le-skeleton" style={{ width: 118, height: 38 }} />
                         <div style={{ flex: 1 }}>
                             <span className="le-skeleton" style={{ width: 64, height: 11, display: 'block', marginBottom: 8 }} />
@@ -333,7 +333,7 @@ export default function LessonEditor() {
                     </div>
                     <span className="le-skeleton" style={{ width: 200, height: 38 }} />
                 </div>
-                <div className="le-insert-row" style={{ margin: '20px 0' }}>
+                <div className="ed-insert-row" style={{ margin: '20px 0' }}>
                     {[64, 54, 58, 62, 74, 52].map((w, i) => (
                         <span key={i} className="le-skeleton" style={{ width: w, height: 34 }} />
                     ))}
@@ -346,23 +346,23 @@ export default function LessonEditor() {
     }
 
     return (
-        <div className="le-shell">
+        <div className="ed-shell">
             {/* STICKY HEADER — navigation, identity, save state, actions */}
-            <div className="le-header">
-                <div className="le-header-left">
-                    <button type="button" className="le-back-icon" onClick={goBack} title="Back to module" aria-label="Back to module">
+            <div className="ed-header">
+                <div className="ed-header-left">
+                    <button type="button" className="ed-back-icon" onClick={goBack} title="Back to module" aria-label="Back to module">
                         <ChevronLeft size={19} />
                     </button>
-                    <div className="le-title-block">
-                        <div className="le-kicker-row">
-                            <span className="le-kicker">Lesson</span>
+                    <div className="ed-title-block">
+                        <div className="ed-kicker-row">
+                            <span className="ed-kicker">Lesson</span>
                             {isPublished ? (
                                 <span className="cd-live on" title="Students can see this lesson">
                                     <Check size={11} />
                                     Published
                                 </span>
                             ) : (
-                                <span className="le-badge draft" title="Only you can see this lesson — press Publish when ready">
+                                <span className="ed-badge draft" title="Only you can see this lesson — press Publish when ready">
                                     Draft
                                 </span>
                             )}
@@ -370,15 +370,15 @@ export default function LessonEditor() {
                         <input
                             value={title || ''}
                             onChange={(e) => { setTitle(e.target.value); markDirty(); }}
-                            className="le-title-input"
+                            className="ed-title-input"
                             placeholder="Lesson title…"
                         />
-                        <span className="le-meta">
+                        <span className="ed-meta">
                             {saveStatus}
                         </span>
                     </div>
                 </div>
-                <div className="le-header-actions">
+                <div className="ed-header-actions">
                     {!preview && (
                         <button
                             type="button"
@@ -405,7 +405,7 @@ export default function LessonEditor() {
                     {!preview && (isPublished ? (
                         <button
                             type="button"
-                            className={`db-btn-ghost ${confirmDraft ? 'le-btn-warn' : ''}`}
+                            className={`db-btn-ghost ${confirmDraft ? 'ed-btn-warn' : ''}`}
                             onClick={togglePublish}
                             disabled={saveState === 'saving'}
                             title="Hides this lesson from students"
@@ -427,15 +427,15 @@ export default function LessonEditor() {
 
             {/* SECTION INSERTER — one obvious palette: what it adds, in plain words */}
             {!preview && (
-                <div className="le-insert">
-                    <span className="le-insert-label">Add content to this lesson</span>
-                    <div className="le-insert-grid">
+                <div className="ed-insert">
+                    <span className="ed-insert-label">Add content to this lesson</span>
+                    <div className="ed-insert-grid">
                         {BLOCK_TYPES.map(({ type, icon: Icon, label, sub }) => (
-                            <button key={type} type="button" className="le-insert-card" onClick={() => addBlock(type)}>
-                                <span className="le-insert-icon"><Icon size={19} /></span>
-                                <span className="le-insert-text">
-                                    <span className="le-insert-name">{label}</span>
-                                    <span className="le-insert-sub">{sub}</span>
+                            <button key={type} type="button" className="ed-insert-card" onClick={() => addBlock(type)}>
+                                <span className="ed-insert-icon"><Icon size={19} /></span>
+                                <span className="ed-insert-text">
+                                    <span className="ed-insert-name">{label}</span>
+                                    <span className="ed-insert-sub">{sub}</span>
                                 </span>
                             </button>
                         ))}
@@ -452,13 +452,13 @@ export default function LessonEditor() {
                     ))}
                 </div>
             ) : blocks.length === 0 ? (
-                <div className="le-empty">
+                <div className="ed-empty">
                     <Heading1 size={26} />
                     <h3>Start your lesson</h3>
                     <p>Pick a part type above — a heading, some text, code, images and more. Everything saves automatically.</p>
                 </div>
             ) : (
-                <Reorder.Group axis="y" values={blocks} onReorder={handleReorder} className="le-list">
+                <Reorder.Group axis="y" values={blocks} onReorder={handleReorder} className="ed-list">
                     {blocks.map((block, i) => (
                         <LessonBlock
                             key={block.id}
@@ -496,7 +496,7 @@ function LessonBlock({ block, index, lastIndex, onMove, update, remove, isConfir
             value={block}
             dragListener={false}
             dragControls={controls}
-            className={`le-block ${dragging ? 'dragging' : ''}`}
+            className={`ed-block ${dragging ? 'dragging' : ''}`}
             onDragStart={() => { movedRef.current = true; setDragging(true); }}
             onDragEnd={() => {
                 setDragging(false);
@@ -504,10 +504,10 @@ function LessonBlock({ block, index, lastIndex, onMove, update, remove, isConfir
             }}
         >
             {/* Hover strip: insert a new section right here, between blocks */}
-            <div className="le-strip">
+            <div className="ed-strip">
                 <button
                     type="button"
-                    className={`le-strip-btn ${insertOpen ? 'open' : ''}`}
+                    className={`ed-strip-btn ${insertOpen ? 'open' : ''}`}
                     title="Insert a part here"
                     aria-label="Insert a part here"
                     onClick={onInsertHere}
@@ -517,19 +517,19 @@ function LessonBlock({ block, index, lastIndex, onMove, update, remove, isConfir
                 </button>
             </div>
             {insertOpen && (
-                <div className="le-insert-pop">
+                <div className="ed-insert-pop">
                     {BLOCK_TYPES.map(({ type, icon: Icon, label }) => (
-                        <button key={type} type="button" className="le-insert-chip" onClick={() => onInsert(type)}>
+                        <button key={type} type="button" className="ed-insert-chip" onClick={() => onInsert(type)}>
                             <Icon size={14} />
                             {label}
                         </button>
                     ))}
                 </div>
             )}
-            <div className="le-block-tools" onClick={(e) => e.stopPropagation()}>
+            <div className="ed-block-tools" onClick={(e) => e.stopPropagation()}>
                 <button
                     type="button"
-                    className="le-tool le-tool-grip"
+                    className="ed-tool ed-tool-grip"
                     title="Drag to reorder"
                     aria-label="Drag to reorder"
                     onPointerDown={(e) => controls.start(e)}
@@ -539,7 +539,7 @@ function LessonBlock({ block, index, lastIndex, onMove, update, remove, isConfir
                 </button>
                 <button
                     type="button"
-                    className="le-tool"
+                    className="ed-tool"
                     title="Move up"
                     aria-label="Move up"
                     disabled={index === 0}
@@ -549,7 +549,7 @@ function LessonBlock({ block, index, lastIndex, onMove, update, remove, isConfir
                 </button>
                 <button
                     type="button"
-                    className="le-tool"
+                    className="ed-tool"
                     title="Move down"
                     aria-label="Move down"
                     disabled={index === lastIndex}
@@ -561,7 +561,7 @@ function LessonBlock({ block, index, lastIndex, onMove, update, remove, isConfir
                     <motion.button
                         type="button"
                         initial={{ scale: 0.8 }} animate={{ scale: 1 }}
-                        className="le-tool le-tool-confirm"
+                        className="ed-tool ed-tool-confirm"
                         title="Confirm delete"
                         onClick={() => remove(block.id)}
                     >
@@ -570,7 +570,7 @@ function LessonBlock({ block, index, lastIndex, onMove, update, remove, isConfir
                 ) : (
                     <button
                         type="button"
-                        className="le-tool le-tool-del"
+                        className="ed-tool ed-tool-del"
                         title="Delete block"
                         onClick={() => setConfirming(true)}
                     >
@@ -578,7 +578,7 @@ function LessonBlock({ block, index, lastIndex, onMove, update, remove, isConfir
                     </button>
                 )}
                 {isConfirming && (
-                    <button type="button" className="le-tool le-tool-cancel" title="Keep block" onClick={() => setConfirming(false)}>
+                    <button type="button" className="ed-tool ed-tool-cancel" title="Keep block" onClick={() => setConfirming(false)}>
                         <X size={15} />
                     </button>
                 )}
@@ -724,7 +724,7 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
             const ytId = getYoutubeId(block.data.url);
             return (
                 <div className="le-card">
-                    <div className="le-card-label">
+                    <div className="ed-card-label">
                         <Video size={16} />
                         Video instruction
                     </div>
@@ -816,7 +816,7 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
             return (
                 <div className="le-card le-code">
                     <div className="le-code-row">
-                        <span className="le-card-label">What students do here</span>
+                        <span className="ed-card-label">What students do here</span>
                         <div className="le-mode-grid">
                             <button
                                 type="button"
@@ -839,7 +839,7 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
 
                     <div className="le-code-row">
                         <div className="le-code-lang-head">
-                            <span className="le-card-label">Language</span>
+                            <span className="ed-card-label">Language</span>
                             <button
                                 type="button"
                                 className="le-template-btn"
@@ -898,7 +898,7 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
                     {isChallenge && !lang.preview && (
                         <div className="le-tc">
                             <div className="le-tc-head">
-                                <span className="le-card-label">Test cases</span>
+                                <span className="ed-card-label">Test cases</span>
                                 <button type="button" className="le-tc-add" onClick={addCase}>
                                     <Plus size={13} />
                                     Add a case
