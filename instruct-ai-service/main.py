@@ -116,7 +116,9 @@ async def detect_programming_content_endpoint(data: DetectionRequest):
 # ===== CURRICULUM GENERATION - STREAMING =====
 @app.post("/ai/generate-curriculum-stream")
 async def curriculum_stream_endpoint(
-    prompt: str = Form(...),
+    # prompt is optional: PDF-backed generation may send none (Laravel guards
+    # that at least one of prompt / file / curriculum_text exists)
+    prompt: str = Form(""),
     file: UploadFile = File(None),
     curriculum_text: str = Form(None),
     difficulty: str = Form("beginner"),
