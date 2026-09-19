@@ -1,12 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Clock, Loader2, CheckSquare, Download, MessageSquare, Search, Edit3, FileText, ImageIcon, CheckCircle } from 'lucide-react';
+import { ChevronLeft, Loader2, CheckSquare, Download, MessageSquare, Search, Edit3, FileText, ImageIcon, CheckCircle, Play, Eye, Code2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
-import ActivityTypeBadge from '../../components/teacher/ActivityTypeBadge';
 import CodeMirror from '@uiw/react-codemirror';
 import { cmExtension, languageOf, normalizeHtmlChecks, injectPreviewBridge } from '../../utils/codeLanguages';
-import { Eye, Code2, Play } from 'lucide-react';
+import './ActivityGrading.css';
 
 function studentName(s) {
   const p = s?.student_profile || s?.student?.student_profile;
@@ -25,28 +24,26 @@ function FilePreview({ file }) {
 
   if (!isImage) {
     return (
-      <a href={file.url} target="_blank" rel="noopener noreferrer"
-        style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', fontWeight: 600, fontSize: '13px', textDecoration: 'none' }}>
+      <a href={file.url} target="_blank" rel="noopener noreferrer" className="ag-file-chip">
         <Download size={14} /> {file.name || 'Download'}
       </a>
     );
   }
 
   return (
-    <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'var(--bg-primary)' }}>
+    <div className="ag-file-card">
       {!loaded && !error && (
-        <div className="animate-pulse" style={{ height: '200px', background: 'var(--bg-tertiary)' }} />
+        <div className="db-skeleton" style={{ height: 200, borderRadius: 0 }} />
       )}
       {error ? (
-        <a href={file.url} target="_blank" rel="noopener noreferrer"
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', color: '#3b82f6', fontWeight: 600, fontSize: '13px', textDecoration: 'none' }}>
-          <ImageIcon size={20} /> {file.name || 'View image'} <Download size={14} style={{ marginLeft: 'auto' }} />
+        <a href={file.url} target="_blank" rel="noopener noreferrer" className="ag-file-chip" style={{ margin: 12 }}>
+          <ImageIcon size={18} /> {file.name || 'View image'} <Download size={14} style={{ marginLeft: 'auto' }} />
         </a>
       ) : (
         <a href={file.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', textDecoration: 'none' }}>
           <img src={file.url} alt={file.name} onLoad={() => setLoaded(true)} onError={() => setError(true)}
-            style={{ width: '100%', maxHeight: '400px', objectFit: 'contain', display: 'block', cursor: 'pointer', opacity: loaded ? 1 : 0, transition: 'opacity 0.2s', background: 'var(--bg-primary)' }} />
-          <div style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            style={{ width: '100%', maxHeight: 400, objectFit: 'contain', display: 'block', cursor: 'pointer', opacity: loaded ? 1 : 0, transition: 'opacity 0.2s', background: 'var(--db-card-2)' }} />
+          <div className="ag-file-caption">
             <FileText size={12} /> {file.name}
           </div>
         </a>
@@ -64,26 +61,20 @@ function StudentAvatar({ student, size = 32, style: outerStyle }) {
 
   return (
     <div style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0, position: 'relative', overflow: 'hidden', ...outerStyle }}>
-      {/* Letter fallback */}
       {(!avatar || error) && (
         <div style={{
           width: '100%', height: '100%', borderRadius: '50%',
-          background: isNotSubmitted ? 'var(--bg-tertiary)' : 'linear-gradient(135deg, #a78bfa, #7e22ce)',
+          background: isNotSubmitted ? 'var(--db-card-2)' : 'linear-gradient(135deg, #8b7bff, #5b46c9)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: isNotSubmitted ? 'var(--text-tertiary)' : 'white',
+          color: isNotSubmitted ? 'var(--db-text-3)' : '#ffffff',
           fontWeight: 700, fontSize: Math.round(size * 0.44) + 'px',
         }}>
           {initial}
         </div>
       )}
-      {/* Skeleton placeholder while loading */}
       {avatar && !loaded && !error && (
-        <div className="animate-pulse" style={{
-          position: 'absolute', inset: 0, borderRadius: '50%',
-          background: 'var(--bg-tertiary)',
-        }} />
+        <div className="db-skeleton" style={{ position: 'absolute', inset: 0, borderRadius: '50%' }} />
       )}
-      {/* Actual image */}
       {avatar && !error && (
         <img src={avatar} alt="" onLoad={() => setLoaded(true)} onError={() => setError(true)}
           style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', opacity: loaded ? 1 : 0, transition: 'opacity 0.2s' }} />
@@ -218,69 +209,81 @@ export default function ActivityGrading() {
       });
 
   if (loading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-      <Loader2 className="animate-spin" size={32} color="var(--text-tertiary)" />
-    </div>;
+    return (
+      <div className="ed-shell" style={{ paddingTop: 20 }}>
+        <div className="db-skeleton" style={{ height: 96, borderRadius: 16, marginBottom: 20 }} />
+        <div className="db-skeleton" style={{ height: 64, borderRadius: 12, marginBottom: 12 }} />
+        <div className="db-skeleton" style={{ height: 64, borderRadius: 12 }} />
+      </div>
+    );
   }
 
   if (!activity) return null;
 
-  return (
-    <div style={{ maxWidth: '100%', padding: '40px 50px', background: 'var(--bg-primary)', color: 'var(--text-primary)', minHeight: '100vh' }}>
-      {/* Back */}
-      <button onClick={() => navigate(`/dashboard/teacher/class/${classId}?tab=classwork`)}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '10px', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '13px', fontWeight: 600, marginBottom: '24px' }} type="button">
-        <ChevronLeft size={16} /> Back to Class
-      </button>
+  const submittedCount = submissions.filter((s) => s.status === 'submitted' || s.status === 'graded').length;
+  const gradedCount = submissions.filter((s) => s.status === 'graded').length;
 
+  const kicker = activity.activity_type === 'quiz'
+    ? `Quiz · ${activity.pacing_mode === 'teacher' ? 'Teacher-paced' : 'Student-paced'}`
+    : `Activity · ${activity.submission_type === 'file' ? 'File submission' : activity.submission_type === 'questions' ? 'Questions' : 'Material'}`;
+
+  const filterChips = isMaterial
+    ? [{ id: 'all', label: 'Everyone' }, { id: 'submitted', label: 'Read' }, { id: 'not_submitted', label: 'Not read' }]
+    : [{ id: 'all', label: 'Everyone' }, { id: 'submitted', label: 'Submitted' }, { id: 'graded', label: 'Graded' }, { id: 'not_submitted', label: 'Not submitted' }];
+
+  return (
+    <div className="ed-shell" style={{ paddingBottom: 90 }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px', marginBottom: '32px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-            <ActivityTypeBadge type={activity.activity_type} submissionType={activity.submission_type} size="md" />
-          </div>
-          <h2 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{activity.title}</h2>
-          <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: '4px 0 0 0' }}>
-            {isMaterial
-              ? `${submissions.length} read, ${notSubmitted.length} not read`
-              : submissions.length > 0
-                ? `${submissions.filter((s) => s.status === 'submitted' || s.status === 'graded').length} submitted, ${submissions.filter((s) => s.status === 'graded').length} graded`
-                : 'No submissions yet'}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
-          <button onClick={() => navigate(`/dashboard/teacher/class/${classId}/activity/${activityId}`)}
-            style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'transparent', cursor: 'pointer', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '13px' }} type="button">
-            <Edit3 size={16} /> Edit Activity
+      <div className="ag-header">
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, minWidth: 0 }}>
+          <button className="ag-back" onClick={() => navigate(`/dashboard/teacher/class/${classId}?tab=classwork`)}
+            title="Back to class" type="button">
+            <ChevronLeft size={19} />
           </button>
+          <div>
+            <div className="ag-kicker-row">
+              <span className="ag-kicker">{kicker}</span>
+            </div>
+            <h2 className="ag-title">{activity.title}</h2>
+            <p className="ag-meta">
+              {isMaterial
+                ? <><b>{submissions.length}</b> read · <b>{notSubmitted.length}</b> not read</>
+                : submissions.length > 0
+                  ? <><b>{submittedCount}</b> submitted · <b>{gradedCount}</b> graded · {submissions.length + notSubmitted.length} students</>
+                  : 'No submissions yet'}
+            </p>
+          </div>
         </div>
+        <button className="db-btn-ghost" onClick={() => navigate(`/dashboard/teacher/class/${classId}/activity/${activityId}`)}
+          type="button">
+          <Edit3 size={15} /> Edit activity
+        </button>
       </div>
 
       {gradingTarget ? (
         /* ── Grading detail view ── */
         <div>
-          <button onClick={() => { setGradingTarget(null); setGradingForm({}); }}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 600, marginBottom: '16px' }} type="button">
+          <button className="ag-backlink" onClick={() => { setGradingTarget(null); setGradingForm({}); }} type="button">
             <ChevronLeft size={14} /> {isMaterial ? 'Back to reader status' : 'Back to submissions'}
           </button>
 
-          <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', marginBottom: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-              <StudentAvatar student={gradingTarget} size={36} />
+          <div className="ag-panel">
+            <div className="ag-student-row">
+              <StudentAvatar student={gradingTarget} size={38} />
               <div>
-                <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 2px 0' }}>{studentName(gradingTarget)}</p>
-                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: 0 }}>
+                <p className="ag-student-name">{studentName(gradingTarget)}</p>
+                <p className="ag-student-sub">
                   Submitted {gradingTarget.submitted_at ? new Date(gradingTarget.submitted_at).toLocaleString() : 'N/A'}
-                  {gradingTarget.is_late ? ' · Late' : ''}
+                  {gradingTarget.is_late ? ' · late' : ''}
                 </p>
               </div>
             </div>
 
             {/* File attachments */}
             {gradingTarget.attachments && gradingTarget.attachments.length > 0 && (
-              <div style={{ marginBottom: '16px' }}>
-                <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 8px 0' }}>Submitted Files</p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '8px' }}>
+              <div style={{ marginBottom: 18 }}>
+                <p className="ag-section-label">Submitted files</p>
+                <div className="ag-files-grid">
                   {gradingTarget.attachments.map((f, i) => (
                     <FilePreview key={i} file={f} />
                   ))}
@@ -292,11 +295,12 @@ export default function ActivityGrading() {
             {gradingTarget.questions && gradingTarget.questions.length > 0 && (() => {
               const manual = gradingTarget.questions.filter((q) => q.type === 'essay' || q.type === 'coding');
               const auto = gradingTarget.questions.filter((q) => q.type !== 'essay' && q.type !== 'coding');
+
               const answerOf = (q) => gradingTarget.answers?.find((a) => a.question_id === q.id);
               const questionNumber = (q) => gradingTarget.questions.indexOf(q) + 1;
 
               const answerSummary = (q, answer) => {
-                if (!answer?.submitted_answer) return <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>No answer</span>;
+                if (!answer?.submitted_answer) return <span style={{ color: 'var(--db-text-3)', fontStyle: 'italic' }}>No answer</span>;
                 if (q.type === 'multiple_choice') return (q.options?.[parseInt(answer.submitted_answer)] ?? answer.submitted_answer);
                 if (q.type === 'enumeration') {
                   try { const items = JSON.parse(answer.submitted_answer); return Array.isArray(items) ? items.join(', ') : answer.submitted_answer; }
@@ -308,49 +312,41 @@ export default function ActivityGrading() {
               return (
                 <>
                   {manual.length > 0 && (
-                    <div style={{ marginBottom: '20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '5px 12px', borderRadius: '999px', background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.35)' }}>
-                          Needs grading · {manual.length}
-                        </span>
-                        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>score these first — the total updates when you submit</span>
+                    <div style={{ marginBottom: 20 }}>
+                      <div className="ag-pill-row">
+                        <span className="ag-pill warn">Needs grading · {manual.length}</span>
+                        <span className="ag-pill-note">score these first — the total updates when you submit</span>
                       </div>
                       {manual.map((q) => {
                         const answer = answerOf(q);
                         const code = q.type === 'coding';
                         return (
-                          <div key={q.id} style={{ padding: '16px', borderRadius: '12px', background: 'var(--bg-primary)', border: '1px solid rgba(245, 158, 11, 0.25)', marginBottom: '12px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                                Question {questionNumber(q)} · {code ? 'Coding' : 'Essay'}
-                              </span>
-                              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)' }}>{q.points} pts</span>
+                          <div key={q.id} className="ag-mq">
+                            <div className="ag-mq-head">
+                              <span className="ag-mq-label">Question {questionNumber(q)} · {code ? 'Coding' : 'Essay'}</span>
+                              <span className="ag-mq-label">{q.points} pts</span>
                             </div>
-                            <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 10px 0', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{q.question_text}</p>
+                            <p className="ag-mq-text">{q.question_text}</p>
                             {code && q.boilerplate && (
-                              <div style={{ marginBottom: '10px' }}>
-                                <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px 0' }}>Starter code</p>
-                                <pre style={{ margin: 0, padding: '10px 12px', borderRadius: '8px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontFamily: 'Consolas, Monaco, "Courier New", monospace', fontSize: '12px', lineHeight: 1.55, whiteSpace: 'pre', overflowX: 'auto' }}>{q.boilerplate}</pre>
+                              <div style={{ marginBottom: 11 }}>
+                                <p className="ag-section-label" style={{ fontSize: 11 }}>Starter code</p>
+                                <pre className="ag-pre mono">{q.boilerplate}</pre>
                               </div>
                             )}
-                            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px 0' }}>Student answer</p>
+                            <p className="ag-section-label" style={{ fontSize: 11 }}>Student answer</p>
                             {answer?.submitted_answer ? (
                               code
                                 ? <CodingAnswerView language={q.language} code={answer.submitted_answer} htmlChecks={q.html_checks || []} testResults={answer.test_results} />
-                                : (
-                              <pre style={{ margin: '0 0 12px 0', padding: '12px 14px', borderRadius: '8px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: '13.5px', lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                                {answer.submitted_answer}
-                              </pre>
-                                )
+                                : <pre className="ag-pre">{answer.submitted_answer}</pre>
                             ) : (
-                              <p style={{ margin: '0 0 12px 0', padding: '12px 14px', borderRadius: '8px', background: 'var(--bg-secondary)', border: '1px dashed var(--border-color)', color: 'var(--text-tertiary)', fontStyle: 'italic', fontSize: '13px' }}>No answer submitted</p>
+                              <p className="ag-pre empty">No answer submitted</p>
                             )}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>Score:</label>
-                              <input type="number" min={0} max={q.points} step={0.5} value={gradingForm.answers?.[q.id]?.score ?? 0}
-                                onChange={(e) => { const v = Math.min(Math.max(Number(e.target.value) || 0, 0), q.points); setGradingForm((prev) => ({ ...prev, answers: { ...prev.answers, [q.id]: { score: v } } })); }}
-                                style={{ width: '70px', padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }} />
-                              <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>/ {q.points}</span>
+                            <div className="ag-score-row">
+                              <label className="ag-score-label">Score:</label>
+                              <input type="number" min={0} max={q.points} step={0.5} className="ag-score-input"
+                                value={gradingForm.answers?.[q.id]?.score ?? 0}
+                                onChange={(e) => { const v = Math.min(Math.max(Number(e.target.value) || 0, 0), q.points); setGradingForm((prev) => ({ ...prev, answers: { ...prev.answers, [q.id]: { score: v } } })); }} />
+                              <span className="ag-score-max-label">/ {q.points}</span>
                             </div>
                           </div>
                         );
@@ -359,39 +355,37 @@ export default function ActivityGrading() {
                   )}
 
                   {auto.length > 0 && (
-                    <div style={{ marginBottom: '16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '5px 12px', borderRadius: '999px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                          Auto-graded · {auto.length}
-                        </span>
-                        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>scored automatically — override if needed</span>
+                    <div style={{ marginBottom: 16 }}>
+                      <div className="ag-pill-row">
+                        <span className="ag-pill good">Auto-graded · {auto.length}</span>
+                        <span className="ag-pill-note">scored automatically — override if needed</span>
                       </div>
                       {auto.map((q) => {
                         const answer = answerOf(q);
                         return (
-                          <div key={q.id} style={{ padding: '12px 14px', borderRadius: '12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', marginBottom: '8px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
-                              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', margin: 0, flex: 1 }}>
-                                <span style={{ color: 'var(--text-tertiary)', fontWeight: 600 }}>Q{questionNumber(q)} · </span>
+                          <div key={q.id} className="ag-aq">
+                            <div className="ag-aq-head">
+                              <p className="ag-aq-text">
+                                <span className="ag-qnum">Q{questionNumber(q)} · </span>
                                 {q.question_text}
                               </p>
-                              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>{q.points} pts</span>
+                              <span className="ag-mq-label" style={{ whiteSpace: 'nowrap' }}>{q.points} pts</span>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', padding: '5px 10px', borderRadius: '6px', background: 'var(--bg-secondary)', maxWidth: '55%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                              <span className="ag-aq-answer">
                                 {answerSummary(q, answer)}
                               </span>
                               {answer?.is_correct !== null && answer?.is_correct !== undefined && (
-                                <span style={{ fontSize: '12px', fontWeight: 600, color: answer?.is_correct ? '#22c55e' : '#ef4444', whiteSpace: 'nowrap' }}>
+                                <span className={`ag-verdict ${answer?.is_correct ? 'pass' : 'fail'}`}>
                                   {answer?.is_correct ? 'Correct (auto)' : 'Incorrect (auto)'}
                                 </span>
                               )}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
-                                <input type="number" min={0} max={q.points} step={0.5} value={gradingForm.answers?.[q.id]?.score ?? 0}
-                                  onChange={(e) => { const v = Math.min(Math.max(Number(e.target.value) || 0, 0), q.points); setGradingForm((prev) => ({ ...prev, answers: { ...prev.answers, [q.id]: { score: v } } })); }}
+                              <div className="ag-score-row" style={{ marginLeft: 'auto' }}>
+                                <input type="number" min={0} max={q.points} step={0.5} className="ag-score-input" style={{ width: 64, fontSize: 13 }}
                                   title="Override the auto score if needed"
-                                  style={{ width: '60px', padding: '5px 7px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none' }} />
-                                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>/ {q.points}</span>
+                                  value={gradingForm.answers?.[q.id]?.score ?? 0}
+                                  onChange={(e) => { const v = Math.min(Math.max(Number(e.target.value) || 0, 0), q.points); setGradingForm((prev) => ({ ...prev, answers: { ...prev.answers, [q.id]: { score: v } } })); }} />
+                                <span className="ag-score-max-label">/ {q.points}</span>
                               </div>
                             </div>
                           </div>
@@ -405,11 +399,11 @@ export default function ActivityGrading() {
 
             {/* Material: just show marked as read */}
             {isMaterial ? (
-              <div style={{ padding: '16px', borderRadius: '12px', background: 'rgba(34, 197, 94, 0.08)', border: '1px solid rgba(34, 197, 94, 0.2)', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <CheckCircle size={20} color="#22c55e" />
+              <div className="ag-read-note">
+                <CheckCircle size={20} style={{ color: 'var(--db-green)', flexShrink: 0 }} />
                 <div>
-                  <p style={{ fontSize: '14px', fontWeight: 700, color: '#22c55e', margin: '0 0 2px 0' }}>Marked as Read</p>
-                  <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: 0 }}>
+                  <p className="ag-read-title">Marked as read</p>
+                  <p className="ag-student-sub">
                     {gradingTarget.submitted_at ? new Date(gradingTarget.submitted_at).toLocaleString() : 'N/A'}
                   </p>
                 </div>
@@ -418,35 +412,35 @@ export default function ActivityGrading() {
               <>
                 {/* Overall score for file */}
                 {(!gradingTarget.questions || gradingTarget.questions.length === 0) && (
-                  <div style={{ marginBottom: '16px' }}>
-                    <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 8px 0' }}>Score</p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <input type="number" min={0} max={activity.max_points || 100} step={0.5} value={gradingForm.score}
+                  <div style={{ marginBottom: 16 }}>
+                    <p className="ag-section-label">Score</p>
+                    <div className="ag-score-row">
+                      <input type="number" min={0} max={activity.max_points || 100} step={0.5} className="ag-score-input" style={{ width: 104 }}
+                        value={gradingForm.score}
                         onChange={(e) => { const max = activity.max_points || 100; const v = e.target.value ? Math.min(Math.max(Number(e.target.value), 0), max) : ''; setGradingForm((prev) => ({ ...prev, score: v })); }}
-                        placeholder="Score"
-                        style={{ width: '100px', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }} />
-                      <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>/ {activity.max_points || 'N/A'}</span>
+                        placeholder="Score" />
+                      <span className="ag-score-max-label">/ {activity.max_points || 'N/A'}</span>
                     </div>
                   </div>
                 )}
 
                 {/* Feedback */}
-                <div style={{ marginBottom: '16px' }}>
-                  <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 8px 0' }}>Overall Feedback</p>
-                  <textarea value={gradingForm.feedback}
+                <div style={{ marginBottom: 4 }}>
+                  <p className="ag-section-label">Overall feedback</p>
+                  <textarea className="ag-feedback" value={gradingForm.feedback}
                     onChange={(e) => setGradingForm((prev) => ({ ...prev, feedback: e.target.value }))}
                     placeholder="Write feedback for the student..."
-                    rows={3}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                    rows={3} />
                 </div>
 
-                <button onClick={() => handleGradeSubmission(gradingTarget.id)} disabled={gradingSaving}
-                  style={{ padding: '12px 24px', borderRadius: '10px', border: 'none', cursor: gradingSaving ? 'not-allowed' : 'pointer', background: 'linear-gradient(to right, #9333ea, #7e22ce)', color: 'white', fontWeight: 700, fontSize: '14px', opacity: gradingSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '6px' }} type="button">
-                  {gradingSaving ? <><Loader2 size={16} className="animate-spin" /> Submitting...</> : <CheckSquare size={16} />}
-                  {gradingTarget.questions?.some((q) => q.type === 'essay' || q.type === 'coding')
-                    ? 'Submit Grade'
-                    : 'Save Score Overrides'}
-                </button>
+                <div className="ag-submit-row">
+                  <button className="db-btn-primary" onClick={() => handleGradeSubmission(gradingTarget.id)} disabled={gradingSaving} type="button">
+                    {gradingSaving ? <Loader2 size={16} className="animate-spin" /> : <CheckSquare size={16} />}
+                    {gradingSaving ? 'Submitting…' : gradingTarget.questions?.some((q) => q.type === 'essay' || q.type === 'coding')
+                      ? 'Submit grade'
+                      : 'Save score overrides'}
+                  </button>
+                </div>
               </>
             )}
           </div>
@@ -454,71 +448,63 @@ export default function ActivityGrading() {
       ) : (
         /* ── Submissions list ── */
         <div>
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '16px' }}>
-            <div style={{ position: 'relative', flex: 1, maxWidth: '300px' }}>
-              <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
+          <div className="ag-filters">
+            <div className="ag-search">
+              <span className="ag-search-icon"><Search size={14} /></span>
               <input type="text" value={submissionSearch} onChange={(e) => setSubmissionSearch(e.target.value)}
-                placeholder="Search students..." style={{ width: '100%', padding: '8px 10px 8px 30px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }} />
+                placeholder="Search students..." />
             </div>
-            <select value={submissionFilter} onChange={(e) => setSubmissionFilter(e.target.value)}
-              style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none' }}>
-              {isMaterial ? (
-                <>
-                  <option value="all">All</option>
-                  <option value="submitted">Read</option>
-                  <option value="not_submitted">Not Read</option>
-                </>
-              ) : (
-                <>
-                  <option value="all">All</option>
-                  <option value="submitted">Submitted</option>
-                  <option value="graded">Graded</option>
-                  <option value="not_submitted">Not Submitted</option>
-                </>
-              )}
-            </select>
+            <div className="ag-seg">
+              {filterChips.map((chip) => (
+                <button key={chip.id} type="button"
+                  className={`ag-seg-btn ${submissionFilter === chip.id ? 'on' : ''}`}
+                  onClick={() => setSubmissionFilter(chip.id)}>
+                  {chip.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {loadingSubmissions ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
-              <Loader2 size={28} className="animate-spin" color="var(--text-tertiary)" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              <div className="db-skeleton" style={{ height: 66, borderRadius: 14 }} />
+              <div className="db-skeleton" style={{ height: 66, borderRadius: 14 }} />
+              <div className="db-skeleton" style={{ height: 66, borderRadius: 14 }} />
             </div>
           ) : displayList.length === 0 ? (
-            <div style={{ border: '2px dashed var(--border-color)', borderRadius: '20px', padding: '60px 40px', textAlign: 'center', background: 'var(--bg-secondary)' }}>
-              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#a78bfa' }}><MessageSquare size={28} /></div>
-              <p style={{ fontSize: '16px', fontWeight: 600, color: '#94a3b8', margin: '0 0 6px 0' }}>{submissionSearch || submissionFilter !== 'all' ? 'No matching entries' : 'No submissions yet'}</p>
-              <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>{submissionSearch || submissionFilter !== 'all' ? 'Try adjusting your search or filter' : isMaterial ? 'Students will appear here once they view the material' : 'Submissions will appear here once students submit'}</p>
+            <div className="ag-empty">
+              <div className="ag-empty-icon"><MessageSquare size={24} /></div>
+              <p className="ag-empty-title">{submissionSearch || submissionFilter !== 'all' ? 'No matching entries' : 'No submissions yet'}</p>
+              <p className="ag-empty-sub">{submissionSearch || submissionFilter !== 'all' ? 'Try adjusting your search or filter' : isMaterial ? 'Students will appear here once they view the material' : 'Submissions will appear here once students submit'}</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="ag-rows">
               {displayList.map((s) => {
                 const isNotSubmitted = s.status === 'not_submitted';
                 const score = s.score;
                 const maxScore = s.max_score || activity.max_points || (s.questions ? s.questions.reduce((sum, q) => sum + Number(q.points), 0) : null);
                 const pct = score != null && maxScore ? Math.round((score / maxScore) * 100) : null;
                 return (
-                  <div key={s.id} onClick={() => { if (!isNotSubmitted && s.status !== 'draft') openGrading(s); }}
-                    style={{ padding: '14px 16px', borderRadius: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', cursor: !isNotSubmitted && s.status !== 'draft' ? 'pointer' : 'default', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '12px' }}
-                    onMouseEnter={(e) => { if (!isNotSubmitted && s.status !== 'draft') e.currentTarget.style.borderColor = 'rgba(167, 139, 250, 0.4)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; }}>
-                    <StudentAvatar student={s} size={32} />
+                  <div key={s.id} role="button" tabIndex={0} className={`ag-row ${isNotSubmitted ? 'muted' : ''}`}
+                    onClick={() => { if (!isNotSubmitted && s.status !== 'draft') openGrading(s); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !isNotSubmitted && s.status !== 'draft') openGrading(s); }}>
+                    <StudentAvatar student={s} size={34} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 2px 0', opacity: isNotSubmitted ? 0.5 : 1 }}>
+                      <p className="ag-row-name">
                         {studentName(s)}
-                        {isNotSubmitted && <span style={{ fontWeight: 400, color: 'var(--text-tertiary)', fontSize: '13px' }}> {isMaterial ? '(not read)' : '(not submitted)'}</span>}
+                        {isNotSubmitted && <span style={{ fontWeight: 400, color: 'var(--db-text-3)', fontSize: 13.5 }}> {isMaterial ? '(not read)' : '(not submitted)'}</span>}
                       </p>
                       {!isNotSubmitted && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', fontWeight: 600, background: isMaterial ? 'rgba(16, 185, 129, 0.1)' : (s.status === 'graded' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(59, 130, 246, 0.1)'), color: isMaterial ? '#10b981' : (s.status === 'graded' ? '#22c55e' : '#3b82f6') }}>
+                        <div className="ag-row-sub">
+                          <span className={`ag-chip ${isMaterial || s.status === 'graded' ? 'graded' : 'submitted'}`}>
                             {isMaterial ? 'Read' : (s.status === 'graded' ? 'Graded' : 'Submitted')}
                           </span>
-                          {s.is_late && <span style={{ fontSize: '11px', color: '#ef4444', fontWeight: 600 }}>Late</span>}
+                          {s.is_late && <span className="ag-chip late">Late</span>}
                           {s.submitted_at && (
-                            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{new Date(s.submitted_at).toLocaleDateString()}</span>
+                            <span className="ag-row-date">{new Date(s.submitted_at).toLocaleDateString()}</span>
                           )}
-                          {/* Show file indicator for file submissions */}
                           {activity.submission_type === 'file' && s.attachments && s.attachments.length > 0 && (
-                            <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span className="ag-row-files">
                               <FileText size={12} /> {s.attachments.length} file{s.attachments.length !== 1 ? 's' : ''}
                             </span>
                           )}
@@ -526,19 +512,19 @@ export default function ActivityGrading() {
                       )}
                     </div>
                     {!isMaterial && (
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div className="ag-score">
                       {isNotSubmitted ? (
-                        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: 600 }}>---</span>
+                        <span className="ag-pending" style={{ color: 'var(--db-text-3)' }}>—</span>
                       ) : score != null ? (
                         <div>
-                          <span style={{ fontSize: '18px', fontWeight: 800, color: pct !== null && pct >= 60 ? '#22c55e' : '#ef4444' }}>{score}</span>
-                          {maxScore && <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>/{maxScore}</span>}
+                          <span className={`ag-score-num ${pct !== null && pct < 60 ? 'fail' : 'pass'}`}>{score}</span>
+                          {maxScore && <span className="ag-score-max">/{maxScore}</span>}
                           {pct !== null && (
-                            <div style={{ fontSize: '11px', fontWeight: 600, color: pct >= 60 ? '#22c55e' : '#ef4444' }}>{pct}%</div>
+                            <div className={`ag-score-pct ${pct >= 60 ? 'pass' : 'fail'}`}>{pct}%</div>
                           )}
                         </div>
                       ) : (
-                        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: 600 }}>Pending</span>
+                        <span className="ag-pending">Pending</span>
                       )}
                     </div>
                     )}
@@ -617,24 +603,24 @@ function CodingAnswerView({ language, code, htmlChecks: htmlChecksProp = [], tes
   };
 
   return (
-    <div style={{ margin: '0 0 12px 0', borderRadius: '10px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
-      <div style={{ padding: '8px 12px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '3px 10px', borderRadius: '999px', background: `${lang.color}1f`, border: `1px solid ${lang.color}55`, fontSize: '9px', fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase', color: lang.color }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: lang.color }} />
+    <div className="ag-cv">
+      <div className="ag-cv-head">
+        <span className="ag-cv-lang" style={{ background: `${lang.color}1f`, border: `1px solid ${lang.color}55`, color: lang.color }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: lang.color }} />
           {lang.label}
         </span>
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <button onClick={() => setTab('code')} type="button" style={{ padding: '5px 10px', borderRadius: '7px', border: 'none', background: tab === 'code' ? 'rgba(124, 58, 237, 0.14)' : 'transparent', color: tab === 'code' ? '#a78bfa' : 'var(--text-tertiary)', cursor: 'pointer', fontWeight: 800, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <Code2 size={10} /> Code
+        <div className="ag-cv-tabs">
+          <button onClick={() => setTab('code')} type="button" className={`ag-cv-tab ${tab === 'code' ? 'on' : ''}`}>
+            <Code2 size={11} /> Code
           </button>
           {!isHtml && (
-            <button onClick={() => setTab('output')} type="button" style={{ padding: '5px 10px', borderRadius: '7px', border: 'none', background: tab === 'output' ? 'rgba(124, 58, 237, 0.14)' : 'transparent', color: tab === 'output' ? '#a78bfa' : 'var(--text-tertiary)', cursor: 'pointer', fontWeight: 800, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-              <Play size={10} /> Run
+            <button onClick={() => setTab('output')} type="button" className={`ag-cv-tab ${tab === 'output' ? 'on' : ''}`}>
+              <Play size={11} /> Run
             </button>
           )}
           {isHtml && (
-            <button onClick={runPreview} type="button" style={{ padding: '5px 10px', borderRadius: '7px', border: 'none', background: tab === 'preview' ? 'rgba(124, 58, 237, 0.14)' : 'transparent', color: tab === 'preview' ? '#a78bfa' : 'var(--text-tertiary)', cursor: 'pointer', fontWeight: 800, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-              <Eye size={10} /> Render Page
+            <button onClick={runPreview} type="button" className={`ag-cv-tab ${tab === 'preview' ? 'on' : ''}`}>
+              <Eye size={11} /> Render page
             </button>
           )}
         </div>
@@ -643,22 +629,22 @@ function CodingAnswerView({ language, code, htmlChecks: htmlChecksProp = [], tes
         <CodeMirror value={code} editable={false} height="320px" extensions={[cmExtension(lang.id)]} theme="dark" basicSetup={{ foldGutter: false, highlightActiveLine: false }} />
       ) : tab === 'preview' ? (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ height: '320px', background: '#fff' }}>
+          <div style={{ height: 320, background: '#ffffff' }}>
             <iframe title="Student HTML Preview" srcDoc={previewDoc} sandbox="allow-scripts allow-forms allow-modals allow-popups" style={{ width: '100%', height: '100%', border: 'none', display: 'block' }} />
           </div>
           {(previewResults || (testResults && testResults.checks)) && (
-            <div style={{ padding: '10px 14px', borderTop: '1px solid var(--border-color)', background: '#0d0d1a' }}>
-              <div style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#22d3ee', marginBottom: '6px' }}>
+            <div className="ag-cv-checks">
+              <div className="ag-cv-checks-title">
                 Page check results — {(() => {
                   const rows = previewResults || testResults.checks || [];
                   return `${rows.filter((r) => r.passed).length}/${rows.length} passing`;
                 })()}
               </div>
               {(previewResults || testResults.checks || []).map((r, i) => (
-                <div key={r.id || i} style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '11.5px', padding: '2px 0' }}>
+                <div key={r.id || i} className="ag-cv-check-row">
                   <span style={{ color: r.passed ? '#34d399' : '#f87171', flexShrink: 0 }}>{r.passed ? '✓' : '✕'}</span>
-                  <span style={{ color: '#cbd5e1' }}>{r.label || `Check ${i + 1}`}</span>
-                  {!r.passed && r.detail ? <span style={{ color: '#fca5a5', fontSize: '10px' }}>— {r.detail}</span> : null}
+                  <span>{r.label || `Check ${i + 1}`}</span>
+                  {!r.passed && r.detail ? <span style={{ color: '#fca5a5', fontSize: 11 }}>— {r.detail}</span> : null}
                 </div>
               ))}
             </div>
@@ -666,11 +652,11 @@ function CodingAnswerView({ language, code, htmlChecks: htmlChecksProp = [], tes
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border-color)', background: '#0d0d1a' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94a3b8' }}>Input (stdin)</span>
-              <button onClick={runCode} type="button" disabled={running} style={{ padding: '6px 16px', borderRadius: '8px', border: 'none', background: '#10b981', color: '#fff', cursor: running ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'inline-flex', alignItems: 'center', gap: '5px', opacity: running ? 0.6 : 1 }}>
-                {running ? 'Running...' : 'Run student code'}
+          <div className="ag-cv-stdin">
+            <div className="ag-cv-stdin-head">
+              <span className="ag-cv-stdin-label">Input (stdin)</span>
+              <button onClick={runCode} type="button" disabled={running} className="ag-cv-run-btn">
+                {running ? 'Running…' : 'Run student code'}
               </button>
             </div>
             <textarea
@@ -678,11 +664,10 @@ function CodingAnswerView({ language, code, htmlChecks: htmlChecksProp = [], tes
               onChange={(e) => setStdin(e.target.value)}
               rows={2}
               placeholder="Lines fed to the program (one per read)..."
-              style={{ width: '100%', boxSizing: 'border-box', background: '#111127', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '8px', color: '#e2e8f0', fontFamily: 'monospace', fontSize: '12px', padding: '8px 10px', resize: 'vertical', outline: 'none' }}
             />
           </div>
-          <div style={{ height: '220px', overflow: 'auto', padding: '12px 16px', background: '#0d0d1a', fontFamily: 'monospace', fontSize: '12.5px', lineHeight: '1.6', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: runError ? '#fca5a5' : '#a5f3fc' }}>
-            {runOutput || (running ? 'Running...' : 'Click "Run student code" to execute with the input above.')}
+          <div className={`ag-cv-terminal ${runError ? 'err' : ''}`}>
+            {runOutput || (running ? 'Running…' : 'Click "Run student code" to execute with the input above.')}
           </div>
         </div>
       )}
