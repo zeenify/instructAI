@@ -136,6 +136,16 @@ at the Herd domain) — or use `php -S 127.0.0.1:8000 -t public` with
 that works without artisan's wrapper on platforms that support forking).
 
 ## Progress log
+- 2026-09-20: CLASSWORK TAB migrated (queries/classwork.js — activities list
+  polls every 15s while mounted, gradebook fetched only when its sub-tab is
+  open; both bypass the legacy axios cache, which would otherwise serve every
+  poll a 5-minute-old copy). Create/delete invalidate by key + classDetails.
+  List, ActivityCard, CreateActivityModal, ActivityEditor (ed- chrome, ae-
+  styles), DateTimePicker (portal calendar + Dropdown time fields) redesigned;
+  teacher-eye pass applied: deadline defaults to Late OK with preset chips
+  (Tonight/Tomorrow/End of week), "closes at deadline / late OK" wording,
+  sticky modal footers, header de-duplicated, light-theme shimmer visible,
+  "engine-verified" jargon replaced. Verified at 1440px and 390px, both themes.
 - 2026-09-19: TEACHER SECURITY PASS — every teacher endpoint now verifies the
   ownership chain (lesson/quiz store+update, course toggle/publishAll/
   ai-generate/ai-commit, module+question reorders were IDOR-open before).

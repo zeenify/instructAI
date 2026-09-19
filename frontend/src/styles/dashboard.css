@@ -63,7 +63,7 @@
     --db-danger: #dc2626;
     --db-danger-soft: rgba(220, 38, 38, 0.07);
     --db-amber: #b45309;
-    --db-shimmer: rgba(23, 25, 35, 0.06);
+    --db-shimmer: rgba(23, 25, 35, 0.12);
     --db-glow-top: radial-gradient(1100px 380px at 12% -8%, rgba(109, 90, 224, 0.09), transparent 70%);
     --db-glow-bottom: radial-gradient(900px 420px at 4% 108%, rgba(109, 90, 224, 0.07), transparent 70%);
 }

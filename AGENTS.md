@@ -60,12 +60,23 @@ teacher-set `language` (courses.language, picker in the Curriculum modal) that
 the AI must use for ALL generated code; the studio is tabbed
 (Activity / Lessons & quizzes) with Pause-Resume and builder-parity editing
 (add/reorder/delete blocks and questions) in the right pane; HTML challenges
-may arrive as files[] projects; html_checks are teacher-only, never AI-generated). Mobile pass done for class
-page, content tab/module view, lesson + quiz editors (mobile top bar in
+may arrive as files[] projects; html_checks are teacher-only, never
+AI-generated). The AI Tutor's vector index is fully automatic — no teacher UI:
+`App\Services\LessonIndexer` syncs chunks after lesson saves and publish
+changes (published lessons only, sha1 hash of extracted text skips
+unchanged content, unpublish/clear removes chunks; runs in the terminating
+phase so nothing blocks). Retrieval is course-scoped — `ai-run:<courseId>`
+localStorage runs are the generation-resume mechanism. Classwork activities
+redesigned + migrated (Classwork tab groups, ActivityCard, CreateActivityModal,
+ActivityEditor on ed-/cw-/ae- styles; `queries/classwork.js` polls the list
+every 15s while mounted — the legacy axios cache must be bypassed in query
+hooks or every poll serves a 5-minute-old copy). Mobile pass done for class
+page, content tab/module view, lesson + quiz editors, classwork list/create
+modal/editor (mobile top bar in
 TeacherLayout replaced
 the floating burger; verify pages at 390px with `tools/browser/mobile-audit.mjs`).
-Next up: student side (quiz-taking view, remaining pages), then
-analytics/monitor refresh.
+Next up: quiz-taking view + remaining student pages, gradebook/grading/results
+refresh, then analytics/monitor refresh.
 Old file versions were replaced outright (no V2/V3 suffixes) — keep it that way.
 
 Dashboard-side conventions: styles live in \`styles/dashboard.css\` (\`db-\` prefix,

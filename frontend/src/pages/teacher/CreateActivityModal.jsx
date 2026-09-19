@@ -1,254 +1,263 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, ClipboardList, AlignLeft, Upload, HelpCircle, BookOpen, Clock, UserCheck, Radio } from 'lucide-react';
-import Button from '../../components/ui/Button';
-import api from '../../services/api';
+import {
+    X, Zap, ClipboardList, Upload, HelpCircle, BookOpen, UserCheck, Radio, ChevronLeft, Clock,
+} from 'lucide-react';
 import { toast } from 'sonner';
+import { useCreateActivity } from '../../queries/classwork';
+import DateTimePicker from '../../components/teacher/DateTimePicker';
+import './Classwork.css';
 
 const PACING_OPTIONS = [
-  {
-    id: 'student',
-    label: 'Student-paced',
-    description: 'Everyone takes the quiz at their own pace under the same time rules',
-    icon: UserCheck, color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.1)', border: 'rgba(167, 139, 250, 0.3)',
-  },
-  {
-    id: 'teacher',
-    label: 'Teacher-paced',
-    description: 'You control the flow — reveal questions, pause, and pace the room together',
-    icon: Radio, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)',
-  },
-];
-
-const ACTIVITY_TYPES = [
-  {
-    id: 'quiz',
-    label: 'Quiz',
-    description: 'Question-based assessment with timer, auto-grading, and live mode',
-    icon: Zap, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', border: 'rgba(245, 158, 11, 0.3)',
-  },
-  {
-    id: 'activity',
-    label: 'Activity',
-    description: 'Flexible activity with file submission, questions, or material — deadline and grading',
-    icon: ClipboardList, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', border: 'rgba(59, 130, 246, 0.3)',
-  },
+    {
+        id: 'student',
+        label: 'Student-paced',
+        desc: 'Everyone answers at their own pace under the same time rules',
+        icon: UserCheck,
+    },
+    {
+        id: 'teacher',
+        label: 'Teacher-paced',
+        desc: 'You control the flow — reveal questions and pace the room together',
+        icon: Radio,
+    },
 ];
 
 const SUBMISSION_OPTIONS = [
-  { id: 'file', label: 'File Submission', desc: 'Students upload files for manual grading', icon: Upload, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.08)', border: 'rgba(59, 130, 246, 0.3)' },
-  { id: 'questions', label: 'Questions', desc: 'MC, coding, essay questions with auto or manual grading', icon: HelpCircle, color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.08)', border: 'rgba(167, 139, 250, 0.3)' },
-  { id: 'material', label: 'Material', desc: 'Post resources only — no submission needed', icon: BookOpen, color: '#10b981', bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.3)' },
+    { id: 'file', label: 'File submission', desc: 'Students upload files for manual grading', icon: Upload },
+    { id: 'questions', label: 'Questions', desc: 'Multiple choice, coding, essays — auto or manual grading', icon: HelpCircle },
+    { id: 'material', label: 'Material', desc: 'Post resources only — nothing to submit', icon: BookOpen },
 ];
 
-export default function CreateActivityModal({ isOpen, onClose, classId, onCreated }) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [selectedType, setSelectedType] = useState(null);
-  const [submissionType, setSubmissionType] = useState(null);
-  const [pacingMode, setPacingMode] = useState('student');
-  const [deadlineAt, setDeadlineAt] = useState('');
-  const [deadlineBehavior, setDeadlineBehavior] = useState('hard');
-  const [step, setStep] = useState('type');
-  const [loading, setLoading] = useState(false);
+const TYPE_CARDS = [
+    {
+        id: 'activity',
+        label: 'Activity',
+        desc: 'A task students complete and submit — files, answers, or just material to read.',
+        eg: 'PT #2: Console Guestbook · Reading: How the Web Works',
+        icon: ClipboardList,
+        tint: 'var(--db-accent-bright)',
+    },
+    {
+        id: 'quiz',
+        label: 'Quiz',
+        desc: 'A timed assessment with auto-grading — or run it live, teacher-paced.',
+        eg: 'Quiz 3: Loops & Conditions',
+        icon: Zap,
+        tint: 'var(--db-amber)',
+    },
+];
 
-  const handleNext = () => {
-    if (!selectedType) return;
-    setStep('details');
-  };
+const at2359 = (d) => {
+    const x = new Date(d);
+    x.setHours(23, 59, 0, 0);
+    return x.toISOString().slice(0, 19);
+};
 
-  const handleBack = () => {
-    setStep('type');
-    setTitle('');
-    setDescription('');
-    setSubmissionType(null);
-    setPacingMode('student');
-    setDeadlineAt('');
-    setDeadlineBehavior('hard');
-  };
+const DEADLINE_PRESETS = [
+    { label: 'Tonight', value: () => at2359(new Date()) },
+    { label: 'Tomorrow', value: () => at2359(new Date(Date.now() + 86400000)) },
+    {
+        label: 'End of week',
+        value: () => {
+            const now = new Date();
+            const diff = (6 - now.getDay() + 7) % 7 || 7; // next Saturday
+            return at2359(now.getTime() + diff * 86400000);
+        },
+    },
+];
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!title.trim() || !selectedType) return;
-    if (selectedType === 'activity' && !submissionType) return;
-    if (selectedType === 'quiz' && !pacingMode) return;
+export default function CreateActivityModal({ isOpen, onClose, classId }) {
+    const [selectedType, setSelectedType] = useState(null);
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
+    const [submissionType, setSubmissionType] = useState(null);
+    const [pacingMode, setPacingMode] = useState('student');
+    const [deadlineAt, setDeadlineAt] = useState('');
+    // Teachers usually accept late work and mark it late — start gentle
+    const [deadlineBehavior, setDeadlineBehavior] = useState('soft');
+    const [loading, setLoading] = useState(false);
+
+    const createActivity = useCreateActivity(classId);
+
+    if (!isOpen) return null;
+
+    const isQuiz = selectedType === 'quiz';
     const needsDeadline = selectedType === 'activity' && submissionType !== 'material';
-    if (needsDeadline && !deadlineAt) {
-      toast.error('Deadline is required for this activity type');
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const payload = {
-        title: title.trim(),
-        description: description.trim() || null,
-        activity_type: selectedType,
-        deadline_at: selectedType === 'quiz' ? null : (deadlineAt || null),
-        deadline_behavior: deadlineBehavior,
-      };
-      if (selectedType === 'activity') {
-        payload.submission_type = submissionType;
-      }
-      if (selectedType === 'quiz') {
-        payload.pacing_mode = pacingMode;
-      }
-      const res = await api.post(`/teacher/classes/${classId}/activities`, payload);
-      toast.success(selectedType === 'quiz' ? 'Quiz created!' : 'Activity created!');
-      onCreated(res.data);
-      handleClose();
-    } catch {
-      toast.error('Failed to create');
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const handleClose = () => {
-    setStep('type');
-    setTitle('');
-    setDescription('');
-    setSelectedType(null);
-    setSubmissionType(null);
-    setPacingMode('student');
-    setDeadlineAt('');
-    setDeadlineBehavior('hard');
-    onClose();
-  };
+    const reset = () => {
+        setSelectedType(null);
+        setTitle('');
+        setDescription('');
+        setSubmissionType(null);
+        setPacingMode('student');
+        setDeadlineAt('');
+        setDeadlineBehavior('soft');
+    };
 
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleClose} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
-          <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }} className="relative z-10 w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl">
-            <div style={{ padding: '32px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                  {step === 'type' ? 'Create New' : selectedType === 'quiz' ? 'Quiz Details' : 'Activity Details'}
-                </h2>
-                <button onClick={handleClose} style={{ padding: '8px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', borderRadius: '8px' }} type="button"><X size={20} /></button>
-              </div>
+    const handleClose = () => {
+        reset();
+        onClose();
+    };
 
-              {step === 'type' && (
-                <div>
-                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 0 20px 0' }}>What do you want to create?</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {ACTIVITY_TYPES.map((t) => {
-                      const Icon = t.icon;
-                      const isSelected = selectedType === t.id;
-                      return (
-                        <button key={t.id} onClick={() => setSelectedType(t.id)} type="button"
-                          style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px', borderRadius: '16px', border: `2px solid ${isSelected ? t.color : 'var(--border-color)'}`, background: isSelected ? t.bg : 'var(--bg-primary)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.3s' }}>
-                          <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: t.bg, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.color, flexShrink: 0 }}><Icon size={24} /></div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>{t.label}</div>
-                            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{t.description}</div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-                    <button onClick={handleClose} style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'transparent', cursor: 'pointer', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '14px' }} type="button">Cancel</button>
-                    <Button onClick={handleNext} disabled={!selectedType} style={{ flex: 1 }}>Next</Button>
-                  </div>
-                </div>
-              )}
+    const pickType = (id) => {
+        setSelectedType(id);
+    };
 
-              {step === 'details' && (
-                <form onSubmit={handleSubmit}>
-                  <div style={{ marginBottom: '20px' }}>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}><AlignLeft size={12} style={{ marginRight: '6px' }} /> Title</label>
-                    <input type="text" placeholder={selectedType === 'quiz' ? 'e.g. Chapter 1 Quiz' : 'e.g. Lab Report, Essay'} value={title} onChange={(e) => setTitle(e.target.value)} required autoFocus
-                      style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
-                  </div>
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!title.trim() || !selectedType) return;
+        if (selectedType === 'activity' && !submissionType) return;
+        if (needsDeadline && !deadlineAt) {
+            toast.error('Set a deadline for this activity type');
+            return;
+        }
+        setLoading(true);
+        try {
+            const payload = {
+                title: title.trim(),
+                description: description.trim() || null,
+                activity_type: selectedType,
+                deadline_at: selectedType === 'quiz' ? null : (deadlineAt || null),
+                deadline_behavior: deadlineBehavior,
+            };
+            if (selectedType === 'activity') {
+                payload.submission_type = submissionType;
+                payload.grading_method = submissionType === 'file' ? 'manual' : submissionType === 'questions' ? 'auto' : 'none';
+            }
+            if (selectedType === 'quiz') {
+                payload.pacing_mode = pacingMode;
+            }
+            await createActivity.mutateAsync(payload);
+            toast.success(isQuiz ? 'Quiz created — it starts as a draft' : 'Activity created — it starts as a draft');
+            handleClose();
+        } catch {
+            toast.error('Failed to create');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-                  {selectedType === 'quiz' && (
-                    <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>How will the quiz run?</label>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {PACING_OPTIONS.map((opt) => {
-                          const Icon = opt.icon;
-                          const isSelected = pacingMode === opt.id;
-                          return (
-                            <button key={opt.id} type="button"
-                              onClick={() => setPacingMode(opt.id)}
-                              style={{
-                                display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', borderRadius: '14px', cursor: 'pointer',
-                                textAlign: 'left', opacity: 1,
-                                border: `2px solid ${isSelected ? opt.color : 'var(--border-color)'}`,
-                                background: isSelected ? opt.bg : 'var(--bg-primary)',
-                              }}>
-                              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: opt.bg, border: `1px solid ${opt.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: opt.color, flexShrink: 0 }}><Icon size={18} /></div>
-                              <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                  {opt.label}
+    return (
+        <div className="db-modal-backdrop" onClick={handleClose}>
+            <div className="db-modal cw-modal" onClick={(e) => e.stopPropagation()}>
+                <button className="db-modal-close" onClick={handleClose} type="button"><X size={17} /></button>
+
+                {selectedType === null ? (
+                    <>
+                        <div className="db-modal-head">
+                            <h3 className="db-modal-title">Create classwork</h3>
+                            <p className="db-modal-sub">What are you making? Everything starts as a draft.</p>
+                        </div>
+                        <div className="cw-types">
+                            {TYPE_CARDS.map((t) => {
+                                const Icon = t.icon;
+                                return (
+                                    <button key={t.id} type="button" className="cw-type-card" onClick={() => pickType(t.id)}>
+                                        <span className="cw-type-icon" style={{ color: t.tint }}><Icon size={22} /></span>
+                                        <span>
+                                            <p className="cw-type-name">{t.label}</p>
+                                            <p className="cw-type-desc">{t.desc}</p>
+                                            <span className="cw-type-eg">e.g. {t.eg}</span>
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </>
+                ) : (
+                    <form onSubmit={handleSubmit}>
+                        <div className="db-modal-head">
+                            <button type="button" onClick={() => setSelectedType(null)}
+                                style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 5, padding: 0, marginBottom: 10,
+                                    background: 'transparent', border: 'none', cursor: 'pointer',
+                                    color: 'var(--db-text-3)', font: 'inherit', fontSize: 13, fontWeight: 600,
+                                }}>
+                                <ChevronLeft size={15} /> Back
+                            </button>
+                            <h3 className="db-modal-title">{isQuiz ? 'Quiz details' : 'Activity details'}</h3>
+                            <p className="db-modal-sub">Name it, set how students interact with it, publish when ready.</p>
+                        </div>
+
+                        <div className="db-modal-form">
+                            <label className="db-field">
+                                <span className="db-field-label">Title</span>
+                                <input className="db-input" type="text" required autoFocus
+                                    placeholder={isQuiz ? 'e.g. Quiz 3: Loops & Conditions' : 'e.g. PT #2: Console Guestbook'}
+                                    value={title} onChange={(e) => setTitle(e.target.value)} />
+                            </label>
+
+                            {/* Quiz → pacing | Activity → submission type */}
+                            <div>
+                                <span className="db-field-label">{isQuiz ? 'How will the quiz run?' : 'What do students do?'}</span>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                                    {(isQuiz ? PACING_OPTIONS : SUBMISSION_OPTIONS).map((opt) => {
+                                        const Icon = opt.icon;
+                                        const selected = isQuiz ? pacingMode === opt.id : submissionType === opt.id;
+                                        const select = () => (isQuiz ? setPacingMode(opt.id) : setSubmissionType(opt.id));
+                                        return (
+                                            <button key={opt.id} type="button"
+                                                className={`cw-choice ${selected ? 'selected' : ''}`}
+                                                onClick={select}>
+                                                <span className="cw-choice-icon"><Icon size={17} /></span>
+                                                <span>
+                                                    <p className="cw-choice-name">{opt.label}</p>
+                                                    <p className="cw-choice-desc">{opt.desc}</p>
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{opt.description}</div>
-                              </div>
+                            </div>
+
+                            <label className="db-field">
+                                <span className="db-field-label">Instructions <em>· optional</em></span>
+                                <textarea className="db-input db-textarea" rows={3}
+                                    placeholder={isQuiz ? 'Rules, coverage, notes for the class…' : 'Describe the task, add rubric or guidelines…'}
+                                    value={description} onChange={(e) => setDescription(e.target.value)} />
+                            </label>
+
+                            {needsDeadline && (
+                                <div className="db-field">
+                                    <span className="db-field-label"><Clock size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} /> Deadline</span>
+                                    <DateTimePicker value={deadlineAt} onChange={setDeadlineAt} />
+                                    <div className="cw-presets">
+                                        {DEADLINE_PRESETS.map((p) => (
+                                            <button key={p.label} type="button" className="cw-preset" onClick={() => setDeadlineAt(p.value())}>
+                                                {p.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="cw-seg" style={{ marginTop: 10 }}>
+                                        <button type="button"
+                                            className={`cw-seg-btn ${deadlineBehavior === 'hard' ? 'on' : ''}`}
+                                            onClick={() => setDeadlineBehavior('hard')}>
+                                            Closes at deadline
+                                        </button>
+                                        <button type="button"
+                                            className={`cw-seg-btn ${deadlineBehavior === 'soft' ? 'on' : ''}`}
+                                            onClick={() => setDeadlineBehavior('soft')}>
+                                            Late OK
+                                        </button>
+                                    </div>
+                                    <p className="cw-seg-hint">
+                                        {deadlineBehavior === 'hard'
+                                            ? 'Submissions close the moment the deadline passes.'
+                                            : 'Students can still submit after the deadline — marked as late.'}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="db-modal-actions">
+                            <button type="button" className="db-btn-ghost" onClick={handleClose}>Cancel</button>
+                            <button type="submit" className="db-btn-primary" disabled={loading || (selectedType === 'activity' && !submissionType)}>
+                                Create {isQuiz ? 'quiz' : 'activity'}
                             </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedType === 'activity' && (
-                    <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>Submission Type</label>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {SUBMISSION_OPTIONS.map((opt) => {
-                          const Icon = opt.icon;
-                          const isSelected = submissionType === opt.id;
-                          return (
-                            <button key={opt.id} type="button" onClick={() => setSubmissionType(opt.id)}
-                              style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', borderRadius: '14px', cursor: 'pointer', textAlign: 'left', border: `2px solid ${isSelected ? opt.color : 'var(--border-color)'}`, background: isSelected ? opt.bg : 'var(--bg-primary)' }}>
-                              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: opt.bg, border: `1px solid ${opt.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: opt.color, flexShrink: 0 }}><Icon size={18} /></div>
-                              <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>{opt.label}</div>
-                                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{opt.desc}</div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={{ marginBottom: '20px' }}>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}><AlignLeft size={12} style={{ marginRight: '6px' }} /> Instructions (optional)</label>
-                    <textarea placeholder={selectedType === 'quiz' ? 'Quiz instructions, rules, or notes...' : 'Describe the task, include rubric or guidelines...'} value={description} onChange={(e) => setDescription(e.target.value)} rows={4}
-                      style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
-                  </div>
-
-                  {selectedType === 'activity' && submissionType !== 'material' && (
-                  <div style={{ marginBottom: '24px', padding: '16px', borderRadius: '14px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)' }}>
-                    <h4 style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Clock size={14} /> Deadline
-                    </h4>
-                    <input type="datetime-local" value={deadlineAt} onChange={(e) => setDeadlineAt(e.target.value)}
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
-                    <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
-                      <button type="button" onClick={() => setDeadlineBehavior('hard')}
-                        style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '11px', border: `1px solid ${deadlineBehavior === 'hard' ? '#ef4444' : 'var(--border-color)'}`, background: deadlineBehavior === 'hard' ? 'rgba(239, 68, 68, 0.1)' : 'transparent', color: deadlineBehavior === 'hard' ? '#ef4444' : 'var(--text-secondary)' }}>Hard Cutoff</button>
-                      <button type="button" onClick={() => setDeadlineBehavior('soft')}
-                        style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '11px', border: `1px solid ${deadlineBehavior === 'soft' ? '#f59e0b' : 'var(--border-color)'}`, background: deadlineBehavior === 'soft' ? 'rgba(245, 158, 11, 0.1)' : 'transparent', color: deadlineBehavior === 'soft' ? '#f59e0b' : 'var(--text-secondary)' }}>Soft (late OK)</button>
-                    </div>
-                  </div>
-                  )}
-
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <button onClick={handleBack} type="button" style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'transparent', cursor: 'pointer', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '14px' }}>Back</button>
-                    <Button loading={loading} style={{ flex: 1 }} type="submit">{selectedType === 'quiz' ? 'Create Quiz' : 'Create Activity'}</Button>
-                  </div>
-                </form>
-              )}
+                        </div>
+                    </form>
+                )}
             </div>
-          </motion.div>
         </div>
-      )}
-    </AnimatePresence>
-  );
+    );
 }
