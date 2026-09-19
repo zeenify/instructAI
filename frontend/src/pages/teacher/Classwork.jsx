@@ -6,7 +6,7 @@ import { useClassActivities, useClassGradebook, useDeleteActivity } from '../../
 import ActivityCard from '../../components/teacher/ActivityCard';
 import CreateActivityModal from './CreateActivityModal';
 import DeleteModal from '../../components/ui/DeleteModal';
-import GradebookTable from '../../components/teacher/GradebookTable';
+import Gradebook from '../../components/teacher/Gradebook';
 import './Classwork.css';
 
 const GROUP_ORDER = ['live', 'open', 'draft', 'closed'];
@@ -197,7 +197,7 @@ export default function Classwork({ classId }) {
                 </div>
             )}
             {view === 'gradebook' && !gradebookLoading && (
-                <GradebookTable data={gradebookData} loading={gradebookLoading} onActivityClick={handleActivityClick} />
+                <Gradebook data={gradebookData} loading={gradebookLoading} onActivityClick={handleActivityClick} />
             )}
 
             {/* Create Modal */}
