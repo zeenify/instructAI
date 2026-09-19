@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronRight, FlaskConical, Loader2, Pencil, Plus, Play, Trash2, TriangleAlert, X } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'sonner';
+import Dropdown from '../ui/Dropdown';
 
 /**
  * Inline editor for AI-generated quiz questions, shown live in the generation

@@ -6,6 +6,7 @@ import TerminalLog from '../../components/generation/TerminalLog';
 import ProgressBar from '../../components/generation/ProgressBar';
 import EditableLessonContent from '../../components/generation/EditableLessonContent';
 import EditableQuizContent from '../../components/generation/EditableQuizContent';
+import StudioErrorBoundary from '../../components/generation/StudioErrorBoundary';
 
 /**
  * The generation studio — a fullscreen two-pane view the teacher watches while
@@ -434,7 +435,9 @@ export default function GenerationConsole({
             className="w-full overflow-hidden flex flex-col flex-1"
           >
             <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4 }}>
-              <TerminalLog logs={logs} />
+              <StudioErrorBoundary>
+                <TerminalLog logs={logs} />
+              </StudioErrorBoundary>
             </div>
 
             {isGenerating && (
@@ -488,6 +491,7 @@ export default function GenerationConsole({
 
           {/* Content Area - Lessons or Quizzes */}
           <div ref={lessonContentRef} style={{ padding: '26px 32px' }} className="flex-1 overflow-y-auto">
+            <StudioErrorBoundary>
             {selectedLesson ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
                 <div>
@@ -530,6 +534,7 @@ export default function GenerationConsole({
                 </p>
               </div>
             )}
+            </StudioErrorBoundary>
           </div>
         </div>
         )}

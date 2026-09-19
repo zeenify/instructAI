@@ -846,7 +846,8 @@ export default function CourseBuilder({
     // finished. Everything already saved stays untouched (per-item persistence
     // means this is a safe, targeted top-up — not a restart).
     const handleContinueGeneration = () => {
-        const remaining = (generatedContent?.modules || [])
+        const fullModules = generatedContent?.modules || [];
+        const remaining = fullModules
             .map(m => ({
                 ...m,
                 lessons: (m.lessons || []).filter(l => !l.generated).map(({ id, title }) => ({ id, title })),
@@ -862,7 +863,10 @@ export default function CourseBuilder({
             toast.error('Missing the generation settings — start a new generation instead.');
             return;
         }
-        generateLessonContent(remaining, lastContentParamsRef.current);
+        // The stream only covers the missing items, but the studio keeps the
+        // FULL outline in view — finished lessons must never vanish from the
+        // tabs just because a continue run started
+        generateLessonContent(remaining, lastContentParamsRef.current, fullModules);
     };
 
     const handleConfirmAI = async (finalData) => {
@@ -939,7 +943,7 @@ export default function CourseBuilder({
         }
     };
 
-    const generateLessonContent = async (modules, params) => {
+    const generateLessonContent = async (modules, params, baseModules = null) => {
         lastContentParamsRef.current = params;
         setContentStartedAt(Date.now());
         setContentPaused(false);
@@ -969,11 +973,13 @@ export default function CourseBuilder({
             };
         });
 
-        setGeneratedContent({ modules: structure.map(m => ({
+        // Fresh runs reset every item; continue runs keep the already-finished
+        // items (their blocks, flags and server truth) right where they were
+        setGeneratedContent({ modules: (baseModules || structure.map(m => ({
             ...m,
             lessons: m.lessons.map(l => ({ ...l, blockCount: 0, codeCount: 0, generating: false, generated: false })),
             quizzes: m.quizzes.map(q => ({ ...q, questionCount: 0, generating: false, generated: false }))
-        }))});
+        })))});
 
         addLog('start', 'Writing your content…');
 
