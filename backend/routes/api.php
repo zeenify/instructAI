@@ -63,6 +63,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/teacher/courses/{id}', [CourseController::class, 'show']);
     Route::put('/teacher/courses/{id}', [CourseController::class, 'update']);
     Route::post('/teacher/courses/{id}/upload-curriculum', [CourseController::class, 'uploadCurriculum']);
+    Route::delete('/teacher/courses/{id}/curriculum', [CourseController::class, 'destroyCurriculum']);
     Route::post('/teacher/courses/{courseId}/modules', [ModuleController::class, 'store']);
     Route::post('/teacher/courses/{courseId}/modules/reorder', [ModuleController::class, 'reorderModules']);
     Route::put('/teacher/modules/{id}', [ModuleController::class, 'update']);

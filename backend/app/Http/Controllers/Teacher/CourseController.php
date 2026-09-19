@@ -351,6 +351,39 @@ class CourseController extends Controller
         }
     }
 
+    public function destroyCurriculum(Request $request, $id)
+    {
+        $course = Course::where('id', $id)
+            ->where('teacher_id', auth()->id())
+            ->firstOrFail();
+
+        // Best-effort removal of the stored file — it may already be gone from
+        // the cloud; the reference must clear either way
+        if ($course->curriculum_file_url) {
+            try {
+                // For raw files the Cloudinary public_id INCLUDES the extension
+                // (e.g. instructai/curriculum/syllabus.pdf)
+                if (preg_match('#/raw/upload/(?:v\d+/)?(.+)$#', parse_url($course->curriculum_file_url, PHP_URL_PATH) ?? '', $m)) {
+                    $uploadApi = new UploadApi([
+                        'cloud' => [
+                            'cloud_name' => env('CLOUDINARY_CLOUD_NAME'),
+                            'api_key'    => env('CLOUDINARY_API_KEY'),
+                            'api_secret' => env('CLOUDINARY_API_SECRET'),
+                        ],
+                    ]);
+                    $result = $uploadApi->destroy($m[1], ['resource_type' => 'raw', 'invalidate' => true]);
+                    \Log::info("Curriculum destroy for course {$id}: public_id={$m[1]} result=" . ($result['result'] ?? 'unknown'));
+                }
+            } catch (\Throwable $e) {
+                \Log::warning("Curriculum file destroy failed for course {$id}: " . $e->getMessage());
+            }
+        }
+
+        $course->update(['curriculum_file_url' => null, 'curriculum_text' => null]);
+
+        return response()->json(['success' => true, 'course' => $course->fresh()]);
+    }
+
     public function publishAll(Request $request, $id)
     {
         $course = Course::where('id', $id)

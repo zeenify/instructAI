@@ -248,6 +248,7 @@ export default function CourseBuilder({
     const [uploadingCurriculum, setUploadingCurriculum] = useState(false);
     const [uploadSuccess, setUploadSuccess] = useState(null);
     const [curDrag, setCurDrag] = useState(false);
+    const [confirmingCurRemoval, setConfirmingCurRemoval] = useState(false);
 
     // Indexing Stats Modal State
     const [showIndexingStats, setShowIndexingStats] = useState(false);
@@ -785,15 +786,12 @@ export default function CourseBuilder({
     };
 
     const handleStartContentGeneration = (allParams) => {
-        // Check if curriculum document exists
+        // A curriculum PDF is optional: the structure prompt from the architect
+        // modal drives generation when there's no file (backend already treats
+        // curriculum_text as optional context)
         if (!course.curriculum_text && !course.curriculum_file_url) {
-            toast.error("Please upload a curriculum document first! Without it, AI will generate generic content.");
-            setIsContentParamsOpen(false);
-            setShowCurriculumModal(true);
-            return;
-        }
-
-        if (!course.curriculum_text) {
+            toast.info("No curriculum file — generating from your prompt and settings.");
+        } else if (!course.curriculum_text) {
             toast.warning("Curriculum file uploaded but text may not be extracted. Content might be generic.");
         }
 
@@ -1187,6 +1185,20 @@ export default function CourseBuilder({
         e.target.value = ''; // re-choosing the same file must fire change again
     };
 
+    const removeCurriculum = async () => {
+        try {
+            await api.delete(`/teacher/courses/${course.id}/curriculum`);
+            setCourse(prev => ({ ...prev, curriculum_file_url: null, curriculum_text: null }));
+            setUploadSuccess(null);
+            setConfirmingCurRemoval(false);
+            refreshContent();
+            toast.success('Curriculum file removed');
+        } catch (err) {
+            toast.error('Failed to remove curriculum file');
+            setConfirmingCurRemoval(false);
+        }
+    };
+
     const updateCourseType = async (value) => {
         if (!course || course.is_coding === value) return;
         setCourse(prev => ({ ...prev, is_coding: value }));
@@ -1345,7 +1357,7 @@ if (loading || !course) return (
                             {course.curriculum_file_url ? 'Curriculum' : 'Upload Curriculum'}
                             {course.curriculum_file_url && <span className="cd-cur-dot" aria-label="Curriculum uploaded" />}
                         </button>
-                        <button type="button" className="cd-tbtn cd-tbtn-ai" onClick={() => setIsAiModalOpen(true)} title="Generate modules, lessons, and quizzes automatically from your curriculum">
+                        <button type="button" className="cd-tbtn cd-tbtn-ai" onClick={() => setIsAiModalOpen(true)} title="Generate modules, lessons, and quizzes from your curriculum — or just from your prompt if no file is uploaded">
                             <Sparkles size={16} />
                             Generate with AI
                         </button>
@@ -1952,14 +1964,36 @@ if (loading || !course) return (
                                             The AI reads this when you Generate with AI
                                         </p>
                                     </div>
-                                    <a
-                                        className="cur-file-open"
-                                        href={course.curriculum_file_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                    >
-                                        <ExternalLink size={14} /> Open
-                                    </a>
+                                    <div className="cur-file-actions">
+                                        <a
+                                            className="cur-file-open"
+                                            href={course.curriculum_file_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            <ExternalLink size={14} /> Open
+                                        </a>
+                                        {confirmingCurRemoval ? (
+                                            <button
+                                                type="button"
+                                                className="cur-file-remove confirm"
+                                                onClick={removeCurriculum}
+                                                title="Click again to permanently remove the file"
+                                            >
+                                                <FileWarning size={14} /> Confirm remove
+                                            </button>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                className="cur-file-remove"
+                                                onClick={() => setConfirmingCurRemoval(true)}
+                                                onMouseLeave={() => setConfirmingCurRemoval(false)}
+                                                title="Remove the curriculum file from this course"
+                                            >
+                                                <Trash2 size={14} /> Remove
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             ) : (
                                 <p className="cur-lede">

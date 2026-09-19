@@ -17,9 +17,13 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
         pacing: 'standard'
     });
 
+    // Without a curriculum file this prompt is the ONLY source the AI gets —
+    // it must say something. A bare keystroke isn't a course description.
+    const canGenerate = prompt.trim().length >= 10;
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!prompt.trim()) return;
+        if (!canGenerate) return;
         // Pass only structure params - content params will be set in ContentGenerationModal
         onExecute(prompt, null, params);
         setPrompt("");
@@ -234,18 +238,32 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
                                 </div>
 
                                 <div style={{ marginTop: '24px' }}>
-                                    <label style={{ marginBottom: '8px', display: 'block' }} className="text-xs text-slate-500">Additional Instructions</label>
+                                    <label style={{ marginBottom: '8px', display: 'block' }} className="text-xs text-slate-500">
+                                        {curriculumFile ? 'Additional Instructions' : 'Describe the course you want'}
+                                    </label>
                                     <textarea
                                         autoFocus value={prompt}
                                         onChange={(e) => setPrompt(e.target.value)}
-                                        placeholder="Any specific requirements or focus areas..."
+                                        placeholder={curriculumFile
+                                            ? 'Any specific requirements or focus areas...'
+                                            : 'e.g. Grade 11 Python course covering variables, conditionals, and loops, with real-life Filipino examples and a quiz per module...'}
                                         style={{ padding: '14px 16px' }}
                                         className="w-full bg-white/[0.02] border border-white/10 rounded-2xl text-white text-sm outline-none focus:border-purple-500/40 transition-all min-h-[100px] resize-none leading-relaxed"
                                     />
+                                    {!curriculumFile && !canGenerate && (
+                                        <p className="text-xs text-slate-500" style={{ marginTop: '8px' }}>
+                                            No curriculum file — the AI builds everything from this description, so give it at least a sentence.
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div style={{ marginTop: '32px', gap: '16px' }} className="flex items-center justify-end">
-                                    <button type="submit" style={{ padding: '14px 24px', gap: '8px' }} className="btn-primary rounded-xl flex items-center text-xs uppercase font-black tracking-widest border-none cursor-pointer hover:brightness-110 transition-all">
+                                    <button
+                                        type="submit"
+                                        disabled={!canGenerate}
+                                        style={{ padding: '14px 24px', gap: '8px' }}
+                                        className="btn-primary rounded-xl flex items-center text-xs uppercase font-black tracking-widest border-none cursor-pointer hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
                                         <Zap size={14} fill="currentColor" /> Initialize Generation
                                     </button>
                                 </div>
