@@ -98,6 +98,9 @@ on student Modules tab already shipped.
 - AutoClaw restarts rewrite `~/.openclaw-autoclaw/.gateway-token` and briefly
   remove it — the skill script re-reads it per call; just retry after a restart.
 - Asset matting (white→alpha) tool: `tools/matte/` (`matte.js`, `trim.js`).
+- Responsiveness/visual audits: `tools/browser/mobile-audit.mjs` (login, real
+  ids via API, overflow + off-screen element report, screenshots to gitignored
+  `tools/browser/shots-mobile/`).
 - **Scratch files go OUTSIDE the repo.** Never leave test PDFs, response dumps, or
   one-shot scripts in the project or system folders — use `%TEMP%` (outside the
   project) and delete after use. `tools/browser/` (Playwright audit harness) and
