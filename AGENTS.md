@@ -45,10 +45,12 @@ builder (ClassDetails + CourseBuilder), lesson editor (LessonEditor: autosave,
 preview, insert-between, challenge test cases; `useLesson` hook), quiz editor
 (QuizBuilder: autosave, settings cards, per-question pipeline; `useQuiz` hook),
 student class page (1:1 course logic), AI generation workflow redo (architect
-→ review → params → generation console, all on gen- styles in
-CourseBuilder.css; rate-limit wait-and-retry in the Python service; coding
-questions/lesson challenges require stdin-driven programs and engine-verified
-test cases; quiz regeneration REPLACES questions). Mobile pass done for class
+→ centered Stage-1 design modal → review → content settings → 'AI generation
+studio' console, all on gen- styles in CourseBuilder.css; rate-limit
+wait-and-retry in the Python service; coding questions/lesson challenges
+require stdin-driven programs and engine-verified test cases; quiz
+regeneration REPLACES questions; an interrupted run keeps finished items and
+offers 'Continue generation' for only the missing ones). Mobile pass done for class
 page, content tab/module view, lesson + quiz editors (mobile top bar in
 TeacherLayout replaced
 the floating burger; verify pages at 390px with `tools/browser/mobile-audit.mjs`).
