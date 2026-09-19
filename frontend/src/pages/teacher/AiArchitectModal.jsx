@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Zap, FileText, BookOpen, Code2, Gauge, Layers, ListOrdered, Route } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculumFile }) {
     const [prompt, setPrompt] = useState("");
@@ -23,7 +24,13 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!canGenerate) return;
+        if (!canGenerate) {
+            // Stay clickable and explain, instead of a silently dead button
+            toast.error(curriculumFile
+                ? 'Add at least a short sentence of instructions so the AI knows what to build.'
+                : 'Describe the course in at least a sentence — the AI builds everything from this.');
+            return;
+        }
         // Pass only structure params - content params will be set in ContentParametersModal
         onExecute(prompt, null, params);
         setPrompt("");
@@ -216,7 +223,7 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
 
                         <div className="gen-foot">
                             <button type="button" onClick={onClose} className="gen-btn gen-btn-ghost">Cancel</button>
-                            <button type="submit" disabled={!canGenerate} className="gen-btn gen-btn-primary">
+                            <button type="submit" className="gen-btn gen-btn-primary">
                                 <Zap size={14} /> Design my curriculum
                             </button>
                         </div>
