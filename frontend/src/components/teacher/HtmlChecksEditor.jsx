@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, ChevronDown, XCircle, FlaskConical, Loader2, Play, Plus, Trash2 } from 'lucide-react';
+import { CheckCircle2, XCircle, FlaskConical, Loader2, Play, Plus, Trash2 } from 'lucide-react';
+import Dropdown from '../ui/Dropdown';
 import {
     CHECK_KINDS,
     htmlCheckLabel,
@@ -9,47 +10,22 @@ import {
 import './HtmlChecksEditor.css';
 
 /**
- * A styled dropdown (native <select> option lists can't be themed). Opens a
- * floating menu of `options` ({value, label}); `plus` renders it as the
- * dashed "add" affordance with a "+ Add a check…" placeholder.
+ * A thin wrapper over the shared ui/Dropdown with the check-kind options.
+ * `plus` renders the dashed "add a check…" affordance.
  */
 function HcDropdown({ value, options, onChange, plus = false }) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef(null);
-
-    useEffect(() => {
-        if (!open) return undefined;
-        const onDoc = (e) => {
-            if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-        };
-        document.addEventListener('mousedown', onDoc);
-        return () => document.removeEventListener('mousedown', onDoc);
-    }, [open]);
-
-    const current = options.find((o) => o.value === value);
-
+    // Thin wrapper over the shared Dropdown — keeps the "add a check" dashed
+    // affordance while the open/close/active-item behavior lives in one place
     return (
-        <div className={`hc-dd ${plus ? 'hc-dd-plus' : ''}`} ref={ref}>
-            <button type="button" className="hc-dd-btn" onClick={() => setOpen(!open)}>
-                {plus && <Plus size={13} />}
-                {plus && !current ? 'Add a check…' : (current ? current.label : 'Choose…')}
-                <ChevronDown size={13} className={`hc-dd-caret ${open ? 'open' : ''}`} />
-            </button>
-            {open && (
-                <div className="hc-dd-menu">
-                    {options.map((o) => (
-                        <button
-                            key={o.value}
-                            type="button"
-                            className={`hc-dd-item ${o.value === value ? 'active' : ''}`}
-                            onClick={() => { onChange(o.value); setOpen(false); }}
-                        >
-                            {o.label}
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
+        <Dropdown
+            value={value}
+            options={options}
+            onChange={onChange}
+            dashed={plus}
+            icon={plus ? <Plus size={13} /> : null}
+            placeholder={plus ? 'Add a check…' : 'Choose…'}
+            className={plus ? 'hc-dd-plus' : ''}
+        />
     );
 }
 

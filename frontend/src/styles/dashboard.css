@@ -4164,3 +4164,115 @@
         opacity: 1;
     }
 }
+
+/* ---------- Shared dropdown (dd-) — reusable custom select ---------- */
+
+.dd {
+    position: relative;
+    display: inline-flex;
+}
+
+.dd-full {
+    display: flex;
+    width: 100%;
+}
+
+.dd-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card-2);
+    color: var(--db-text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dd-btn:hover {
+    border-color: var(--db-text-3);
+}
+
+.dd-dashed .dd-btn {
+    border-style: dashed;
+    border-color: var(--db-accent-border);
+}
+
+.dd-btn-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dd-caret {
+    flex: none;
+    color: var(--db-text-3);
+    transition: transform 0.15s ease;
+}
+
+.dd-caret.open {
+    transform: rotate(180deg);
+}
+
+.dd-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 80;
+    min-width: 210px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 6px;
+    border-radius: 12px;
+    background: var(--db-card);
+    border: 1px solid var(--db-border-strong);
+    box-shadow: var(--db-shadow);
+    animation: db-pop-in 0.14s cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+.dd-menu-up {
+    top: auto;
+    bottom: calc(100% + 6px);
+}
+
+.dd-full .dd-menu {
+    width: 100%;
+    min-width: 0;
+}
+
+.dd-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--db-text-2);
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.dd-item:hover {
+    background: var(--db-accent-soft);
+    color: var(--db-text);
+}
+
+.dd-item.active {
+    color: var(--db-accent-bright);
+    font-weight: 700;
+}
+
+:root[data-theme='light'] .dd-item.active {
+    color: var(--db-accent);
+}

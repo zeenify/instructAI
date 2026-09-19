@@ -404,7 +404,7 @@ class CourseController extends Controller
     public function generateWithAI(Request $request, $courseId)
     {
         $request->validate([
-            'prompt' => 'required|string|max:10000',
+            'prompt' => 'nullable|string|max:10000',
             'file' => 'nullable|file|mimes:pdf,doc,docx,txt|max:10240',
             'difficulty' => 'nullable|string|max:50',
             'module_count' => 'nullable|string|max:10|regex:/^[1-9]\d?(-[1-9]\d?)?$/',
@@ -418,6 +418,17 @@ class CourseController extends Controller
         $course = Course::where('id', $courseId)
             ->where('teacher_id', auth()->id())
             ->firstOrFail();
+
+        // The AI needs SOMETHING to build from: an uploaded file, the course's
+        // extracted curriculum text, or a written description. A written prompt
+        // is only mandatory when neither file source exists.
+        if (trim((string) $request->input('prompt', '')) === ''
+            && !$request->hasFile('file')
+            && !$course->curriculum_text) {
+            return response()->json([
+                'error' => 'Upload a curriculum file or describe the course you want — the AI needs at least one to work from.'
+            ], 422);
+        }
 
         return new StreamedResponse(function () use ($request, $course) {
             $aiUrl = env('AI_SERVICE_URL') . '/ai/generate-curriculum-stream';

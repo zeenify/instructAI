@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, BookOpen, Video, Bot } from 'lucide-react';
+import Dropdown from '../../components/ui/Dropdown';
 
 export default function ContentParametersModal({ isOpen, onClose, onGenerate, structureParams, course, isSavingStructure = false }) {
     const [contentParams, setContentParams] = useState({
@@ -127,28 +128,30 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
                         <div className="gen-2col">
                             <div>
                                 <label className="gen-label" style={{ marginTop: 4 }}>Content depth</label>
-                                <select
+                                <Dropdown
+                                    fullWidth
                                     value={contentParams.contentDepth}
-                                    onChange={(e) => setContentParams({ ...contentParams, contentDepth: e.target.value })}
-                                    className="gen-select"
-                                >
-                                    <option value="concise">Concise — straight to the point</option>
-                                    <option value="standard">Standard</option>
-                                    <option value="detailed">Detailed — lots of examples</option>
-                                </select>
+                                    onChange={(v) => setContentParams({ ...contentParams, contentDepth: v })}
+                                    options={[
+                                        { value: 'concise', label: 'Concise — straight to the point' },
+                                        { value: 'standard', label: 'Standard' },
+                                        { value: 'detailed', label: 'Detailed — lots of examples' },
+                                    ]}
+                                />
                             </div>
                             <div>
                                 <label className="gen-label" style={{ marginTop: 4 }}>Writing style</label>
-                                <select
+                                <Dropdown
+                                    fullWidth
                                     value={contentParams.writingStyle}
-                                    onChange={(e) => setContentParams({ ...contentParams, writingStyle: e.target.value })}
-                                    className="gen-select"
-                                >
-                                    <option value="simple">Simple</option>
-                                    <option value="conversational">Conversational</option>
-                                    <option value="formal">Formal</option>
-                                    <option value="technical">Technical</option>
-                                </select>
+                                    onChange={(v) => setContentParams({ ...contentParams, writingStyle: v })}
+                                    options={[
+                                        { value: 'simple', label: 'Simple' },
+                                        { value: 'conversational', label: 'Conversational' },
+                                        { value: 'formal', label: 'Formal' },
+                                        { value: 'technical', label: 'Technical' },
+                                    ]}
+                                />
                             </div>
                         </div>
                     </div>
@@ -223,16 +226,18 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
                                 </div>
                                 <div style={{ width: 110 }}>
                                     <label className="gen-label" style={{ marginTop: 4 }}>Passing score</label>
-                                    <select
-                                        value={contentParams.passingPercentage}
-                                        onChange={(e) => setContentParams({ ...contentParams, passingPercentage: Number(e.target.value) })}
-                                        className="gen-select"
-                                    >
-                                        <option value="60">60%</option>
-                                        <option value="70">70%</option>
-                                        <option value="80">80%</option>
-                                        <option value="90">90%</option>
-                                    </select>
+                                    <Dropdown
+                                        fullWidth
+                                        menuUp
+                                        value={String(contentParams.passingPercentage)}
+                                        onChange={(v) => setContentParams({ ...contentParams, passingPercentage: Number(v) })}
+                                        options={[
+                                            { value: '60', label: '60%' },
+                                            { value: '70', label: '70%' },
+                                            { value: '80', label: '80%' },
+                                            { value: '90', label: '90%' },
+                                        ]}
+                                    />
                                 </div>
                             </div>
                         </div>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Zap, FileText, BookOpen, Code2, Gauge, Layers, ListOrdered, Route } from 'lucide-react';
 import { toast } from 'sonner';
+import Dropdown from '../../components/ui/Dropdown';
 
 export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculumFile }) {
     const [prompt, setPrompt] = useState("");
@@ -19,16 +20,16 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
     });
 
     // Without a curriculum file this prompt is the ONLY source the AI gets —
-    // it must say something. A bare keystroke isn't a course description.
+    // it must say something. With a file, the description is optional extra
+    // steering and the AI can generate from the document alone.
+    const promptRequired = !curriculumFile;
     const canGenerate = prompt.trim().length >= 10;
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!canGenerate) {
+        if (promptRequired && !canGenerate) {
             // Stay clickable and explain, instead of a silently dead button
-            toast.error(curriculumFile
-                ? 'Add at least a short sentence of instructions so the AI knows what to build.'
-                : 'Describe the course in at least a sentence — the AI builds everything from this.');
+            toast.error('Describe the course in at least a sentence — the AI builds everything from this.');
             return;
         }
         // Pass only structure params - content params will be set in ContentParametersModal
@@ -79,7 +80,7 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
                     <form onSubmit={handleSubmit} className="flex flex-col" style={{ gap: 16 }}>
                         <div>
                             <label className="gen-label">
-                                {curriculumFile ? 'Additional instructions' : 'Course description'}
+                                {curriculumFile ? 'Additional instructions (optional)' : 'Course description'}
                             </label>
                             <textarea
                                 autoFocus
@@ -90,7 +91,12 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
                                     : 'e.g. Grade 11 Python course covering variables, conditionals, and loops, with real-life Filipino examples and a quiz per module...'}
                                 className="gen-textarea"
                             />
-                            {!canGenerate && (
+                            {!promptRequired && !canGenerate && (
+                                <p className="gen-note" style={{ marginTop: 6 }}>
+                                    Optional — leave empty and the AI works straight from your curriculum file.
+                                </p>
+                            )}
+                            {promptRequired && !canGenerate && (
                                 <p className="gen-note" style={{ marginTop: 6 }}>
                                     Give it at least a sentence so the AI has something to work with.
                                 </p>
@@ -102,27 +108,29 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
                             <div className="gen-2col">
                                 <div>
                                     <label className="gen-label" style={{ marginTop: 4 }}>Difficulty</label>
-                                    <select
+                                    <Dropdown
+                                        fullWidth
                                         value={params.difficulty}
-                                        onChange={(e) => setParams({ ...params, difficulty: e.target.value })}
-                                        className="gen-select"
-                                    >
-                                        <option value="beginner">Beginner</option>
-                                        <option value="intermediate">Intermediate</option>
-                                        <option value="advanced">Advanced</option>
-                                    </select>
+                                        onChange={(v) => setParams({ ...params, difficulty: v })}
+                                        options={[
+                                            { value: 'beginner', label: 'Beginner' },
+                                            { value: 'intermediate', label: 'Intermediate' },
+                                            { value: 'advanced', label: 'Advanced' },
+                                        ]}
+                                    />
                                 </div>
                                 <div>
                                     <label className="gen-label" style={{ marginTop: 4 }}>Pacing</label>
-                                    <select
+                                    <Dropdown
+                                        fullWidth
                                         value={params.pacing}
-                                        onChange={(e) => setParams({ ...params, pacing: e.target.value })}
-                                        className="gen-select"
-                                    >
-                                        <option value="fast">Fast — fewer, denser lessons</option>
-                                        <option value="standard">Standard</option>
-                                        <option value="slow">Slow — more guided practice</option>
-                                    </select>
+                                        onChange={(v) => setParams({ ...params, pacing: v })}
+                                        options={[
+                                            { value: 'fast', label: 'Fast — fewer, denser lessons' },
+                                            { value: 'standard', label: 'Standard' },
+                                            { value: 'slow', label: 'Slow — more guided practice' },
+                                        ]}
+                                    />
                                 </div>
                             </div>
                         </div>
