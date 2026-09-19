@@ -692,16 +692,28 @@ export default function CourseBuilder({
 
             // Streams hit the dedicated relay server (a second PHP process):
             // the single-worker dev server would block every save behind the
-            // generation otherwise
-            const streamBase = import.meta.env.VITE_AI_RELAY_URL || import.meta.env.VITE_API_URL || 'http://instructai.test/api';
-            const response = await fetch(`${streamBase}/teacher/courses/${id}/ai-generate`, {
+            // generation otherwise. Relay down → automatic main-API fallback.
+            const mainBase = import.meta.env.VITE_API_URL || 'http://instructai.test/api';
+            const streamBase = import.meta.env.VITE_AI_RELAY_URL || mainBase;
+            const streamPost = (base, signal) => fetch(`${base}/teacher/courses/${id}/ai-generate`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
                 },
-                signal: controller.signal,
+                signal,
                 body: formData,
             });
+
+            let response;
+            try {
+                response = await streamPost(streamBase, controller.signal);
+                if (!response.ok && streamBase !== mainBase) {
+                    response = await streamPost(mainBase, controller.signal);
+                }
+            } catch (err) {
+                if (err?.name === 'AbortError') throw err;
+                response = await streamPost(mainBase, controller.signal);
+            }
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -989,21 +1001,33 @@ export default function CourseBuilder({
         await new Promise(resolve => setTimeout(resolve, 800));
 
         try {
-            const baseURL = import.meta.env.VITE_API_URL || 'http://instructai.test/api';
-
-            // Convert to streaming response
-            const fetchResponse = await fetch(`${streamBase}/teacher/courses/${id}/ai-generate-content`, {
+            const mainBase = import.meta.env.VITE_API_URL || 'http://instructai.test/api';
+            const streamBase = import.meta.env.VITE_AI_RELAY_URL || mainBase;
+            const streamPost = (base, signal) => fetch(`${base}/teacher/courses/${id}/ai-generate-content`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     'Content-Type': 'application/json'
                 },
-                signal: controller.signal,
+                signal,
                 body: JSON.stringify({
                     curriculum_structure: JSON.stringify(structure),
                     content_params: params
                 })
             });
+
+            // Relay server first (keeps saves fast during generation); if it is
+            // down or errors, fall back to the main API automatically
+            let fetchResponse;
+            try {
+                fetchResponse = await streamPost(streamBase, controller.signal);
+                if (!fetchResponse.ok && streamBase !== mainBase) {
+                    fetchResponse = await streamPost(mainBase, controller.signal);
+                }
+            } catch (err) {
+                if (err?.name === 'AbortError') throw err;
+                fetchResponse = await streamPost(mainBase, controller.signal);
+            }
 
             const reader = fetchResponse.body.getReader();
             const decoder = new TextDecoder();
