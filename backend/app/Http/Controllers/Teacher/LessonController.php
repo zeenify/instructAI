@@ -77,6 +77,11 @@ class LessonController extends Controller
 
             $lesson->update($validated);
 
+            // Keep the student AI Tutor's vector index in sync automatically —
+            // runs after the response is sent, only touches published lessons,
+            // and skips lessons whose content didn't actually change
+            \App\Services\LessonIndexer::schedule($lesson->fresh() ?? $lesson);
+
             return response()->json($lesson);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);

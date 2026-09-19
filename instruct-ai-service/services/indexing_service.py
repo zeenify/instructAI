@@ -63,18 +63,25 @@ class IndexingService:
         return chunks
 
     def index_lesson(self, class_id: int, course_id: int, lesson_id: int, content: str, embedding_service):
-        """Chunk and index lesson content"""
-        chunks = self.chunk_text(content)
+        """Chunk and index lesson content.
 
-        if not chunks:
-            print(f"[Indexing] No chunks created for lesson {lesson_id}")
-            return
-
+        Always clears the lesson's existing chunks first — even when the new
+        content is empty (an emptied lesson must not leave stale vectors) —
+        and removes legacy course-level rows that predate per-lesson indexing.
+        """
         conn = self.get_connection()
         try:
             with conn.cursor() as cur:
-                # Delete existing chunks for this lesson
-                cur.execute("DELETE FROM document_chunks WHERE lesson_id = %s", (lesson_id,))
+                cur.execute(
+                    "DELETE FROM document_chunks WHERE course_id = %s AND (lesson_id = %s OR lesson_id IS NULL)",
+                    (course_id, lesson_id),
+                )
+
+                chunks = self.chunk_text(content)
+                if not chunks:
+                    conn.commit()
+                    print(f"[Indexing] Lesson {lesson_id} cleared (no chunks)")
+                    return
 
                 # Insert new chunks
                 for chunk in chunks:

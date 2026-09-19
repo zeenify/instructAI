@@ -425,6 +425,10 @@ class CourseController extends Controller
         \App\Models\Lesson::whereIn('module_id', $moduleIds)->update(['is_published' => true]);
         \App\Models\Quiz::whereIn('module_id', $moduleIds)->update(['is_published' => true]);
 
+        // Newly published lessons become searchable by the AI Tutor
+        \App\Models\Lesson::whereIn('module_id', $moduleIds)->get()
+            ->each(fn($l) => \App\Services\LessonIndexer::schedule($l));
+
         return response()->json(['success' => true]);
     }
         

@@ -615,6 +615,7 @@ class TutorChatRequest(BaseModel):
     lesson_id: int | None = None
     lesson_content: str | None = None
     quiz_content: str | None = None
+    course_id: int | None = None
 
 
 @app.post("/ai/tutor-chat")
@@ -636,6 +637,7 @@ async def tutor_chat(request: Request):
 
         answer = rag_tutor_service.chat(
             class_id=data.class_id,
+            course_id=getattr(data, 'course_id', None),
             question=data.question,
             character_name=data.character_name,
             mode=data.mode,

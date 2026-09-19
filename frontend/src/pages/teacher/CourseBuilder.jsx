@@ -18,7 +18,6 @@ import AiArchitectModal from './AiArchitectModal';
 import CurriculumReviewModal from './CurriculumReviewModal.jsx';
 import ContentParametersModal from './ContentParametersModal.jsx';
 import GenerationConsole from './GenerationConsole.jsx';
-import IndexingStatsModal from '../../components/teacher/IndexingStatsModal';
 import './CourseBuilder.css';
 
 /** Rough student reading cost from lesson content blocks (same heuristic as the student view). */
@@ -267,8 +266,6 @@ export default function CourseBuilder({
     }, [showCurriculumModal, course?.language]);
 
     // Indexing Stats Modal State
-    const [showIndexingStats, setShowIndexingStats] = useState(false);
-    const [indexingStats, setIndexingStats] = useState(null);
 
     useEffect(() => { fetchCourse(!initialCourse); }, [id]);
 
@@ -335,33 +332,6 @@ export default function CourseBuilder({
         else publishAllItems();
     };
 
-    const handleIndexCourse = async () => {
-        // Open modal immediately with loading state
-        setShowIndexingStats(true);
-        setIndexingStats(null);
-
-        try {
-            // Try to fetch existing stats
-            const statsRes = await api.get(`/teacher/courses/${id}/indexing-stats`);
-            if (statsRes.data.total_chunks > 0) {
-                // Already indexed, show stats
-                setIndexingStats(statsRes.data);
-                return;
-            }
-        } catch (err) {
-            // Not indexed yet, proceed with indexing
-        }
-
-        // Index the course
-        try {
-            const response = await api.post(`/teacher/courses/${id}/index`);
-            // Indexing succeeded, show results
-            setIndexingStats(response.data);
-        } catch (err) {
-            toast.error("Indexing failed: " + (err.response?.data?.error || "Please try again"));
-            setShowIndexingStats(false);
-        }
-    };
 
     // Called by ModuleModal; throws bubble back into the dialog so the error
     // shows inline and the typed title isn't lost.
@@ -1469,10 +1439,6 @@ if (loading || !course) return (
                             <Sparkles size={16} />
                             Generate with AI
                         </button>
-                        <button type="button" className="cd-tbtn" onClick={handleIndexCourse} disabled={isUpdatingStatus} title="Choose what the student AI tutor can answer from">
-                            <BookOpen size={16} />
-                            AI Tutor Setup
-                        </button>
                         <span className="cd-tspacer" />
                         <button type="button" className={`cd-tbtn ${isReorderMode ? 'cd-tbtn-on' : ''}`} onClick={() => setIsReorderMode(!isReorderMode)}>
                             <GripHorizontal size={16} />
@@ -1613,15 +1579,6 @@ if (loading || !course) return (
                                 className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl text-xs font-bold uppercase border-none cursor-pointer flex items-center gap-2 hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/20"
                             >
                                 <Sparkles size={16} /> AI
-                            </button>
-                            <button
-                                onClick={handleIndexCourse}
-                                disabled={isUpdatingStatus}
-                                style={{ padding: '14px 22px' }}
-                                className="bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl text-xs font-bold uppercase border-none cursor-pointer flex items-center gap-2 hover:from-violet-500 hover:to-purple-500 transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <BookOpen size={16} />}
-                                Index for AI
                             </button>
                         </div>
                     )}</div>}
@@ -1980,19 +1937,6 @@ if (loading || !course) return (
             />
             <CurriculumReviewModal isOpen={isReviewOpen} data={aiResult} expectedParams={structureParams} existingModules={course?.modules?.length || 0} onCancel={() => setIsReviewOpen(false)} onConfirm={handleConfirmAI} onRegenerate={() => { setIsReviewOpen(false); setIsAiModalOpen(true); }} />
 
-            {/* Indexing Stats Modal */}
-            <IndexingStatsModal
-                courseId={id}
-                isOpen={showIndexingStats}
-                onClose={() => setShowIndexingStats(false)}
-                initialStats={indexingStats}
-                onReindexComplete={() => {
-                    // Refresh course data after re-indexing
-                    fetchCourse();
-                    // Reset cached indexing stats to force fresh load on next open
-                    setIndexingStats(null);
-                }}
-            />
 
             {/* Content Parameters Modal (Stage 2: Configure content details) */}
             <ContentParametersModal

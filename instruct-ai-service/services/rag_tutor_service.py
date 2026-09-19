@@ -181,7 +181,8 @@ RESPONSE STRATEGY:
              chat_history: list,
              lesson_id: int = None,
              lesson_content: str = None,
-             quiz_content: str = None) -> str:
+             quiz_content: str = None,
+             course_id: int = None) -> str:
         """RAG-powered chat with current lesson/quiz context"""
 
         # Detect question depth
@@ -203,7 +204,8 @@ RESPONSE STRATEGY:
 
         # 2. Retrieve relevant context
         print(f"[RAG CHAT] Retrieving context from class {class_id}...")
-        retrieved_context = retrieval_service.search(class_id, query_embedding, top_k=2, lesson_id=lesson_id)
+        # Chunks are stored under course_id — class_id here was a legacy mismatch
+        retrieved_context = retrieval_service.search(course_id or class_id, query_embedding, top_k=2, lesson_id=lesson_id)
         print(f"[RAG CHAT] Retrieved {len(retrieved_context)} chunks")
 
         # 3. Build prompt

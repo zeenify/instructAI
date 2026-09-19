@@ -119,8 +119,18 @@ class AIChatController extends Controller
 
         // 4. Call FastAPI
         try {
+            // Retrieval is course-scoped: chunks are stored under the course,
+            // so pass the course id of whatever the student is viewing
+            $courseId = null;
+            if ($lesson) {
+                $courseId = $lesson->module->course_id;
+            } elseif ($quiz) {
+                $courseId = $quiz->module->course_id;
+            }
+
             $response = Http::timeout(30)->post(env('AI_SERVICE_URL') . '/ai/tutor-chat', [
                 'class_id' => $classId,
+                'course_id' => $courseId,
                 'question' => $message,
                 'character_name' => $characterName,
                 'mode' => $mode,
