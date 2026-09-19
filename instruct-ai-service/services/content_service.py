@@ -30,7 +30,7 @@ def normalize_language(value):
     return lang if lang in VALID_LANGUAGES else None
 
 
-def harden_coding_questions(quiz_data: dict) -> None:
+def harden_coding_questions(quiz_data: dict, language_lock: str = "") -> None:
     """
     Prepare generated coding questions for the platform's test-case grading
     engine, in place:
@@ -49,6 +49,10 @@ def harden_coding_questions(quiz_data: dict) -> None:
             continue
 
         language = normalize_language(question.get("language"))
+        # The course's language is a hard setting — force the tag so grading
+        # and the student IDE always agree with what the teacher picked
+        if language_lock and language_lock in ("java", "python", "javascript", "cpp", "html"):
+            language = language_lock
         question["language"] = language
         question["boilerplate"] = strip_markdown_fence(
             fix_json_escapes_in_code(str(question.get("boilerplate") or "")))
@@ -252,7 +256,8 @@ async def generate_content_stream(
     question_type_distribution: str,
     include_images: str,
     include_videos: str,
-    is_coding: bool = False
+    is_coding: bool = False,
+    language: str = ""
 ):
     """
     Generate full lesson and quiz content for approved curriculum structure
@@ -343,6 +348,7 @@ async def generate_content_stream(
                             difficulty=difficulty,
                             content_depth=content_depth,
                             writing_style=writing_style,
+                            language_lock=language,
                             previous_sections=previous_sections,  # Pass sections within this lesson
                             previous_lessons=module_lesson_summaries,  # Pass earlier lessons for cross-lesson context
                             is_coding=is_coding  # Override section's needs_code if is_coding is False
@@ -500,7 +506,8 @@ async def generate_content_stream(
                     module_title=module_title,
                     quiz_title=quiz_title,
                     question_type_distribution=distribution,
-                    difficulty=difficulty
+                    difficulty=difficulty,
+                    language=language
                 )
 
                 # Use dedicated quiz system prompt (not the lesson system prompt)
@@ -591,7 +598,7 @@ async def generate_content_stream(
 
                     # Execute generated reference solutions against their test
                     # cases on the real engine before publishing anything.
-                    async for msg in run_with_heartbeat(harden_coding_questions, quiz_data):
+                    async for msg in run_with_heartbeat(harden_coding_questions, quiz_data, language):
                         if 'result' not in msg:
                             yield ': heartbeat' + chr(10) + chr(10)
 

@@ -90,7 +90,8 @@ class CourseController extends Controller
 
                     if ($response->successful()) {
                         $isCoding = $response->json('is_coding', false);
-                        \Log::info("AI Detection Result", ['is_coding' => $isCoding, 'response' => $response->json()]);
+                        $detectedLanguage = $response->json('language');
+                        \Log::info("AI Detection Result", ['is_coding' => $isCoding, 'language' => $detectedLanguage, 'response' => $response->json()]);
                     } else {
                         \Log::warning("AI detection failed with status: " . $response->status());
                     }
@@ -108,6 +109,7 @@ class CourseController extends Controller
                 'curriculum_file_url' => $curriculumFileUrl,
                 'curriculum_text' => $curriculumText,
                 'is_coding' => $isCoding,
+                'language' => $detectedLanguage ?? null,
                 'is_published' => false,
                 'order_index' => $classroom->courses()->count() + 1
             ]);
@@ -218,9 +220,10 @@ class CourseController extends Controller
             'title' => 'sometimes|string|max:255',
             'description' => 'sometimes|string',
             'is_coding' => 'sometimes|boolean',
+            'language' => 'nullable|string|in:java,python,javascript,cpp,html',
         ]);
 
-        $course->update($request->only(['title', 'description', 'is_coding']));
+        $course->update($request->only(['title', 'description', 'is_coding', 'language']));
 
         return response()->json([
             'success' => true,
@@ -312,7 +315,8 @@ class CourseController extends Controller
 
                     if ($response->successful()) {
                         $isCoding = $response->json('is_coding', false);
-                        \Log::info("AI Detection Result", ['is_coding' => $isCoding, 'response' => $response->json()]);
+                        $detectedLanguage = $response->json('language');
+                        \Log::info("AI Detection Result", ['is_coding' => $isCoding, 'language' => $detectedLanguage, 'response' => $response->json()]);
                     } else {
                         \Log::warning("AI detection failed with status: " . $response->status());
                     }
@@ -329,11 +333,12 @@ class CourseController extends Controller
                 'is_coding' => $isCoding
             ]);
 
-            // Update course with is_coding flag
+            // Update course with is_coding flag and detected language
             $course->update([
                 'curriculum_file_url' => $curriculumFileUrl,
                 'curriculum_text' => $curriculumText,
                 'is_coding' => $isCoding,
+                'language' => $detectedLanguage ?? $course->language,
             ]);
 
             $message = 'Curriculum document uploaded and text extracted successfully';
@@ -442,6 +447,7 @@ class CourseController extends Controller
                 ['name' => 'include_quiz', 'contents' => $request->input('include_quiz', 'true')],
                 ['name' => 'include_coding', 'contents' => $request->input('include_coding', 'true')],
                 ['name' => 'pacing', 'contents' => $request->input('pacing', 'standard')],
+                ['name' => 'language', 'contents' => $course->language ?? ''],
             ];
 
             // Add curriculum text if exists
@@ -634,6 +640,7 @@ class CourseController extends Controller
                 ['name' => 'question_type_distribution', 'contents' => $params['questionTypeDistribution'] ?? 'balanced'],
                 ['name' => 'include_videos', 'contents' => ($params['includeVideos'] ?? false) ? 'true' : 'false'],
                 ['name' => 'is_coding', 'contents' => $params['is_coding'] || $course->is_coding ? 'true' : 'false'],
+                ['name' => 'language', 'contents' => $course->language ?? ''],
             ];
 
             // Add curriculum text if exists

@@ -221,9 +221,10 @@ LANGUAGE FIELD (REQUIRED):
 - MUST be exactly one of: "java", "python", "javascript", "cpp", "html"
 
 HTML CHALLENGES (language = "html"):
-- "starter_code" = a complete HTML document students edit (structure, tags, styles in a <style> block or inline)
+- "starter_code" = the full content of index.html students start from
+- "files" = array of {{"name", "content"}} for the project: ALWAYS "index.html" first; add "style.css" and "script.js" only when the challenge genuinely needs separate files. Every file needs complete, runnable content.
 - "expected_output" = TEXT THAT MUST APPEAR ON THE RENDERED PAGE (not console output)
-- Omit "test_cases" and "reference_solution" - HTML pages are checked visually
+- Omit "test_cases" and "reference_solution" - HTML pages are checked visually against that text
 
 NON-HTML CHALLENGES - STARTER CODE REQUIREMENTS:
 - Include the entire structure (imports, class definition, method signatures)

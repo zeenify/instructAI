@@ -15,6 +15,7 @@ class Course extends Model
         'curriculum_text',
         'is_published',
         'is_coding',
+        'language',
         'order_index'
     ];
 

@@ -105,8 +105,8 @@ export default function TerminalLog({ logs }) {
             <span
               style={{
                 flex: 1,
-                fontSize: 13.5,
-                lineHeight: 1.5,
+                fontSize: 14.5,
+                lineHeight: 1.55,
                 color: log.type === 'error' ? 'var(--db-danger)' : 'var(--db-text-2)',
                 overflowWrap: 'anywhere',
               }}

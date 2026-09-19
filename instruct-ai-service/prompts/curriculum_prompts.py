@@ -36,7 +36,8 @@ def build_curriculum_user_prompt(
     lessons_per_module: str,
     include_quiz: str,
     include_coding: str,
-    pacing: str
+    pacing: str,
+    language: str = ""
 ) -> str:
     """
     Build user prompt for curriculum generation with parameters
@@ -63,12 +64,16 @@ def build_curriculum_user_prompt(
     # The DLL is important, don't cut it short!
     context_digest = context_text if context_text else ""
 
+    language_line = ""
+    if language:
+        language_line = f"- Programming language: EVERY coding exercise, example, and quiz question MUST use {language}. Never generate code in any other language."
+
     param_instructions = f"""
 PARAMETERS:
 - Difficulty: {difficulty}
 - Modules: EXACTLY {module_count} module(s) — this is a HARD requirement, not a suggestion. Generate exactly this many, no more.
 - Lessons/Module: EXACTLY {lessons_per_module} lesson(s) per module — hard requirement.
-- Quizzes: {include_quiz}
+{language_line}- Quizzes: {include_quiz}
 - Coding: {include_coding}
 - Pacing: {pacing}
 

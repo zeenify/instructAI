@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
 import Button from '../../components/ui/Button';
 import DeleteModal from '../../components/ui/DeleteModal';
+import Dropdown from '../../components/ui/Dropdown';
 import ModuleModal from '../../components/teacher/ModuleModal';
 import AiArchitectModal from './AiArchitectModal';
 import CurriculumReviewModal from './CurriculumReviewModal.jsx';
@@ -216,6 +217,7 @@ export default function CourseBuilder({
     const contentAbortRef = useRef(null);
     const [structureError, setStructureError] = useState(null);
     const [contentStartedAt, setContentStartedAt] = useState(null);
+    const [contentPaused, setContentPaused] = useState(false);
     const structureAbortRef = useRef(null);
     const lastStructureRequestRef = useRef(null);
     const lastContentParamsRef = useRef(null);
@@ -255,6 +257,8 @@ export default function CourseBuilder({
     const [uploadSuccess, setUploadSuccess] = useState(null);
     const [curDrag, setCurDrag] = useState(false);
     const [confirmingCurRemoval, setConfirmingCurRemoval] = useState(false);
+    const [courseLanguage, setCourseLanguage] = useState(course?.language || '');
+    const [savingLanguage, setSavingLanguage] = useState(false);
 
     // Indexing Stats Modal State
     const [showIndexingStats, setShowIndexingStats] = useState(false);
@@ -775,6 +779,17 @@ export default function CourseBuilder({
         }
     };
 
+    // Pause: stop streaming now; the teacher can resume with the missing
+    // items later (everything finished is already saved server-side)
+    const handlePauseGeneration = () => {
+        if (contentAbortRef.current) {
+            contentAbortRef.current.abort();
+        }
+        setIsGeneratingContent(false);
+        setContentPaused(true);
+        toast.info('Generation paused — you can continue any time');
+    };
+
     // Continue after an interrupted run: regenerate ONLY the items that never
     // finished. Everything already saved stays untouched (per-item persistence
     // means this is a safe, targeted top-up — not a restart).
@@ -872,6 +887,7 @@ export default function CourseBuilder({
     const generateLessonContent = async (modules, params) => {
         lastContentParamsRef.current = params;
         setContentStartedAt(Date.now());
+        setContentPaused(false);
         setIsGeneratingContent(true);
         setIsContentModalOpen(true);
         setGenerationLogs([]); // Clear previous logs
@@ -1191,12 +1207,28 @@ export default function CourseBuilder({
     const updateCourseType = async (value) => {
         if (!course || course.is_coding === value) return;
         setCourse(prev => ({ ...prev, is_coding: value }));
+        if (!value) setCourseLanguage('');
         try {
-            await api.put(`/teacher/courses/${course.id}`, { is_coding: value });
+            await api.put(`/teacher/courses/${course.id}`, { is_coding: value, language: value ? courseLanguage : null });
             toast.success(value ? 'Programming course mode enabled' : 'Non-programming course mode enabled');
         } catch (err) {
             toast.error('Failed to update course setting');
             setCourse(prev => ({ ...prev, is_coding: !value }));
+        }
+    };
+
+    const updateCourseLanguage = async (lang) => {
+        setCourseLanguage(lang);
+        setSavingLanguage(true);
+        try {
+            await api.put(`/teacher/courses/${course.id}`, { language: lang || null });
+            setCourse(prev => ({ ...prev, language: lang }));
+            toast.success(lang ? `All generated code will use ${lang === 'cpp' ? 'C++' : lang}` : 'Language cleared');
+        } catch (err) {
+            toast.error('Failed to update the language');
+            setCourseLanguage(course?.language || '');
+        } finally {
+            setSavingLanguage(false);
         }
     };
 
@@ -1903,7 +1935,10 @@ if (loading || !course) return (
                 logs={generationLogs}
                 onContentChange={setGeneratedContent}
                 onContinue={handleContinueGeneration}
+                onPause={handlePauseGeneration}
+                paused={contentPaused}
                 startedAt={contentStartedAt}
+                courseLanguage={course?.language || ''}
             />
 
             {/* Curriculum Management Modal */}
@@ -2039,9 +2074,32 @@ if (loading || !course) return (
                                         Non-programming
                                     </button>
                                 </div>
-                                <p className="cur-type-hint">
-                                    Detected automatically from your upload — switch it here if it guessed wrong.
-                                </p>
+                                {course.is_coding && (
+                                    <>
+                                        <span className="ed-card-label" style={{ marginTop: 10 }}>Programming language</span>
+                                        <Dropdown
+                                            fullWidth
+                                            value={courseLanguage}
+                                            onChange={updateCourseLanguage}
+                                            placeholder={savingLanguage ? 'Saving…' : 'Choose the language…'}
+                                            options={[
+                                                { value: 'python', label: 'Python' },
+                                                { value: 'java', label: 'Java' },
+                                                { value: 'javascript', label: 'JavaScript' },
+                                                { value: 'cpp', label: 'C++' },
+                                                { value: 'html', label: 'HTML / CSS / JS (web)' },
+                                            ]}
+                                        />
+                                        <p className="cur-type-hint">
+                                            Every generated example, challenge, and coding question will use this language.
+                                        </p>
+                                    </>
+                                )}
+                                {!course.is_coding && (
+                                    <p className="cur-type-hint">
+                                        Detected automatically from your upload — switch it here if it guessed wrong.
+                                    </p>
+                                )}
                             </div>
                         </motion.div>
                     </div>

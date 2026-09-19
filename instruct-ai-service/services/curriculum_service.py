@@ -19,7 +19,8 @@ async def generate_curriculum_stream(
     lessons_per_module: str,
     include_quiz: str,
     include_coding: str,
-    pacing: str
+    pacing: str,
+    language: str = ""
 ):
     """
     Generate curriculum structure with streaming support
@@ -48,7 +49,8 @@ async def generate_curriculum_stream(
             lessons_per_module=lessons_per_module,
             include_quiz=include_quiz,
             include_coding=include_coding,
-            pacing=pacing
+            pacing=pacing,
+            language=language
         )
 
         messages = [

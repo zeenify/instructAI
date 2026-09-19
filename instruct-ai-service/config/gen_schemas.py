@@ -95,9 +95,17 @@ SECTION_SCHEMAS = {
             }, ["input", "expected_output", "hidden"]),
             "maxItems": 4,
         },
+        "files": {
+            "type": "array",
+            "items": _obj({
+                "name": {"type": "string"},
+                "content": {"type": "string"},
+            }, ["name", "content"]),
+            "maxItems": 6,
+        },
         "success_criteria": {"type": "string"},
-    }, ["content_type", "language", "challenge", "starter_code", "reference_solution",
-        "expected_output", "test_cases"]),
+    }, ["content_type", "language", "challenge", "starter_code",
+        "expected_output"]),
 
     "practice_general": _obj({
         "content_type": {"type": "string"},

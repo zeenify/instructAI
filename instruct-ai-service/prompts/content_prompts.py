@@ -291,7 +291,8 @@ def build_quiz_prompt(
     module_title: str,
     quiz_title: str,
     question_type_distribution: dict,
-    difficulty: str
+    difficulty: str,
+    language: str = ""
 ) -> str:
     """
     Build user prompt for quiz content generation
@@ -336,9 +337,15 @@ def build_quiz_prompt(
     dist_text += f"Enumeration: {question_type_distribution.get('enum', 10)}%, "
     dist_text += f"Coding: {question_type_distribution.get('code', 10)}%"
 
+    language_line = (
+        f"PROGRAMMING LANGUAGE (HARD REQUIREMENT): every coding question MUST be written in {language} — "
+        f'the "language" field, the boilerplate, and the reference_solution all use {language}. '
+        "Never use any other programming language."
+    ) if language else ""
+
     return f"""
 Generate a comprehensive quiz based on lesson content covered.
-
+{language_line}
 LESSON CONTENT:
 {lesson_context}
 

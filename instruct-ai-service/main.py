@@ -124,7 +124,8 @@ async def curriculum_stream_endpoint(
     lessons_per_module: str = Form("3-5"),
     include_quiz: str = Form("true"),
     include_coding: str = Form("true"),
-    pacing: str = Form("standard")
+    pacing: str = Form("standard"),
+    language: str = Form("")
 ):
     """
     Streaming endpoint for curriculum structure generation
@@ -147,7 +148,8 @@ async def curriculum_stream_endpoint(
             lessons_per_module=lessons_per_module,
             include_quiz=include_quiz,
             include_coding=include_coding,
-            pacing=pacing
+            pacing=pacing,
+            language=language
         ),
         media_type="text/event-stream"
     )
@@ -188,7 +190,8 @@ async def content_stream_endpoint(
     question_type_distribution: str = Form("balanced"),
     include_images: str = Form("true"),
     include_videos: str = Form("true"),
-    is_coding: str = Form("false")
+    is_coding: str = Form("false"),
+    language: str = Form("")
 ):
     """
     Generate full content for approved curriculum structure

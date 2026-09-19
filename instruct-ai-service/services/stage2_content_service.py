@@ -31,6 +31,7 @@ async def generate_section_content(
     difficulty: str,
     content_depth: str = "standard",
     writing_style: str = "conversational",
+    language_lock: str = "",
     previous_sections: list = None,
     previous_lessons: list = None,
     is_coding: bool = True
@@ -77,6 +78,16 @@ async def generate_section_content(
         previous_lessons=previous_lessons or [],
         needs_code=needs_code  # Pass the enforced flag
     )
+
+    # The course language is a HARD requirement — every code block in the
+    # section must be this language, whatever the section prompt defaults to
+    if language_lock and needs_code:
+        user_prompt += (
+            "\n\nLANGUAGE REQUIREMENT (override everything else): every code "
+            "example, starter code, reference solution, and test case in this "
+            f"section MUST be written in {language_lock}. Do not use any other "
+            "programming language."
+        )
 
     messages = [
         {"role": "system", "content": system_prompt},

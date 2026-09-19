@@ -296,6 +296,23 @@ def format_section_to_blocks(
                 "expected": expected
             }
 
+            # HTML challenges may arrive as a multi-file project (index.html,
+            # style.css, script.js) — normalize into the editor's files shape
+            # and keep `code` synced to the HTML file, exactly like the lesson
+            # builder writes it
+            if language == "html" and isinstance(section_content.get("files"), list):
+                files = []
+                for f in section_content["files"]:
+                    if isinstance(f, dict) and str(f.get("name", "")).strip() and str(f.get("content", "") or "").strip():
+                        files.append({
+                            "name": str(f["name"]).strip(),
+                            "content": fix_json_escapes_in_code(str(f["content"])),
+                        })
+                if files:
+                    html_file = next((f for f in files if f["name"].lower().endswith(".html")), files[0])
+                    challenge_data["files"] = files
+                    challenge_data["code"] = html_file["content"]
+
             # Non-HTML challenges: run the AI's reference solution on the real
             # engine and publish ITS output as the expected result, so every
             # generated challenge is verified solvable. If the engine is down

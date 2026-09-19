@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, ChevronDown, ChevronRight, FlaskConical, Loader2, Pencil, Plus, Play, Trash2, TriangleAlert, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronRight, FlaskConical, Loader2, Pencil, Plus, Play, Trash2, TriangleAlert, X } from 'lucide-react';
 import api from '../../services/api';
+import { toast } from 'sonner';
 
 /**
  * Inline editor for AI-generated quiz questions, shown live in the generation
@@ -244,8 +245,28 @@ function TestCasesPanel({ question, onTestsPersisted }) {
   );
 }
 
-function QuestionCard({ question, index, onChange }) {
+function QcToolBtn({ title, disabled, danger, onClick, children }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      disabled={disabled}
+      onClick={onClick}
+      className="grid place-items-center w-7 h-7 rounded-lg border border-transparent bg-transparent cursor-pointer"
+      style={{
+        color: danger ? '#ffffff' : 'var(--db-text-3)',
+        background: danger ? 'var(--db-danger)' : 'transparent',
+        opacity: disabled ? 0.35 : 1,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function QuestionCard({ question, index, total, onChange, onMove, onDelete }) {
   const editable = typeof question.id === 'number';
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [editing, setEditing] = useState(false);
   const [status, setStatus] = useState('idle');
   const [showReference, setShowReference] = useState(false);
@@ -309,9 +330,24 @@ function QuestionCard({ question, index, onChange }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       style={{ padding: '20px 24px' }}
-      className="bg-[color:var(--db-card-2)] border border-[color:var(--db-border)] rounded-xl group/q relative"
+      className="bg-[color:var(--db-card-2)] border border-[color:var(--db-border)] rounded-xl group/q relative group/tools"
     >
-      {editable && !editing && (
+      {typeof index === 'number' && (
+        <div
+          className="group-hover/tools:flex hidden items-center gap-1"
+          style={{ position: 'absolute', top: -13, left: 14, zIndex: 12, padding: 3, borderRadius: 9, background: 'var(--db-card)', border: '1px solid var(--db-border)', boxShadow: 'var(--db-shadow-soft)' }}
+          onMouseLeave={() => setConfirmDelete(false)}
+        >
+          <QcToolBtn title="Move up" disabled={index === 0} onClick={() => onMove?.(index, -1)}><ArrowUp size={13} /></QcToolBtn>
+          <QcToolBtn title="Move down" disabled={index === total - 1} onClick={() => onMove?.(index, 1)}><ArrowDown size={13} /></QcToolBtn>
+          {confirmDelete ? (
+            <QcToolBtn title="Click again to delete" danger onClick={() => onDelete?.(index)}><Check size={13} /></QcToolBtn>
+          ) : (
+            <QcToolBtn title="Delete question" onClick={() => setConfirmDelete(true)}><Trash2 size={13} /></QcToolBtn>
+          )}
+        </div>
+      )}
+      {editable && !editing &&(
         <button
           onClick={() => setEditing(true)}
           style={{ padding: '5px 10px', gap: '5px' }}
@@ -574,16 +610,56 @@ function QuestionCard({ question, index, onChange }) {
   );
 }
 
-export default function EditableQuizContent({ questions, onQuestionsChange }) {
-  if (!questions?.length) return null;
+export default function EditableQuizContent({ questions, onQuestionsChange, quizId, courseLanguage }) {
+  const [savingList, setSavingList] = useState(false);
+  const allReal = questions.every(q => typeof q.id === 'number');
 
   const changeQuestion = (index, fields) => {
     onQuestionsChange(questions.map((q, i) => (i === index ? { ...q, ...fields } : q)));
   };
 
+  const moveQuestion = (index, dir) => {
+    const to = index + dir;
+    if (to < 0 || to >= questions.length) return;
+    const next = [...questions];
+    [next[index], next[to]] = [next[to], next[index]];
+    onQuestionsChange(next);
+    // Persist the new order only when every row has a real id
+    if (quizId && next.every(q => typeof q.id === 'number')) {
+      api.post(`/teacher/quizzes/${quizId}/reorder-questions`, { question_ids: next.map(q => q.id) })
+        .catch(() => toast.error('Could not save the new order'));
+    }
+  };
+
+  const deleteQuestion = async (index) => {
+    const q = questions[index];
+    onQuestionsChange(questions.filter((_, i) => i !== index));
+    if (typeof q?.id === 'number') {
+      try { await api.delete(`/teacher/questions/${q.id}`); }
+      catch { toast.error('Could not delete the question'); }
+    }
+  };
+
+  const addQuestion = async (type) => {
+    if (!quizId) { toast.error('This quiz is still saving — try again in a moment'); return; }
+    setSavingList(true);
+    try {
+      const res = await api.post(`/teacher/quizzes/${quizId}/questions`, {
+        type,
+        language: type === 'coding' ? (courseLanguage || 'python') : undefined,
+      });
+      onQuestionsChange([...questions, res.data]);
+      toast.success(`${res.data.question_text || 'Question'} added`);
+    } catch {
+      toast.error('Could not add the question');
+    } finally {
+      setSavingList(false);
+    }
+  };
+
   return (
     <div style={{ gap: '24px' }} className="space-y-5">
-      <div style={{ gap: '10px' }} className="flex items-center">
+      <div style={{ gap: '10px' }} className="flex items-center flex-wrap">
         <span className="text-[11px] text-[color:var(--db-text-3)] uppercase tracking-widest font-bold">
           Live editing — answers, options, test cases, reference solutions: all save automatically
         </span>
@@ -593,9 +669,30 @@ export default function EditableQuizContent({ questions, onQuestionsChange }) {
           key={question.id ?? `q-${idx}`}
           question={question}
           index={idx}
+          total={questions.length}
           onChange={changeQuestion}
+          onMove={moveQuestion}
+          onDelete={deleteQuestion}
         />
       ))}
+      {quizId && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 12px', borderRadius: 12, background: 'var(--db-card-2)', border: '1px solid var(--db-border)' }}>
+          <span className="gen-label" style={{ marginBottom: 0 }}>Add question</span>
+          <Dropdown
+            value="__add"
+            placeholder="Choose a type…"
+            onChange={(type) => { if (type !== '__add') addQuestion(type); }}
+            options={[
+              { value: 'multiple_choice', label: 'Multiple choice' },
+              { value: 'true_false', label: 'True or False' },
+              { value: 'identification', label: 'Identification' },
+              { value: 'enumeration', label: 'Enumeration' },
+              { value: 'coding', label: 'Coding' },
+            ]}
+          />
+          {savingList && <Loader2 size={13} className="animate-spin" style={{ color: 'var(--db-text-3)' }} />}
+        </div>
+      )}
     </div>
   );
 }

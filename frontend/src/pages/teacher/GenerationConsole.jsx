@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, FileQuestion, Pencil, Check, Zap, CircleAlert, Loader2 } from 'lucide-react';
+import { BookOpen, FileQuestion, PauseCircle, Pencil, Check, Zap, CircleAlert, Loader2 } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import api from '../../services/api';
 import TerminalLog from '../../components/generation/TerminalLog';
@@ -88,7 +88,10 @@ export default function GenerationConsole({
   onClose,
   onContentChange,
   onContinue,
-  startedAt
+  onPause,
+  paused,
+  startedAt,
+  courseLanguage
 }) {
   const [overallProgress, setOverallProgress] = useState(0);
   const [completedLessons, setCompletedLessons] = useState(0);
@@ -96,7 +99,9 @@ export default function GenerationConsole({
   const [selectedLessonId, setSelectedLessonId] = useState(null);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [displayedBlocks, setDisplayedBlocks] = useState({});
+  const [activeTab, setActiveTab] = useState('activity');
   const lessonContentRef = useRef(null);
+  const tabTouchedRef = useRef(false);
 
   // Calculate overall progress and collect completed lessons (including quizzes)
   useEffect(() => {
@@ -149,6 +154,11 @@ export default function GenerationConsole({
     // Auto-select first lesson as soon as it appears
     if (lessons.length > 0 && !selectedLessonId) {
       setSelectedLessonId(lessons[0].id);
+    }
+    // Jump to the content tab the moment there is something to look at,
+    // unless the teacher deliberately chose the activity feed
+    if (lessons.length > 0 && !tabTouchedRef.current) {
+      setActiveTab('content');
     }
     const newProgress = total > 0 ? Math.round((completed / total) * 100) : 0;
     setOverallProgress(newProgress);
@@ -316,7 +326,7 @@ export default function GenerationConsole({
               }}
               className="inline-flex items-center"
             >
-              <CircleAlert size={12} /> Stopped early
+              <CircleAlert size={12} /> {paused ? 'Paused' : 'Stopped early'}
             </span>
           )}
           {!isGenerating && !interrupted && totalItems > 0 && (
@@ -332,13 +342,24 @@ export default function GenerationConsole({
             </span>
           )}
         </div>
-        <button
-          onClick={handleFinish}
-          className="gen-btn gen-btn-primary"
-          title={isGenerating ? 'Stop generating — everything finished so far stays saved' : 'Close the studio'}
-        >
-          {isGenerating ? <><Zap size={14} /> Stop</> : <><Check size={14} /> Finish</>}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {isGenerating && onPause && (
+            <button
+              onClick={onPause}
+              className="gen-btn gen-btn-ghost"
+              title="Pause — the AI stops here; everything finished stays saved and you can continue later"
+            >
+              <PauseCircle size={15} /> Pause
+            </button>
+          )}
+          <button
+            onClick={handleFinish}
+            className={isGenerating ? 'gen-btn gen-btn-ghost' : 'gen-btn gen-btn-primary'}
+            title={isGenerating ? 'Stop generating — everything finished so far stays saved' : 'Close the studio'}
+          >
+            {isGenerating ? <><Zap size={14} /> Stop</> : <><Check size={14} /> Finish</>}
+          </button>
+        </div>
       </div>
 
       {/* Progress + continue banner */}
@@ -358,8 +379,10 @@ export default function GenerationConsole({
           >
             <CircleAlert size={16} style={{ color: 'var(--db-amber)', flex: 'none' }} />
             <p style={{ margin: 0, flex: 1, color: 'var(--db-text)', fontSize: 13.5 }}>
-              The AI stopped before finishing — <strong>{completedLessons} of {totalItems}</strong> items are done and saved.
-              Continue to generate only the missing {remainingItems}.
+              {paused
+                ? <>Paused — <strong>{completedLessons} of {totalItems}</strong> items are done and saved.</>
+                : <>The AI stopped before finishing — <strong>{completedLessons} of {totalItems}</strong> items are done and saved.</>}
+              {' '}Continue to generate only the missing {remainingItems}.
             </p>
             {onContinue && (
               <button onClick={onContinue} className="gen-btn gen-btn-primary" style={{ padding: '9px 16px', flex: 'none' }}>
@@ -370,36 +393,70 @@ export default function GenerationConsole({
         )}
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left: Activity feed */}
-        <div
-          style={{ padding: '22px 26px', borderRight: '1px solid var(--db-border)', background: 'var(--db-card)' }}
-          className="gc-pane-activity w-1/2 overflow-hidden flex flex-col"
-        >
-          <span className="ed-card-label" style={{ marginBottom: 16 }}>Activity</span>
-          <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4 }}>
-            <TerminalLog logs={logs} />
-          </div>
-
-          {isGenerating && (
-            <div
-              style={{ padding: '12px 16px', marginTop: 14, gap: 10, borderRadius: 12, flexShrink: 0, display: 'flex', alignItems: 'center', background: 'var(--db-card-2)', border: '1px solid var(--db-border)' }}
-            >
-              <motion.div
-                animate={{ scale: [1, 1.25, 1] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-                style={{ width: 9, height: 9, borderRadius: 999, background: 'var(--db-accent-bright)' }}
+      {/* Main Content Area — two tabs, each full width */}
+      <div
+        className="flex items-center gap-2 flex-shrink-0"
+        style={{ padding: '10px 28px', borderBottom: '1px solid var(--db-border)', background: 'var(--db-card)' }}
+      >
+        {[
+          ['activity', 'Activity'],
+          ['content', 'Lessons & quizzes'],
+        ].map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => { setActiveTab(key); tabTouchedRef.current = true; }}
+            style={{
+              padding: '8px 16px', borderRadius: 10, fontSize: 13.5, fontWeight: 700, cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              border: `1px solid ${activeTab === key ? 'var(--db-accent-border)' : 'var(--db-border)'}`,
+              background: activeTab === key ? 'var(--db-accent-soft)' : 'transparent',
+              color: activeTab === key ? 'var(--db-accent-bright)' : 'var(--db-text-2)',
+            }}
+          >
+            {label}
+            {key === 'activity' && isGenerating && (
+              <motion.span
+                animate={{ scale: [1, 1.3, 1] }}
+                transition={{ duration: 1.4, repeat: Infinity }}
+                style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--db-accent-bright)', display: 'inline-block' }}
               />
-              <span className="gen-note">
-                Generating item {Math.min(completedLessons + 1, totalItems)} of {totalItems}…
-              </span>
-            </div>
-          )}
-        </div>
+            )}
+          </button>
+        ))}
+      </div>
 
-        {/* Right: content materializing + inline editing */}
-        <div className="gc-pane-content w-1/2 overflow-hidden flex flex-col" style={{ background: 'var(--db-canvas)' }}>
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {/* Activity feed tab */}
+        {activeTab === 'activity' && (
+          <div
+            style={{ padding: '22px 26px', background: 'var(--db-card)' }}
+            className="w-full overflow-hidden flex flex-col flex-1"
+          >
+            <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4 }}>
+              <TerminalLog logs={logs} />
+            </div>
+
+            {isGenerating && (
+              <div
+                style={{ padding: '12px 16px', marginTop: 14, gap: 10, borderRadius: 12, flexShrink: 0, display: 'flex', alignItems: 'center', background: 'var(--db-card-2)', border: '1px solid var(--db-border)' }}
+              >
+                <motion.div
+                  animate={{ scale: [1, 1.25, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  style={{ width: 9, height: 9, borderRadius: 999, background: 'var(--db-accent-bright)' }}
+                />
+                <span className="gen-note">
+                  Generating item {Math.min(completedLessons + 1, totalItems)} of {totalItems}…
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Content tab: materializing + inline editing */}
+        {activeTab === 'content' && (
+        <div className="w-full overflow-hidden flex flex-col flex-1" style={{ background: 'var(--db-canvas)' }}>
           {/* Item tabs */}
           <div style={{ padding: '16px 26px', borderBottom: '1px solid var(--db-border)', overflowX: 'auto', flexShrink: 0, background: 'var(--db-card)' }}>
             <div style={{ gap: 8 }} className="flex">
@@ -451,6 +508,7 @@ export default function GenerationConsole({
                   <EditableLessonContent
                     lesson={selectedLesson}
                     onBlocksChange={handleLessonBlocksChange}
+                    courseLanguage={courseLanguage}
                   />
                 )}
 
@@ -459,16 +517,22 @@ export default function GenerationConsole({
                   <EditableQuizContent
                     questions={selectedLesson.questions || []}
                     onQuestionsChange={(next) => handleQuizQuestionsChange(selectedLesson.id, next)}
+                    quizId={typeof selectedLesson.id === 'number' ? selectedLesson.id : null}
+                    courseLanguage={courseLanguage}
                   />
                 )}
               </div>
             ) : (
               <div className="flex items-center justify-center h-full" style={{ color: 'var(--db-text-3)' }}>
-                <p style={{ fontSize: 16 }}>Content will appear as it is generated…</p>
+                <p style={{ fontSize: 16, textAlign: 'center', padding: '0 24px' }}>
+                  Nothing here yet — follow the live progress in the Activity tab.
+                  Lessons and quizzes will appear here the moment they are written.
+                </p>
               </div>
             )}
           </div>
         </div>
+        )}
       </div>
 
       {/* Finish Confirmation Dialog */}
