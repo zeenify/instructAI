@@ -156,3 +156,327 @@
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+/* ---------- Curriculum modal (cur-) — opened from the class Content toolbar ---------- */
+
+.cur-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+}
+
+.cur-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(5, 7, 14, 0.62);
+    backdrop-filter: blur(6px);
+    cursor: pointer;
+}
+
+.cur-modal {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 520px);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 22px 24px 24px;
+    border-radius: 18px;
+    background: var(--db-card);
+    border: 1px solid var(--db-border);
+    box-shadow: 0 30px 80px rgba(2, 4, 12, 0.5);
+    color: var(--db-text);
+}
+
+.cur-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.cur-title {
+    font-family: var(--db-font-display);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--db-text);
+    margin: 4px 0 0;
+}
+
+.cur-close {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    flex: none;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--db-text-3);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cur-close:hover {
+    color: var(--db-text);
+    background: var(--db-card-2);
+}
+
+/* Success / error strip after an upload attempt */
+
+.cur-strip {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 11px 14px;
+    border-radius: 11px;
+    font-size: 13.5px;
+    line-height: 1.45;
+}
+
+.cur-strip.ok {
+    color: var(--db-green);
+    background: var(--db-green-soft);
+    border: 1px solid var(--db-green-border);
+}
+
+.cur-strip.err {
+    color: var(--db-danger);
+    background: var(--db-danger-soft);
+    border: 1px solid rgba(248, 113, 113, 0.4);
+}
+
+.cur-strip svg {
+    flex: none;
+    margin-top: 1px;
+}
+
+.cur-strip p {
+    margin: 0;
+}
+
+.cur-strip b {
+    font-weight: 700;
+}
+
+/* Current file card */
+
+.cur-file {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: var(--db-card-2);
+    border: 1px solid var(--db-border);
+}
+
+.cur-file-icon {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    flex: none;
+    border-radius: 12px;
+    color: var(--db-accent-bright);
+    background: var(--db-accent-soft);
+    border: 1px solid var(--db-accent-border);
+}
+
+:root[data-theme='light'] .cur-file-icon {
+    color: var(--db-accent);
+}
+
+.cur-file-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.cur-file-name {
+    font-family: var(--db-font-display);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--db-text);
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.cur-file-meta {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+    font-size: 12.5px;
+    color: var(--db-text-3);
+    margin: 5px 0 0;
+}
+
+.cur-ready {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--db-green);
+    background: var(--db-green-soft);
+    border: 1px solid var(--db-green-border);
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+
+.cur-file-open {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+    padding: 8px 13px;
+    border-radius: 9px;
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card);
+    color: var(--db-text-2);
+    font-size: 12.5px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.cur-file-open:hover {
+    color: var(--db-accent-bright);
+    border-color: var(--db-accent-border);
+}
+
+:root[data-theme='light'] .cur-file-open:hover {
+    color: var(--db-accent);
+}
+
+/* Upload / replace dropzone */
+
+.cur-lede {
+    font-size: 14px;
+    color: var(--db-text-2);
+    line-height: 1.55;
+    margin: 0;
+}
+
+.cur-drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 26px 16px;
+    border-radius: 14px;
+    border: 1.5px dashed var(--db-border-strong);
+    background: var(--db-card-2);
+    color: var(--db-accent-bright);
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.cur-drop input {
+    display: none;
+}
+
+.cur-drop:hover,
+.cur-drop.drag {
+    border-color: var(--db-accent-border);
+    background: var(--db-accent-soft);
+}
+
+:root[data-theme='light'] .cur-drop {
+    color: var(--db-accent);
+}
+
+:root[data-theme='light'] .cur-drop:hover,
+:root[data-theme='light'] .cur-drop.drag {
+    color: var(--db-accent);
+}
+
+.cur-drop.busy {
+    pointer-events: none;
+}
+
+.cur-drop-title {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--db-text);
+}
+
+.cur-drop-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--db-text-3);
+}
+
+/* Course type (programming vs non-programming) */
+
+.cur-type {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cur-type-seg {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 4px;
+    border-radius: 11px;
+    background: var(--db-card-2);
+    border: 1px solid var(--db-border);
+}
+
+.cur-type-seg button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    flex: 1;
+    padding: 9px 12px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--db-text-2);
+    font-family: var(--db-font-display);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cur-type-seg button:hover {
+    color: var(--db-text);
+}
+
+.cur-type-seg button.on {
+    color: #ffffff;
+    background: var(--db-accent);
+}
+
+.cur-type-hint {
+    font-size: 12.5px;
+    color: var(--db-text-3);
+    line-height: 1.5;
+    margin: 0;
+}
+
+@media (max-width: 560px) {
+    .cur-modal {
+        padding: 18px 16px 20px;
+    }
+
+    .cur-file {
+        flex-wrap: wrap;
+        row-gap: 10px;
+    }
+}

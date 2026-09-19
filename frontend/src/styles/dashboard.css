@@ -1485,21 +1485,19 @@
     border: 1px solid var(--db-border);
 }
 
-.cd-cur {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--db-text-2);
-    background: var(--db-card-2);
-    border: 1px solid var(--db-border);
-    padding: 5px 10px;
+/* The Curriculum button carries the upload state itself: a green dot +
+   check icon when a file exists, an "Upload Curriculum" invitation when not */
+.cd-cur-dot {
+    width: 7px;
+    height: 7px;
+    flex: none;
     border-radius: 999px;
-    max-width: 220px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    background: var(--db-green);
+    box-shadow: 0 0 0 3px var(--db-green-soft);
+}
+
+.cd-tbtn-cur-ok svg {
+    color: var(--db-green);
 }
 
 .cd-tsep {

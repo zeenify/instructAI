@@ -5,7 +5,8 @@ import { courseContentKey } from '../../queries/classDetails';
 import { motion, AnimatePresence, useDragControls, Reorder } from 'framer-motion';
 import {
     ChevronLeft, ChevronUp, ChevronDown, Plus, FileText, HelpCircle, Loader2,
-    Sparkles, ExternalLink, X, Check, GripVertical, Eye, EyeOff, Globe, Lock, Rocket, Trash2, Edit3, Send, Layers, GripHorizontal, Upload, CheckCircle, BookOpen, ArrowRight
+    Sparkles, ExternalLink, X, Check, GripVertical, Eye, EyeOff, Globe, Lock, Rocket, Trash2, Edit3, Send, Layers, GripHorizontal, Upload, CheckCircle, BookOpen, ArrowRight,
+    FileCheck2, FileUp, Code2, FileWarning
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
@@ -246,6 +247,7 @@ export default function CourseBuilder({
     const [showCurriculumModal, setShowCurriculumModal] = useState(false);
     const [uploadingCurriculum, setUploadingCurriculum] = useState(false);
     const [uploadSuccess, setUploadSuccess] = useState(null);
+    const [curDrag, setCurDrag] = useState(false);
 
     // Indexing Stats Modal State
     const [showIndexingStats, setShowIndexingStats] = useState(false);
@@ -1121,13 +1123,13 @@ export default function CourseBuilder({
         }));
     };
 
-    const handleCurriculumUpload = async (e) => {
-        const file = e.target.files[0];
+    const uploadCurriculumFile = async (file) => {
         if (!file) return;
 
-        // Validate file type
+        // Validate file type (MIME first, extension as fallback — dropped files
+        // sometimes arrive with an empty type)
         const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
-        if (!validTypes.includes(file.type)) {
+        if (!validTypes.includes(file.type) && !/\.(pdf|doc|docx|txt)$/i.test(file.name)) {
             toast.error('Please upload a PDF, DOC, DOCX, or TXT file');
             return;
         }
@@ -1148,14 +1150,18 @@ export default function CourseBuilder({
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            const { is_coding } = response.data;
+            const { is_coding, curriculum_file_url } = response.data;
 
             // Show success message in modal
             setUploadSuccess({
                 fileName: file.name,
                 isCoding: is_coding,
-                message: is_coding ? '📚 Programming Course Detected' : '📖 Non-Programming Course'
+                message: is_coding ? 'Programming course detected' : 'Non-programming course detected'
             });
+
+            // Flip the modal to the file card immediately — don't wait for the
+            // refetch, or the body shows "upload a file" under a success strip
+            setCourse(prev => prev ? { ...prev, is_coding, curriculum_file_url } : prev);
 
             // Invalidate cache and refetch
             refreshContent();
@@ -1173,6 +1179,23 @@ export default function CourseBuilder({
             });
         } finally {
             setUploadingCurriculum(false);
+        }
+    };
+
+    const handleCurriculumUpload = (e) => {
+        uploadCurriculumFile(e.target.files[0]);
+        e.target.value = ''; // re-choosing the same file must fire change again
+    };
+
+    const updateCourseType = async (value) => {
+        if (!course || course.is_coding === value) return;
+        setCourse(prev => ({ ...prev, is_coding: value }));
+        try {
+            await api.put(`/teacher/courses/${course.id}`, { is_coding: value });
+            toast.success(value ? 'Programming course mode enabled' : 'Non-programming course mode enabled');
+        } catch (err) {
+            toast.error('Failed to update course setting');
+            setCourse(prev => ({ ...prev, is_coding: !value }));
         }
     };
 
@@ -1309,16 +1332,18 @@ if (loading || !course) return (
                             <Rocket size={16} />
                             {isPublished ? 'Unpublish' : 'Go Live'}
                         </button>
-                        {course.curriculum_file_url && (
-                            <span className="cd-cur" title={course.curriculum_file_url.split('/').pop()}>
-                                <FileText size={12} />
-                                {course.curriculum_file_url.split('/').pop()?.slice(0, 24)}
-                            </span>
-                        )}
                         <span className="cd-tsep" />
-                        <button type="button" className="cd-tbtn" onClick={() => setShowCurriculumModal(true)} title={course.curriculum_file_url ? 'View or replace your curriculum file' : 'Upload your curriculum file (PDF or DOC) — AI uses it as the source for generated content'}>
-                            <FileText size={16} />
+                        <button
+                            type="button"
+                            className={`cd-tbtn ${course.curriculum_file_url ? 'cd-tbtn-cur-ok' : ''}`}
+                            onClick={() => setShowCurriculumModal(true)}
+                            title={course.curriculum_file_url
+                                ? `Curriculum uploaded: ${course.curriculum_file_url.split('/').pop()} — click to view or replace`
+                                : 'Upload your curriculum file (PDF or DOC) — AI uses it as the source for generated content'}
+                        >
+                            {course.curriculum_file_url ? <FileCheck2 size={16} /> : <Upload size={16} />}
                             {course.curriculum_file_url ? 'Curriculum' : 'Upload Curriculum'}
+                            {course.curriculum_file_url && <span className="cd-cur-dot" aria-label="Curriculum uploaded" />}
                         </button>
                         <button type="button" className="cd-tbtn cd-tbtn-ai" onClick={() => setIsAiModalOpen(true)} title="Generate modules, lessons, and quizzes automatically from your curriculum">
                             <Sparkles size={16} />
@@ -1875,165 +1900,117 @@ if (loading || !course) return (
             {/* Curriculum Management Modal */}
             <AnimatePresence>
                 {showCurriculumModal && (
-                    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+                    <div className="cur-overlay">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setShowCurriculumModal(false)}
-                            className="absolute inset-0 bg-black/80 backdrop-blur-md"
+                            className="cur-backdrop"
                         />
-<motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            style={{ padding: '50px 40px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}
-                            className="relative z-10 w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl"
+                        <motion.div
+                            initial={{ scale: 0.96, opacity: 0, y: 10 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.96, opacity: 0, y: 10 }}
+                            transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+                            className="cur-modal"
                         >
                             {uploadSuccess && (
-                                <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: 'auto', opacity: 1 }}
-                                    style={{ marginBottom: '24px', padding: '16px 20px' }}
-                                    className={`${uploadSuccess.error ? 'bg-red-500/10 border-b border-red-500/30' : 'bg-green-500/10 border-b border-green-500/30'}`}
-                                >
-                                    <div className="flex items-center gap-3">
+                                <div className={`cur-strip ${uploadSuccess.error ? 'err' : 'ok'}`}>
+                                    {uploadSuccess.error ? <FileWarning size={16} /> : <CheckCircle size={16} />}
+                                    <p>
                                         {uploadSuccess.error ? (
-                                            <>
-                                                <X size={20} className="text-red-400 flex-shrink-0" />
-                                                <div>
-                                                    <p className="text-red-400 font-semibold text-sm">{uploadSuccess.error}</p>
-                                                </div>
-                                            </>
+                                            uploadSuccess.error
                                         ) : (
-                                            <>
-                                                <CheckCircle size={20} className="text-green-400 flex-shrink-0" />
-                                                <div>
-                                                    <p className="text-green-400 font-semibold text-sm">{uploadSuccess.fileName} uploaded!</p>
-                                                    <p className="text-green-300/80 text-xs mt-1">{uploadSuccess.message}</p>
-                                                </div>
-                                            </>
+                                            <><b>{uploadSuccess.fileName}</b> uploaded — {uploadSuccess.message}</>
                                         )}
-                                    </div>
-                                </motion.div>
+                                    </p>
+                                </div>
                             )}
-                            <div>
-                                <div style={{ marginBottom: '32px' }} className="flex justify-between items-center">
-                                    <h2 style={{ fontSize: '1.75rem', marginBottom: 0, color: 'var(--text-primary)' }} className="font-bold flex items-center gap-2">
-                                        <FileText className="text-purple-400" /> Curriculum Document
-                                    </h2>
-                                    <button
-                                        onClick={() => setShowCurriculumModal(false)}
-                                        style={{ color: 'var(--text-secondary)' }}
-                                        className="hover:opacity-75 transition-colors bg-transparent border-none cursor-pointer"
+                            <div className="cur-head">
+                                <div>
+                                    <span className="ed-card-label">Course source</span>
+                                    <h2 className="cur-title">Curriculum</h2>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCurriculumModal(false)}
+                                    className="cur-close"
+                                    title="Close"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            {course.curriculum_file_url ? (
+                                <div className="cur-file">
+                                    <span className="cur-file-icon"><FileText size={20} /></span>
+                                    <div className="cur-file-info">
+                                        <p className="cur-file-name">{course.curriculum_file_url.split('/').pop()}</p>
+                                        <p className="cur-file-meta">
+                                            <span className="cur-ready"><Check size={11} /> Ready</span>
+                                            The AI reads this when you Generate with AI
+                                        </p>
+                                    </div>
+                                    <a
+                                        className="cur-file-open"
+                                        href={course.curriculum_file_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
                                     >
-                                        <X size={20} />
+                                        <ExternalLink size={14} /> Open
+                                    </a>
+                                </div>
+                            ) : (
+                                <p className="cur-lede">
+                                    Upload your syllabus, DLL, or course guide — the AI reads it to generate
+                                    modules, lessons, and quizzes that match your plan.
+                                </p>
+                            )}
+
+                            <label
+                                className={`cur-drop ${uploadingCurriculum ? 'busy' : ''} ${curDrag ? 'drag' : ''}`}
+                                onDragOver={(e) => { e.preventDefault(); setCurDrag(true); }}
+                                onDragLeave={() => setCurDrag(false)}
+                                onDrop={(e) => { e.preventDefault(); setCurDrag(false); if (!uploadingCurriculum) uploadCurriculumFile(e.dataTransfer.files[0]); }}
+                            >
+                                <input
+                                    type="file"
+                                    accept=".pdf,.doc,.docx,.txt"
+                                    onChange={handleCurriculumUpload}
+                                    disabled={uploadingCurriculum}
+                                />
+                                {uploadingCurriculum ? (
+                                    <>
+                                        <Loader2 size={22} className="animate-spin" />
+                                        <span className="cur-drop-title">Uploading and reading your file…</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <FileUp size={22} />
+                                        <span className="cur-drop-title">
+                                            {course.curriculum_file_url ? 'Drop a new file or click to replace' : 'Choose a file or drop it here'}
+                                        </span>
+                                        <span className="cur-drop-sub">PDF · DOC · DOCX · TXT — UP TO 10MB</span>
+                                    </>
+                                )}
+                            </label>
+
+                            <div className="cur-type">
+                                <span className="ed-card-label">Course type</span>
+                                <div className="cur-type-seg">
+                                    <button type="button" className={course.is_coding ? 'on' : ''} onClick={() => updateCourseType(true)}>
+                                        <Code2 size={15} />
+                                        Programming
+                                    </button>
+                                    <button type="button" className={!course.is_coding ? 'on' : ''} onClick={() => updateCourseType(false)}>
+                                        <BookOpen size={15} />
+                                        Non-programming
                                     </button>
                                 </div>
-
-                                {course.curriculum_file_url ? (
-                                    <div style={{ gap: '24px' }} className="flex flex-col">
-                                        <div style={{ padding: '20px 24px' }} className="bg-green-500/10 border border-green-500/30 rounded-2xl">
-                                            <div style={{ marginBottom: '12px' }} className="flex items-center gap-3">
-                                                <CheckCircle size={20} className="text-green-400" />
-                                                <span style={{ color: 'var(--text-primary)' }} className="font-bold">Current File</span>
-                                            </div>
-                                            <a
-                                                href={course.curriculum_file_url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-sm text-green-400 hover:text-green-300 underline break-all"
-                                            >
-                                                {course.curriculum_file_url.split('/').pop()}
-                                            </a>
-                                            <div style={{ marginTop: '16px', paddingTop: '16px' }} className="border-t border-green-500/20">
-                                                <button
-                                                    onClick={async () => {
-                                                        const newValue = !course.is_coding;
-                                                        setCourse(prev => ({ ...prev, is_coding: newValue }));
-                                                        try {
-                                                            await api.put(`/teacher/courses/${course.id}`, { is_coding: newValue });
-                                                            toast.success(newValue ? 'Programming course mode enabled' : 'Non-programming course mode enabled');
-                                                        } catch (err) {
-                                                            toast.error('Failed to update course setting');
-                                                            setCourse(prev => ({ ...prev, is_coding: !newValue }));
-                                                        }
-                                                    }}
-                                                    style={{ padding: '12px 16px', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-color)' }}
-                                                    className="flex items-center gap-2 rounded-lg border text-xs font-bold uppercase tracking-widest transition-all cursor-pointer hover:opacity-80"
-                                                >
-                                                    {course.is_coding ? (
-                                                        <>
-                                                            <span className="text-blue-400">📚</span>
-                                                            <span>Programming Course Detected (Click to toggle)</span>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <span className="text-amber-400">📖</span>
-                                                            <span>Non-Programming Course (Click to toggle)</span>
-                                                        </>
-                                                    )}
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label style={{ marginBottom: '12px', display: 'block', color: 'var(--text-secondary)' }} className="text-xs font-bold uppercase tracking-widest">
-                                                Replace with new file
-                                            </label>
-                                            <input
-                                                type="file"
-                                                accept=".pdf,.doc,.docx,.txt"
-                                                onChange={handleCurriculumUpload}
-                                                disabled={uploadingCurriculum}
-                                                className="hidden"
-                                                id="curriculum-replace"
-                                            />
-                                            <label
-                                                htmlFor="curriculum-replace"
-                                                style={{ padding: '18px 16px', backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
-                                                className="flex items-center justify-center gap-2 w-full border rounded-xl hover:border-purple-500/50 hover:text-purple-400 cursor-pointer transition-all"
-                                            >
-                                                {uploadingCurriculum ? (
-                                                    <Loader2 size={18} className="animate-spin" />
-                                                ) : (
-                                                    <>
-                                                        <Upload size={18} />
-                                                        <span className="text-sm">Choose new file (PDF, DOC, DOCX, TXT)</span>
-                                                    </>
-                                                )}
-                                            </label>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div>
-                                        <p style={{ marginBottom: '24px', color: 'var(--text-secondary)' }} className="text-sm">
-                                            Upload your syllabus, DLL, or course guide. This will be used by the AI to generate curriculum aligned with your document.
-                                        </p>
-                                        <input
-                                            type="file"
-                                            accept=".pdf,.doc,.docx,.txt"
-                                            onChange={handleCurriculumUpload}
-                                            disabled={uploadingCurriculum}
-                                            className="hidden"
-                                            id="curriculum-upload-first"
-                                        />
-                                        <label
-                                            htmlFor="curriculum-upload-first"
-                                            style={{ padding: '24px 16px', backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
-                                            className="flex items-center justify-center gap-2 w-full border rounded-xl hover:border-purple-500/50 hover:text-purple-400 cursor-pointer transition-all"
-                                        >
-                                            {uploadingCurriculum ? (
-                                                <Loader2 size={18} className="animate-spin" />
-                                            ) : (
-                                                <>
-                                                    <Upload size={18} />
-                                                    <span className="text-sm">Choose file (PDF, DOC, DOCX, TXT)</span>
-                                                </>
-                                            )}
-                                        </label>
-                                    </div>
-                                )}
+                                <p className="cur-type-hint">
+                                    Detected automatically from your upload — switch it here if it guessed wrong.
+                                </p>
                             </div>
                         </motion.div>
                     </div>
