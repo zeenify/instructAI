@@ -94,19 +94,19 @@ export default function TerminalLog({ logs }) {
           >
             <span
               style={{
-                width: 7,
-                height: 7,
+                width: 8,
+                height: 8,
                 borderRadius: 999,
                 flex: 'none',
-                marginTop: 6,
+                marginTop: 8,
                 background: dotColor[log.type] || 'var(--db-text-3)',
               }}
             />
             <span
               style={{
                 flex: 1,
-                fontSize: 14.5,
-                lineHeight: 1.55,
+                fontSize: 15.5,
+                lineHeight: 1.6,
                 color: log.type === 'error' ? 'var(--db-danger)' : 'var(--db-text-2)',
                 overflowWrap: 'anywhere',
               }}
@@ -117,9 +117,9 @@ export default function TerminalLog({ logs }) {
               style={{
                 flex: 'none',
                 fontFamily: 'JetBrains Mono, monospace',
-                fontSize: 10.5,
+                fontSize: 11.5,
                 color: 'var(--db-text-3)',
-                marginTop: 2,
+                marginTop: 3,
               }}
             >
               {log.timestamp}

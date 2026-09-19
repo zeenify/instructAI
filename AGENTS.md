@@ -50,7 +50,9 @@ studio' console, all on gen- styles in CourseBuilder.css; rate-limit
 wait-and-retry in the Python service; coding questions/lesson challenges
 require stdin-driven programs and engine-verified test cases; quiz
 regeneration REPLACES questions; an interrupted run keeps finished items and
-offers 'Continue generation' for only the missing ones; courses carry a
+offers 'Continue generation' for only the missing ones; the run persists to
+localStorage (`ai-run:<courseId>`) so a refresh auto-reopens the studio with
+restored progress — a deliberate close clears it; courses carry a
 teacher-set `language` (courses.language, picker in the Curriculum modal) that
 the AI must use for ALL generated code; the studio is tabbed
 (Activity / Lessons & quizzes) with Pause-Resume and builder-parity editing

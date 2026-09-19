@@ -378,7 +378,7 @@ export default function GenerationConsole({
             }}
           >
             <CircleAlert size={16} style={{ color: 'var(--db-amber)', flex: 'none' }} />
-            <p style={{ margin: 0, flex: 1, color: 'var(--db-text)', fontSize: 13.5 }}>
+            <p style={{ margin: 0, flex: '1 1 220px', minWidth: 220, color: 'var(--db-text)', fontSize: 13.5 }}>
               {paused
                 ? <>Paused — <strong>{completedLessons} of {totalItems}</strong> items are done and saved.</>
                 : <>The AI stopped before finishing — <strong>{completedLessons} of {totalItems}</strong> items are done and saved.</>}
@@ -399,7 +399,7 @@ export default function GenerationConsole({
         style={{ padding: '10px 28px', borderBottom: '1px solid var(--db-border)', background: 'var(--db-card)' }}
       >
         {[
-          ['activity', 'Activity'],
+          ['activity', 'Progress'],
           ['content', 'Lessons & quizzes'],
         ].map(([key, label]) => (
           <button

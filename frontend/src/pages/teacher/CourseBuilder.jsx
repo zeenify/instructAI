@@ -796,6 +796,52 @@ export default function CourseBuilder({
         toast.info('Generation paused — you can continue any time');
     };
 
+    // Refresh-proof studio: persist the run after every progress tick. A
+    // refresh kills the stream, but the studio reopens with the state as of
+    // that moment and Continue finishes only what's missing.
+    useEffect(() => {
+        if (!generatedContent || !id) return;
+        const key = `ai-run:${id}`;
+        const unfinished = (generatedContent.modules || []).some(m =>
+            (m.lessons || []).some(l => !l.generated) || (m.quizzes || []).some(q => !q.generated));
+        if (!unfinished) {
+            localStorage.removeItem(key);
+            return;
+        }
+        try {
+            localStorage.setItem(key, JSON.stringify({
+                savedAt: Date.now(),
+                startedAt: contentStartedAt,
+                params: lastContentParamsRef.current,
+                structure: generatedContent,
+                logs: generationLogs.slice(-40),
+            }));
+        } catch { /* storage full — the run simply won't survive a refresh */ }
+    }, [generatedContent, generationLogs, contentStartedAt, id]);
+
+    // Reopen an interrupted run after a refresh
+    useEffect(() => {
+        if (!id) return;
+        const key = `ai-run:${id}`;
+        let run = null;
+        try { run = JSON.parse(localStorage.getItem(key) || 'null'); } catch { }
+        if (!run?.params || !run?.structure) return;
+        if (Date.now() - (run.savedAt || 0) > 6 * 3600 * 1000) { localStorage.removeItem(key); return; }
+        const unfinished = (run.structure.modules || []).some(m =>
+            (m.lessons || []).some(l => !l.generated) || (m.quizzes || []).some(q => !q.generated));
+        if (!unfinished) { localStorage.removeItem(key); return; }
+
+        lastContentParamsRef.current = run.params;
+        savedModulesDataRef.current = run.structure.modules || [];
+        setContentStartedAt(run.startedAt || null);
+        setGeneratedContent(run.structure);
+        setGenerationLogs(run.logs || []);
+        setIsContentModalOpen(true); // the studio reopens mid-flow, banner + Continue ready
+        localStorage.removeItem(key); // the persistence effect re-saves fresh state
+        toast.info('Reopened your interrupted generation — continue whenever ready');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [id]);
+
     // Continue after an interrupted run: regenerate ONLY the items that never
     // finished. Everything already saved stays untouched (per-item persistence
     // means this is a safe, targeted top-up — not a restart).
@@ -866,7 +912,10 @@ export default function CourseBuilder({
         if (!course.curriculum_text && !course.curriculum_file_url) {
             toast.info("No curriculum file — generating from your prompt and settings.");
         } else if (!course.curriculum_text) {
-            toast.warning("Curriculum file uploaded but text may not be extracted. Content might be generic.");
+            toast.warning(
+                "We couldn't read the text inside your file (often a scanned PDF), so the AI will lean on your outline instead. Lessons may be more generic — re-upload a text-based file for best results.",
+                { duration: 8000 }
+            );
         }
 
         // Start content generation immediately with params
@@ -1934,6 +1983,11 @@ if (loading || !course) return (
                     }
                     setIsContentModalOpen(false);
                     contentAbortRef.current = null;
+                    // A deliberate close while nothing is running clears the
+                    // resume state — refresh no longer reopens the studio
+                    if (!isGeneratingContent) {
+                        localStorage.removeItem(`ai-run:${id}`);
+                    }
                     fetchCourse();
                 }}
                 generatedContent={generatedContent}
