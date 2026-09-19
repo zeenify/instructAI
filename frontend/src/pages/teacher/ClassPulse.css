@@ -1,0 +1,520 @@
+/* ==========================================================================
+   Class Progress tab (pu-) — the teacher's "who needs me" view. Replaces
+   the old Analytics + Monitor pages. Shared db- tokens from dashboard.css.
+   ========================================================================== */
+
+/* ---------- Header ---------- */
+
+.pu-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.pu-kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--db-text-3);
+    margin: 0 0 6px;
+}
+
+.pu-title {
+    font-family: var(--db-font-display);
+    font-size: 27px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--db-text);
+    margin: 0;
+}
+
+.pu-meta {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex-wrap: wrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--db-text-3);
+    margin: 9px 0 0;
+}
+
+.pu-meta b {
+    color: var(--db-text-2);
+    font-weight: 600;
+}
+
+/* ---------- Attention tiles ---------- */
+
+.pu-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+.pu-tile {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 16px 18px;
+    border-radius: 15px;
+    border: 1px solid var(--db-border);
+    background: var(--db-card);
+    box-shadow: var(--db-shadow-soft);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pu-tile:hover {
+    transform: translateY(-2px);
+    border-color: var(--db-border-strong);
+    box-shadow: var(--db-shadow);
+}
+
+.pu-tile.active-warn {
+    border-color: color-mix(in srgb, var(--db-amber) 50%, transparent);
+    background: color-mix(in srgb, var(--db-amber) 8%, var(--db-card));
+}
+
+.pu-tile.active-danger {
+    border-color: rgba(248, 113, 113, 0.5);
+    background: color-mix(in srgb, var(--db-danger) 7%, var(--db-card));
+}
+
+.pu-tile-icon {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    flex: none;
+    border-radius: 13px;
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card-2);
+}
+
+.pu-tile-icon.warn {
+    color: var(--db-amber);
+    border-color: color-mix(in srgb, var(--db-amber) 40%, transparent);
+    background: color-mix(in srgb, var(--db-amber) 10%, transparent);
+}
+
+.pu-tile-icon.danger {
+    color: var(--db-danger);
+    border-color: rgba(248, 113, 113, 0.45);
+    background: var(--db-danger-soft);
+}
+
+.pu-tile-icon.info {
+    color: var(--db-accent-bright);
+    border-color: var(--db-accent-border);
+    background: var(--db-accent-soft);
+}
+
+:root[data-theme='light'] .pu-tile-icon.info {
+    color: var(--db-accent);
+}
+
+.pu-tile-num {
+    font-family: var(--db-font-display);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--db-text);
+    line-height: 1.1;
+}
+
+.pu-tile-label {
+    font-size: 13px;
+    color: var(--db-text-2);
+    margin-top: 2px;
+}
+
+/* ---------- Roster ---------- */
+
+.pu-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex-wrap: wrap;
+    margin-bottom: 13px;
+}
+
+.pu-search {
+    position: relative;
+    flex: 1;
+    min-width: 180px;
+    max-width: 300px;
+}
+
+.pu-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--db-text-3);
+    pointer-events: none;
+    display: flex;
+}
+
+.pu-search input {
+    width: 100%;
+    padding: 10px 13px 10px 34px;
+    border-radius: 11px;
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card-2);
+    color: var(--db-text);
+    font-family: inherit;
+    font-size: 13.5px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pu-search input:focus {
+    border-color: var(--db-accent);
+    box-shadow: 0 0 0 3px var(--db-accent-soft);
+}
+
+.pu-search input::placeholder {
+    color: var(--db-text-3);
+}
+
+.pu-seg {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 11px;
+    background: var(--db-card-2);
+    border: 1px solid var(--db-border);
+}
+
+.pu-seg-btn {
+    padding: 7px 13px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--db-text-2);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.pu-seg-btn:hover {
+    color: var(--db-text);
+}
+
+.pu-seg-btn.on {
+    color: var(--db-accent-bright);
+    background: var(--db-accent-soft);
+}
+
+:root[data-theme='light'] .pu-seg-btn.on {
+    color: var(--db-accent);
+}
+
+.pu-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.pu-row {
+    border-radius: 14px;
+    border: 1px solid var(--db-border);
+    background: var(--db-card);
+    box-shadow: var(--db-shadow-soft);
+    overflow: hidden;
+}
+
+.pu-row-btn {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    width: 100%;
+    padding: 14px 17px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s ease;
+}
+
+.pu-row-btn:hover {
+    background: var(--db-card-2);
+}
+
+.pu-row-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.pu-row-name {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--db-text);
+    margin: 0 0 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pu-row-sub {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.pu-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.pu-chip.ontrack {
+    color: var(--db-green);
+    background: var(--db-green-soft);
+    border: 1px solid var(--db-green-border);
+}
+
+.pu-chip.risk {
+    color: var(--db-danger);
+    background: var(--db-danger-soft);
+    border: 1px solid rgba(248, 113, 113, 0.4);
+}
+
+.pu-chip.stuck {
+    color: var(--db-amber);
+    background: color-mix(in srgb, var(--db-amber) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--db-amber) 40%, transparent);
+}
+
+.pu-chip.missing {
+    color: var(--db-danger);
+    background: var(--db-danger-soft);
+    border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.pu-last {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: var(--db-text-3);
+    white-space: nowrap;
+}
+
+.pu-last.stale {
+    color: var(--db-amber);
+    font-weight: 700;
+}
+
+/* Progress column inside the row */
+
+.pu-progress {
+    width: 170px;
+    flex-shrink: 0;
+}
+
+.pu-progress-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 5px;
+}
+
+.pu-progress-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--db-text-3);
+}
+
+.pu-progress-pct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--db-text);
+}
+
+.pu-bar {
+    height: 5px;
+    border-radius: 999px;
+    background: var(--db-card-2);
+    border: 1px solid var(--db-border);
+    overflow: hidden;
+}
+
+.pu-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    transform-origin: left center;
+}
+
+.pu-caret {
+    color: var(--db-text-3);
+    display: flex;
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+}
+
+.pu-caret.open {
+    transform: rotate(90deg);
+}
+
+/* ---------- Expanded student detail ---------- */
+
+.pu-detail {
+    padding: 15px 18px 18px;
+    border-top: 1px solid var(--db-border);
+    background: var(--db-card-2);
+}
+
+.pu-module {
+    margin-bottom: 14px;
+}
+
+.pu-module:last-child {
+    margin-bottom: 0;
+}
+
+.pu-module-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--db-text-2);
+    margin: 0 0 8px;
+}
+
+.pu-items {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.pu-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 12px;
+    border-radius: 9px;
+    border: 1px solid var(--db-border);
+    background: var(--db-card);
+    font-size: 13px;
+    color: var(--db-text);
+}
+
+.pu-item-state {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+.pu-item-state.done {
+    color: var(--db-green);
+    background: var(--db-green-soft);
+    border: 1px solid var(--db-green-border);
+}
+
+.pu-item-state.wip {
+    color: var(--db-amber);
+    background: color-mix(in srgb, var(--db-amber) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--db-amber) 38%, transparent);
+}
+
+.pu-item-state.not {
+    color: var(--db-text-3);
+    background: var(--db-card-2);
+    border: 1px solid var(--db-border);
+}
+
+.pu-item-score {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--db-text-2);
+    white-space: nowrap;
+}
+
+.pu-item-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---------- Empty + loading ---------- */
+
+.pu-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 56px 30px;
+    border: 1.5px dashed var(--db-border-strong);
+    border-radius: 18px;
+    background: var(--db-card-2);
+}
+
+.pu-empty-icon {
+    display: grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    border-radius: 16px;
+    color: var(--db-accent-bright);
+    background: var(--db-accent-soft);
+    border: 1px solid var(--db-accent-border);
+    margin-bottom: 14px;
+}
+
+:root[data-theme='light'] .pu-empty-icon {
+    color: var(--db-accent);
+}
+
+.pu-empty-title {
+    font-family: var(--db-font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--db-text);
+    margin: 0 0 5px;
+}
+
+.pu-empty-sub {
+    font-size: 14px;
+    color: var(--db-text-2);
+    margin: 0;
+}
+
+@media (max-width: 760px) {
+    .pu-progress {
+        width: 110px;
+    }
+
+    .pu-title {
+        font-size: 23px;
+    }
+}

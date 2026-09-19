@@ -7,17 +7,17 @@ import {
     Copy,
     ExternalLink,
     Layers,
-    Users,
-} from 'lucide-react';
+    Users, TrendingUp } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'sonner';
 import { useClassDetails } from '../../queries/classDetails';
 import Classwork from './Classwork';
+import ClassPulse from './ClassPulse';
 import CourseBuilder from './CourseBuilder';
 import { SkeletonBlock } from '../../components/ui/skeletons';
 import '../../styles/dashboard.css';
 
-const TABS = ['content', 'students', 'classwork'];
+const TABS = ['content', 'students', 'classwork', 'progress'];
 
 /** Mirrors the embedded builder: toolbar row + module card grid. */
 function ContentTabSkeleton() {
@@ -167,6 +167,10 @@ export default function ClassDetails() {
                     Classwork
                     <span className="cd-tab-count">{classroom.activities_count ?? 0}</span>
                 </button>
+                <button type="button" className={`cd-tab ${activeTab === 'progress' ? 'active' : ''}`} onClick={() => setTab('progress')}>
+                    <TrendingUp size={16} />
+                    Progress
+                </button>
             </div>
 
             {/* CONTENT TAB — the embedded builder IS the management surface */}
@@ -248,6 +252,9 @@ export default function ClassDetails() {
 
             {/* CLASSWORK TAB */}
             {activeTab === 'classwork' && <Classwork classId={id} />}
+
+            {/* PROGRESS TAB — replaces the old Analytics + Monitor pages */}
+            {activeTab === 'progress' && <ClassPulse classId={id} course={course} />}
         </div>
     );
 }

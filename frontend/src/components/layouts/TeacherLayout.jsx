@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useClasses } from '../../context/ClassContext';
-import { LayoutDashboard, BarChart3, Settings, LogOut, Plus, Eye, ChevronRight, PanelLeftClose, Menu } from 'lucide-react';
+import { LayoutDashboard, LogOut, Plus, ChevronRight, PanelLeftClose, Menu } from 'lucide-react';
 import ThemeToggle from '../ui/ThemeToggle';
 import CreateClassModal, { OPEN_CREATE_CLASS } from '../teacher/CreateClassModal';
 import '../../styles/dashboard.css';
@@ -107,9 +107,6 @@ export default function TeacherLayout() {
                 <div className="db-side-label">Management</div>
                 <nav style={{ display: 'flex', flexDirection: 'column' }}>
                     <NavLink to="/dashboard/teacher" icon={LayoutDashboard} label="Overview" />
-                    <NavLink to="/dashboard/teacher/analytics" icon={BarChart3} label="Analytics" />
-                    <NavLink to="/dashboard/teacher/monitor" icon={Eye} label="Monitor" />
-                    <NavLink to="/dashboard/teacher/settings" icon={Settings} label="Settings" />
                     <div style={{ marginTop: '8px', padding: '0 4px' }}>
                         <ThemeToggle variant="dark-panel" />
                     </div>

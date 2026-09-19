@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
     BookOpen,
     Users,
-    BarChart3,
+    TrendingUp,
     Layers,
     ClipboardList,
     ArrowRight,
@@ -130,12 +130,12 @@ export default function TeacherOverview() {
                             caption="Across all classes"
                         />
                         <StatCard
-                            icon={BarChart3}
+                            icon={TrendingUp}
                             tone="violet"
-                            label="View Analytics"
-                            value="Performance Metrics"
-                            caption="Track course performance and completion rates"
-                            onClick={() => navigate('/dashboard/teacher/analytics')}
+                            label="Class Progress"
+                            value="Who needs you"
+                            caption="At-risk students, missing work, and to-grade counts per class"
+                            onClick={() => classes?.[0]?.id && navigate(`/dashboard/teacher/class/${classes[0].id}?tab=progress`)}
                         />
                     </div>
 

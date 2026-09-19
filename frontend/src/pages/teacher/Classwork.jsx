@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Radio, Play, DraftingCompass, BookOpen, TrendingUp, ListOrdered, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useClassActivities, useClassGradebook, useDeleteActivity } from '../../queries/classwork';
@@ -77,7 +77,10 @@ function ClassworkSkeleton() {
 
 export default function Classwork({ classId }) {
     const navigate = useNavigate();
-    const [view, setView] = useState('activities');
+    // ?view=gradebook deep-links straight to the gradebook sub-tab (the
+    // Progress tab's "to grade" tile lands here)
+    const [searchParams] = useSearchParams();
+    const [view, setView] = useState(searchParams.get('view') === 'gradebook' ? 'gradebook' : 'activities');
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
 

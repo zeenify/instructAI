@@ -22,8 +22,6 @@ import ActivityEditor from './pages/teacher/ActivityEditor';
 import ActivityGrading from './pages/teacher/ActivityGrading';
 import LiveQuizMonitor from './pages/teacher/LiveQuizMonitor';
 import ActivityResults from './pages/teacher/ActivityResults';
-import StudentMonitor from './pages/teacher/StudentMonitor';
-import Analytics from './pages/teacher/Analytics';
 
 // Admin Pages
 import AdminLayout from './components/layouts/AdminLayout';
@@ -99,14 +97,8 @@ function App() {
           >
             <Route index element={<TeacherOverview />} />
             <Route path="students" element={<div>Students Page</div>} />
-            <Route path="analytics" element={<Analytics />} />
-            <Route path="analytics/:classId" element={<Analytics />} />
-            <Route path="analytics/:classId/:courseId" element={<Analytics />} />
             <Route path="classes/new" element={<CreateClass />} />
             <Route path="class/:id" element={<ClassDetails />} />
-            <Route path="monitor" element={<StudentMonitor />} />
-            <Route path="monitor/:classId" element={<StudentMonitor />} />
-            <Route path="monitor/:classId/:courseId/:studentId" element={<StudentMonitor />} />
             {/* Added classId to these routes to keep Sidebar highlighted */}
             <Route path="class/:classId/course/:id" element={<CourseBuilder />} />
             <Route path="class/:classId/lesson/:id" element={<LessonEditor />} />
