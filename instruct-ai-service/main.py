@@ -219,6 +219,7 @@ async def content_stream_endpoint(
 
 
 # ===== TEST ENDPOINT - STAGE 1 OUTLINE =====
+
 @app.post("/ai/test-outline")
 async def test_outline_endpoint(
     lesson_title: str = Form(...),
@@ -653,13 +654,21 @@ async def tutor_chat(request: Request):
 # ===== EXTRACT TEXT FROM FILE =====
 @app.post("/ai/extract-text")
 async def extract_text_endpoint(file: UploadFile = File(...)):
-    """Extract text from uploaded PDF, DOCX, or TXT file"""
+    """Extract text from uploaded PDF, DOCX, or TXT file (pdfplumber engine —
+    the robust fallback when Laravel's smalot parser comes up empty)."""
+    import re as _re
     try:
         from utils.file_handler import extract_text
-        text = extract_text(file)
-        return {"text": text, "filename": file.filename, "length": len(text)}
+        text = extract_text(file) or ""
     except Exception as e:
-        return {"error": str(e), "text": "", "filename": file.filename, "length": 0}
+        print(f"[EXTRACT-TEXT] failed: {e}")
+        text = ""
+    # Collapse the noise: CRLF, runaway blank lines, double spaces — keep only
+    # the readable text (images never extract, by design)
+    text = text.replace("\r\n", "\n")
+    text = _re.sub(r"\n{3,}", "\n\n", text)
+    text = _re.sub(r"[ \t]{2,}", " ", text).strip()
+    return {"text": text[:50000], "filename": file.filename, "length": len(text)}
 
 
 # ===== RUN SERVER =====

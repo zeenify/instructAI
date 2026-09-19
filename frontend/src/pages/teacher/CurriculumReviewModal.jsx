@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, BookOpen, HelpCircle, AlertCircle, RotateCcw } from 'lucide-react';
 
-export default function CurriculumReviewModal({ isOpen, data, expectedParams, onCancel, onConfirm, onRegenerate }) {
+export default function CurriculumReviewModal({ isOpen, data, expectedParams, existingModules = 0, onCancel, onConfirm, onRegenerate }) {
     const [pendingData, setPendingData] = useState(null);
+    const [destination, setDestination] = useState('append');
     const [validationWarning, setValidationWarning] = useState(null);
     const [parameterMismatch, setParameterMismatch] = useState(null);
 
@@ -164,6 +165,27 @@ export default function CurriculumReviewModal({ isOpen, data, expectedParams, on
                     </div>
                 )}
 
+                {existingModules > 0 && (
+                    <div style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--db-card-2)', border: '1px solid var(--db-border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <span className="gen-label" style={{ marginBottom: 0 }}>
+                            This class already has {existingModules} module{existingModules === 1 ? '' : 's'} — what should happen to them?
+                        </span>
+                        <div className="gen-seg">
+                            <button type="button" className={destination === 'append' ? 'on' : ''} onClick={() => setDestination('append')}>
+                                Keep them, add these
+                            </button>
+                            <button type="button" className={destination === 'replace' ? 'on' : ''} onClick={() => setDestination('replace')}>
+                                Replace them
+                            </button>
+                        </div>
+                        {destination === 'replace' && (
+                            <p className="gen-note" style={{ color: 'var(--db-amber)' }}>
+                                Replacing permanently deletes the existing {existingModules} module{existingModules === 1 ? '' : 's'} with all their lessons and quizzes.
+                            </p>
+                        )}
+                    </div>
+                )}
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', paddingRight: 2 }}>
                     {pendingData.new_modules.map((module, mIdx) => (
                         <div
@@ -251,8 +273,8 @@ export default function CurriculumReviewModal({ isOpen, data, expectedParams, on
 
                 <div className="gen-foot" style={{ borderTop: '1px solid var(--db-border)', paddingTop: 16 }}>
                     <button type="button" onClick={onCancel} className="gen-btn gen-btn-ghost">Discard</button>
-                    <button type="button" onClick={() => onConfirm(pendingData)} className="gen-btn gen-btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
-                        Save to my class
+                    <button type="button" onClick={() => onConfirm({ ...pendingData, mode: destination })} className="gen-btn gen-btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
+                        {destination === 'replace' ? 'Replace my class content' : 'Save to my class'}
                     </button>
                 </div>
             </motion.div>

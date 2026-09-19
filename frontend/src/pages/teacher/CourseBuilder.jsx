@@ -1946,7 +1946,7 @@ if (loading || !course) return (
                 onExecute={handleExecuteAI}
                 curriculumFile={course?.curriculum_file_url ? course.curriculum_file_url.split('/').pop() : null}
             />
-            <CurriculumReviewModal isOpen={isReviewOpen} data={aiResult} expectedParams={structureParams} onCancel={() => setIsReviewOpen(false)} onConfirm={handleConfirmAI} onRegenerate={() => { setIsReviewOpen(false); setIsAiModalOpen(true); }} />
+            <CurriculumReviewModal isOpen={isReviewOpen} data={aiResult} expectedParams={structureParams} existingModules={course?.modules?.length || 0} onCancel={() => setIsReviewOpen(false)} onConfirm={handleConfirmAI} onRegenerate={() => { setIsReviewOpen(false); setIsAiModalOpen(true); }} />
 
             {/* Indexing Stats Modal */}
             <IndexingStatsModal

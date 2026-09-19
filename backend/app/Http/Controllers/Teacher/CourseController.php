@@ -296,12 +296,34 @@ class CourseController extends Controller
 
             $curriculumFileUrl = $result['secure_url'];
 
-            // Extract text from uploaded file
+            // Extract text from uploaded file — smalot/phpword first, and when
+            // they come up empty or too thin (PDFs they choke on), fall back to
+            // the pdfplumber engine in the AI service. Images never extract.
             $curriculumText = '';
             try {
                 $curriculumText = $this->extractTextFromFile($file);
             } catch (\Exception $extractError) {
                 \Log::warning("Text extraction failed but continuing: " . $extractError->getMessage());
+            }
+
+            if (mb_strlen(trim($curriculumText)) < 40) {
+                try {
+                    $aiServiceUrl = env('AI_SERVICE_URL', 'http://localhost:8001');
+                    $fallback = Http::timeout(120)
+                        ->attach('file', file_get_contents($file->getRealPath()), $file->getClientOriginalName())
+                        ->post("{$aiServiceUrl}/ai/extract-text");
+                    if ($fallback->successful()) {
+                        $fallbackText = trim((string) $fallback->json('text'));
+                        if (mb_strlen($fallbackText) > mb_strlen(trim($curriculumText))) {
+                            \Log::info("Curriculum extraction: smalot gave " . mb_strlen(trim($curriculumText)) . " chars, pdfplumber gave " . mb_strlen($fallbackText) . " — using pdfplumber");
+                            $curriculumText = $fallbackText;
+                        }
+                    } else {
+                        \Log::warning("pdfplumber fallback returned " . $fallback->status());
+                    }
+                } catch (\Throwable $fallbackError) {
+                    \Log::warning("pdfplumber fallback failed: " . $fallbackError->getMessage());
+                }
             }
 
             // Detect if curriculum contains programming content using AI
@@ -506,6 +528,7 @@ class CourseController extends Controller
         $request->validate([
             'new_modules' => 'required|array|max:8',
             'new_modules.*.title' => 'required|string|max:255',
+            'mode' => 'sometimes|in:append,replace',
         ]);
 
         return DB::transaction(function () use ($request, $id) {
@@ -516,7 +539,24 @@ class CourseController extends Controller
 
             $modules = $request->input('new_modules', []);
             $savedModules = [];
-            $baseOrderIndex = $course->modules()->count();
+
+            // 'replace' wipes the course's existing modules (and everything
+            // inside them) so the new outline takes their place; 'append'
+            // keeps what's there and adds the new outline after it
+            if ($request->input('mode', 'append') === 'replace') {
+                $moduleIds = $course->modules()->pluck('id');
+                $quizIds = \App\Models\Quiz::whereIn('module_id', $moduleIds)->pluck('id');
+                \App\Models\QuestionTestCase::whereIn('testable_id', $quizIds)
+                    ->where('testable_type', Question::class)->delete();
+                \App\Models\Question::whereIn('quiz_id', $quizIds)->delete();
+                \App\Models\Lesson::whereIn('module_id', $moduleIds)->delete();
+                \App\Models\Quiz::whereIn('module_id', $moduleIds)->delete();
+                \App\Models\Module::whereIn('id', $moduleIds)->delete();
+            }
+
+            $baseOrderIndex = $request->input('mode', 'append') === 'replace'
+                ? 0
+                : $course->modules()->count();
 
             foreach ($modules as $i => $m) {
                 $newModule = \App\Models\Module::create([

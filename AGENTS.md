@@ -49,7 +49,10 @@ student class page (1:1 course logic), AI generation workflow redo (architect
 studio' console, all on gen- styles in CourseBuilder.css; rate-limit
 wait-and-retry in the Python service; coding questions/lesson challenges
 require stdin-driven programs and engine-verified test cases; quiz
-regeneration REPLACES questions; an interrupted run keeps finished items and
+regeneration REPLACES questions; ai-commit takes a mode (append = default
+keeps existing modules / replace = wipes the course's modules first, chosen
+in the review modal when the class already has content); PDF text extraction
+falls back from smalot to the pdfplumber /ai/extract-text endpoint when thin; an interrupted run keeps finished items and
 offers 'Continue generation' for only the missing ones; the run persists to
 localStorage (`ai-run:<courseId>`) so a refresh auto-reopens the studio with
 restored progress — a deliberate close clears it; courses carry a
