@@ -16,7 +16,7 @@
 
 .cw-title {
     font-family: var(--db-font-display);
-    font-size: 27px;
+    font-size: 30px;
     font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--db-text);
@@ -53,11 +53,11 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 11px 16px;
+    padding: 12px 18px;
     border: none;
     background: transparent;
     color: var(--db-text-2);
-    font-size: 14.5px;
+    font-size: 15.5px;
     font-weight: 500;
     cursor: pointer;
     border-bottom: 2px solid transparent;
@@ -114,7 +114,7 @@
 
 .cw-group-label {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -124,25 +124,25 @@
 
 .cw-group-count {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
     color: var(--db-text-2);
     background: var(--db-card-2);
     border: 1px solid var(--db-border);
-    padding: 1px 9px;
+    padding: 2px 10px;
     border-radius: 999px;
 }
 
 .cw-group-hint {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--db-text-3);
     margin: 0 0 0 2px;
 }
 
 .cw-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 16px;
 }
 
 /* ---------- Activity card ---------- */
@@ -151,8 +151,8 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    padding: 17px 19px 15px;
-    border-radius: 16px;
+    padding: 20px 22px 18px;
+    border-radius: 18px;
     border: 1px solid var(--db-border);
     background: var(--db-card);
     box-shadow: var(--db-shadow-soft);
@@ -180,19 +180,19 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    margin-bottom: 11px;
+    margin-bottom: 12px;
 }
 
 .cw-type {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px;
+    padding: 5px 11px;
     border-radius: 8px;
     background: var(--db-card-2);
     border: 1px solid var(--db-border);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 600;
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -204,10 +204,10 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px;
+    padding: 5px 11px;
     border-radius: 999px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -258,17 +258,17 @@
 
 .cw-card-title {
     font-family: var(--db-font-display);
-    font-size: 17px;
+    font-size: 19px;
     font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--db-text);
-    margin: 0 0 5px;
+    margin: 0 0 6px;
     line-height: 1.3;
     word-break: break-word;
 }
 
 .cw-card-desc {
-    font-size: 13.5px;
+    font-size: 14.5px;
     color: var(--db-text-2);
     line-height: 1.5;
     margin: 0 0 4px;
@@ -283,11 +283,11 @@
     align-items: center;
     gap: 13px;
     flex-wrap: wrap;
-    padding-top: 11px;
-    margin-top: 11px;
+    padding-top: 12px;
+    margin-top: 12px;
     border-top: 1px solid var(--db-border);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--db-text-3);
 }
 
@@ -321,13 +321,13 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 7px 13px;
+    padding: 8px 14px;
     border-radius: 10px;
     border: 1px solid rgba(248, 113, 113, 0.5);
     background: var(--db-danger-soft);
     color: var(--db-danger);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -344,13 +344,13 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 7px 13px;
+    padding: 8px 14px;
     border-radius: 10px;
     border: 1px solid var(--db-border-strong);
     background: var(--db-card);
     color: var(--db-text-2);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -383,8 +383,8 @@
 .cw-icon-btn {
     display: grid;
     place-items: center;
-    width: 31px;
-    height: 31px;
+    width: 34px;
+    height: 34px;
     border-radius: 9px;
     border: 1px solid var(--db-border);
     background: transparent;
@@ -418,7 +418,7 @@
     flex-direction: column;
     align-items: center;
     text-align: center;
-    padding: 64px 30px 58px;
+    padding: 70px 34px 64px;
     border: 1.5px dashed var(--db-border-strong);
     border-radius: 20px;
     background: var(--db-card-2);
@@ -442,14 +442,14 @@
 
 .cw-empty-title {
     font-family: var(--db-font-display);
-    font-size: 21px;
+    font-size: 23px;
     font-weight: 700;
     color: var(--db-text);
     margin: 0 0 7px;
 }
 
 .cw-empty-sub {
-    font-size: 14.5px;
+    font-size: 15.5px;
     color: var(--db-text-2);
     margin: 0 0 22px;
     max-width: 420px;

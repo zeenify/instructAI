@@ -353,19 +353,48 @@ function QuestionBlock({ question, index, onUpdate, onDelete, onEdit, disabled, 
     const [isEditing, setIsEditing] = useState(false);
     const [text, setText] = useState(question.question_text);
 
+    // Question-detail patches (html checks, partial credit…) must land in the
+    // parent's state IMMEDIATELY: HtmlChecksEditor builds every keystroke from
+    // the checks prop, so waiting for the PUT round-trip would drop characters.
+    // The network write is debounced behind the optimistic update.
+    const latestQuestionRef = useRef(question);
+    latestQuestionRef.current = question;
+    const pendingPatchRef = useRef(null);
+    const patchTimerRef = useRef(null);
+
+    useEffect(() => () => {
+        clearTimeout(patchTimerRef.current);
+        const patch = pendingPatchRef.current;
+        const q = latestQuestionRef.current;
+        if (patch && q?.id && q?.activity_id) {
+            api.put(`/teacher/activities/${q.activity_id}/questions/${q.id}`, patch).catch(() => {});
+        }
+    }, []);
+
+    const persistPatch = async () => {
+        const patch = pendingPatchRef.current;
+        const q = latestQuestionRef.current;
+        if (!patch || !q?.id || !q?.activity_id) return;
+        pendingPatchRef.current = null;
+        try {
+            await api.put(`/teacher/activities/${q.activity_id}/questions/${q.id}`, patch);
+        } catch {
+            toast.error('Failed to save question changes');
+            pendingPatchRef.current = { ...patch, ...(pendingPatchRef.current || {}) };
+        }
+    };
+
+    const patchQuestion = (payload) => {
+        onUpdate({ ...latestQuestionRef.current, ...payload });
+        pendingPatchRef.current = { ...(pendingPatchRef.current || {}), ...payload };
+        clearTimeout(patchTimerRef.current);
+        patchTimerRef.current = setTimeout(persistPatch, 700);
+    };
+
     const save = async (field) => {
         if (field === 'text' && text.trim() === question.question_text) return;
         const payload = {};
         if (field === 'text') payload.question_text = text;
-        try {
-            await api.put('/teacher/activities/' + question.activity_id + '/questions/' + question.id, payload);
-            onUpdate({ ...question, ...payload });
-        } catch {
-            toast.error('Failed to save');
-        }
-    };
-
-    const patchQuestion = async (payload) => {
         try {
             await api.put('/teacher/activities/' + question.activity_id + '/questions/' + question.id, payload);
             onUpdate({ ...question, ...payload });
@@ -780,26 +809,25 @@ export default function ActivityEditor() {
                         <input className="ed-title-input" value={activity.title} onChange={(e) => handleFieldChange('title', e.target.value)}
                             readOnly={isLocked || isPastDue} placeholder="Untitled" />
                         <div className="ed-meta">
-                            {(isQuiz || activity.submission_type === 'questions') && (
-                                <>
-                                    <span>{(activity.questions || []).length} question{(activity.questions || []).length !== 1 ? 's' : ''}</span>
-                                    <span className="ed-meta-sep">·</span>
-                                    <span>{totalQuestionPoints} pts</span>
-                                    <span className="ed-meta-sep">·</span>
-                                </>
-                            )}
-                            {activity.submissions_count !== undefined && (
-                                <>
-                                    <span>{activity.submissions_count} submission{activity.submissions_count !== 1 ? 's' : ''}</span>
-                                    <span className="ed-meta-sep">·</span>
-                                </>
-                            )}
-                            {!isQuiz && activity.deadline_at && (
-                                <span style={{ color: isPastDue ? 'var(--db-danger)' : undefined }}>
-                                    due {format(new Date(activity.deadline_at), 'MMM d, h:mm a')}
-                                    {activity.deadline_behavior === 'soft' ? ' · late OK' : ' · closes at deadline'}
+                            {[
+                                (isQuiz || activity.submission_type === 'questions') && (activity.questions || []).length > 0
+                                    ? `${(activity.questions || []).length} question${(activity.questions || []).length !== 1 ? 's' : ''} · ${totalQuestionPoints} pts`
+                                    : null,
+                                activity.submissions_count !== undefined
+                                    ? `${activity.submissions_count} submission${activity.submissions_count !== 1 ? 's' : ''}`
+                                    : null,
+                                !isQuiz && activity.deadline_at && (
+                                    <span key="due" style={{ color: isPastDue ? 'var(--db-danger)' : undefined }}>
+                                        due {format(new Date(activity.deadline_at), 'MMM d, h:mm a')}
+                                        {activity.deadline_behavior === 'soft' ? ' · late OK' : ' · closes at deadline'}
+                                    </span>
+                                ),
+                            ].filter(Boolean).map((item, i) => (
+                                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                    {i > 0 && <span className="ed-meta-sep">·</span>}
+                                    {item}
                                 </span>
-                            )}
+                            ))}
                         </div>
                     </div>
                 </div>
