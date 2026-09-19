@@ -59,8 +59,10 @@ Old file versions were replaced outright (no V2/V3 suffixes) — keep it that wa
 Dashboard-side conventions: styles live in \`styles/dashboard.css\` (\`db-\` prefix,
 Sora display font, night navy + morning paper themes). Data via \`src/queries/\`
 TanStack hooks. Loading = skeletons (\`components/ui/skeletons.jsx\`), never
-spinners for page content. Unbiased critiques: \`teacher-eye\` / \`student-eye\`
-skills before page sign-off.
+spinners for page content. Native \`<select>\` is banned in redesigned UIs — use
+the shared \`components/ui/Dropdown.jsx\` (\`dd-\` styles in dashboard.css;
+supports icon, dashed, fullWidth, menuUp). Unbiased critiques: \`teacher-eye\` /
+\`student-eye\` skills before page sign-off.
 
 CSS architecture rule (user-mandated): REUSED styles/components go in the shared
 \`dashboard.css\` (or a shared component file); PAGE-SPECIFIC styles live in a
