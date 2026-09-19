@@ -376,3 +376,10 @@
     color: var(--db-danger);
     word-break: break-all;
 }
+
+/* Small screens: input + expected stack instead of two cramped columns */
+@media (max-width: 560px) {
+    .tce-fields {
+        grid-template-columns: 1fr;
+    }
+}

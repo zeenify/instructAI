@@ -236,6 +236,11 @@
     transition: color 0.15s ease, border-color 0.15s ease;
 }
 
+/* The mobile top bar is hidden on desktop where the sidebar is visible */
+.db-mobilebar {
+    display: none;
+}
+
 .db-sidebar-float:hover {
     color: var(--db-accent-bright);
     border-color: var(--db-accent-border);
@@ -3412,12 +3417,70 @@
         box-shadow: var(--db-shadow);
     }
 
-    .db-sidebar-float {
+    /* The floating burger is replaced by an in-flow top bar so page content
+       never sits underneath it */
+    .db-shell {
+        flex-direction: column;
+    }
+
+    .db-sidebar-float,
+    .db-shell.is-collapsed .db-sidebar-float {
+        display: none;
+    }
+
+    .db-mobilebar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        position: sticky;
+        top: 0;
+        z-index: 55;
+        height: 54px;
+        padding: 0 12px;
+        background: color-mix(in srgb, var(--db-canvas) 88%, transparent);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--db-border);
+    }
+
+    .db-mobilebar-btn {
         display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        border: 1px solid var(--db-border-strong);
+        background: var(--db-card);
+        color: var(--db-text-2);
+        cursor: pointer;
+        transition: color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .db-mobilebar-btn:hover {
+        color: var(--db-accent-bright);
+        border-color: var(--db-accent-border);
+    }
+
+    .db-mobilebar-brand {
+        font-family: var(--db-font-display);
+        font-size: 16.5px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        color: var(--db-text);
+        text-decoration: none;
+    }
+
+    .db-mobilebar-dot {
+        color: var(--db-accent-bright);
     }
 
     .db-main {
         margin-left: 0;
+    }
+
+    /* Sticky editor headers park below the mobile top bar instead of
+       sliding underneath it */
+    .ed-header {
+        top: 54px;
     }
 }
 
@@ -3967,9 +4030,13 @@
     background: var(--db-accent-soft);
     transform: scale(1.04);
 }
-/* Touch devices: hover-only editor block tools stay visible */
+/* Touch devices: hover-only editor affordances stay visible */
 @media (hover: none) {
     .ed-block-tools {
+        opacity: 1;
+    }
+
+    .ed-strip {
         opacity: 1;
     }
 }
@@ -4023,4 +4090,79 @@
 
 .ed-ai-chip.on .ed-ai-chip-state {
     color: var(--db-green);
+}
+
+/* ---------- Responsive: class page & module rows ---------- */
+
+@media (max-width: 640px) {
+    /* Tab bar scrolls sideways instead of pushing the page wide */
+    .cd-tab-bar {
+        overflow-x: auto;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .cd-tab-bar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .cd-tab {
+        flex: none;
+        padding: 13px 15px;
+        font-size: 15px;
+    }
+
+    .cd-hero {
+        padding: 22px 18px 20px;
+    }
+
+    .cd-title {
+        font-size: 29px;
+    }
+
+    .cd-code-chip-lg {
+        font-size: 13px;
+        padding: 7px 11px;
+    }
+
+    /* Module detail rows: the name gets a full line, OPEN stays reachable */
+    .cd-md-row {
+        flex-wrap: wrap;
+        row-gap: 2px;
+        padding: 10px 14px 12px 6px;
+    }
+
+    .cd-md-grip {
+        width: 30px;
+        height: 42px;
+        margin: -10px 0 -12px -3px;
+    }
+
+    .cd-md-num {
+        display: none;
+    }
+
+    .cd-md-body {
+        flex: 1 1 100%;
+        order: 5;
+    }
+
+    .cd-md-name {
+        white-space: normal;
+    }
+
+    .cd-md-go {
+        margin-left: auto;
+    }
+}
+
+/* Touch devices: no hover to reveal row tools */
+@media (hover: none) {
+    .cd-md-tools {
+        opacity: 1;
+    }
+
+    .cd-md-go {
+        opacity: 1;
+    }
 }

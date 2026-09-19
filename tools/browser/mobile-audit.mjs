@@ -25,15 +25,17 @@ const { token, user } = await loginRes.json();
 if (!token) { console.error('LOGIN FAILED', await loginRes.text().slice(0, 300)); process.exit(1); }
 const H = { Authorization: `Bearer ${token}` };
 
-// --- resolve real ids from the API ---
+// --- resolve real ids from the API (prefer a class with a populated module) ---
 const classesRes = await fetch(`${API}/teacher/classes`, { headers: H }).then((r) => r.json());
 const classesArr = Array.isArray(classesRes) ? classesRes : (classesRes.data || classesRes.classes || []);
-const classId = classesArr[0]?.id;
-const cls = await fetch(`${API}/teacher/classes/${classId}`, { headers: H }).then((r) => r.json());
-const course = (cls.courses || [])[0] || {};
-const mod = (course.modules || [])[0] || {};
-const lesson = (mod.lessons || [])[0] || {};
-const quiz = (mod.quizzes || [])[0] || {};
+let classId, mod, lesson, quiz;
+for (const c of classesArr) {
+    const cls = await fetch(`${API}/teacher/classes/${c.id}`, { headers: H }).then((r) => r.json());
+    const m = (cls.courses || []).flatMap((co) => co.modules || []).find((mm) => (mm.lessons || []).length && (mm.quizzes || []).length);
+    if (m) { classId = c.id; mod = m; lesson = m.lessons[0]; quiz = m.quizzes[0]; break; }
+    if (!classId) { classId = c.id; mod = ((cls.courses || [])[0]?.modules || [])[0] || {}; }
+}
+if (!mod?.lessons?.length) { console.error('No populated module found — seed content first'); process.exit(1); }
 console.log({ classId, moduleId: mod.id, lessonId: lesson.id, quizId: quiz.id });
 
 const targets = [
@@ -58,7 +60,11 @@ for (const [width, height, tag] of [[390, 844, 'm'], [768, 1024, 't']]) {
 
     for (const [name, url] of targets) {
         await page.goto(url);
-        await page.waitForTimeout(2600);
+        // wait for real data (skeletons gone) before measuring/shooting
+        await page
+            .waitForFunction(() => !document.querySelector('.db-skeleton'), null, { timeout: 15000 })
+            .catch(() => console.log(`[${tag}] ${name}: skeletons still visible after 15s`));
+        await page.waitForTimeout(900);
         const m = await page.evaluate(() => {
             const vw = window.innerWidth;
             const doc = document.documentElement;
@@ -73,7 +79,7 @@ for (const [width, height, tag] of [[390, 844, 'm'], [768, 1024, 't']]) {
                     const key = c || el.tagName;
                     if (seen.has(key)) return;
                     seen.add(key);
-                    wide.push(`${el.tagName.toLowerCase()}${c ? '.' + c.split(' ').slice(0, 3).join('.') : ''} L${Math.round(r.left)} R${Math.round(r.right)}`);
+                    wide.push(`${el.tagName.toLowerCase()}${c ? '.' + c.split(' ').slice(0, 3).join('.') : ''} L${Math.round(r.left)} R${Math.round(r.right)} "${(el.textContent || '').trim().slice(0, 30)}"`);
                 }
             });
             return { overflow, sw: Math.max(doc.scrollWidth, document.body.scrollWidth), wide: wide.slice(0, 14) };

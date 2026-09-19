@@ -45,13 +45,7 @@ export default function TeacherLayout() {
         </Link>
     );
 
-    const openFromFloat = () => {
-        if (window.innerWidth <= 900) setMobileOpen(true);
-        else setCollapsed(false);
-    };
-
-    return (
-        <div className={`db-shell ${collapsed ? 'is-collapsed' : ''}`}>
+    return (        <div className={`db-shell ${collapsed ? 'is-collapsed' : ''}`}>
             <aside
                 className={`db-sidebar db-scrollbar ${collapsed ? 'is-collapsed' : ''} ${mobileOpen ? 'is-mobile-open' : ''}`}
             >
@@ -152,9 +146,16 @@ export default function TeacherLayout() {
                 <button className="db-backdrop" aria-label="Close menu" onClick={() => setMobileOpen(false)} />
             )}
 
-            <button className="db-sidebar-float" title="Open menu" onClick={openFromFloat}>
-                <Menu size={19} />
-            </button>
+            {/* Mobile top bar: the menu button lives in the flow so it never
+                covers page content (the old floating burger overlapped heroes) */}
+            <div className="db-mobilebar">
+                <button className="db-mobilebar-btn" title="Open menu" onClick={() => setMobileOpen(true)}>
+                    <Menu size={20} />
+                </button>
+                <Link to="/dashboard/teacher" className="db-mobilebar-brand">
+                    InstructAI<span className="db-mobilebar-dot">.</span>
+                </Link>
+            </div>
 
             <main className={`db-main ${collapsed ? 'is-full' : ''}`}>
                 <Outlet />

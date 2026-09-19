@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, Reorder, useDragControls } from 'framer-motion';
 import {
@@ -33,7 +33,18 @@ function QuestionBlock({ q, index, lastIndex, onMove, update, remove, randomized
     const controls = useDragControls();
     const [dragging, setDragging] = useState(false);
     const movedRef = useRef(false);
+    const textRef = useRef(null);
     const qLang = q.type === 'coding' ? languageOf(resolveLanguage(q.language, q.boilerplate || q.expected_output)) : null;
+
+    // The textarea grows as you type (onInput) — this makes loaded questions
+    // start at their full height instead of clipped to one row
+    useLayoutEffect(() => {
+        const el = textRef.current;
+        if (el) {
+            el.style.height = 'auto';
+            el.style.height = `${el.scrollHeight}px`;
+        }
+    }, [q.question_text]);
 
     return (
         <Reorder.Item
@@ -128,6 +139,7 @@ function QuestionBlock({ q, index, lastIndex, onMove, update, remove, randomized
             </div>
 
             <textarea
+                ref={textRef}
                 className="qb-q-text"
                 rows={1}
                 placeholder="Compose your question here…"

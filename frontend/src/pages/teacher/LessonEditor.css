@@ -507,6 +507,7 @@
 
 .le-seg {
     display: flex;
+    flex-wrap: wrap;
     gap: 3px;
     padding: 3px;
     border-radius: 10px;

@@ -1783,7 +1783,7 @@ if (loading || !course) return (
 
                         <div className="cd-md-seq-head">
                             <span className="cd-md-seq-label">Content sequence</span>
-                            <span className="cd-md-seq-hint">Drag the dots to reorder &mdash; hover a row for move, publish, and delete.</span>
+                            <span className="cd-md-seq-hint">Drag the dots to reorder &mdash; each row keeps its move, publish, and delete controls handy.</span>
                         </div>
 
                         {mTotal === 0 ? (

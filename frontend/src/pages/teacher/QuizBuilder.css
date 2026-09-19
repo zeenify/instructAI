@@ -266,7 +266,8 @@
 
 .qb-choices {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* minmax(0,1fr): options must never force the tracks wider than the page */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 10px;
 }
 
@@ -684,4 +685,32 @@
 
 .qb-card-action:hover {
     filter: brightness(1.1);
+}
+
+/* ---------- Small screens ---------- */
+
+@media (max-width: 640px) {
+    .qb-q {
+        padding: 16px 14px 18px;
+    }
+
+    /* Head chips may not fit one line — wrap instead of truncating the label */
+    .qb-q-head {
+        flex-wrap: wrap;
+        row-gap: 8px;
+    }
+
+    .qb-q-text {
+        font-size: 16.5px;
+    }
+
+    /* One option per line so answers stay readable */
+    .qb-choices {
+        grid-template-columns: 1fr;
+    }
+
+    .qb-tf-btn {
+        font-size: 14px;
+        padding: 12px;
+    }
 }
