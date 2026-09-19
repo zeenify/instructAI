@@ -68,10 +68,12 @@ async def generate_curriculum_stream(
         # Send initial status
         yield f"data: {json.dumps({'type': 'status', 'message': 'Analyzing curriculum...'})}\n\n"
 
-        # Try to get an available client from pool
+        # Try to get an available client from pool. When every key is cooling
+        # down, wait for recovery instead of failing the whole structure run.
         stream = None
         attempt_count = 0
-        max_attempts = len(ai_pool.clients)
+        cool_downs = 0
+        max_attempts = max(len(ai_pool.clients) * 3, 3)
         import time as time_module
 
         while attempt_count < max_attempts and not stream:
@@ -90,6 +92,13 @@ async def generate_curriculum_stream(
                 if is_rate_limit_error(e):
                     ai_pool.mark_rate_limited(key_num, backoff_seconds=60)
                     attempt_count += 1
+                    if ai_pool.all_rate_limited() and cool_downs < 2:
+                        wait_s = ai_pool.recovery_wait_seconds() or 60
+                        cool_downs += 1
+                        print(f"[CURRICULUM] All keys cooling down — waiting {wait_s:.0f}s (round {cool_downs}/2)")
+                        yield f"data: {json.dumps({'type': 'status', 'message': f'AI quota cooling down — retrying in {int(wait_s)}s…'})}\n\n"
+                        time_module.sleep(wait_s)
+                        continue
                     if attempt_count < max_attempts:
                         available_count = ai_pool.get_available_count()
                         if available_count > 0:

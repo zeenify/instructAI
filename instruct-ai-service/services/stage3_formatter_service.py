@@ -11,7 +11,7 @@ from utils.media_fetcher import (
     generate_video_keywords
 )
 from utils.code_formatter import format_code_block, fix_json_escapes_in_code
-from utils.engine_client import actual_output_for, strip_markdown_fence
+from utils.engine_client import actual_output_for, strip_markdown_fence, verify_test_cases
 
 # Languages the InstructAI IDE understands end to end (mirrors CodeRunner::LANGUAGES).
 VALID_LANGUAGES = {"java", "python", "javascript", "cpp", "html"}
@@ -289,6 +289,13 @@ def format_section_to_blocks(
             language = normalize_language(section_content.get("language"))
             expected = fix_json_escapes_in_code(section_content.get("expected_output", ""))
 
+            challenge_data = {
+                "mode": "challenge",
+                "language": language,
+                "code": formatted_starter,
+                "expected": expected
+            }
+
             # Non-HTML challenges: run the AI's reference solution on the real
             # engine and publish ITS output as the expected result, so every
             # generated challenge is verified solvable. If the engine is down
@@ -301,19 +308,31 @@ def format_section_to_blocks(
                     actual = actual_output_for(language, reference)
                     if actual:
                         expected = actual
+                        challenge_data["expected"] = expected
                         print(f"[CHALLENGE-VERIFY] {section_title[:40]}: expected output verified by engine")
                     else:
                         print(f"[CHALLENGE-VERIFY] {section_title[:40]}: engine unavailable/reference failed — keeping AI expected output")
 
+                    # Attach the AI's test cases to the block — but only the
+                    # ones the reference solution ACTUALLY passes on the engine.
+                    # The lesson editor grades challenges per-case (stdin in,
+                    # stdout compared), so unverified cases would mislead students.
+                    ai_cases = section_content.get("test_cases")
+                    ai_cases = [c for c in (ai_cases if isinstance(ai_cases, list) else [])
+                                if isinstance(c, dict) and str(c.get("input", "") or "").strip()]
+                    ai_cases = ai_cases[:4]
+                    verified = verify_test_cases(language, reference, ai_cases) if (actual and ai_cases) else []
+                    if verified:
+                        challenge_data["test_cases"] = [
+                            {"input": str(c.get("input", "")), "expected_output": str(c.get("expected_output", "") or "")}
+                            for c in verified
+                        ]
+                        print(f"[CHALLENGE-VERIFY] {section_title[:40]}: {len(verified)}/{len(ai_cases)} test cases verified and attached")
+
             blocks.append({
                 "id": str(uuid.uuid4()),
                 "type": "code",
-                "data": {
-                    "mode": "challenge",
-                    "language": language,
-                    "code": formatted_starter,
-                    "expected": expected
-                }
+                "data": challenge_data
             })
 
         # Expected outcome (non-programming) or expected output (programming)

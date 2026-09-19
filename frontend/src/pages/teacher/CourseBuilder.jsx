@@ -206,7 +206,6 @@ export default function CourseBuilder({
 
     // Content Generation States
     const [structureParams, setStructureParams] = useState(null);
-    const [contentParams, setContentParams] = useState(null);
     const [savedModulesData, setSavedModulesData] = useState(null);
     const [isContentParamsOpen, setIsContentParamsOpen] = useState(false);
     const [isSavingStructure, setIsSavingStructure] = useState(false);
@@ -214,7 +213,7 @@ export default function CourseBuilder({
     const [isContentModalOpen, setIsContentModalOpen] = useState(false);
     const [isGeneratingContent, setIsGeneratingContent] = useState(false);
     const [generationLogs, setGenerationLogs] = useState([]);
-
+    const contentAbortRef = useRef(null);
     // Delete State
     const [deleteConfig, setDeleteModal] = useState({ isOpen: false, type: '', id: null, name: null, items: [] });
 
@@ -819,8 +818,12 @@ export default function CourseBuilder({
     const generateLessonContent = async (modules, params) => {
         setIsGeneratingContent(true);
         setIsContentModalOpen(true);
-        setContentParams(params); // Save for validation
         setGenerationLogs([]); // Clear previous logs
+
+        // AbortController: closing the console mid-run actually stops the
+        // stream instead of letting it churn invisibly in the background
+        const controller = new AbortController();
+        contentAbortRef.current = controller;
 
         // Build structure for content generation (AI determines quiz question counts)
         const structure = modules.map(module => {
@@ -847,7 +850,7 @@ export default function CourseBuilder({
 
         // Add initial logs
         addLog('start', 'Initializing AI content generation pipeline...');
-        addLog('info', 'Connecting to AI service (gemini-3.5-flash-lite)');
+        addLog('info', 'Connecting to the AI engine…');
 
         // Add artificial delay to show streaming UI
         await new Promise(resolve => setTimeout(resolve, 800));
@@ -862,6 +865,7 @@ export default function CourseBuilder({
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     'Content-Type': 'application/json'
                 },
+                signal: controller.signal,
                 body: JSON.stringify({
                     curriculum_structure: JSON.stringify(structure),
                     content_params: params
@@ -1005,11 +1009,17 @@ export default function CourseBuilder({
                                         }));
                                     })
                                     .catch(() => {});
+                            } else if (data.type === 'info') {
+                                // Service-level notices (e.g. coding questions
+                                // auto-dropped because no lesson looked like code)
+                                addLog('info', data.message, logDelayOffset);
+                                logDelayOffset += 30;
                             } else if (data.type === 'complete') {
                                 addLog('complete', '✓ All content generated successfully', logDelayOffset + 100);
                                 setTimeout(() => {
                                     toast.success('All content generated successfully!');
                                     setIsGeneratingContent(false);
+                                    contentAbortRef.current = null;
 
                                     // Invalidate cache to force fresh data
                                     refreshContent();
@@ -1022,6 +1032,7 @@ export default function CourseBuilder({
                                 addLog('error', `✗ Error: ${data.message}`, logDelayOffset);
                                 toast.error('Content generation failed');
                                 setIsGeneratingContent(false);
+                                contentAbortRef.current = null;
                             }
                         } catch (parseErr) {
                             console.error('Failed to parse SSE data:', parseErr);
@@ -1030,95 +1041,15 @@ export default function CourseBuilder({
                 }
             }
         } catch (err) {
-            toast.error('Failed to generate content');
+            if (err?.name === 'AbortError') {
+                addLog('info', 'Generation stopped by teacher — anything already finished stays saved.', 0);
+                toast.info('Content generation stopped');
+            } else {
+                toast.error('Failed to generate content');
+            }
             setIsGeneratingContent(false);
+            contentAbortRef.current = null;
         }
-    };
-
-    const calculateQuestionCount = (quizData) => {
-        // Handle new grouped structure or old flat structure
-        if (quizData.multiple_choice || quizData.true_false || quizData.identification || quizData.enumeration || quizData.coding) {
-            // New grouped structure
-            return (
-                (quizData.multiple_choice?.length || 0) +
-                (quizData.true_false?.length || 0) +
-                (quizData.identification?.length || 0) +
-                (quizData.enumeration?.length || 0) +
-                (quizData.coding?.length || 0)
-            );
-        }
-        // Old flat structure
-        return quizData.questions?.length || 0;
-    };
-
-    const predictQuestionCount = (quizTitle, baseCountOrRange = '10-15') => {
-        const title = quizTitle.toLowerCase();
-
-        // Parse base count (could be "10" or "10-15")
-        let baseMin, baseMax;
-        if (typeof baseCountOrRange === 'string' && baseCountOrRange.includes('-')) {
-            const parts = baseCountOrRange.split('-').map(Number);
-            baseMin = parts[0];
-            baseMax = parts[1];
-        } else {
-            const num = typeof baseCountOrRange === 'string' ? parseInt(baseCountOrRange) : baseCountOrRange;
-            baseMin = num;
-            baseMax = num;
-        }
-
-        const baseMid = Math.floor((baseMin + baseMax) / 2);
-
-        // Analyze quiz type and intelligently predict count
-        if (title.includes('final') || title.includes('exam')) {
-            return Math.max(baseMid * 4, 50); // Finals need lots of questions
-        }
-        if (title.includes('midterm')) {
-            return Math.max(baseMid * 2.5, 30);
-        }
-        if (title.includes('comprehensive') || title.includes('assessment')) {
-            return Math.max(baseMid * 3, 35);
-        }
-        if (title.includes('basics') || title.includes('intro') || title.includes('primer')) {
-            return Math.max(Math.floor(baseMid * 0.6), 5); // Introductory quizzes are shorter
-        }
-        if (title.includes('practice') || title.includes('exercise')) {
-            return Math.max(Math.floor(baseMid * 1.2), 8);
-        }
-
-        // Default: use middle of range
-        return baseMid;
-    };
-
-    const handleGenerateQuizzes = async (editedQuestionCounts) => {
-        // Update question counts and trigger quiz generation
-        toast.info('Generating quiz questions...');
-        // TODO: Stream quiz generation similar to lesson content
-        // For now, quizzes are generated during lesson content generation
-
-        // Close modal and refresh
-        setIsContentModalOpen(false);
-        await fetchCourse();
-        toast.success('All content saved!');
-    };
-
-    const handleDeleteLesson = (lessonId) => {
-        setGeneratedContent(prev => ({
-            ...prev,
-            modules: prev.modules.map(m => ({
-                ...m,
-                lessons: m.lessons.filter(l => l.id !== lessonId)
-            }))
-        }));
-    };
-
-    const handleDeleteQuiz = (quizId) => {
-        setGeneratedContent(prev => ({
-            ...prev,
-            modules: prev.modules.map(m => ({
-                ...m,
-                quizzes: m.quizzes.filter(q => q.id !== quizId)
-            }))
-        }));
     };
 
     const uploadCurriculumFile = async (file) => {
@@ -1870,7 +1801,7 @@ if (loading || !course) return (
                 onExecute={handleExecuteAI}
                 curriculumFile={course?.curriculum_file_url ? course.curriculum_file_url.split('/').pop() : null}
             />
-            <CurriculumReviewModal isOpen={isReviewOpen} data={aiResult} expectedParams={structureParams} onCancel={() => setIsReviewOpen(false)} onConfirm={handleConfirmAI} />
+            <CurriculumReviewModal isOpen={isReviewOpen} data={aiResult} expectedParams={structureParams} onCancel={() => setIsReviewOpen(false)} onConfirm={handleConfirmAI} onRegenerate={() => { setIsReviewOpen(false); setIsAiModalOpen(true); }} />
 
             {/* Indexing Stats Modal */}
             <IndexingStatsModal
@@ -1900,7 +1831,13 @@ if (loading || !course) return (
             <GenerationConsole
                 isOpen={isContentModalOpen}
                 onClose={() => {
+                    // Closing mid-run actually stops the stream — the honest
+                    // version of the old "waste your AI tokens" warning
+                    if (isGeneratingContent && contentAbortRef.current) {
+                        contentAbortRef.current.abort();
+                    }
                     setIsContentModalOpen(false);
+                    contentAbortRef.current = null;
                     fetchCourse();
                 }}
                 generatedContent={generatedContent}
@@ -2059,78 +1996,75 @@ if (loading || !course) return (
                         exit={{ y: 100, opacity: 0 }}
                         className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] w-full max-w-4xl px-4"
                     >
-                        <div className="bg-gradient-to-br from-purple-900/20 to-pink-900/20 backdrop-blur-2xl border border-purple-500/40 rounded-[32px] p-8 shadow-2xl shadow-purple-500/20 relative overflow-hidden">
-                            {/* Animated gradient background */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-pink-500/5 to-purple-500/5 animate-pulse" />
-
-                            <div className="relative z-10">
-                                {/* Header */}
-                                <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
-                                    <div style={{ gap: '12px' }} className="flex items-center">
-                                        <div className="relative">
-                                            <div className="w-3 h-3 rounded-full bg-purple-500 animate-ping absolute" />
-                                            <div className="w-3 h-3 rounded-full bg-purple-500" />
-                                        </div>
-                                        <div>
-                                            <span style={{ marginBottom: '4px', display: 'block' }} className="text-xs font-black uppercase tracking-[0.3em] text-purple-300">AI Curriculum Architect</span>
-                                            <span className="text-[10px] text-slate-500">Generating in real-time...</span>
-                                        </div>
+                        <div
+                            className="gen-card wide"
+                            style={{ position: 'relative', padding: '20px 22px', gap: 14 }}
+                        >
+                            <div className="gen-head" style={{ paddingBottom: 12, borderBottom: '1px solid var(--db-border)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <span style={{ width: 9, height: 9, borderRadius: 999, background: 'var(--db-accent)', boxShadow: '0 0 0 4px var(--db-accent-soft)' }} />
+                                    <div>
+                                        <span className="ed-card-label">AI curriculum architect</span>
+                                        <h2 className="gen-title" style={{ fontSize: 17 }}>Designing your curriculum…</h2>
                                     </div>
-                                    <Sparkles size={20} className="text-purple-400 animate-pulse" />
                                 </div>
+                                <Sparkles size={18} style={{ color: 'var(--db-accent-bright)' }} />
+                            </div>
 
-                                {/* Module Preview with Animations */}
-                                {aiResult?.new_modules && aiResult.new_modules.length > 0 && (
-                                    <div style={{ marginBottom: '24px', gap: '12px' }} className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar">
-                                        {aiResult.new_modules.map((module, idx) => (
-                                            <motion.div
-                                                key={idx}
-                                                initial={{ opacity: 0, x: -20, scale: 0.95 }}
-                                                animate={{ opacity: 1, x: 0, scale: 1 }}
-                                                transition={{ delay: idx * 0.2 }}
-                                                style={{ padding: '16px 20px', gap: '12px' }}
-                                                className="bg-white/5 border border-purple-500/20 rounded-2xl"
-                                            >
-                                                <div style={{ marginBottom: '12px', gap: '8px' }} className="flex items-center">
-                                                    <Sparkles size={14} className="text-purple-400" />
-                                                    <span className="font-bold text-white">{module.title}</span>
-                                                </div>
-                                                <div style={{ paddingLeft: '24px', gap: '4px' }} className="space-y-1">
-                                                    {module.items?.map((item, itemIdx) => (
-                                                        <motion.div
-                                                            key={itemIdx}
-                                                            initial={{ opacity: 0, x: -10 }}
-                                                            animate={{ opacity: 1, x: 0 }}
-                                                            transition={{ delay: itemIdx * 0.1 }}
-                                                            className="text-xs text-slate-400 flex items-center gap-2"
-                                                        >
-                                                            <span>{item.type === 'lesson' ? '📘' : '📝'}</span>
-                                                            <span>{item.title}</span>
-                                                        </motion.div>
-                                                    ))}
-                                                </div>
-                                            </motion.div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Log Feed */}
-                                <div style={{ padding: '16px 20px', gap: '8px' }} className="bg-black/40 rounded-2xl max-h-40 overflow-y-auto font-mono text-xs space-y-2 custom-scrollbar border border-white/5">
-                                    {aiLogs.map((log, i) => (
+                            {/* Module Preview with Animations */}
+                            {aiResult?.new_modules && aiResult.new_modules.length > 0 && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 260, overflowY: 'auto' }}>
+                                    {aiResult.new_modules.map((module, idx) => (
                                         <motion.div
-                                            key={i}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            style={{ gap: '8px' }}
-                                            className="text-slate-300 flex items-start"
+                                            key={idx}
+                                            initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                                            animate={{ opacity: 1, x: 0, scale: 1 }}
+                                            transition={{ delay: idx * 0.2 }}
+                                            style={{ padding: '13px 16px', borderRadius: 12, background: 'var(--db-card-2)', border: '1px solid var(--db-border)' }}
                                         >
-                                            <span className="text-purple-500 font-bold shrink-0 text-[10px]">
-                                                {new Date().toLocaleTimeString()}
-                                            </span>
-                                            <span className="flex-1">{log}</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                                <Sparkles size={13} style={{ color: 'var(--db-accent-bright)' }} />
+                                                <span style={{ fontWeight: 700, color: 'var(--db-text)', fontFamily: 'var(--db-font-display)' }}>{module.title}</span>
+                                            </div>
+                                            <div style={{ paddingLeft: 22, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                                {module.items?.map((item, itemIdx) => (
+                                                    <motion.div
+                                                        key={itemIdx}
+                                                        initial={{ opacity: 0, x: -10 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: itemIdx * 0.1 }}
+                                                        className="gen-note"
+                                                    >
+                                                        {item.type === 'lesson' ? 'Lesson — ' : 'Quiz — '}{item.title}
+                                                    </motion.div>
+                                                ))}
+                                            </div>
                                         </motion.div>
                                     ))}
                                 </div>
+                            )}
+
+                            {/* Log Feed */}
+                            <div
+                                style={{
+                                    padding: '12px 16px', borderRadius: 12, maxHeight: 150, overflowY: 'auto',
+                                    background: 'var(--db-card-2)', border: '1px solid var(--db-border)',
+                                    fontFamily: 'JetBrains Mono, monospace', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 6,
+                                }}
+                            >
+                                {aiLogs.map((log, i) => (
+                                    <motion.div
+                                        key={i}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        style={{ color: 'var(--db-text-2)', display: 'flex', gap: 8 }}
+                                    >
+                                        <span style={{ color: 'var(--db-accent-bright)', fontWeight: 700, flex: 'none', fontSize: 10 }}>
+                                            {new Date().toLocaleTimeString()}
+                                        </span>
+                                        <span style={{ flex: 1 }}>{log}</span>
+                                    </motion.div>
+                                ))}
                             </div>
                         </div>
                     </motion.div>

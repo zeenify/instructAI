@@ -95,10 +95,13 @@ async def generate_section_content(
         model=model
     )
 
-    # Try to get a response, cycling through keys on rate limit
+    # Try to get a response, cycling through keys on rate limit. When EVERY
+    # key is cooling down, wait for recovery instead of killing the lesson —
+    # a 429 storm must cost the teacher a pause, not the whole run.
     response = None
     attempt_count = 0
-    max_attempts = len(ai_pool.clients)
+    cool_downs = 0
+    max_attempts = max(len(ai_pool.clients) * 3, 3)
     key_num = None
 
     while attempt_count < max_attempts and not response:
@@ -121,13 +124,18 @@ async def generate_section_content(
             error_str = str(e).lower()
             if is_rate_limit_error(e):
                 ai_pool.mark_rate_limited(key_num, backoff_seconds=60)
-                print(f"[STAGE2-CONTENT] Key {key_num} rate-limited, trying next key...")
                 attempt_count += 1
+                if ai_pool.all_rate_limited() and cool_downs < 2:
+                    wait_s = ai_pool.recovery_wait_seconds() or 60
+                    cool_downs += 1
+                    print(f"[STAGE2-CONTENT] All keys cooling down — waiting {wait_s:.0f}s (round {cool_downs}/2) for {section_title[:30]}")
+                    await asyncio.sleep(wait_s)
+                    continue
                 if attempt_count < max_attempts:
                     await asyncio.sleep(0.3)  # Brief delay before retry
                     continue
                 else:
-                    print(f"[STAGE2-CONTENT] All {max_attempts} keys exhausted for {section_title[:30]}")
+                    print(f"[STAGE2-CONTENT] All {max_attempts} attempts exhausted for {section_title[:30]}")
                     duration_ms = (time_module.time() - start_time) * 1000
                     log_error(f"stage2-content-all-keys-exhausted-{section_type}-{section_title[:30]}", e, duration_ms=duration_ms)
                     return {

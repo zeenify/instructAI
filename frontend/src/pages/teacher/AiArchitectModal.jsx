@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Paperclip, Sparkles, Bot, FileText, Zap, Settings } from 'lucide-react';
+import { X, Zap, FileText, BookOpen, Code2, Gauge, Layers, ListOrdered, Route } from 'lucide-react';
 
 export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculumFile }) {
     const [prompt, setPrompt] = useState("");
@@ -24,254 +24,205 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!canGenerate) return;
-        // Pass only structure params - content params will be set in ContentGenerationModal
+        // Pass only structure params - content params will be set in ContentParametersModal
         onExecute(prompt, null, params);
         setPrompt("");
     };
 
-
+    if (!isOpen) return null;
 
     return (
         <AnimatePresence>
-            {isOpen && (
-                <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        onClick={onClose} className="absolute inset-0 bg-black/80 backdrop-blur-md"
-                    />
-                    <motion.div
-                        initial={{ scale: 0.9, y: 20, opacity: 0 }}
-                        animate={{ scale: 1, y: 0, opacity: 1 }}
-                        exit={{ scale: 0.9, y: 20, opacity: 0 }}
-                        style={{ padding: '50px 40px' }}
-                        className="relative z-10 w-full max-w-2xl bg-[#05011d] border border-purple-500/20 rounded-[32px] overflow-hidden shadow-2xl"
-                    >
+            <div className="gen-overlay">
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={onClose}
+                    className="gen-backdrop"
+                />
+                <motion.div
+                    initial={{ scale: 0.96, opacity: 0, y: 10 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    exit={{ scale: 0.96, opacity: 0, y: 10 }}
+                    transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+                    className="gen-card wide"
+                >
+                    <div className="gen-head">
                         <div>
-                            <div style={{ marginBottom: '32px' }} className="flex justify-between items-center">
-                                <div className="flex items-center gap-3 text-left">
-                                    <div style={{ padding: '10px 12px' }} className="rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400 border border-purple-500/20">
-                                        <Bot size={22} />
-                                    </div>
-                                    <div>
-                                        <h2 style={{ marginBottom: '4px' }} className="text-2xl font-bold text-white tracking-tight">Curriculum Architect</h2>
-                                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest leading-none">Controlled Generation</p>
-                                    </div>
-                                </div>
-                                <button onClick={onClose} style={{ padding: '8px 10px' }} className="text-slate-500 hover:text-white transition-all bg-transparent border-none cursor-pointer"><X size={20} /></button>
-                            </div>
+                            <span className="ed-card-label">AI curriculum architect</span>
+                            <h2 className="gen-title">Describe the course you want</h2>
+                        </div>
+                        <button type="button" onClick={onClose} className="gen-close" title="Close">
+                            <X size={18} />
+                        </button>
+                    </div>
 
-                            {curriculumFile && (
-                                <div style={{ marginBottom: '24px', padding: '12px 16px' }} className="bg-green-500/10 border border-green-500/30 rounded-xl flex items-center gap-2 text-green-400 text-xs">
-                                    <FileText size={14} />
-                                    <span className="font-medium">Using curriculum: {curriculumFile}</span>
-                                </div>
+                    {curriculumFile ? (
+                        <p className="gen-note">
+                            <FileText size={13} style={{ verticalAlign: '-2px' }} /> Grounded in your uploaded curriculum:{' '}
+                            <strong>{curriculumFile}</strong>
+                        </p>
+                    ) : (
+                        <p className="gen-note">
+                            No curriculum file — the AI builds everything from the description below, so be specific.
+                        </p>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="flex flex-col" style={{ gap: 16 }}>
+                        <div>
+                            <label className="gen-label">
+                                {curriculumFile ? 'Additional instructions' : 'Course description'}
+                            </label>
+                            <textarea
+                                autoFocus
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                                placeholder={curriculumFile
+                                    ? 'Any specific requirements or focus areas...'
+                                    : 'e.g. Grade 11 Python course covering variables, conditionals, and loops, with real-life Filipino examples and a quiz per module...'}
+                                className="gen-textarea"
+                            />
+                            {!canGenerate && (
+                                <p className="gen-note" style={{ marginTop: 6 }}>
+                                    Give it at least a sentence so the AI has something to work with.
+                                </p>
                             )}
+                        </div>
 
-                            {/* Panel fix: spell out the terminology so the terms can't be misread */}
-                            <div style={{ marginBottom: '24px', padding: '14px 18px' }} className="bg-purple-500/[0.06] border border-purple-500/20 rounded-xl text-slate-400 text-xs leading-relaxed text-left">
-                                <span className="text-purple-300 font-bold">What you'll get: </span>
-                                the AI builds the full learning plan for <span className="text-slate-200 font-semibold">one subject</span> —
-                                split into <span className="text-slate-200 font-semibold">modules</span> (units),
-                                each holding <span className="text-slate-200 font-semibold">lessons</span>
-                                {params.includeQuiz ? ' and a ' : ' and '}
-                                {params.includeQuiz && <span className="text-slate-200 font-semibold">quiz</span>}
-                                {params.includeQuiz && ' '}
-                                {params.includeCodingExercises && 'with coding exercises '}
-                                for your students. Nothing is published automatically — everything lands in a review console for you to edit and approve first.
-                            </div>
-
-                            <form onSubmit={handleSubmit} style={{ gap: '24px' }} className="flex flex-col">
-                                {/* Structure Parameters */}
-                                <div style={{ padding: '20px 24px' }} className="bg-white/[0.02] border border-white/5 rounded-2xl">
-                                    <div style={{ marginBottom: '16px' }} className="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase tracking-widest">
-                                        <Settings size={14} /> Curriculum Structure
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {/* Difficulty */}
-                                        <div>
-                                            <label style={{ marginBottom: '8px', display: 'block' }} className="text-xs text-slate-500">Difficulty Level</label>
-                                            <select
-                                                value={params.difficulty}
-                                                onChange={(e) => setParams({...params, difficulty: e.target.value})}
-                                                style={{ padding: '10px 12px' }}
-                                                className="w-full bg-white/[0.05] border border-white/10 rounded-lg text-white text-sm outline-none focus:border-purple-500/40 transition-all cursor-pointer [&>option]:bg-gray-900 [&>option]:text-white"
-                                            >
-                                                <option value="beginner">Beginner</option>
-                                                <option value="intermediate">Intermediate</option>
-                                                <option value="advanced">Advanced</option>
-                                            </select>
-                                        </div>
-
-                                        {/* Module Count */}
-                                        <div>
-                                            <label style={{ marginBottom: '8px', display: 'block' }} className="text-xs text-slate-500">Number of Modules</label>
-                                            {params.moduleCountCustom ? (
-                                                <div className="flex gap-2">
-                                                    <input
-                                                        type="number"
-                                                        min="1"
-                                                        max="8"
-                                                        value={params.moduleCount}
-                                                        onChange={(e) => setParams({...params, moduleCount: String(Math.max(1, Math.min(20, Number(e.target.value) || 1)))})}
-                                                        style={{ padding: '10px 12px' }}
-                                                        className="flex-1 bg-white/[0.05] border border-purple-500/40 rounded-lg text-white text-sm outline-none focus:border-purple-500/60 transition-all"
-                                                        placeholder="e.g., 6"
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setParams({...params, moduleCountCustom: false, moduleCount: '3-5'})}
-                                                        style={{ padding: '10px 12px' }}
-                                                        className="bg-white/5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all text-xs cursor-pointer border-none"
-                                                    >
-                                                        Presets
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <div className="flex gap-2">
-                                                    <select
-                                                        value={params.moduleCount}
-                                                        onChange={(e) => setParams({...params, moduleCount: e.target.value})}
-                                                        style={{ padding: '10px 12px' }}
-                                                        className="flex-1 bg-white/[0.05] border border-white/10 rounded-lg text-white text-sm outline-none focus:border-purple-500/40 transition-all cursor-pointer [&>option]:bg-gray-900 [&>option]:text-white"
-                                                    >
-                                                        <option value="3-5">3-5 modules</option>
-                                                        <option value="5-7">5-7 modules</option>
-                                                        <option value="6-8">6-8 modules (max)</option>
-                                                    </select>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setParams({...params, moduleCountCustom: true, moduleCount: '5'})}
-                                                        style={{ padding: '10px 12px' }}
-                                                        className="bg-white/5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all text-xs cursor-pointer border-none"
-                                                    >
-                                                        Custom
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Lessons per Module */}
-                                        <div>
-                                            <label style={{ marginBottom: '8px', display: 'block' }} className="text-xs text-slate-500">Lessons per Module</label>
-                                            {params.lessonsCustom ? (
-                                                <div className="flex gap-2">
-                                                    <input
-                                                        type="number"
-                                                        min="1"
-                                                        max="8"
-                                                        value={params.lessonsPerModule}
-                                                        onChange={(e) => setParams({...params, lessonsPerModule: String(Math.max(1, Math.min(20, Number(e.target.value) || 1)))})}
-                                                        style={{ padding: '10px 12px' }}
-                                                        className="flex-1 bg-white/[0.05] border border-purple-500/40 rounded-lg text-white text-sm outline-none focus:border-purple-500/60 transition-all"
-                                                        placeholder="e.g., 4"
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setParams({...params, lessonsCustom: false, lessonsPerModule: '3-5'})}
-                                                        style={{ padding: '10px 12px' }}
-                                                        className="bg-white/5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all text-xs cursor-pointer border-none"
-                                                    >
-                                                        Presets
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <div className="flex gap-2">
-                                                    <select
-                                                        value={params.lessonsPerModule}
-                                                        onChange={(e) => setParams({...params, lessonsPerModule: e.target.value})}
-                                                        style={{ padding: '10px 12px' }}
-                                                        className="flex-1 bg-white/[0.05] border border-white/10 rounded-lg text-white text-sm outline-none focus:border-purple-500/40 transition-all cursor-pointer [&>option]:bg-gray-900 [&>option]:text-white"
-                                                    >
-                                                        <option value="2-3">2-3 lessons</option>
-                                                        <option value="3-5">3-5 lessons</option>
-                                                        <option value="5-8">5-8 lessons (max)</option>
-                                                    </select>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setParams({...params, lessonsCustom: true, lessonsPerModule: '4'})}
-                                                        style={{ padding: '10px 12px' }}
-                                                        className="bg-white/5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all text-xs cursor-pointer border-none"
-                                                    >
-                                                        Custom
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Pacing */}
-                                        <div>
-                                            <label style={{ marginBottom: '8px', display: 'block' }} className="text-xs text-slate-500">Pacing</label>
-                                            <select
-                                                value={params.pacing}
-                                                onChange={(e) => setParams({...params, pacing: e.target.value})}
-                                                style={{ padding: '10px 12px' }}
-                                                className="w-full bg-white/[0.05] border border-white/10 rounded-lg text-white text-sm outline-none focus:border-purple-500/40 transition-all cursor-pointer [&>option]:bg-gray-900 [&>option]:text-white"
-                                            >
-                                                <option value="condensed">Condensed</option>
-                                                <option value="standard">Standard</option>
-                                                <option value="comprehensive">Comprehensive</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    {/* Toggles */}
-                                    <div style={{ marginTop: '16px', paddingTop: '16px', gap: '12px' }} className="border-t border-white/5 flex">
-                                        <label style={{ gap: '8px' }} className="flex items-center text-sm text-slate-300 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={params.includeQuiz}
-                                                onChange={(e) => setParams({...params, includeQuiz: e.target.checked})}
-                                                className="w-4 h-4 rounded bg-white/5 border-white/10 checked:bg-purple-500 cursor-pointer"
-                                            />
-                                            Quiz per module
-                                        </label>
-                                        <label style={{ gap: '8px' }} className="flex items-center text-sm text-slate-300 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={params.includeCodingExercises}
-                                                onChange={(e) => setParams({...params, includeCodingExercises: e.target.checked})}
-                                                className="w-4 h-4 rounded bg-white/5 border-white/10 checked:bg-purple-500 cursor-pointer"
-                                            />
-                                            Coding exercises
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div style={{ marginTop: '24px' }}>
-                                    <label style={{ marginBottom: '8px', display: 'block' }} className="text-xs text-slate-500">
-                                        {curriculumFile ? 'Additional Instructions' : 'Describe the course you want'}
-                                    </label>
-                                    <textarea
-                                        autoFocus value={prompt}
-                                        onChange={(e) => setPrompt(e.target.value)}
-                                        placeholder={curriculumFile
-                                            ? 'Any specific requirements or focus areas...'
-                                            : 'e.g. Grade 11 Python course covering variables, conditionals, and loops, with real-life Filipino examples and a quiz per module...'}
-                                        style={{ padding: '14px 16px' }}
-                                        className="w-full bg-white/[0.02] border border-white/10 rounded-2xl text-white text-sm outline-none focus:border-purple-500/40 transition-all min-h-[100px] resize-none leading-relaxed"
-                                    />
-                                    {!curriculumFile && !canGenerate && (
-                                        <p className="text-xs text-slate-500" style={{ marginTop: '8px' }}>
-                                            No curriculum file — the AI builds everything from this description, so give it at least a sentence.
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div style={{ marginTop: '32px', gap: '16px' }} className="flex items-center justify-end">
-                                    <button
-                                        type="submit"
-                                        disabled={!canGenerate}
-                                        style={{ padding: '14px 24px', gap: '8px' }}
-                                        className="btn-primary rounded-xl flex items-center text-xs uppercase font-black tracking-widest border-none cursor-pointer hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        <div>
+                            <span className="gen-label"><Gauge size={12} style={{ verticalAlign: '-2px' }} /> Structure</span>
+                            <div className="gen-2col">
+                                <div>
+                                    <label className="gen-label" style={{ marginTop: 4 }}>Difficulty</label>
+                                    <select
+                                        value={params.difficulty}
+                                        onChange={(e) => setParams({ ...params, difficulty: e.target.value })}
+                                        className="gen-select"
                                     >
-                                        <Zap size={14} fill="currentColor" /> Initialize Generation
+                                        <option value="beginner">Beginner</option>
+                                        <option value="intermediate">Intermediate</option>
+                                        <option value="advanced">Advanced</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="gen-label" style={{ marginTop: 4 }}>Pacing</label>
+                                    <select
+                                        value={params.pacing}
+                                        onChange={(e) => setParams({ ...params, pacing: e.target.value })}
+                                        className="gen-select"
+                                    >
+                                        <option value="fast">Fast — fewer, denser lessons</option>
+                                        <option value="standard">Standard</option>
+                                        <option value="slow">Slow — more guided practice</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <span className="gen-label"><Layers size={12} style={{ verticalAlign: '-2px' }} /> Modules</span>
+                            {params.moduleCountCustom ? (
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="8"
+                                        value={params.moduleCount}
+                                        onChange={(e) => setParams({ ...params, moduleCount: String(Math.max(1, Math.min(8, Number(e.target.value) || 1))) })}
+                                        className="gen-input"
+                                        placeholder="e.g., 6"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setParams({ ...params, moduleCountCustom: false, moduleCount: '3-5' })}
+                                        className="gen-btn gen-btn-ghost"
+                                    >
+                                        Presets
                                     </button>
                                 </div>
-                            </form>
+                            ) : (
+                                <div className="gen-seg">
+                                    {['2-3', '3-5', '5-7', '6-8'].map(range => (
+                                        <button
+                                            key={range}
+                                            type="button"
+                                            className={params.moduleCount === range ? 'on' : ''}
+                                            onClick={() => setParams({ ...params, moduleCount: range })}
+                                        >
+                                            {range}{range === '6-8' ? ' (max)' : ''}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                    </motion.div>
-                </div>
-            )}
+
+                        <div>
+                            <span className="gen-label"><ListOrdered size={12} style={{ verticalAlign: '-2px' }} /> Lessons per module</span>
+                            {params.lessonsCustom ? (
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="8"
+                                        value={params.lessonsPerModule}
+                                        onChange={(e) => setParams({ ...params, lessonsPerModule: String(Math.max(1, Math.min(8, Number(e.target.value) || 1))) })}
+                                        className="gen-input"
+                                        placeholder="e.g., 4"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setParams({ ...params, lessonsCustom: false, lessonsPerModule: '3-5' })}
+                                        className="gen-btn gen-btn-ghost"
+                                    >
+                                        Presets
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="gen-seg">
+                                    {['2-3', '3-5', '5-7', '6-8'].map(range => (
+                                        <button
+                                            key={range}
+                                            type="button"
+                                            className={params.lessonsPerModule === range ? 'on' : ''}
+                                            onClick={() => setParams({ ...params, lessonsPerModule: range })}
+                                        >
+                                            {range}{range === '6-8' ? ' (max)' : ''}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div>
+                            <span className="gen-label"><Route size={12} style={{ verticalAlign: '-2px' }} /> Include</span>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                <button
+                                    type="button"
+                                    className={`gen-check ${params.includeQuiz ? 'on' : ''}`}
+                                    onClick={() => setParams({ ...params, includeQuiz: !params.includeQuiz })}
+                                >
+                                    <BookOpen size={14} /> Quiz per module
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`gen-check ${params.includeCodingExercises ? 'on' : ''}`}
+                                    onClick={() => setParams({ ...params, includeCodingExercises: !params.includeCodingExercises })}
+                                >
+                                    <Code2 size={14} /> Coding exercises
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="gen-foot">
+                            <button type="button" onClick={onClose} className="gen-btn gen-btn-ghost">Cancel</button>
+                            <button type="submit" disabled={!canGenerate} className="gen-btn gen-btn-primary">
+                                <Zap size={14} /> Design my curriculum
+                            </button>
+                        </div>
+                    </form>
+                </motion.div>
+            </div>
         </AnimatePresence>
     );
 }

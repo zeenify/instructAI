@@ -133,3 +133,11 @@ class AIClientPool:
     def all_rate_limited(self):
         """Check if all keys are currently rate-limited"""
         return self.get_available_count() == 0
+
+    def recovery_wait_seconds(self, cap=60.0):
+        """Seconds until the earliest key recovers, capped. 0.0 if a key is free now."""
+        now = time.time()
+        remaining = [max(0.0, self.key_states[i]['backoff_until'] - now)
+                     for i in range(1, len(self.clients) + 1)]
+        wait = min(remaining) if remaining else 0.0
+        return min(wait, cap)

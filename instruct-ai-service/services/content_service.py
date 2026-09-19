@@ -62,6 +62,16 @@ def harden_coding_questions(quiz_data: dict) -> None:
         tests = [t for t in (tests if isinstance(tests, list) else [])
                  if isinstance(t, dict) and str(t.get("expected_output", "") or "")][:5]
 
+        # Drop vacuous duplicates: identical input+expected pairs test nothing
+        seen = set()
+        unique_tests = []
+        for t in tests:
+            signature = (str(t.get("input", "")), str(t.get("expected_output", "")))
+            if signature not in seen:
+                seen.add(signature)
+                unique_tests.append(t)
+        tests = unique_tests
+
         if language in (None, "html"):
             question.pop("test_cases", None)
             continue
@@ -514,7 +524,8 @@ async def generate_content_stream(
 
                     response = None
                     attempt_count = 0
-                    max_attempts = len(ai_pool.clients)
+                    cool_downs = 0
+                    max_attempts = max(len(ai_pool.clients) * 3, 3)
 
                     while attempt_count < max_attempts and not response:
                         try:
@@ -541,6 +552,13 @@ async def generate_content_stream(
                             if is_rate_limit_error(e):
                                 ai_pool.mark_rate_limited(key_num, backoff_seconds=60)
                                 attempt_count += 1
+                                if ai_pool.all_rate_limited() and cool_downs < 2:
+                                    wait_s = ai_pool.recovery_wait_seconds() or 60
+                                    cool_downs += 1
+                                    print(f"[QUIZ-{quiz_id}] All keys cooling down — waiting {wait_s:.0f}s (round {cool_downs}/2)")
+                                    yield f"data: {json.dumps({'type': 'status', 'message': f'AI quota cooling down — retrying in {int(wait_s)}s…'})}\n\n"
+                                    await asyncio.sleep(wait_s)
+                                    continue
                                 if attempt_count < max_attempts:
                                     print(f"[QUIZ-{quiz_id}] Key {key_num} rate-limited, trying another...")
                                     time.sleep(0.8)

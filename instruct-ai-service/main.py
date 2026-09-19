@@ -133,9 +133,9 @@ async def curriculum_stream_endpoint(
     # Build context from curriculum file or uploaded file
     context_text = ""
     if curriculum_text:
-        context_text = f"Base curriculum document:\n{curriculum_text[:8000]}\n\n"
+        context_text = f"Base curriculum document:\n{curriculum_text[:30000]}\n\n"
     elif file:
-        context_text = f"Uploaded document:\n{extract_text(file)[:8000]}\n\n"
+        context_text = f"Uploaded document:\n{extract_text(file)[:30000]}\n\n"
 
     return StreamingResponse(
         generate_curriculum_stream(
@@ -195,7 +195,7 @@ async def content_stream_endpoint(
     Returns server-sent events with lesson and quiz generation progress
     """
     structure = json.loads(curriculum_structure)
-    curriculum_context = curriculum_text[:8000] if curriculum_text else ""
+    curriculum_context = curriculum_text[:30000] if curriculum_text else ""
 
     return StreamingResponse(
         generate_content_stream(
@@ -226,7 +226,7 @@ async def test_outline_endpoint(
     """
     Test endpoint for Stage 1 outline generation
     """
-    curriculum_context = curriculum_text[:8000] if curriculum_text else ""
+    curriculum_context = curriculum_text[:30000] if curriculum_text else ""
 
     outline = await generate_lesson_outline(
         ai_pool=ai_pool,
@@ -252,7 +252,7 @@ async def test_full_lesson_endpoint(
     """
     Test endpoint for full pipeline: Stage 1 + Stage 2 + Stage 3
     """
-    curriculum_context = curriculum_text[:8000] if curriculum_text else ""
+    curriculum_context = curriculum_text[:30000] if curriculum_text else ""
 
     try:
         # Stage 1: Generate outline

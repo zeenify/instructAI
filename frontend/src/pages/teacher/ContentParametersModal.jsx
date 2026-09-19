@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Settings, Zap, AlertCircle } from 'lucide-react';
+import { X, Sparkles, BookOpen, Video, Bot } from 'lucide-react';
 
 export default function ContentParametersModal({ isOpen, onClose, onGenerate, structureParams, course, isSavingStructure = false }) {
     const [contentParams, setContentParams] = useState({
         contentDepth: 'standard',
-        includeImages: true,
         includeVideos: true,
         writingStyle: 'conversational',
         questionTypeDistribution: 'balanced',
@@ -69,275 +68,203 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
 
     if (!isOpen) return null;
 
+    const distributionOptions = hasProgrammingContent ? [
+        { value: 'balanced', label: 'Balanced', detail: '40 · 20 · 20 · 10 · 10' },
+        { value: 'coding_heavy', label: 'Coding-heavy', detail: '20 · 10 · 10 · 5 · 55' },
+        { value: 'theory_focused', label: 'Theory-focused', detail: '50 · 25 · 20 · 5 · 0' },
+        { value: 'non_coding', label: 'Non-coding', detail: '40 · 25 · 25 · 10 · 0' },
+        { value: 'custom', label: 'Custom', detail: 'set your own mix' },
+    ] : [
+        { value: 'theory_focused', label: 'Theory-focused', detail: '50 · 25 · 20 · 5 · 0' },
+        { value: 'non_coding', label: 'Non-coding', detail: '40 · 25 · 25 · 10 · 0' },
+        { value: 'custom', label: 'Custom', detail: 'coding locked to 0%' },
+    ];
+
+    const stepper = (key, label) => (
+        <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <span className="gen-note">{label}</span>
+            <input
+                type="number"
+                min="0"
+                max="100"
+                value={customDistribution[key]}
+                onChange={(e) => setCustomDistribution({ ...customDistribution, [key]: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
+                className="gen-input"
+                style={{ width: 72, padding: '7px 10px' }}
+            />
+        </div>
+    );
+
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-[160] flex items-center justify-center p-4">
+            <div className="gen-overlay">
                 <motion.div
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    onClick={onClose} className="absolute inset-0 bg-black/80 backdrop-blur-md"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={onClose}
+                    className="gen-backdrop"
                 />
                 <motion.div
-                    initial={{ scale: 0.9, y: 20, opacity: 0 }}
-                    animate={{ scale: 1, y: 0, opacity: 1 }}
-                    exit={{ scale: 0.9, y: 20, opacity: 0 }}
-                    className="relative z-10 w-full max-w-2xl bg-[#05011d] border border-cyan-500/20 rounded-[32px] overflow-hidden shadow-2xl"
+                    initial={{ scale: 0.96, opacity: 0, y: 10 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    exit={{ scale: 0.96, opacity: 0, y: 10 }}
+                    transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+                    className="gen-card wide"
                 >
-                    <div style={{ padding: '50px 40px' }}>
-                        <div style={{ marginBottom: '32px', gap: '12px' }} className="flex justify-between items-center">
-                            <div style={{ gap: '12px' }} className="flex items-center text-left">
-                                <div style={{ padding: '10px 12px' }} className="rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 border border-cyan-500/20">
-                                    <Sparkles size={22} />
-                                </div>
-                                <div>
-                                    <h2 style={{ marginBottom: '4px' }} className="text-xl font-bold text-white tracking-tight">Content Generation Settings</h2>
-                                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest leading-none">Fine-tune lesson & quiz content</p>
-                                </div>
-                            </div>
-                            <button onClick={onClose} style={{ padding: '8px 10px' }} className="text-slate-500 hover:text-white transition-all bg-transparent border-none cursor-pointer"><X size={20} /></button>
+                    <div className="gen-head">
+                        <div>
+                            <span className="ed-card-label">Stage 2 · content settings</span>
+                            <h2 className="gen-title">How should lessons and quizzes feel?</h2>
                         </div>
+                        <button type="button" onClick={onClose} className="gen-close" title="Close">
+                            <X size={18} />
+                        </button>
+                    </div>
 
-                        <form onSubmit={(e) => { e.preventDefault(); handleGenerate(); }} style={{ gap: '24px' }} className="space-y-6">
-                            {/* Content Parameters */}
-                            <div style={{ padding: '20px 24px' }} className="bg-white/[0.02] border border-white/5 rounded-2xl">
-                                <div style={{ marginBottom: '16px', gap: '8px' }} className="flex items-center text-cyan-400 text-[10px] font-bold uppercase tracking-widest">
-                                    <Settings size={14} /> Lesson Content
-                                </div>
-                                <div style={{ gap: '16px' }} className="grid grid-cols-2">
-                                    {/* Content Depth */}
-                                    <div>
-                                        <label style={{ marginBottom: '8px', display: 'block' }} className="text-xs text-slate-500">Content Depth</label>
-                                        <select
-                                            value={contentParams.contentDepth}
-                                            onChange={(e) => setContentParams({...contentParams, contentDepth: e.target.value})}
-                                            style={{ padding: '10px 12px' }}
-                                            className="w-full bg-white/[0.05] border border-white/10 rounded-lg text-white text-sm outline-none focus:border-cyan-500/40 transition-all cursor-pointer [&>option]:bg-gray-900 [&>option]:text-white"
-                                        >
-                                            <option value="concise">Concise</option>
-                                            <option value="standard">Standard</option>
-                                            <option value="detailed">Detailed</option>
-                                        </select>
-                                    </div>
-
-                                    {/* Writing Style */}
-                                    <div>
-                                        <label style={{ marginBottom: '8px', display: 'block' }} className="text-xs text-slate-500">Writing Style</label>
-                                        <select
-                                            value={contentParams.writingStyle}
-                                            onChange={(e) => setContentParams({...contentParams, writingStyle: e.target.value})}
-                                            style={{ padding: '10px 12px' }}
-                                            className="w-full bg-white/[0.05] border border-white/10 rounded-lg text-white text-sm outline-none focus:border-cyan-500/40 transition-all cursor-pointer [&>option]:bg-gray-900 [&>option]:text-white"
-                                        >
-                                            <option value="simple">Simple</option>
-                                            <option value="conversational">Conversational</option>
-                                            <option value="formal">Formal</option>
-                                            <option value="technical">Technical</option>
-                                        </select>
-                                    </div>
-
-                                    {/* Question Type Distribution */}
-                                    <div className="col-span-2">
-                                        <label style={{ marginBottom: '8px', display: 'block' }} className="text-xs text-slate-500">Question Type Distribution</label>
-                                        <select
-                                            value={getDisplayPreset()}
-                                            onChange={(e) => {
-                                                if (!hasProgrammingContent && ['balanced', 'coding_heavy'].includes(e.target.value)) {
-                                                    // Don't allow coding presets for non-programming courses, but allow custom
-                                                    return;
-                                                }
-                                                setContentParams({...contentParams, questionTypeDistribution: e.target.value});
-                                            }}
-                                            style={{ padding: '10px 12px' }}
-                                            className="w-full bg-white/[0.05] border border-white/10 rounded-lg text-white text-sm outline-none focus:border-cyan-500/40 transition-all cursor-pointer [&>option]:bg-gray-900 [&>option]:text-white"
-                                        >
-                                            {!hasProgrammingContent ? (
-                                                <>
-                                                    <option value="theory_focused">Theory-Focused (50% MC, 25% TF, 20% ID, 5% Enum, 0% Code)</option>
-                                                    <option value="non_coding">Non-Coding (40% MC, 25% TF, 25% ID, 10% Enum, 0% Code) - Recommended</option>
-                                                    <option value="custom">Custom (Coding locked to 0%)</option>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <option value="balanced">Balanced (40% MC, 20% TF, 20% ID, 10% Enum, 10% Code)</option>
-                                                    <option value="coding_heavy">Coding-Heavy (20% MC, 10% TF, 10% ID, 5% Enum, 55% Code)</option>
-                                                    <option value="theory_focused">Theory-Focused (50% MC, 25% TF, 20% ID, 5% Enum, 0% Code)</option>
-                                                    <option value="non_coding">Non-Coding (40% MC, 25% TF, 25% ID, 10% Enum, 0% Code)</option>
-                                                    <option value="custom">Custom (Adjust below)</option>
-                                                </>
-                                            )}
-                                        </select>
-
-                                        {/* Info message for non-programming courses */}
-                                        {!hasProgrammingContent && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: -10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                style={{ marginTop: '12px', padding: '12px 16px', gap: '12px' }}
-                                                className="bg-blue-500/10 border border-blue-500/30 rounded-lg flex items-start"
-                                            >
-                                                <AlertCircle size={16} className="text-blue-400 mt-0.5 flex-shrink-0" />
-                                                <p className="text-xs text-blue-400/90">
-                                                    This course has no programming content. Coding-based presets are disabled to ensure quality quiz generation. Choose from available options above.
-                                                </p>
-                                            </motion.div>
-                                        )}
-                                    </div>
-
-                                    {/* Quiz Timer */}
-                                    <div>
-                                        <label style={{ marginBottom: '8px', display: 'block' }} className="text-xs text-slate-500">Quiz Timer (minutes)</label>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max="180"
-                                            value={contentParams.quizTimeLimit}
-                                            onChange={(e) => setContentParams({...contentParams, quizTimeLimit: Number(e.target.value)})}
-                                            style={{ padding: '10px 12px' }}
-                                            className="w-full bg-white/[0.05] border border-white/10 rounded-lg text-white text-sm outline-none focus:border-cyan-500/40 transition-all"
-                                        />
-                                    </div>
-
-                                    {/* Passing Percentage */}
-                                    <div>
-                                        <label style={{ marginBottom: '8px', display: 'block' }} className="text-xs text-slate-500">Passing Score</label>
-                                        <select
-                                            value={contentParams.passingPercentage}
-                                            onChange={(e) => setContentParams({...contentParams, passingPercentage: Number(e.target.value)})}
-                                            style={{ padding: '10px 12px' }}
-                                            className="w-full bg-white/[0.05] border border-white/10 rounded-lg text-white text-sm outline-none focus:border-cyan-500/40 transition-all cursor-pointer [&>option]:bg-gray-900 [&>option]:text-white"
-                                        >
-                                            <option value="60">60%</option>
-                                            <option value="70">70%</option>
-                                            <option value="80">80%</option>
-                                            <option value="90">90%</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {/* Content Toggles */}
-                                <div style={{ gap: '16px', marginTop: '16px' }} className="flex flex-wrap">
-                                    <label style={{ gap: '8px' }} className="flex items-center text-sm text-slate-300 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={contentParams.includeImages}
-                                            onChange={(e) => setContentParams({...contentParams, includeImages: e.target.checked})}
-                                            className="w-4 h-4 rounded bg-white/5 border-white/10 checked:bg-cyan-500 cursor-pointer"
-                                        />
-                                        Include images
-                                    </label>
-                                    <label style={{ gap: '8px' }} className="flex items-center text-sm text-slate-300 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={contentParams.includeVideos}
-                                            onChange={(e) => setContentParams({...contentParams, includeVideos: e.target.checked})}
-                                            className="w-4 h-4 rounded bg-white/5 border-white/10 checked:bg-cyan-500 cursor-pointer"
-                                        />
-                                        Include videos
-                                    </label>
-                                    <label style={{ gap: '8px' }} className="flex items-center text-sm text-slate-300 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={contentParams.allowAIAssistance}
-                                            onChange={(e) => setContentParams({...contentParams, allowAIAssistance: e.target.checked})}
-                                            className="w-4 h-4 rounded bg-white/5 border-white/10 checked:bg-cyan-500 cursor-pointer"
-                                        />
-                                        Allow AI assistance in quiz
-                                    </label>
-                                </div>
-
-                                {/* Custom Distribution Adjusters - Conditional Render */}
-                                {contentParams.questionTypeDistribution === 'custom' && (
-                                    <div style={{ marginTop: '16px', padding: '16px 20px', gap: '12px' }} className="col-span-2 bg-white/[0.03] border border-cyan-500/20 rounded-xl space-y-3">
-                                        <p style={{ marginBottom: '12px' }} className="text-xs text-cyan-400 font-bold uppercase tracking-wider">Custom Distribution</p>
-                                        {[
-                                            {key: 'mc', label: 'Multiple Choice'},
-                                            {key: 'tf', label: 'True/False'},
-                                            {key: 'id', label: 'Identification'},
-                                            {key: 'enum', label: 'Enumeration'},
-                                            {key: 'code', label: 'Coding'}
-                                        ].map(({key, label}) => {
-                                            const isCodeSlider = key === 'code';
-                                            const isLocked = !hasProgrammingContent && isCodeSlider;
-
-                                            return (
-                                                <div key={key} style={{ gap: '16px' }} className={`flex items-center justify-between ${isLocked ? 'opacity-50' : ''}`}>
-                                                    <span className={`text-sm flex-shrink-0 w-32 ${isLocked ? 'text-slate-500' : 'text-slate-300'}`}>
-                                                        {label}
-                                                        {isLocked && <span style={{ marginLeft: '4px' }} className="text-xs text-slate-600">(locked)</span>}
-                                                    </span>
-                                                    <div style={{ gap: '8px' }} className="flex items-center">
-                                                        <button
-                                                            type="button"
-                                                            disabled={isLocked}
-                                                            onClick={() => {
-                                                                const newVal = Math.max(0, customDistribution[key] - 5);
-                                                                setCustomDistribution({...customDistribution, [key]: newVal});
-                                                            }}
-                                                            style={{ padding: '6px 8px' }}
-                                                            className={`rounded-lg text-slate-400 transition-all border border-white/10 flex items-center justify-center font-bold text-sm ${
-                                                                isLocked
-                                                                    ? 'bg-white/5 cursor-not-allowed text-slate-600'
-                                                                    : 'bg-white/5 hover:bg-white/10 hover:text-white cursor-pointer'
-                                                            }`}
-                                                        >−5</button>
-                                                        <div className="w-16 text-center">
-                                                            <span className="text-white font-bold text-sm">{customDistribution[key]}%</span>
-                                                        </div>
-                                                        <button
-                                                            type="button"
-                                                            disabled={isLocked}
-                                                            onClick={() => {
-                                                                const newVal = Math.min(100, customDistribution[key] + 5);
-                                                                setCustomDistribution({...customDistribution, [key]: newVal});
-                                                            }}
-                                                            style={{ padding: '6px 8px' }}
-                                                            className={`rounded-lg text-slate-400 transition-all border border-white/10 flex items-center justify-center font-bold text-sm ${
-                                                                isLocked
-                                                                    ? 'bg-white/5 cursor-not-allowed text-slate-600'
-                                                                    : 'bg-white/5 hover:bg-white/10 hover:text-white cursor-pointer'
-                                                            }`}
-                                                        >+5</button>
-                                                    </div>
-                                                    <div className="flex-grow h-2 bg-white/5 rounded-full overflow-hidden">
-                                                        <div
-                                                            className={`h-full transition-all ${isLocked ? 'bg-slate-600' : 'bg-gradient-to-r from-cyan-500 to-blue-500'}`}
-                                                            style={{width: `${customDistribution[key]}%`}}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                        <div style={{ paddingTop: '8px', marginTop: '8px' }} className="border-t border-white/5 flex justify-between items-center">
-                                            <span className="text-xs text-slate-500">Total:</span>
-                                            <span className={`text-sm font-bold ${
-                                                Object.values(customDistribution).reduce((a,b) => a+b, 0) === 100
-                                                    ? 'text-emerald-400'
-                                                    : 'text-red-400'
-                                            }`}>
-                                                {Object.values(customDistribution).reduce((a,b) => a+b, 0)}%
-                                            </span>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div style={{ gap: '16px', marginTop: '24px' }} className="flex items-center justify-between">
-                                <p className="text-xs text-slate-500">
-                                    {isSavingStructure ? 'Saving curriculum structure...' : 'Lesson content and quiz questions will be generated based on these settings'}
-                                </p>
-                                <button
-                                    type="submit"
-                                    disabled={isSavingStructure}
-                                    style={{ padding: '14px 24px', gap: '8px' }}
-                                    className={`rounded-xl flex items-center text-xs uppercase font-black tracking-widest border-none transition-all shadow-lg ${
-                                        isSavingStructure
-                                            ? 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-50'
-                                            : 'bg-gradient-to-r from-cyan-400 to-blue-500 text-black cursor-pointer hover:scale-105 shadow-cyan-500/20'
-                                    }`}
+                    <div>
+                        <span className="gen-label"><BookOpen size={12} style={{ verticalAlign: '-2px' }} /> Lessons</span>
+                        <div className="gen-2col">
+                            <div>
+                                <label className="gen-label" style={{ marginTop: 4 }}>Content depth</label>
+                                <select
+                                    value={contentParams.contentDepth}
+                                    onChange={(e) => setContentParams({ ...contentParams, contentDepth: e.target.value })}
+                                    className="gen-select"
                                 >
-                                    <Zap size={14} fill="currentColor" /> {isSavingStructure ? 'Saving...' : 'Generate Content'}
-                                </button>
+                                    <option value="concise">Concise — straight to the point</option>
+                                    <option value="standard">Standard</option>
+                                    <option value="detailed">Detailed — lots of examples</option>
+                                </select>
                             </div>
-                        </form>
+                            <div>
+                                <label className="gen-label" style={{ marginTop: 4 }}>Writing style</label>
+                                <select
+                                    value={contentParams.writingStyle}
+                                    onChange={(e) => setContentParams({ ...contentParams, writingStyle: e.target.value })}
+                                    className="gen-select"
+                                >
+                                    <option value="simple">Simple</option>
+                                    <option value="conversational">Conversational</option>
+                                    <option value="formal">Formal</option>
+                                    <option value="technical">Technical</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <span className="gen-label">Quiz questions</span>
+                        <div className="gen-seg">
+                            {distributionOptions.map(opt => (
+                                <button
+                                    key={opt.value}
+                                    type="button"
+                                    title={opt.detail}
+                                    className={getDisplayPreset() === opt.value ? 'on' : ''}
+                                    onClick={() => setContentParams({ ...contentParams, questionTypeDistribution: opt.value })}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="gen-note" style={{ marginTop: 6 }}>
+                            Mix of multiple choice · true/false · identification · enumeration · coding —
+                            currently <strong>{codingPercentage}% coding</strong>.
+                            {!hasProgrammingContent && ' This course is not marked as programming, so coding questions are off.'}
+                        </p>
+                        {contentParams.questionTypeDistribution === 'custom' && (
+                            <div style={{ marginTop: 10, padding: '12px 14px', borderRadius: 12, background: 'var(--db-card-2)', border: '1px solid var(--db-border)', display: 'grid', gap: 8 }}>
+                                {stepper('mc', 'Multiple choice %')}
+                                {stepper('tf', 'True / False %')}
+                                {stepper('id', 'Identification %')}
+                                {stepper('enum', 'Enumeration %')}
+                                {stepper('code', 'Coding %' + (hasProgrammingContent ? '' : ' (locked — course is non-programming)'))}
+                                <p className="gen-note">Total: {Object.values(customDistribution).reduce((a, b) => a + Number(b || 0), 0)}%</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <div>
+                        <span className="gen-label">Quiz rules</span>
+                        <div className="gen-2col">
+                            <div>
+                                <label className="gen-label" style={{ marginTop: 4 }}>Timer mode</label>
+                                <div className="gen-seg">
+                                    <button
+                                        type="button"
+                                        className={contentParams.quizTimerMode === 'entire_quiz' ? 'on' : ''}
+                                        onClick={() => setContentParams({ ...contentParams, quizTimerMode: 'entire_quiz' })}
+                                    >
+                                        Whole quiz
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={contentParams.quizTimerMode === 'per_question' ? 'on' : ''}
+                                        onClick={() => setContentParams({ ...contentParams, quizTimerMode: 'per_question' })}
+                                    >
+                                        Per question
+                                    </button>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 10 }}>
+                                <div style={{ flex: 1 }}>
+                                    <label className="gen-label" style={{ marginTop: 4 }}>
+                                        Time limit ({contentParams.quizTimerMode === 'per_question' ? 'min/question' : 'minutes'})
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="180"
+                                        value={contentParams.quizTimeLimit}
+                                        onChange={(e) => setContentParams({ ...contentParams, quizTimeLimit: Number(e.target.value) })}
+                                        className="gen-input"
+                                    />
+                                </div>
+                                <div style={{ width: 110 }}>
+                                    <label className="gen-label" style={{ marginTop: 4 }}>Passing score</label>
+                                    <select
+                                        value={contentParams.passingPercentage}
+                                        onChange={(e) => setContentParams({ ...contentParams, passingPercentage: Number(e.target.value) })}
+                                        className="gen-select"
+                                    >
+                                        <option value="60">60%</option>
+                                        <option value="70">70%</option>
+                                        <option value="80">80%</option>
+                                        <option value="90">90%</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button
+                            type="button"
+                            className={`gen-check ${contentParams.includeVideos ? 'on' : ''}`}
+                            onClick={() => setContentParams({ ...contentParams, includeVideos: !contentParams.includeVideos })}
+                        >
+                            <Video size={14} /> Suggest YouTube videos in lessons
+                        </button>
+                        <button
+                            type="button"
+                            className={`gen-check ${contentParams.allowAIAssistance ? 'on' : ''}`}
+                            onClick={() => setContentParams({ ...contentParams, allowAIAssistance: !contentParams.allowAIAssistance })}
+                        >
+                            <Bot size={14} /> Allow AI Tutor help during quizzes
+                        </button>
+                    </div>
+
+                    <div className="gen-foot">
+                        <button type="button" onClick={onClose} className="gen-btn gen-btn-ghost">Cancel</button>
+                        <button
+                            type="button"
+                            onClick={handleGenerate}
+                            disabled={isSavingStructure}
+                            className="gen-btn gen-btn-primary"
+                        >
+                            <Sparkles size={14} /> {isSavingStructure ? 'Saving structure…' : 'Generate content'}
+                        </button>
                     </div>
                 </motion.div>
             </div>

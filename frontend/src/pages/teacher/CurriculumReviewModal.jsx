@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, Trash2, Edit3, BookOpen, HelpCircle, AlertCircle, RotateCcw } from 'lucide-react';
+import { X, Trash2, BookOpen, HelpCircle, AlertCircle, RotateCcw } from 'lucide-react';
 
 export default function CurriculumReviewModal({ isOpen, data, expectedParams, onCancel, onConfirm, onRegenerate }) {
     const [pendingData, setPendingData] = useState(null);
@@ -44,14 +44,6 @@ export default function CurriculumReviewModal({ isOpen, data, expectedParams, on
                     mismatches.push(`Module ${idx + 1} missing quiz (expected per module)`);
                 }
             });
-        }
-
-        // Check if coding exercises requested
-        if (expected.includeCodingExercises) {
-            const totalItems = curriculumData.new_modules.reduce((sum, mod) => sum + (mod.items || []).length, 0);
-            if (totalItems === 0) {
-                mismatches.push(`No coding content generated (expected coding exercises)`);
-            }
         }
 
         if (mismatches.length > 0) {
@@ -110,108 +102,121 @@ export default function CurriculumReviewModal({ isOpen, data, expectedParams, on
     // Safety Guard: Don't render if closed or data is missing
     if (!isOpen || !pendingData || !pendingData.new_modules) return null;
 
-    const removeItem = (mIdx, iIdx) => {
-        const newData = JSON.parse(JSON.stringify(pendingData));
-        newData.new_modules[mIdx].items.splice(iIdx, 1);
-        setPendingData(newData);
-    };
-
     const updateModuleTitle = (mIdx, val) => {
-        const newData = JSON.parse(JSON.stringify(pendingData)); // Use deep clone here too
+        const newData = JSON.parse(JSON.stringify(pendingData));
         newData.new_modules[mIdx].title = val;
         setPendingData(newData);
     };
 
-    const updateItemTitle = (mIdx, type, iIdx, val) => {
-        const newData = JSON.parse(JSON.stringify(pendingData)); // Use deep clone here too
-        newData.new_modules[mIdx][type][iIdx].title = val;
-        setPendingData(newData);
-    };
-
-    
-
-
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative z-10 w-full max-w-4xl bg-[#030014] border border-white/10 rounded-[40px] shadow-2xl flex flex-col max-h-[90vh]">
-
-                <div style={{ padding: '50px 40px', marginBottom: '0' }} className="border-b border-white/5">
-                    <div style={{ marginBottom: '24px', gap: '12px' }} className="flex justify-between items-center">
-                        <div>
-                            <h2 style={{ marginBottom: '4px' }} className="text-2xl font-black text-white uppercase tracking-tight">Review AI Blueprint</h2>
-                            <p style={{ marginBottom: '0' }} className="text-slate-500 text-xs font-bold uppercase tracking-widest">Fine-tune the generated structure before saving</p>
-                        </div>
-                        <button onClick={onCancel} style={{ padding: '8px 10px' }} className="hover:bg-white/5 rounded-full border-none bg-transparent cursor-pointer text-slate-500"><X /></button>
+        <div className="gen-overlay" style={{ zIndex: 170 }}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={onCancel} className="gen-backdrop" />
+            <motion.div
+                initial={{ scale: 0.96, opacity: 0, y: 10 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.96, opacity: 0, y: 10 }}
+                transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+                className="gen-card wide"
+            >
+                <div className="gen-head">
+                    <div>
+                        <span className="ed-card-label">Stage 1 · review</span>
+                        <h2 className="gen-title">Check the blueprint before saving</h2>
+                        <p className="gen-note" style={{ marginTop: 4 }}>
+                            Edit any title or remove items — nothing is saved to your class yet.
+                        </p>
                     </div>
-
-                    {parameterMismatch && (
-                        <div style={{ padding: '16px 20px', gap: '12px', marginBottom: '16px' }} className="flex items-start bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
-                            <AlertCircle size={20} className="text-yellow-500 flex-shrink-0 mt-0.5" />
-                            <div className="flex-1">
-                                <p style={{ marginBottom: '8px' }} className="text-yellow-500 text-sm font-bold">{parameterMismatch.message}</p>
-                                <ul style={{ gap: '4px', marginBottom: '12px' }} className="text-yellow-400 text-xs space-y-1">
-                                    {parameterMismatch.details.map((detail, idx) => (
-                                        <li key={idx}>• {detail}</li>
-                                    ))}
-                                </ul>
-                                {parameterMismatch.regenerateOption && (
-                                    <>
-                                        <p style={{ marginBottom: '12px' }} className="text-yellow-400/70 text-xs">The generated content doesn't match your parameters. You can regenerate to get better results.</p>
-                                        {onRegenerate && (
-                                            <button
-                                                onClick={onRegenerate}
-                                                style={{ padding: '10px 16px', gap: '8px' }}
-                                                className="flex items-center bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 rounded-lg text-xs font-bold transition-all border-none cursor-pointer"
-                                            >
-                                                <RotateCcw size={14} />
-                                                Regenerate Structure
-                                            </button>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {validationWarning && (
-                        <div style={{ padding: '16px 20px', gap: '12px' }} className="flex items-start bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
-                            <AlertCircle size={20} className="text-yellow-500 flex-shrink-0 mt-0.5" />
-                            <div>
-                                <p style={{ marginBottom: '4px' }} className="text-yellow-500 text-sm font-bold">Exceeds Recommended Limits</p>
-                                <p className="text-yellow-400 text-xs">{validationWarning}</p>
-                                <p style={{ marginTop: '8px' }} className="text-yellow-400/70 text-xs">Remove some modules/lessons below to avoid rate limiting during content generation.</p>
-                            </div>
-                        </div>
-                    )}
+                    <button type="button" onClick={onCancel} className="gen-close" title="Close"><X size={18} /></button>
                 </div>
 
-                <div style={{ padding: '40px', gap: '24px' }} className="flex-grow overflow-y-auto space-y-6 custom-scrollbar">
+                {parameterMismatch && (
+                    <div className="cur-strip err" style={{ alignItems: 'flex-start' }}>
+                        <AlertCircle size={16} />
+                        <div>
+                            <p style={{ fontWeight: 700, marginBottom: 4 }}>{parameterMismatch.message}</p>
+                            <ul style={{ margin: '0 0 8px', paddingLeft: 16 }}>
+                                {parameterMismatch.details.map((detail, idx) => (
+                                    <li key={idx}>{detail}</li>
+                                ))}
+                            </ul>
+                            {parameterMismatch.regenerateOption && onRegenerate && (
+                                <button
+                                    type="button"
+                                    onClick={onRegenerate}
+                                    className="gen-btn gen-btn-ghost"
+                                    style={{ padding: '7px 12px', color: 'var(--db-amber)' }}
+                                >
+                                    <RotateCcw size={13} />
+                                    Regenerate structure
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {validationWarning && (
+                    <div className="cur-strip err" style={{ alignItems: 'flex-start' }}>
+                        <AlertCircle size={16} />
+                        <div>
+                            <p style={{ fontWeight: 700 }}>Exceeds recommended limits</p>
+                            <p>{validationWarning} — remove some modules/lessons below to avoid rate limits during content generation.</p>
+                        </div>
+                    </div>
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', paddingRight: 2 }}>
                     {pendingData.new_modules.map((module, mIdx) => (
-                        <div key={mIdx} style={{ padding: '24px 28px' }} className="bg-white/[0.02] border border-white/5 rounded-3xl">
-                            <div style={{ marginBottom: '24px', gap: '12px' }} className="flex items-center">
-                                <span style={{ padding: '6px 12px' }} className="text-[10px] font-black text-purple-500 bg-purple-500/10 rounded">Module {mIdx + 1}</span>
+                        <div
+                            key={mIdx}
+                            style={{ padding: '16px 18px', borderRadius: 14, background: 'var(--db-card-2)', border: '1px solid var(--db-border)' }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                                <span
+                                    style={{
+                                        fontFamily: 'JetBrains Mono, monospace',
+                                        fontSize: 10.5,
+                                        fontWeight: 700,
+                                        letterSpacing: '0.08em',
+                                        color: 'var(--db-accent-bright)',
+                                        background: 'var(--db-accent-soft)',
+                                        border: '1px solid var(--db-accent-border)',
+                                        padding: '4px 10px',
+                                        borderRadius: 999,
+                                        flex: 'none',
+                                    }}
+                                >
+                                    {String(mIdx + 1).padStart(2, '0')}
+                                </span>
                                 <input
-                                    style={{ marginBottom: '0' }}
-                                    className="bg-transparent border-none outline-none text-xl font-bold text-white w-full focus:text-purple-400 transition-colors"
+                                    aria-label={`Module ${mIdx + 1} title`}
+                                    className="gen-input"
+                                    style={{ fontWeight: 700, fontFamily: 'var(--db-font-display)' }}
                                     value={module.title}
                                     onChange={(e) => updateModuleTitle(mIdx, e.target.value)}
                                 />
                             </div>
 
-                            {/* Replace the current items.map block with this */}
-                            <div style={{ gap: '12px' }} className="space-y-2">
-                                {/* Map through the unified items list */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                 {(module.items || []).map((item, iIdx) => (
-                                    <div key={iIdx} style={{ padding: '16px 20px', gap: '12px', marginBottom: '8px' }} className="flex items-center bg-white/5 rounded-xl border border-white/5 group">
-                                        {/* Visual Icon based on type */}
-                                        {item.type === 'lesson' ? 
-                                            <BookOpen size={16} className="text-purple-500" /> : 
-                                            <HelpCircle size={16} className="text-cyan-500" />
-                                        }
-                                        
+                                    <div
+                                        key={iIdx}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 10,
+                                            padding: '9px 12px',
+                                            borderRadius: 10,
+                                            background: 'var(--db-card)',
+                                            border: '1px solid var(--db-border)',
+                                        }}
+                                    >
+                                        {item.type === 'lesson'
+                                            ? <BookOpen size={15} style={{ color: 'var(--db-accent-bright)', flex: 'none' }} />
+                                            : <HelpCircle size={15} style={{ color: 'var(--db-amber)', flex: 'none' }} />}
                                         <input
-                                            className="flex-grow bg-transparent border-none outline-none text-sm text-white"
+                                            aria-label={`${item.type} title`}
+                                            className="gen-input"
+                                            style={{ border: 'none', background: 'transparent', padding: '4px 2px', boxShadow: 'none' }}
                                             value={item.title}
                                             onChange={(e) => {
                                                 const newData = JSON.parse(JSON.stringify(pendingData));
@@ -219,30 +224,36 @@ export default function CurriculumReviewModal({ isOpen, data, expectedParams, on
                                                 setPendingData(newData);
                                             }}
                                         />
-
-                                        {/* Remove individual item */}
-                                        <button onClick={() => {
-                                            const newData = JSON.parse(JSON.stringify(pendingData));
-                                            newData.new_modules[mIdx].items.splice(iIdx, 1);
-                                            setPendingData(newData);
-                                        }} style={{ padding: '8px 10px' }} className="text-slate-600 hover:text-red-500 transition-colors border-none bg-transparent cursor-pointer opacity-0 group-hover:opacity-100">
-                                            <Trash2 size={16}/>
+                                        <button
+                                            type="button"
+                                            title="Remove this item"
+                                            aria-label={`Remove ${item.type} ${item.title}`}
+                                            onClick={() => {
+                                                const newData = JSON.parse(JSON.stringify(pendingData));
+                                                newData.new_modules[mIdx].items.splice(iIdx, 1);
+                                                setPendingData(newData);
+                                            }}
+                                            className="gen-close"
+                                            style={{ color: 'var(--db-text-3)' }}
+                                        >
+                                            <Trash2 size={15} />
                                         </button>
                                     </div>
                                 ))}
 
-                                {/* Empty State check */}
                                 {(!module.items || module.items.length === 0) && (
-                                    <p style={{ padding: '12px 16px', marginBottom: '0' }} className="text-[10px] text-center text-slate-600 font-bold uppercase">No items in this module</p>
+                                    <p className="gen-note" style={{ textAlign: 'center', padding: '8px 0' }}>No items in this module</p>
                                 )}
                             </div>
-                                                    </div>
+                        </div>
                     ))}
                 </div>
 
-                <div style={{ padding: '40px', gap: '16px' }} className="border-t border-white/5 flex">
-                    <button onClick={onCancel} style={{ padding: '14px 22px' }} className="flex-1 rounded-2xl bg-white/5 text-slate-400 font-bold uppercase text-xs border-none cursor-pointer hover:bg-white/10 transition-all">Discard Changes</button>
-                    <button onClick={() => onConfirm(pendingData)} style={{ padding: '14px 22px' }} className="flex-[2] rounded-2xl bg-purple-600 text-white font-black uppercase text-xs border-none cursor-pointer shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-95 transition-all">Commit to Course Timeline</button>
+                <div className="gen-foot" style={{ borderTop: '1px solid var(--db-border)', paddingTop: 16 }}>
+                    <button type="button" onClick={onCancel} className="gen-btn gen-btn-ghost">Discard</button>
+                    <button type="button" onClick={() => onConfirm(pendingData)} className="gen-btn gen-btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
+                        Save to course timeline
+                    </button>
                 </div>
             </motion.div>
         </div>

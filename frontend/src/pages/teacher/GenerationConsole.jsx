@@ -269,8 +269,8 @@ export default function GenerationConsole({
           >
             {/* Header */}
             <div style={{ padding: '32px 40px', gap: '24px' }} className="border-b border-slate-800 flex items-center justify-between flex-shrink-0">
-              <div style={{ gap: '16px' }} className="flex items-center">
-                <div style={{ padding: '10px 12px' }} className="bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg flex items-center justify-center">
+                <div style={{ gap: '16px' }} className="flex items-center">
+                <div style={{ padding: '10px 12px', background: 'var(--db-accent)' }} className="rounded-lg flex items-center justify-center">
                   <span className="text-white font-bold text-sm">AI</span>
                 </div>
                 <div>
@@ -278,18 +278,19 @@ export default function GenerationConsole({
                     AI Content Generator
                   </h1>
                   <p className="text-sm text-slate-500 font-mono">
-                    gemini-3.5-flash-lite
+                    InstructAI generation engine
                   </p>
                 </div>
               </div>
               <button
                 onClick={handleFinish}
                 style={{ padding: '12px 24px', gap: '8px' }}
-                className={`rounded-lg font-semibold flex items-center transition-all ${
+                className={`rounded-lg font-semibold flex items-center transition-all border ${
                   isGenerating
-                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:shadow-lg hover:shadow-cyan-500/25'
+                    ? 'bg-transparent text-slate-400 border-slate-700 cursor-pointer hover:border-slate-500'
+                    : 'text-white hover:brightness-110 border-transparent'
                 }`}
+                {...(!isGenerating ? { style: { padding: '12px 24px', gap: '8px', background: 'var(--db-accent)' } } : {})}
               >
                 <CheckCircle className="w-5 h-5" />
                 {isGenerating ? 'Generating...' : 'Finish'}
@@ -440,7 +441,7 @@ export default function GenerationConsole({
                     Exit Generation?
                   </h3>
                   <p className="text-slate-400 text-base mb-8 leading-relaxed">
-                    Generation is still in progress. Exiting now will cancel the process and waste your AI tokens. Are you sure?
+                    Stopping now keeps everything already generated and saved — remaining lessons and quizzes just won't be created. You can always generate again later. Are you sure?
                   </p>
                   <div className="flex gap-4 justify-end">
                     <button

@@ -428,27 +428,27 @@ CRITICAL REQUIREMENTS:
 
 10. **Coding questions**:
     - Include "language": EXACTLY one of "java", "python", "javascript", "cpp", "html" — matching the language used in the lessons
-    - Include "boilerplate": Starter code template for student
+    - The program MUST READ ITS INPUT from stdin — python: input(), java: Scanner, cpp: cin, javascript: readline.
+      A program that ignores stdin is INVALID: every test case would be identical and would test nothing.
+    - Include "boilerplate": Starter code template for student (already reads the input, with TODOs for the logic)
     - Include "reference_solution": COMPLETE working solution (no TODOs, not hardcoded). It runs on the real compiler to verify the tests.
     - Include "expected_output": ACTUAL console output of the reference solution with no input (not description)
       GOOD: "42\\n", "Hello World\\n", "10\\n20\\n30"
       BAD: "prints the answer", "displays the result"
-    - Include "test_cases": 2-4 objects, each {{"input": "<exact stdin>", "expected_output": "<exact full stdout>", "hidden": true/false}}
-      * "input" uses ACTUAL line breaks between values; "" when the program reads no input
-      * "expected_output" is the EXACT literal stdout for that stdin
+    - Include "test_cases": 2-3 objects, each {{"input": "<exact stdin>", "expected_output": "<exact full stdout>", "hidden": true/false}}
+      * "input" uses ACTUAL line breaks between values; every case MUST have a DIFFERENT non-empty input
+      * "expected_output" is the EXACT literal stdout for that stdin — DIFFERENT inputs produce DIFFERENT outputs
       * First test hidden=false (students see it); at least one later test hidden=true
-      * test cases MUST have DIFFERENT inputs producing DIFFERENT outputs — design the
-        challenge so the program READS INPUT (e.g., Scanner for java, input() for python),
-        otherwise the hidden tests add nothing
       * For "html" questions: OMIT test_cases and reference_solution
-    - GOOD coding question:
-      {{"question_text": "Read two numbers and print their sum", "type": "coding", "language": "java", "points": 3, "options": [],
-        "boilerplate": "import java.util.Scanner;\n\npublic class Main {{\n    public static void main(String[] args) {{\n        Scanner sc = new Scanner(System.in);\n        // TODO: read two numbers and print their sum\n    }}\n}}",
-        "reference_solution": "import java.util.Scanner;\n\npublic class Main {{\n    public static void main(String[] args) {{\n        Scanner sc = new Scanner(System.in);\n        int a = sc.nextInt();\n        int b = sc.nextInt();\n        System.out.println(a + b);\n    }}\n}}",
-        "expected_output": "12",
+    - GOOD coding question (python):
+      {{"question_text": "Read the item price and the quantity, then print the total cost", "type": "coding", "language": "python", "points": 3, "options": [],
+        "boilerplate": "price = int(input())\\nquantity = int(input())\\n# TODO: print the total cost (price * quantity)\\n",
+        "reference_solution": "price = int(input())\\nquantity = int(input())\\nprint(price * quantity)",
+        "expected_output": "150",
         "test_cases": [
-          {{"input": "5\n7", "expected_output": "12", "hidden": false}},
-          {{"input": "10\n-3", "expected_output": "7", "hidden": true}}
+          {{"input": "50\\n3", "expected_output": "150", "hidden": false}},
+          {{"input": "120\\n2", "expected_output": "240", "hidden": true}},
+          {{"input": "75\\n1", "expected_output": "75", "hidden": true}}
         ]}}
 
 Output ONLY valid JSON with GROUPED structure (questions separated by type):

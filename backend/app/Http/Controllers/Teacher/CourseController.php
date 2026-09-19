@@ -449,12 +449,15 @@ class CourseController extends Controller
             }
 
             // Stream from AI service
+            set_time_limit(600); // structure generation streams for minutes
             $client = new \GuzzleHttp\Client();
             try {
                 $response = $client->post($aiUrl, [
                     'multipart' => $multipart,
                     'stream' => true,
                     'timeout' => 120,
+                    'read_timeout' => 300, // gaps between chunks (LLM thinking) can be long
+                    'connect_timeout' => 30,
                 ]);
 
                 $body = $response->getBody();
@@ -483,6 +486,11 @@ class CourseController extends Controller
 
     public function aiCommit(Request $request, $id)
     {
+        $request->validate([
+            'new_modules' => 'required|array|max:8',
+            'new_modules.*.title' => 'required|string|max:255',
+        ]);
+
         return DB::transaction(function () use ($request, $id) {
             // Only the owning teacher can commit AI-generated structure
             $course = Course::where('id', $id)
@@ -611,11 +619,9 @@ class CourseController extends Controller
                 ['name' => 'curriculum_structure', 'contents' => $request->curriculum_structure],
                 ['name' => 'difficulty', 'contents' => $params['difficulty'] ?? 'beginner'],
                 ['name' => 'content_depth', 'contents' => $params['contentDepth'] ?? 'standard'],
-                ['name' => 'code_examples_per_lesson', 'contents' => $params['codeExamplesPerLesson'] ?? '3-4'],
                 ['name' => 'writing_style', 'contents' => $params['writingStyle'] ?? 'conversational'],
                 ['name' => 'question_type_distribution', 'contents' => $params['questionTypeDistribution'] ?? 'balanced'],
-                ['name' => 'include_images', 'contents' => $params['includeImages'] ? 'true' : 'false'],
-                ['name' => 'include_videos', 'contents' => $params['includeVideos'] ? 'true' : 'false'],
+                ['name' => 'include_videos', 'contents' => ($params['includeVideos'] ?? false) ? 'true' : 'false'],
                 ['name' => 'is_coding', 'contents' => $params['is_coding'] || $course->is_coding ? 'true' : 'false'],
             ];
 
@@ -659,6 +665,17 @@ class CourseController extends Controller
                         $buffer = substr($buffer, $messageEnd + 2);
 
                         $line = trim($message);
+                        if ($line !== '' && $line[0] === ':') {
+                            // SSE comment (Python heartbeat) — pass through so
+                            // proxies keep the browser stream alive during
+                            // long LLM calls instead of timing out silently
+                            echo $message;
+                            if (ob_get_level() > 0) {
+                                ob_flush();
+                            }
+                            flush();
+                            continue;
+                        }
                         if (strpos($line, 'data: ') === 0) {
                             $data = json_decode(substr($line, 6), true);
 
@@ -666,7 +683,12 @@ class CourseController extends Controller
                                 // Save lesson content to database
                                 if ($data['type'] === 'lesson_complete') {
                                     $lessonData = $data['data'];
-                                    $lesson = Lesson::find($lessonData['lesson_id']);
+                                    // Scoped: the AI echoes back client-supplied IDs, so
+                                    // the lesson MUST belong to this teacher's course
+                                    // before its content is overwritten
+                                    $lesson = Lesson::where('id', $lessonData['lesson_id'] ?? 0)
+                                        ->whereHas('module.course', fn($q) => $q->where('teacher_id', $course->teacher_id))
+                                        ->first();
 
                                     if ($lesson) {
                                         // Generate UUIDs for blocks
@@ -682,9 +704,22 @@ class CourseController extends Controller
                                 // Save quiz questions to database
                                 if ($data['type'] === 'quiz_complete') {
                                     $quizData = $data['data'];
-                                    $quiz = Quiz::find($quizData['quiz_id']);
+                                    $quiz = Quiz::where('id', $quizData['quiz_id'] ?? 0)
+                                        ->whereHas('module.course', fn($q) => $q->where('teacher_id', $course->teacher_id))
+                                        ->first();
 
                                     if ($quiz) {
+                                        // Regeneration REPLACES: clear this quiz's previous
+                                        // questions (and their test cases) so a re-run doesn't
+                                        // stack a second copy of every question
+                                        $existingQuestionIds = $quiz->questions()->pluck('id');
+                                        if ($existingQuestionIds->isNotEmpty()) {
+                                            QuestionTestCase::whereIn('testable_id', $existingQuestionIds)
+                                                ->where('testable_type', Question::class)
+                                                ->delete();
+                                            Question::whereIn('id', $existingQuestionIds)->delete();
+                                        }
+
                                         // Handle grouped structure (preferred) or flat array (fallback)
                                         $questions = [];
                                         if (isset($quizData['multiple_choice'])) {
@@ -756,9 +791,21 @@ class CourseController extends Controller
 
                                             // For multiple_choice, if expected_output is answer text instead of index, find the index
                                             if (isset($questionData['type']) && $questionData['type'] === 'multiple_choice' && isset($questionData['options']) && !is_numeric($expectedOutput)) {
-                                                $index = array_search($expectedOutput, $questionData['options'], true);
+                                                // Case/whitespace-insensitive text match first…
+                                                $index = false;
+                                                foreach ($questionData['options'] as $i => $option) {
+                                                    if (mb_strtolower(trim((string) $option)) === mb_strtolower(trim((string) $expectedOutput))) {
+                                                        $index = $i;
+                                                        break;
+                                                    }
+                                                }
                                                 if ($index !== false) {
                                                     $expectedOutput = (string)$index;
+                                                } else {
+                                                    // …and if the text matches nothing, store an empty
+                                                    // answer rather than an ungradeable string — the
+                                                    // quiz builder flags it as "no correct answer yet"
+                                                    $expectedOutput = '';
                                                 }
                                             }
 

@@ -227,6 +227,9 @@ HTML CHALLENGES (language = "html"):
 
 NON-HTML CHALLENGES - STARTER CODE REQUIREMENTS:
 - Include the entire structure (imports, class definition, method signatures)
+- The program MUST READ ITS INPUT from stdin — python: input(), java: Scanner, cpp: cin.
+  The starter code already contains the input-reading lines; the student fills in the logic.
+  A challenge whose program ignores stdin is INVALID (every test case would be identical).
 - Use vague layout comments ONLY - show WHERE code goes, not WHAT code looks like
   BAD: "// TODO: Add a for loop: for(int i=1; i<=5; i++)"
   GOOD: "// TODO: Add a loop here to repeat 5 times"
@@ -237,7 +240,7 @@ NON-HTML CHALLENGES - STARTER CODE REQUIREMENTS:
 
 NON-HTML CHALLENGES - REFERENCE SOLUTION (REQUIRED):
 - "reference_solution" = the COMPLETE working solution (no TODOs) that passes every test case
-- It must be a real solution that reads input and computes results - NEVER print expected outputs directly
+- It must be a real solution that reads the SAME stdin input the starter code reads and computes results - NEVER print expected outputs directly
 - It will be executed on the real compiler to verify the test cases, so it must compile and run as-is
 
 NON-HTML CHALLENGES - EXPECTED_OUTPUT REQUIREMENTS:
@@ -256,8 +259,8 @@ Your number doubled is 20
 
 NON-HTML CHALLENGES - TEST_CASES (REQUIRED, 2-4 tests):
 - Each test case runs the program with "input" fed to stdin and compares full stdout to "expected_output"
-- "input" = the exact stdin text with ACTUAL line breaks between values ("" when the program reads nothing)
-- "expected_output" = the EXACT literal full stdout for that input
+- "input" = the exact stdin text with ACTUAL line breaks between values — every test needs a DIFFERENT non-empty input
+- "expected_output" = the EXACT literal full stdout for that input — different inputs produce different outputs
 - "hidden": the FIRST test must be visible (false) so students see an example; make at least one other test hidden (true)
 - Tests must be solvable by a correct general solution - no test should require special-casing the exact input
 - The platform EXECUTES reference_solution against these tests before publishing; tests that fail are discarded
