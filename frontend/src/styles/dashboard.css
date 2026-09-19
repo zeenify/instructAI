@@ -1580,7 +1580,7 @@
     background: var(--db-danger);
     border: 1px solid rgba(248, 113, 113, 0.5);
     box-shadow: 0 3px 14px rgba(248, 113, 113, 0.35);
-    animation: db-pop-in 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+    animation: db-pop-in 0.18s cubic-bezier(0.25, 1, 0.5, 1) both;
 }
 
 .cd-tbtn-danger-solid:hover {
@@ -1670,7 +1670,7 @@
     border: 1.5px solid var(--db-accent-border);
     color: var(--db-accent-bright);
     cursor: grab;
-    animation: db-pop-in 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+    animation: db-pop-in 0.2s cubic-bezier(0.25, 1, 0.5, 1) both;
 }
 
 .cd-mod-head {
@@ -1693,7 +1693,7 @@
     height: 20px;
     accent-color: var(--db-danger);
     cursor: pointer;
-    animation: db-pop-in 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+    animation: db-pop-in 0.18s cubic-bezier(0.25, 1, 0.5, 1) both;
 }
 
 .cd-mod-title {
@@ -2443,7 +2443,7 @@
     background: var(--db-card);
     border: 1.5px solid var(--db-accent);
     box-shadow: 0 0 0 3px var(--db-accent-soft);
-    animation: db-pop-in 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+    animation: db-pop-in 0.18s cubic-bezier(0.25, 1, 0.5, 1) both;
 }
 
 .cd-md-add-tag {
@@ -2922,7 +2922,7 @@
         0 30px 80px rgba(2, 4, 12, 0.6),
         0 0 0 1px rgba(109, 90, 224, 0.08);
     padding: 30px 32px 28px;
-    animation: db-modal-in 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+    animation: db-modal-in 0.24s cubic-bezier(0.25, 1, 0.5, 1) both;
 }
 
 .db-modal-close {
@@ -3114,7 +3114,7 @@
     box-shadow:
         0 0 0 8px var(--db-accent-soft),
         0 10px 30px rgba(109, 90, 224, 0.45);
-    animation: db-pop-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+    animation: db-pop-in 0.35s cubic-bezier(0.25, 1, 0.5, 1) both;
 }
 
 /* Custom success animation: badge pops, rings burst outward, check draws on */
@@ -3932,7 +3932,7 @@
     background: var(--db-card);
     border: 1px solid var(--db-border-strong);
     box-shadow: var(--db-shadow);
-    animation: db-pop-in 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+    animation: db-pop-in 0.16s cubic-bezier(0.25, 1, 0.5, 1) both;
 }
 
 .ed-insert-pop .ed-insert-chip {

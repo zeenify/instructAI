@@ -31,6 +31,13 @@ We are redesigning the web app **page by page**, one page at a time:
 5. **Teacher-eye critique before sign-off.** Run the `teacher-eye` skill
    (fresh-agent unbiased teacher critique with screenshots) once a page's UI is
    implemented; relay the verdict and let the user pick which fixes to apply.
+6. **Slop lint before sign-off.** Run `npx impeccable detect src/` (free CLI,
+   61 deterministic AI-tell rules, no LLM) and fix objective findings **only in
+   the page(s) just redesigned** — untouched pages keep their old looks until
+   their own pass (they light up on every run; that's expected). Known
+   intentional choices to ignore: Inter/Fraunces (Paper & Ink identity) and the
+   lesson-prose blockquote's left border (editorial typography, not a slop
+   card). Full-site lint happens after the last page is redesigned.
 
 Pages done: landing (Paper & Ink), login, teacher register, student register,
 EUNA chatbot section, teacher home/overview, class page + embedded content
