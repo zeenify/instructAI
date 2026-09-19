@@ -1,24 +1,20 @@
 import { motion } from 'framer-motion';
 import { useEffect, useRef } from 'react';
 
-const iconMap = {
-  status: '$',
-  complete: '✓',
-  error: '✗',
-  info: '→',
-  progress: '⟳',
-  start: '▶',
-  stage: '▬'
-};
+/**
+ * The generation console's activity feed — a clean, token-styled timeline of
+ * what the AI is doing right now (replaces the old terminal look).
+ */
 
-const colorMap = {
-  status: 'text-slate-400',
-  complete: 'text-green-400',
-  error: 'text-red-400',
-  info: 'text-cyan-400',
-  progress: 'text-purple-400',
-  start: 'text-cyan-400',
-  stage: 'text-amber-400'
+const dotColor = {
+  status: 'var(--db-text-3)',
+  complete: 'var(--db-green)',
+  error: 'var(--db-danger)',
+  info: 'var(--db-accent-bright)',
+  progress: 'var(--db-accent-bright)',
+  start: 'var(--db-accent-bright)',
+  warn: 'var(--db-amber)',
+  stage: 'var(--db-amber)'
 };
 
 // Detect stage transitions and add separators
@@ -27,32 +23,19 @@ const processLogs = (logs) => {
   let lastStage = null;
 
   logs.forEach((log, idx) => {
-    // Detect stage changes
     if (log.message?.includes('Stage 1') || log.message?.includes('Architecting')) {
       if (lastStage !== 'stage1') {
-        processed.push({
-          type: 'stage-separator',
-          stage: 'Stage 1: Planning',
-          id: `sep-${idx}`
-        });
+        processed.push({ type: 'stage-separator', stage: 'Planning', id: `sep-${idx}` });
         lastStage = 'stage1';
       }
     } else if (log.message?.includes('Stage 2') || log.message?.includes('Writing') || log.message?.includes('Generating')) {
       if (lastStage !== 'stage2') {
-        processed.push({
-          type: 'stage-separator',
-          stage: 'Stage 2: Content Generation',
-          id: `sep-${idx}`
-        });
+        processed.push({ type: 'stage-separator', stage: 'Writing content', id: `sep-${idx}` });
         lastStage = 'stage2';
       }
     } else if (log.message?.includes('Stage 3') || log.message?.includes('media') || log.message?.includes('Formatting')) {
       if (lastStage !== 'stage3') {
-        processed.push({
-          type: 'stage-separator',
-          stage: 'Stage 3: Finalizing',
-          id: `sep-${idx}`
-        });
+        processed.push({ type: 'stage-separator', stage: 'Finalizing', id: `sep-${idx}` });
         lastStage = 'stage3';
       }
     }
@@ -69,27 +52,33 @@ export default function TerminalLog({ logs }) {
 
   useEffect(() => {
     if (!endRef.current) return;
-    // Scroll sentinel into view - this is more reliable than scrollHeight
     endRef.current.scrollIntoView({ behavior: 'auto' });
   }, [processedLogs]);
 
   return (
-    <div className="space-y-2 text-sm font-mono leading-relaxed overflow-y-auto scrollbar-thin scrollbar-track-slate-900 scrollbar-thumb-slate-700 hover:scrollbar-thumb-slate-600">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {processedLogs.map((item) => {
         if (item.type === 'stage-separator') {
           return (
             <motion.div
               key={item.id}
-              initial={{ opacity: 0, scaleX: 0 }}
-              animate={{ opacity: 1, scaleX: 1 }}
-              transition={{ duration: 0.4, ease: 'easeOut' }}
-              className="py-3 my-2 border-t border-amber-500/30 origin-left"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '10px 0 4px' }}
             >
-              <div className="flex items-center gap-2 text-amber-400 font-semibold">
-                <span className="text-lg">▬</span>
-                <span className="text-base">{item.stage}</span>
-                <span className="text-lg">▬</span>
-              </div>
+              <span
+                style={{
+                  fontFamily: 'JetBrains Mono, monospace',
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                  color: 'var(--db-amber)',
+                }}
+              >
+                {item.stage}
+              </span>
+              <span style={{ flex: 1, height: 1, background: 'var(--db-border)' }} />
             </motion.div>
           );
         }
@@ -98,31 +87,49 @@ export default function TerminalLog({ logs }) {
         return (
           <motion.div
             key={log.id}
-            initial={{ opacity: 0, x: -15, y: 10 }}
-            animate={{ opacity: 1, x: 0, y: 0 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className={`flex items-start gap-3 ${colorMap[log.type] || 'text-slate-400'}`}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}
           >
-            <span className="text-slate-600 flex-shrink-0 w-16">
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: 999,
+                flex: 'none',
+                marginTop: 6,
+                background: dotColor[log.type] || 'var(--db-text-3)',
+              }}
+            />
+            <span
+              style={{
+                flex: 1,
+                fontSize: 13.5,
+                lineHeight: 1.5,
+                color: log.type === 'error' ? 'var(--db-danger)' : 'var(--db-text-2)',
+                overflowWrap: 'anywhere',
+              }}
+            >
+              {log.message}
+            </span>
+            <span
+              style={{
+                flex: 'none',
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize: 10.5,
+                color: 'var(--db-text-3)',
+                marginTop: 2,
+              }}
+            >
               {log.timestamp}
             </span>
-            <span className="flex-shrink-0 w-4">{iconMap[log.type] || '•'}</span>
-            <span className="flex-1 break-words text-slate-200">{log.message}</span>
           </motion.div>
         );
       })}
 
-      {/* Sentinel element for scrolling */}
-      <div ref={endRef} className="h-0" />
-
-      {/* Blinking cursor at end */}
-      {logs.length > 0 && (
-        <motion.span
-          animate={{ opacity: [1, 0] }}
-          transition={{ duration: 0.8, repeat: Infinity }}
-          className="inline-block w-1 h-5 bg-cyan-400 ml-20"
-        />
-      )}
+      {/* Sentinel for auto-scroll */}
+      <div ref={endRef} style={{ height: 0 }} />
     </div>
   );
 }

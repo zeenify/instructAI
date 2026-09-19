@@ -1,17 +1,24 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, BookOpen, FileQuestion, Pencil, Check } from 'lucide-react';
+import { BookOpen, FileQuestion, Pencil, Check, Zap, CircleAlert, Loader2 } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import api from '../../services/api';
 import TerminalLog from '../../components/generation/TerminalLog';
 import ProgressBar from '../../components/generation/ProgressBar';
-import ModuleProgressCard from '../../components/generation/ModuleProgressCard';
 import EditableLessonContent from '../../components/generation/EditableLessonContent';
 import EditableQuizContent from '../../components/generation/EditableQuizContent';
 
 /**
- * Click-to-edit title for the selected lesson/quiz. Persists through the same
- * endpoints the editors use (PUT /teacher/lessons/{id} or /teacher/quizzes/{id}).
+ * The generation studio — a fullscreen two-pane view the teacher watches while
+ * AI content streams in: live activity on the left, the actual lessons and
+ * quizzes materializing (and inline-editable) on the right.
+ *
+ * If the stream dies partway (rate limits, network), everything already
+ * finished stays saved and a Continue banner lets the teacher finish the rest
+ * without starting over.
  */
+
+/** Click-to-edit title for the selected lesson/quiz. Persists through the same
+ *  endpoints the editors use (PUT /teacher/lessons/{id} or /teacher/quizzes/{id}). */
 function EditableTitle({ item, onRename }) {
   const editable = !!item.generated && typeof item.id === 'number';
   const [editing, setEditing] = useState(false);
@@ -37,21 +44,22 @@ function EditableTitle({ item, onRename }) {
   };
 
   if (!editable) {
-    return <h2 style={{ marginBottom: '12px' }} className="text-3xl font-bold text-white">{item.title}</h2>;
+    return <h2 style={{ marginBottom: 10, color: 'var(--db-text)', fontFamily: 'var(--db-font-display)', fontSize: 26, fontWeight: 700 }}>{item.title}</h2>;
   }
 
   if (editing) {
     return (
-      <div style={{ marginBottom: '12px', gap: '8px' }} className="flex items-center">
+      <div style={{ marginBottom: 10, gap: 8 }} className="flex items-center">
         <input
           autoFocus
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onBlur={commit}
           onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setValue(item.title); setEditing(false); } e.stopPropagation(); }}
-          className="text-2xl font-bold text-white bg-slate-900 border border-cyan-500/50 rounded-lg px-3 py-1 outline-none flex-1"
+          className="gen-input"
+          style={{ fontFamily: 'var(--db-font-display)', fontWeight: 700, fontSize: 18 }}
         />
-        <button onClick={commit} style={{ padding: '6px 10px' }} className="rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 cursor-pointer">
+        <button onClick={commit} className="gen-btn gen-btn-primary" style={{ padding: '8px 12px' }}>
           {saving ? '…' : <Check size={14} />}
         </button>
       </div>
@@ -59,12 +67,12 @@ function EditableTitle({ item, onRename }) {
   }
 
   return (
-    <div style={{ marginBottom: '12px', gap: '8px' }} className="group/title flex items-center">
-      <h2 className="text-3xl font-bold text-white">{item.title}</h2>
+    <div style={{ marginBottom: 10, gap: 8 }} className="group/title flex items-center">
+      <h2 style={{ color: 'var(--db-text)', fontFamily: 'var(--db-font-display)', fontSize: 26, fontWeight: 700, margin: 0 }}>{item.title}</h2>
       <button
         onClick={() => setEditing(true)}
-        style={{ padding: '5px 9px', gap: '5px' }}
-        className="inline-flex items-center rounded-md text-[11px] font-semibold opacity-0 group-hover/title:opacity-100 bg-slate-900 border border-slate-700 text-slate-400 hover:text-cyan-300 transition-all cursor-pointer"
+        style={{ padding: '4px 9px', gap: 5, borderRadius: 8, fontSize: 11, fontWeight: 700, border: '1px solid var(--db-border-strong)', background: 'var(--db-card-2)', color: 'var(--db-text-2)' }}
+        className="inline-flex items-center opacity-0 group-hover/title:opacity-100 transition-all cursor-pointer"
       >
         <Pencil size={11} /> Rename
       </button>
@@ -78,7 +86,8 @@ export default function GenerationConsole({
   isGenerating,
   logs = [],
   onClose,
-  onContentChange
+  onContentChange,
+  onContinue
 }) {
   const [overallProgress, setOverallProgress] = useState(0);
   const [completedLessons, setCompletedLessons] = useState(0);
@@ -189,10 +198,15 @@ export default function GenerationConsole({
     (sum, m) => sum + (m.lessons?.length || 0) + (m.quizzes?.length || 0),
     0
   ) || 0;
+  const remainingItems = totalItems - completedLessons;
+
+  // An interrupted run: the stream ended while items are still missing. The
+  // teacher can push the AI to finish exactly those — nothing starts over.
+  const interrupted = !isGenerating && totalItems > 0 && remainingItems > 0;
 
   const estimatedTime =
     totalItems > 0
-      ? Math.max(1, Math.ceil((totalItems - completedLessons) * 45 / 1000))
+      ? Math.max(1, Math.ceil(remainingItems * 45 / 1000))
       : 0;
 
   const selectedLesson = completedLessonsList.find(l => l.id === selectedLessonId);
@@ -256,216 +270,249 @@ export default function GenerationConsole({
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Fullscreen Console */}
+    <div
+      className="fixed inset-0 flex flex-col"
+      style={{ zIndex: 200, background: 'var(--db-canvas)', color: 'var(--db-text)' }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: '18px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 16, borderBottom: '1px solid var(--db-border)', flexShrink: 0,
+          background: 'var(--db-card)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div
+            style={{
+              width: 40, height: 40, borderRadius: 12, display: 'grid', placeItems: 'center',
+              background: 'var(--db-accent)', color: '#ffffff', fontFamily: 'var(--db-font-display)',
+              fontWeight: 700, fontSize: 15,
+            }}
+          >
+            AI
+          </div>
+          <div>
+            <span className="ed-card-label">AI generation studio</span>
+            <h1 style={{ margin: 0, color: 'var(--db-text)', fontFamily: 'var(--db-font-display)', fontSize: 19, fontWeight: 700 }}>
+              Your content, as it's built
+            </h1>
+          </div>
+          {isGenerating && (
+            <span style={{ gap: 7 }} className="inline-flex items-center gen-note">
+              <Loader2 size={13} className="animate-spin" style={{ color: 'var(--db-accent-bright)' }} />
+              Generating…
+            </span>
+          )}
+          {interrupted && (
+            <span
+              style={{
+                gap: 6, color: 'var(--db-amber)', border: '1px solid var(--db-amber)',
+                background: 'rgba(251, 191, 36, 0.08)', borderRadius: 999, padding: '3px 11px',
+                fontSize: 11.5, fontWeight: 700,
+              }}
+              className="inline-flex items-center"
+            >
+              <CircleAlert size={12} /> Stopped early
+            </span>
+          )}
+          {!isGenerating && !interrupted && totalItems > 0 && (
+            <span
+              style={{
+                gap: 6, color: 'var(--db-green)', border: '1px solid var(--db-green-border)',
+                background: 'var(--db-green-soft)', borderRadius: 999, padding: '3px 11px',
+                fontSize: 11.5, fontWeight: 700,
+              }}
+              className="inline-flex items-center"
+            >
+              <Check size={12} /> Complete
+            </span>
+          )}
+        </div>
+        <button
+          onClick={handleFinish}
+          className="gen-btn gen-btn-primary"
+          title={isGenerating ? 'Stop generating — everything finished so far stays saved' : 'Close the studio'}
+        >
+          {isGenerating ? <><Zap size={14} /> Stop</> : <><Check size={14} /> Finish</>}
+        </button>
+      </div>
+
+      {/* Progress + continue banner */}
+      <div style={{ padding: '16px 28px', borderBottom: '1px solid var(--db-border)', flexShrink: 0 }}>
+        <ProgressBar value={overallProgress} label={`${completedLessons} of ${totalItems} items generated`} />
+        <div style={{ gap: 14, marginTop: 10, color: 'var(--db-text-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }} className="flex items-center">
+          <span>{overallProgress}% complete</span>
+          {isGenerating && <span>· ~{estimatedTime} min remaining</span>}
+        </div>
+        {interrupted && (
+          <div
+            style={{
+              marginTop: 12, padding: '12px 16px', borderRadius: 12, gap: 12,
+              display: 'flex', alignItems: 'center',
+              background: 'rgba(251, 191, 36, 0.08)', border: '1px solid var(--db-amber)',
+            }}
+          >
+            <CircleAlert size={16} style={{ color: 'var(--db-amber)', flex: 'none' }} />
+            <p style={{ margin: 0, flex: 1, color: 'var(--db-text)', fontSize: 13.5 }}>
+              The AI stopped before finishing — <strong>{completedLessons} of {totalItems}</strong> items are done and saved.
+              Continue to generate only the missing {remainingItems}.
+            </p>
+            {onContinue && (
+              <button onClick={onContinue} className="gen-btn gen-btn-primary" style={{ padding: '9px 16px', flex: 'none' }}>
+                <Zap size={13} /> Continue generation
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left: Activity feed */}
+        <div
+          style={{ padding: '22px 26px', borderRight: '1px solid var(--db-border)', background: 'var(--db-card)' }}
+          className="w-1/2 overflow-hidden flex flex-col"
+        >
+          <span className="ed-card-label" style={{ marginBottom: 16 }}>Activity</span>
+          <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4 }}>
+            <TerminalLog logs={logs} />
+          </div>
+
+          {isGenerating && (
+            <div
+              style={{ padding: '12px 16px', marginTop: 14, gap: 10, borderRadius: 12, flexShrink: 0, display: 'flex', alignItems: 'center', background: 'var(--db-card-2)', border: '1px solid var(--db-border)' }}
+            >
+              <motion.div
+                animate={{ scale: [1, 1.25, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                style={{ width: 9, height: 9, borderRadius: 999, background: 'var(--db-accent-bright)' }}
+              />
+              <span className="gen-note">
+                Generating item {Math.min(completedLessons + 1, totalItems)} of {totalItems}…
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Right: content materializing + inline editing */}
+        <div className="w-1/2 overflow-hidden flex flex-col" style={{ background: 'var(--db-canvas)' }}>
+          {/* Item tabs */}
+          <div style={{ padding: '16px 26px', borderBottom: '1px solid var(--db-border)', overflowX: 'auto', flexShrink: 0, background: 'var(--db-card)' }}>
+            <div style={{ gap: 8 }} className="flex">
+              {completedLessonsList.map((lesson) => {
+                const isLesson = lesson.type === 'lesson';
+                const isSelected = selectedLessonId === lesson.id;
+
+                return (
+                  <button
+                    key={lesson.id}
+                    onClick={() => setSelectedLessonId(lesson.id)}
+                    style={{
+                      padding: '9px 14px', gap: 7, borderRadius: 10, fontSize: 13, fontWeight: 600,
+                      whiteSpace: 'nowrap', cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
+                      border: `1px solid ${isSelected ? 'var(--db-accent-border)' : 'var(--db-border)'}`,
+                      background: isSelected ? 'var(--db-accent-soft)' : 'var(--db-card-2)',
+                      color: isSelected ? 'var(--db-accent-bright)' : 'var(--db-text-2)',
+                    }}
+                    title={lesson.generated ? 'Generated — inline editing is live' : 'Still generating'}
+                  >
+                    {isLesson ? <BookOpen size={15} /> : <FileQuestion size={15} />}
+                    <span>{lesson.title}</span>
+                    {!lesson.generated && <Loader2 size={11} className="animate-spin" style={{ opacity: 0.7 }} />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Content Area - Lessons or Quizzes */}
+          <div ref={lessonContentRef} style={{ padding: '26px 32px' }} className="flex-1 overflow-y-auto">
+            {selectedLesson ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+                <div>
+                  <h3 className="ed-card-label" style={{ marginBottom: 6 }}>
+                    {selectedLesson.moduleTitle}
+                    {selectedLesson.type === 'quiz' && ' · Quiz'}
+                  </h3>
+                  <EditableTitle item={selectedLesson} onRename={handleRename} />
+                  {!selectedLesson.generated && (
+                    <p className="gen-note" style={{ gap: 6 }} >
+                      Inline editing unlocks for this {selectedLesson.type === 'quiz' ? 'quiz' : 'lesson'} as soon as its generation completes.
+                    </p>
+                  )}
+                </div>
+
+                {/* Lesson Content (inline-editable once the lesson is persisted) */}
+                {selectedLesson.type === 'lesson' && (
+                  <EditableLessonContent
+                    lesson={selectedLesson}
+                    onBlocksChange={handleLessonBlocksChange}
+                  />
+                )}
+
+                {/* Quiz Content (inline-editable once real question ids sync) */}
+                {selectedLesson.type === 'quiz' && (
+                  <EditableQuizContent
+                    questions={selectedLesson.questions || []}
+                    onQuestionsChange={(next) => handleQuizQuestionsChange(selectedLesson.id, next)}
+                  />
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full" style={{ color: 'var(--db-text-3)' }}>
+                <p style={{ fontSize: 16 }}>Content will appear as it is generated…</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Finish Confirmation Dialog */}
+      <AnimatePresence>
+        {showFinishConfirm && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] bg-[#0a0a0f] text-slate-300 flex flex-col"
+            className="gen-overlay"
+            style={{ zIndex: 201 }}
           >
-            {/* Header */}
-            <div style={{ padding: '32px 40px', gap: '24px' }} className="border-b border-slate-800 flex items-center justify-between flex-shrink-0">
-                <div style={{ gap: '16px' }} className="flex items-center">
-                <div style={{ padding: '10px 12px', background: 'var(--db-accent)' }} className="rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">AI</span>
-                </div>
-                <div>
-                  <h1 style={{ marginBottom: '4px' }} className="font-semibold text-white text-2xl">
-                    AI Content Generator
-                  </h1>
-                  <p className="text-sm text-slate-500 font-mono">
-                    InstructAI generation engine
-                  </p>
-                </div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowFinishConfirm(false)}
+              className="gen-backdrop"
+            />
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              className="gen-card"
+              style={{ width: 'min(100%, 460px)' }}
+            >
+              <h3 style={{ margin: 0, color: 'var(--db-text)', fontFamily: 'var(--db-font-display)', fontSize: 19, fontWeight: 700 }}>
+                Stop generating?
+              </h3>
+              <p className="gen-note" style={{ fontSize: 14 }}>
+                Everything already generated and saved stays in your class — only the remaining items won't be created. You can continue any time.
+              </p>
+              <div className="gen-foot">
+                <button onClick={() => setShowFinishConfirm(false)} className="gen-btn gen-btn-ghost">
+                  Keep generating
+                </button>
+                <button onClick={() => { setShowFinishConfirm(false); onClose(); }} className="gen-btn gen-btn-primary">
+                  Stop &amp; keep progress
+                </button>
               </div>
-              <button
-                onClick={handleFinish}
-                style={{ padding: '12px 24px', gap: '8px' }}
-                className={`rounded-lg font-semibold flex items-center transition-all border ${
-                  isGenerating
-                    ? 'bg-transparent text-slate-400 border-slate-700 cursor-pointer hover:border-slate-500'
-                    : 'text-white hover:brightness-110 border-transparent'
-                }`}
-                {...(!isGenerating ? { style: { padding: '12px 24px', gap: '8px', background: 'var(--db-accent)' } } : {})}
-              >
-                <CheckCircle className="w-5 h-5" />
-                {isGenerating ? 'Generating...' : 'Finish'}
-              </button>
-            </div>
-
-            {/* Global Progress */}
-            <div style={{ padding: '32px 40px', marginBottom: '0' }} className="border-b border-slate-800 flex-shrink-0">
-              <ProgressBar value={overallProgress} label="Overall Progress" />
-              <div style={{ gap: '16px', marginTop: '20px' }} className="flex items-center text-sm text-slate-400 font-mono">
-                <span>{completedLessons}/{totalItems} items generated</span>
-                <span>•</span>
-                <span>{overallProgress}% complete</span>
-                {isGenerating && (
-                  <>
-                    <span>•</span>
-                    <span>~{estimatedTime}min remaining</span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Main Content Area */}
-            <div className="flex flex-1 overflow-hidden">
-              {/* Left: Terminal Log (50%) */}
-              <div style={{ padding: '32px 40px' }} className="w-1/2 overflow-hidden flex flex-col border-r border-slate-800">
-                <div style={{ marginBottom: '32px' }} className="flex-1 overflow-y-auto pr-2">
-                  <TerminalLog logs={logs} />
-                </div>
-
-                {/* Status indicator */}
-                {isGenerating && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    style={{ padding: '16px 20px', gap: '12px' }}
-                    className="bg-slate-900/50 border border-slate-800 rounded-lg flex-shrink-0"
-                  >
-                    <div style={{ gap: '12px' }} className="flex items-center">
-                      <motion.div
-                        animate={{ scale: [1, 1.2, 1] }}
-                        transition={{ duration: 1.5, repeat: Infinity }}
-                        className="w-3 h-3 rounded-full bg-cyan-400"
-                      />
-                      <span className="text-sm text-slate-300">
-                        Generating lesson {completedLessons + 1} of {totalItems}...
-                      </span>
-                    </div>
-                  </motion.div>
-                )}
-              </div>
-
-              {/* Right: Lesson Preview (50%) */}
-              <div className="w-1/2 border-l border-slate-800 overflow-hidden flex flex-col">
-                {/* Lesson Tabs */}
-                <div style={{ padding: '24px 32px' }} className="border-b border-slate-800 overflow-x-auto flex-shrink-0">
-                  <div style={{ gap: '8px' }} className="flex">
-                    {completedLessonsList.map((lesson) => {
-                      const isLesson = lesson.type === 'lesson';
-                      const isQuiz = lesson.type === 'quiz';
-                      const isSelected = selectedLessonId === lesson.id;
-
-                      return (
-                        <button
-                          key={lesson.id}
-                          onClick={() => setSelectedLessonId(lesson.id)}
-                          style={{ padding: '12px 16px', gap: '8px' }}
-                          className={`rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center border ${
-                            isSelected
-                              ? isLesson
-                                ? 'bg-blue-500/20 text-blue-300 border-blue-500/50'
-                                : 'bg-amber-500/20 text-amber-300 border-amber-500/50'
-                              : 'bg-slate-900/30 text-slate-400 hover:text-slate-300 border-slate-800'
-                          }`}
-                        >
-                          {isLesson ? (
-                            <BookOpen size={16} />
-                          ) : (
-                            <FileQuestion size={16} />
-                          )}
-                          <span>{lesson.title}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Content Area - Lessons or Quizzes */}
-                <div ref={lessonContentRef} style={{ padding: '32px 40px' }} className="flex-1 overflow-y-auto">
-                  {selectedLesson ? (
-                    <div style={{ gap: '24px' }} className="space-y-6">
-                      <div>
-                        <h3 style={{ marginBottom: '8px', gap: '8px' }} className="text-xs text-slate-500 uppercase tracking-widest font-bold flex items-center">
-                          {selectedLesson.moduleTitle}
-                          {selectedLesson.type === 'quiz' && <span className="text-cyan-400 text-xs">QUIZ</span>}
-                        </h3>
-                        <EditableTitle item={selectedLesson} onRename={handleRename} />
-                        {!selectedLesson.generated && (
-                          <p style={{ marginBottom: '12px' }} className="text-xs text-slate-500 flex items-center" >
-                            <Pencil size={11} style={{ marginRight: '6px' }} />
-                            Inline editing unlocks for this {selectedLesson.type === 'quiz' ? 'quiz' : 'lesson'} as soon as its generation completes.
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Lesson Content (inline-editable once the lesson is persisted) */}
-                      {selectedLesson.type === 'lesson' && (
-                        <EditableLessonContent
-                          lesson={selectedLesson}
-                          onBlocksChange={handleLessonBlocksChange}
-                        />
-                      )}
-
-                      {/* Quiz Content (inline-editable once real question ids sync) */}
-                      {selectedLesson.type === 'quiz' && (
-                        <EditableQuizContent
-                          questions={selectedLesson.questions || []}
-                          onQuestionsChange={(next) => handleQuizQuestionsChange(selectedLesson.id, next)}
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-slate-500">
-                      <p className="text-lg">Content will appear as it is generated...</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            </motion.div>
           </motion.div>
-
-          {/* Finish Confirmation Dialog */}
-          <AnimatePresence>
-            {showFinishConfirm && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[201] flex items-center justify-center bg-black/70 backdrop-blur-sm"
-              >
-                <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.9, opacity: 0 }}
-                  className="bg-slate-900 border border-slate-800 rounded-xl p-8 max-w-sm shadow-2xl"
-                >
-                  <h3 className="text-2xl font-bold text-white mb-3">
-                    Exit Generation?
-                  </h3>
-                  <p className="text-slate-400 text-base mb-8 leading-relaxed">
-                    Stopping now keeps everything already generated and saved — remaining lessons and quizzes just won't be created. You can always generate again later. Are you sure?
-                  </p>
-                  <div className="flex gap-4 justify-end">
-                    <button
-                      onClick={() => setShowFinishConfirm(false)}
-                      className="px-6 py-3 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 transition-colors font-medium"
-                    >
-                      Keep Generating
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowFinishConfirm(false);
-                        onClose();
-                      }}
-                      className="px-6 py-3 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-colors font-medium border border-red-500/50"
-                    >
-                      Exit Anyway
-                    </button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

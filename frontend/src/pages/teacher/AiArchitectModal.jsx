@@ -168,6 +168,14 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
                                             {range}{range === '6-8' ? ' (max)' : ''}
                                         </button>
                                     ))}
+                                    <button
+                                        type="button"
+                                        className={params.moduleCountCustom ? 'on' : ''}
+                                        style={{ flex: 'none', padding: '8px 14px' }}
+                                        onClick={() => setParams({ ...params, moduleCountCustom: true, moduleCount: '4' })}
+                                    >
+                                        Custom
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -205,6 +213,14 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
                                             {range}{range === '6-8' ? ' (max)' : ''}
                                         </button>
                                     ))}
+                                    <button
+                                        type="button"
+                                        className={params.lessonsCustom ? 'on' : ''}
+                                        style={{ flex: 'none', padding: '8px 14px' }}
+                                        onClick={() => setParams({ ...params, lessonsCustom: true, lessonsPerModule: '3' })}
+                                    >
+                                        Custom
+                                    </button>
                                 </div>
                             )}
                         </div>

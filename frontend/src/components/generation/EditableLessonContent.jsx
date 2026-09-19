@@ -52,21 +52,21 @@ function useAutosave(saveFn, delay = 900) {
 function SaveChip({ status }) {
   if (status === 'saving') {
     return (
-      <span style={{ gap: '6px' }} className="inline-flex items-center text-xs text-slate-400">
+      <span style={{ gap: 6, color: 'var(--db-text-3)' }} className="inline-flex items-center text-xs">
         <Loader2 size={13} className="animate-spin" /> Saving…
       </span>
     );
   }
   if (status === 'saved') {
     return (
-      <span style={{ gap: '6px' }} className="inline-flex items-center text-xs text-emerald-400">
+      <span style={{ gap: 6, color: 'var(--db-green)' }} className="inline-flex items-center text-xs">
         <Check size={13} /> Saved
       </span>
     );
   }
   if (status === 'error') {
     return (
-      <span style={{ gap: '6px' }} className="inline-flex items-center text-xs text-red-400">
+      <span style={{ gap: 6, color: 'var(--db-danger)' }} className="inline-flex items-center text-xs">
         <TriangleAlert size={13} /> Save failed — retry by editing again
       </span>
     );
@@ -96,7 +96,10 @@ function HtmlEditable({ html, onCommit, className }) {
         if (e.key === 'Escape') { e.currentTarget.blur(); }
         e.stopPropagation();
       }}
-      className={`${className || ''} outline-none rounded-lg transition-colors focus:bg-slate-900/70 focus:ring-1 focus:ring-cyan-500/40 px-2 -mx-2 py-1 cursor-text`}
+      className={`${className || ''} outline-none rounded-lg transition-colors px-2 -mx-2 py-1 cursor-text`}
+      style={{ color: 'var(--db-text)' }}
+      onFocus={(e) => { e.currentTarget.style.background = 'var(--db-card-2)'; }}
+      onBlurCapture={(e) => { e.currentTarget.style.background = 'transparent'; }}
     />
   );
 }
@@ -109,12 +112,17 @@ function BlockShell({ editable, editing, onToggleEdit, children, label }) {
       {editable && (
         <button
           onClick={onToggleEdit}
-          style={{ padding: '5px 10px', gap: '5px' }}
-          className={`absolute top-2 right-2 z-10 inline-flex items-center rounded-md text-[11px] font-semibold border transition-all ${
-            editing
-              ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50'
-              : 'opacity-0 group-hover/block:opacity-100 bg-slate-900/90 text-slate-400 border-slate-700 hover:text-cyan-300'
-          }`}
+          style={{
+            padding: '4px 10px',
+            gap: 5,
+            borderRadius: 8,
+            fontSize: 11,
+            fontWeight: 700,
+            border: `1px solid ${editing ? 'var(--db-accent-border)' : 'var(--db-border-strong)'}`,
+            background: editing ? 'var(--db-accent-soft)' : 'var(--db-card)',
+            color: editing ? 'var(--db-accent-bright)' : 'var(--db-text-2)',
+          }}
+          className={`absolute top-2 right-2 z-10 inline-flex items-center transition-all ${editing ? '' : 'opacity-0 group-hover/block:opacity-100'}`}
         >
           <Pencil size={11} /> {editing ? 'Done' : (label || 'Edit')}
         </button>
@@ -147,15 +155,15 @@ export default function EditableLessonContent({ lesson, onBlocksChange }) {
   return (
     <div>
       {editable && (
-        <div style={{ marginBottom: '12px', gap: '10px' }} className="flex items-center">
-          <span className="text-[11px] text-slate-500 uppercase tracking-widest font-bold">
+        <div style={{ marginBottom: 12, gap: 10 }} className="flex items-center">
+          <span className="gen-note">
             Live editing — changes save to this lesson automatically
           </span>
           <SaveChip status={saveStatus} />
         </div>
       )}
 
-      <div style={{ gap: '22px' }} className="space-y-5 text-slate-300 text-base leading-relaxed">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, color: 'var(--db-text)', fontSize: 15.5, lineHeight: 1.65 }}>
         {blocks.map((block, idx) => {
           const isEditing = editingIdx === idx;
           const type = block.type;
@@ -165,20 +173,20 @@ export default function EditableLessonContent({ lesson, onBlocksChange }) {
             if (isEditing && editable) {
               return (
                 <motion.div key={`${idx}-edit`} initial={{ opacity: 0.6 }} animate={{ opacity: 1 }}
-                  style={{ padding: '14px 16px' }} className="bg-slate-900/70 border border-cyan-500/40 rounded-xl">
-                  <div style={{ marginBottom: '8px', gap: '8px' }} className="flex items-center text-[11px] text-cyan-400 font-bold uppercase tracking-widest">
+                  style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--db-card-2)', border: '1px solid var(--db-accent-border)' }}>
+                  <div style={{ marginBottom: 8, gap: 8, color: 'var(--db-accent-bright)' }} className="flex items-center text-[11px] font-bold uppercase tracking-widest">
                     Editing {type} block <SaveChip status={saveStatus} />
                   </div>
                   <HtmlEditable
                     html={data.text || ''}
                     onCommit={(html) => { updateBlock(idx, { text: html }); }}
-                    className="prose prose-invert max-w-none text-slate-200 min-h-[60px]"
+                    className="max-w-none min-h-[60px]"
                   />
-                  <div style={{ marginTop: '10px', gap: '8px' }} className="flex justify-end">
+                  <div style={{ marginTop: 10, gap: 8, display: 'flex', justifyContent: 'flex-end' }}>
                     <button
                       onClick={() => setEditingIdx(null)}
+                      className="gen-btn gen-btn-ghost"
                       style={{ padding: '6px 14px' }}
-                      className="rounded-md bg-cyan-500/20 text-cyan-300 text-xs font-semibold border border-cyan-500/40 hover:bg-cyan-500/30"
                     >
                       Done
                     </button>
@@ -194,10 +202,18 @@ export default function EditableLessonContent({ lesson, onBlocksChange }) {
                   onToggleEdit={() => editable && setEditingIdx(idx)}
                   label="Edit text"
                 >
-                  <div
-                    className={`prose prose-invert max-w-none text-slate-300 ${type === 'h1' ? 'text-2xl font-bold text-white' : ''}`}
-                    dangerouslySetInnerHTML={{ __html: data.text || '' }}
-                  />
+                  {type === 'h1' ? (
+                    <h2
+                      style={{ color: 'var(--db-text)', fontFamily: 'var(--db-font-display)', fontSize: 22, fontWeight: 700, margin: 0 }}
+                      dangerouslySetInnerHTML={{ __html: data.text || '' }}
+                    />
+                  ) : (
+                    <div
+                      style={{ color: 'var(--db-text-2)' }}
+                      className="max-w-none"
+                      dangerouslySetInnerHTML={{ __html: data.text || '' }}
+                    />
+                  )}
                 </BlockShell>
               </motion.div>
             );
@@ -208,10 +224,12 @@ export default function EditableLessonContent({ lesson, onBlocksChange }) {
               <motion.div key={idx} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
                 <BlockShell editable={editable} editing={isEditing} onToggleEdit={() => setEditingIdx(isEditing ? null : idx)} label="Edit code">
                   {isEditing && editable ? (
-                    <div style={{ padding: '16px 18px', gap: '12px' }} className="bg-slate-900 border border-cyan-500/40 rounded-xl space-y-3">
-                      <div style={{ gap: '10px', alignItems: 'center' }} className="flex text-[11px] font-bold uppercase tracking-widest text-cyan-400">
+                    <div style={{ padding: 16, borderRadius: 12, background: 'var(--db-card-2)', border: '1px solid var(--db-accent-border)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ gap: 10, color: 'var(--db-accent-bright)' }} className="flex items-center text-[11px] font-bold uppercase tracking-widest">
                         Editing code block
-                        <span className="text-slate-500 normal-case font-medium">({data.language || 'java'}{data.mode === 'challenge' ? ' · challenge' : ' · playground'})</span>
+                        <span style={{ color: 'var(--db-text-3)', textTransform: 'none', fontWeight: 500 }}>
+                          ({data.language || 'java'}{data.mode === 'challenge' ? ' · challenge' : ' · playground'})
+                        </span>
                         <SaveChip status={saveStatus} />
                       </div>
                       <textarea
@@ -219,10 +237,17 @@ export default function EditableLessonContent({ lesson, onBlocksChange }) {
                         onChange={(e) => updateBlock(idx, { code: e.target.value })}
                         spellCheck={false}
                         rows={Math.min(18, Math.max(5, (data.code || '').split('\n').length + 1))}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 font-mono text-sm text-cyan-200 outline-none focus:border-cyan-500/60 resize-y"
+                        style={{
+                          width: '100%', borderRadius: 10, border: '1px solid var(--db-border-strong)',
+                          background: 'var(--db-card)', color: 'var(--db-text)',
+                          padding: '10px 12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 13,
+                          outline: 'none', resize: 'vertical',
+                        }}
+                        onFocus={(e) => { e.target.style.borderColor = 'var(--db-accent)'; }}
+                        onBlur={(e) => { e.target.style.borderColor = 'var(--db-border-strong)'; }}
                       />
                       <div>
-                        <div className="text-[11px] font-bold uppercase tracking-widest text-slate-500" style={{ marginBottom: '4px' }}>
+                        <div className="gen-label">
                           Expected output {data.mode === 'challenge' ? '(challenge target)' : ''}
                         </div>
                         <textarea
@@ -230,35 +255,40 @@ export default function EditableLessonContent({ lesson, onBlocksChange }) {
                           onChange={(e) => updateBlock(idx, { expected: e.target.value })}
                           spellCheck={false}
                           rows={2}
-                          className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 font-mono text-sm text-emerald-300 outline-none focus:border-cyan-500/60 resize-y"
+                          style={{
+                            width: '100%', borderRadius: 10, border: '1px solid var(--db-border-strong)',
+                            background: 'var(--db-card)', color: 'var(--db-green)',
+                            padding: '10px 12px', fontFamily: 'JetBrains Mono, monospace', fontSize: 13,
+                            outline: 'none', resize: 'vertical',
+                          }}
                         />
                       </div>
-                      <div className="flex justify-end">
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                         <button
                           onClick={() => setEditingIdx(null)}
+                          className="gen-btn gen-btn-ghost"
                           style={{ padding: '6px 14px' }}
-                          className="rounded-md bg-cyan-500/20 text-cyan-300 text-xs font-semibold border border-cyan-500/40 hover:bg-cyan-500/30"
                         >
                           Done
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="rounded-lg overflow-hidden">
-                      <div style={{ padding: '16px 20px' }} className="bg-slate-900 border border-slate-800 rounded-lg">
-                        <div style={{ marginBottom: '8px', gap: '8px' }} className="flex items-center text-[10px] uppercase tracking-widest text-slate-500 font-bold">
-                          <span className={(data.language || 'java') === 'html' ? 'text-orange-400' : 'text-amber-400'}>
+                    <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--db-border)' }}>
+                      <div style={{ padding: '14px 18px', background: 'var(--db-card-2)' }}>
+                        <div className="gen-label" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                          <span style={{ color: data.language === 'html' ? 'var(--db-amber)' : 'var(--db-accent-bright)' }}>
                             {data.language || 'java'}
                           </span>
                           <span>· {data.mode || 'playground'}</span>
                         </div>
-                        <pre className="overflow-x-auto text-sm font-mono">
-                          <code className="text-cyan-300">{data.code || ''}</code>
+                        <pre style={{ overflowX: 'auto', margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 13, color: 'var(--db-text)' }}>
+                          <code>{data.code || ''}</code>
                         </pre>
                         {data.expected ? (
-                          <div style={{ marginTop: '10px', paddingTop: '10px' }} className="border-t border-slate-800">
-                            <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold" style={{ marginBottom: '4px' }}>Expected output</div>
-                            <pre className="text-sm font-mono text-emerald-300 whitespace-pre-wrap">{data.expected}</pre>
+                          <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--db-border)' }}>
+                            <div className="gen-label" style={{ marginBottom: 4 }}>Expected output</div>
+                            <pre style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 13, color: 'var(--db-green)', whiteSpace: 'pre-wrap' }}>{data.expected}</pre>
                           </div>
                         ) : null}
                       </div>
@@ -275,35 +305,35 @@ export default function EditableLessonContent({ lesson, onBlocksChange }) {
               <motion.div key={idx} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
                 <BlockShell editable={editable} editing={isEditing} onToggleEdit={() => setEditingIdx(isEditing ? null : idx)} label="Edit">
                   {isEditing && editable ? (
-                    <div style={{ padding: '14px 16px', gap: '10px' }} className="bg-slate-900 border border-cyan-500/40 rounded-xl space-y-2">
-                      <div style={{ gap: '8px' }} className="flex items-center text-[11px] text-cyan-400 font-bold uppercase tracking-widest">
+                    <div style={{ padding: 14, borderRadius: 12, background: 'var(--db-card-2)', border: '1px solid var(--db-accent-border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ gap: 8, color: 'var(--db-accent-bright)' }} className="flex items-center text-[11px] font-bold uppercase tracking-widest">
                         Editing {type} <SaveChip status={saveStatus} />
                       </div>
                       <input
                         value={data[urlKey] || ''}
                         onChange={(e) => updateBlock(idx, { [urlKey]: e.target.value })}
                         placeholder="URL…"
-                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-cyan-500/60"
+                        className="gen-input"
                       />
                       {type === 'video' && (
                         <input
                           value={data.title || ''}
                           onChange={(e) => updateBlock(idx, { title: e.target.value })}
                           placeholder="Title…"
-                          className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-cyan-500/60"
+                          className="gen-input"
                         />
                       )}
                     </div>
                   ) : (
-                    <div className="text-sm text-slate-400 bg-slate-900/60 border border-slate-800 rounded-lg px-4 py-3">
+                    <div style={{ padding: '12px 16px', borderRadius: 12, background: 'var(--db-card-2)', border: '1px solid var(--db-border)', color: 'var(--db-text-2)', fontSize: 14 }}>
                       {type === 'video' ? (
-                        <>🎬 <span className="text-slate-300">{data.title || 'Video'}</span> — <span className="font-mono text-xs">{data.url || data.src || ''}</span></>
+                        <><strong style={{ color: 'var(--db-text)' }}>{data.title || 'Video'}</strong> — <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>{data.url || data.src || ''}</span></>
                       ) : type === 'link' ? (
-                        <>🔗 <span className="text-slate-300">{data.title || 'Resource'}</span> — <span className="font-mono text-xs">{data.url || ''}</span></>
+                        <><strong style={{ color: 'var(--db-text)' }}>{data.title || 'Resource'}</strong> — <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>{data.url || ''}</span></>
                       ) : type === 'image' ? (
-                        data.src ? <img src={data.src} alt={data.alt || 'lesson'} className="rounded-lg max-h-96 w-auto" /> : null
+                        data.src ? <img src={data.src} alt={data.alt || 'lesson'} style={{ borderRadius: 10, maxHeight: 380, width: 'auto' }} /> : null
                       ) : (
-                        <>Embedded content — <span className="font-mono text-xs">{data.url || ''}</span></>
+                        <>Embedded content — <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>{data.url || ''}</span></>
                       )}
                     </div>
                   )}

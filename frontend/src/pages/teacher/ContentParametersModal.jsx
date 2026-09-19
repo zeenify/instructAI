@@ -26,30 +26,21 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
     // Check if course has programming content from the database flag
     const hasProgrammingContent = course?.is_coding === true;
 
-    // Determine coding percentage for current selection
-    const getCodingPercentage = () => {
-        const dist = contentParams.questionTypeDistribution;
-        if (dist === 'balanced') return 10;
-        if (dist === 'coding_heavy') return 55;
-        if (dist === 'theory_focused') return 0;
-        if (dist === 'non_coding') return 0;
-        if (dist === 'custom') return customDistribution.code;
-        return 0;
-    };
+    // Coding share of the preset the teacher picked
+    const selectedDist = contentParams.questionTypeDistribution;
+    const selectedCodingPct =
+        selectedDist === 'balanced' ? 10
+        : selectedDist === 'coding_heavy' ? 55
+        : selectedDist === 'theory_focused' ? 0
+        : selectedDist === 'non_coding' ? 0
+        : selectedDist === 'custom' ? customDistribution.code
+        : 0;
 
-    const codingPercentage = getCodingPercentage();
-
-    // Check if selected preset has coding
-    const hasSelectedCoding = codingPercentage > 0;
-    const shouldBlockCoding = !hasProgrammingContent && hasSelectedCoding;
-
-    // Auto-switch to non_coding if incompatible
-    const getDisplayPreset = () => {
-        if (shouldBlockCoding) {
-            return 'non_coding';
-        }
-        return contentParams.questionTypeDistribution;
-    };
+    // Non-programming courses can't have coding questions — the effective
+    // preset switches to non_coding so the UI never lies about what will happen
+    const shouldBlockCoding = !hasProgrammingContent && selectedCodingPct > 0;
+    const effectiveDist = shouldBlockCoding ? 'non_coding' : selectedDist;
+    const codingPercentage = effectiveDist === 'non_coding' ? 0 : selectedCodingPct;
 
     const handleGenerate = () => {
         const finalParams = { ...structureParams, ...contentParams };
@@ -164,7 +155,7 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
                                     key={opt.value}
                                     type="button"
                                     title={opt.detail}
-                                    className={getDisplayPreset() === opt.value ? 'on' : ''}
+                                    className={effectiveDist === opt.value ? 'on' : ''}
                                     onClick={() => setContentParams({ ...contentParams, questionTypeDistribution: opt.value })}
                                 >
                                     {opt.label}

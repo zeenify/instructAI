@@ -6,7 +6,7 @@ import { motion, AnimatePresence, useDragControls, Reorder } from 'framer-motion
 import {
     ChevronLeft, ChevronUp, ChevronDown, Plus, FileText, HelpCircle, Loader2,
     Sparkles, ExternalLink, X, Check, GripVertical, Eye, EyeOff, Globe, Lock, Rocket, Trash2, Edit3, Send, Layers, GripHorizontal, Upload, CheckCircle, BookOpen, ArrowRight,
-    FileCheck2, FileUp, Code2, FileWarning
+    FileCheck2, FileUp, Code2, FileWarning, Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
@@ -214,6 +214,10 @@ export default function CourseBuilder({
     const [isGeneratingContent, setIsGeneratingContent] = useState(false);
     const [generationLogs, setGenerationLogs] = useState([]);
     const contentAbortRef = useRef(null);
+    const [structureError, setStructureError] = useState(null);
+    const structureAbortRef = useRef(null);
+    const lastStructureRequestRef = useRef(null);
+    const lastContentParamsRef = useRef(null);
     // Delete State
     const [deleteConfig, setDeleteModal] = useState({ isOpen: false, type: '', id: null, name: null, items: [] });
 
@@ -649,11 +653,18 @@ export default function CourseBuilder({
     const handleExecuteAI = async (prompt, file, params) => {
         setIsAiModalOpen(false);
         setIsEngineering(true);
-        setAiLogs(['🚀 Initializing AI Curriculum Architect...']);
+        setStructureError(null);
+        setAiLogs(['Initializing AI Curriculum Architect…']);
         setAiResult({ new_modules: [] });
 
-        // Save structure params for later
+        // Save structure params for later — and keep the request so the
+        // design modal's "Try again" can re-run it verbatim
         setStructureParams(params);
+        lastStructureRequestRef.current = { prompt, params };
+
+        // Closing the design modal aborts the structure stream
+        const controller = new AbortController();
+        structureAbortRef.current = controller;
 
         try {
             const formData = new FormData();
@@ -673,6 +684,7 @@ export default function CourseBuilder({
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
                 },
+                signal: controller.signal,
                 body: formData,
             });
 
@@ -698,7 +710,7 @@ export default function CourseBuilder({
                                 setAiLogs(prev => [...prev, `📡 ${data.message}`]);
                             } else if (data.type === 'module') {
                                 const moduleData = data.data;
-                                setAiLogs(prev => [...prev, `✨ Generated: ${moduleData.title}`]);
+                                setAiLogs(prev => [...prev, `Module ready: ${moduleData.title}`]);
 
                                 // NOTE: never await/sleep inside this read loop. In a
                                 // background tab Chrome throttles setTimeout to ~1/min,
@@ -719,10 +731,10 @@ export default function CourseBuilder({
 
                                 const items = [...(moduleData.lessons || []), ...(moduleData.quizzes || [])];
                                 for (const item of items) {
-                                    setAiLogs(prev => [...prev, `  📘 ${item.title}`]);
+                                    setAiLogs(prev => [...prev, `${item.type === 'lesson' ? 'Lesson' : 'Quiz'} — ${item.title}`]);
                                 }
                             } else if (data.type === 'complete') {
-                                setAiLogs(prev => [...prev, '✅ Curriculum generation complete!']);
+                                setAiLogs(prev => [...prev, 'Curriculum generation complete!']);
                                 const rawModules = data.data?.new_modules || [];
                                 const normalizedData = {
                                     new_modules: rawModules.map(m => ({
@@ -737,9 +749,10 @@ export default function CourseBuilder({
                                 setIsReviewOpen(true);
                                 setIsEngineering(false);
                             } else if (data.type === 'error') {
-                                setAiLogs(prev => [...prev, `❌ Error: ${data.message}`]);
-                                toast.error('AI generation failed');
-                                setIsEngineering(false);
+                                setAiLogs(prev => [...prev, `Error: ${data.message}`]);
+                                // Stay in the design modal with a Try-again — the
+                                // request is kept, so nothing the teacher typed is lost
+                                setStructureError(data.message || 'The AI service hit a problem.');
                             }
                         } catch (parseErr) {
                             console.error('Failed to parse SSE data:', parseErr);
@@ -748,10 +761,38 @@ export default function CourseBuilder({
                 }
             }
         } catch (err) {
-            setAiLogs(prev => [...prev, `❌ Connection error: ${err.message}`]);
-            toast.error('Failed to connect to AI service');
-            setIsEngineering(false);
+            if (err?.name === 'AbortError') {
+                setAiLogs(prev => [...prev, 'Stopped by teacher.']);
+            } else {
+                setAiLogs(prev => [...prev, `Connection error: ${err.message}`]);
+                setStructureError('Could not reach the AI service. Check your connection and try again.');
+            }
+        } finally {
+            structureAbortRef.current = null;
         }
+    };
+
+    // Continue after an interrupted run: regenerate ONLY the items that never
+    // finished. Everything already saved stays untouched (per-item persistence
+    // means this is a safe, targeted top-up — not a restart).
+    const handleContinueGeneration = () => {
+        const remaining = (generatedContent?.modules || [])
+            .map(m => ({
+                ...m,
+                lessons: (m.lessons || []).filter(l => !l.generated).map(({ id, title }) => ({ id, title })),
+                quizzes: (m.quizzes || []).filter(q => !q.generated).map(({ id, title }) => ({ id, title })),
+            }))
+            .filter(m => m.lessons.length || m.quizzes.length);
+
+        if (!remaining.length) {
+            toast.info('Everything already generated.');
+            return;
+        }
+        if (!lastContentParamsRef.current) {
+            toast.error('Missing the generation settings — start a new generation instead.');
+            return;
+        }
+        generateLessonContent(remaining, lastContentParamsRef.current);
     };
 
     const handleConfirmAI = async (finalData) => {
@@ -816,6 +857,7 @@ export default function CourseBuilder({
     };
 
     const generateLessonContent = async (modules, params) => {
+        lastContentParamsRef.current = params;
         setIsGeneratingContent(true);
         setIsContentModalOpen(true);
         setGenerationLogs([]); // Clear previous logs
@@ -1844,6 +1886,7 @@ if (loading || !course) return (
                 isGenerating={isGeneratingContent}
                 logs={generationLogs}
                 onContentChange={setGeneratedContent}
+                onContinue={handleContinueGeneration}
             />
 
             {/* Curriculum Management Modal */}
@@ -1991,35 +2034,74 @@ if (loading || !course) return (
             <AnimatePresence>
                 {isEngineering && (
                     <motion.div
-                        initial={{ y: 100, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: 100, opacity: 0 }}
-                        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] w-full max-w-4xl px-4"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="gen-overlay"
                     >
-                        <div
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => {
+                                if (structureAbortRef.current) structureAbortRef.current.abort();
+                                setIsEngineering(false);
+                                setStructureError(null);
+                            }}
+                            className="gen-backdrop"
+                        />
+                        <motion.div
+                            initial={{ scale: 0.96, opacity: 0, y: 10 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.96, opacity: 0, y: 10 }}
+                            transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
                             className="gen-card wide"
-                            style={{ position: 'relative', padding: '20px 22px', gap: 14 }}
                         >
-                            <div className="gen-head" style={{ paddingBottom: 12, borderBottom: '1px solid var(--db-border)' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                    <span style={{ width: 9, height: 9, borderRadius: 999, background: 'var(--db-accent)', boxShadow: '0 0 0 4px var(--db-accent-soft)' }} />
-                                    <div>
-                                        <span className="ed-card-label">AI curriculum architect</span>
-                                        <h2 className="gen-title" style={{ fontSize: 17 }}>Designing your curriculum…</h2>
-                                    </div>
+                            <div className="gen-head">
+                                <div>
+                                    <span className="ed-card-label">Stage 1 · designing</span>
+                                    <h2 className="gen-title">Building your curriculum…</h2>
                                 </div>
-                                <Sparkles size={18} style={{ color: 'var(--db-accent-bright)' }} />
+                                <button
+                                    type="button"
+                                    className="gen-close"
+                                    title="Stop and close"
+                                    onClick={() => {
+                                        if (structureAbortRef.current) structureAbortRef.current.abort();
+                                        setIsEngineering(false);
+                                        setStructureError(null);
+                                    }}
+                                >
+                                    <X size={18} />
+                                </button>
                             </div>
 
-                            {/* Module Preview with Animations */}
+                            {structureError && (
+                                <div className="cur-strip err" style={{ alignItems: 'center' }}>
+                                    <p style={{ flex: 1, margin: 0 }}>{structureError}</p>
+                                    <button
+                                        type="button"
+                                        className="gen-btn gen-btn-primary"
+                                        style={{ padding: '8px 14px', flex: 'none' }}
+                                        onClick={() => {
+                                            const last = lastStructureRequestRef.current;
+                                            if (last) handleExecuteAI(last.prompt, null, last.params);
+                                        }}
+                                    >
+                                        <Zap size={13} /> Try again
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Live module preview */}
                             {aiResult?.new_modules && aiResult.new_modules.length > 0 && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 260, overflowY: 'auto' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 300, overflowY: 'auto' }}>
                                     {aiResult.new_modules.map((module, idx) => (
                                         <motion.div
                                             key={idx}
-                                            initial={{ opacity: 0, x: -20, scale: 0.95 }}
-                                            animate={{ opacity: 1, x: 0, scale: 1 }}
-                                            transition={{ delay: idx * 0.2 }}
+                                            initial={{ opacity: 0, x: -16 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: idx * 0.15 }}
                                             style={{ padding: '13px 16px', borderRadius: 12, background: 'var(--db-card-2)', border: '1px solid var(--db-border)' }}
                                         >
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -2028,15 +2110,9 @@ if (loading || !course) return (
                                             </div>
                                             <div style={{ paddingLeft: 22, display: 'flex', flexDirection: 'column', gap: 3 }}>
                                                 {module.items?.map((item, itemIdx) => (
-                                                    <motion.div
-                                                        key={itemIdx}
-                                                        initial={{ opacity: 0, x: -10 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: itemIdx * 0.1 }}
-                                                        className="gen-note"
-                                                    >
+                                                    <span key={itemIdx} className="gen-note">
                                                         {item.type === 'lesson' ? 'Lesson — ' : 'Quiz — '}{item.title}
-                                                    </motion.div>
+                                                    </span>
                                                 ))}
                                             </div>
                                         </motion.div>
@@ -2044,29 +2120,25 @@ if (loading || !course) return (
                                 </div>
                             )}
 
-                            {/* Log Feed */}
+                            {/* Compact activity feed */}
                             <div
                                 style={{
                                     padding: '12px 16px', borderRadius: 12, maxHeight: 150, overflowY: 'auto',
                                     background: 'var(--db-card-2)', border: '1px solid var(--db-border)',
-                                    fontFamily: 'JetBrains Mono, monospace', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 6,
+                                    display: 'flex', flexDirection: 'column', gap: 6,
                                 }}
                             >
-                                {aiLogs.map((log, i) => (
-                                    <motion.div
-                                        key={i}
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        style={{ color: 'var(--db-text-2)', display: 'flex', gap: 8 }}
-                                    >
-                                        <span style={{ color: 'var(--db-accent-bright)', fontWeight: 700, flex: 'none', fontSize: 10 }}>
-                                            {new Date().toLocaleTimeString()}
-                                        </span>
-                                        <span style={{ flex: 1 }}>{log}</span>
-                                    </motion.div>
+                                {aiLogs.slice(-6).map((log, i) => (
+                                    <span key={i} className="gen-note">{log}</span>
                                 ))}
+                                {!structureError && (
+                                    <span className="gen-note" style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                                        <Loader2 size={12} className="animate-spin" style={{ color: 'var(--db-accent-bright)' }} />
+                                        Working…
+                                    </span>
+                                )}
                             </div>
-                        </div>
+                        </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
