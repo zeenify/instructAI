@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
     X, Zap, ClipboardList, Upload, HelpCircle, BookOpen, UserCheck, Radio, ChevronLeft, Clock,
 } from 'lucide-react';
@@ -50,7 +50,9 @@ const TYPE_CARDS = [
 const at2359 = (d) => {
     const x = new Date(d);
     x.setHours(23, 59, 0, 0);
-    return x.toISOString().slice(0, 19);
+    // Full ISO with Z — a sliced-off zone would be re-parsed as local time
+    // by the picker and shift the stored instant by the UTC offset.
+    return x.toISOString();
 };
 
 const DEADLINE_PRESETS = [
@@ -76,6 +78,7 @@ export default function CreateActivityModal({ isOpen, onClose, classId }) {
     // Teachers usually accept late work and mark it late — start gentle
     const [deadlineBehavior, setDeadlineBehavior] = useState('soft');
     const [loading, setLoading] = useState(false);
+    const titleRef = useRef(null);
 
     const createActivity = useCreateActivity(classId);
 
@@ -105,7 +108,14 @@ export default function CreateActivityModal({ isOpen, onClose, classId }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!title.trim() || !selectedType) return;
+        if (!title.trim()) {
+            // Deterministic validation — the native `required` bubble is
+            // invisible to some browsers/automations
+            toast.error(isQuiz ? 'Give the quiz a title first' : 'Give the activity a title first');
+            titleRef.current?.focus();
+            return;
+        }
+        if (!selectedType) return;
         if (selectedType === 'activity' && !submissionType) return;
         if (needsDeadline && !deadlineAt) {
             toast.error('Set a deadline for this activity type');
@@ -182,7 +192,7 @@ export default function CreateActivityModal({ isOpen, onClose, classId }) {
                         <div className="db-modal-form">
                             <label className="db-field">
                                 <span className="db-field-label">Title</span>
-                                <input className="db-input" type="text" required autoFocus
+                                <input className="db-input" type="text" autoFocus ref={titleRef}
                                     placeholder={isQuiz ? 'e.g. Quiz 3: Loops & Conditions' : 'e.g. PT #2: Console Guestbook'}
                                     value={title} onChange={(e) => setTitle(e.target.value)} />
                             </label>

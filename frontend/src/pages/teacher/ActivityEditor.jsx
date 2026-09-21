@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Reorder, useDragControls } from 'framer-motion';
 import {
@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import api from '../../services/api';
 import { classActivitiesKey } from '../../queries/classwork';
+import { useEngineLanguages, availabilityMap } from '../../queries/engine';
 import DateTimePicker from '../../components/teacher/DateTimePicker';
 import DeleteModal from '../../components/ui/DeleteModal';
 import CodeMirror from '@uiw/react-codemirror';
@@ -47,7 +48,9 @@ const PER_QUESTION_DEFAULTS = {
 const at2359 = (d) => {
     const x = new Date(d);
     x.setHours(23, 59, 0, 0);
-    return x.toISOString().slice(0, 19);
+    // Full ISO with Z — a sliced-off zone would be re-parsed as local time
+    // by the picker and shift the stored instant by the UTC offset.
+    return x.toISOString();
 };
 
 const DEADLINE_PRESETS = [
@@ -73,7 +76,12 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
     const [expectedOutput, setExpectedOutput] = useState('');
     const [boilerplate, setBoilerplate] = useState('');
     const [language, setLanguage] = useState('java');
+    // Set when the teacher switches language with custom starter code still in
+    // the editor — tells them what to replace instead of stranding old code
+    const [staleFrom, setStaleFrom] = useState(null);
     const [loading, setLoading] = useState(false);
+    const { data: engineLangs } = useEngineLanguages();
+    const langAvail = useMemo(() => availabilityMap(engineLangs), [engineLangs]);
 
     useEffect(() => {
         if (editQuestion) {
@@ -93,6 +101,7 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
             setExpectedOutput(editQuestion.expected_output || '');
             setBoilerplate(editQuestion.boilerplate || '');
             setLanguage(editQuestion.language || 'java');
+            setStaleFrom(null);
         } else {
             setType('multiple_choice');
             setQuestionText('');
@@ -102,6 +111,7 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
             setExpectedOutput('');
             setBoilerplate('');
             setLanguage('java');
+            setStaleFrom(null);
         }
     }, [editQuestion]);
 
@@ -158,6 +168,22 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
     const activeLang = languageOf(language);
     const insertTemplate = () => {
         setBoilerplate(activeLang.template);
+        setStaleFrom(null);
+    };
+
+    // Switching language must not silently strand starter code written for the
+    // old one: an untouched default template travels with the switch, custom
+    // starter code stays but is flagged so the teacher sees what to replace.
+    const pickLanguage = (id) => {
+        if (id === language) return;
+        const from = languageOf(language);
+        const to = languageOf(id);
+        if (boilerplate && boilerplate !== from.template) {
+            setStaleFrom(from.label);
+        } else if (boilerplate) {
+            setBoilerplate(to.template);
+        }
+        setLanguage(id);
     };
 
     if (!isOpen) return null;
@@ -199,7 +225,7 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
                         <div>
                             <span className="ae-field-label">{type === 'enumeration' ? 'Points per correct answer' : 'Points'}</span>
                             <input className="ae-input" type="number" min={1} step={1} value={points} style={{ width: 92 }}
-                                onChange={(e) => setPoints(Math.max(1, Math.round(Number(e.target.value) || 1)))} />
+                                onChange={(e) => setPoints(Math.min(1000, Math.max(1, Math.round(Number(e.target.value) || 1))))} />
                         </div>
                         {type === 'enumeration' && options.filter(o => o.trim()).length > 0 && (
                             <p className="ae-seg-hint" style={{ margin: '0 0 10px' }}>
@@ -300,22 +326,42 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                                         <span className="ae-field-label" style={{ margin: 0 }}>Language</span>
                                         <div className="ae-lang-group">
-                                            {Object.values(CODE_LANGUAGES).map((l) => (
-                                                <button key={l.id} type="button" className={`ae-lang-chip ${language === l.id ? 'selected' : ''}`}
-                                                    onClick={() => setLanguage(l.id)}
-                                                    title={l.preview ? 'Student pages render in a browser preview' : 'Runs on the execution engine'}>
-                                                    <span className="ae-lang-dot" style={{ background: l.color }} />
-                                                    {l.label}
-                                                </button>
-                                            ))}
+                                            {Object.values(CODE_LANGUAGES).map((l) => {
+                                                // Unknown availability (probe still loading
+                                                // or failed) never blocks the UI
+                                                const unavailable = langAvail[l.id] === false;
+                                                return (
+                                                    <button key={l.id} type="button"
+                                                        className={`ae-lang-chip ${language === l.id ? 'selected' : ''}`}
+                                                        onClick={() => pickLanguage(l.id)}
+                                                        disabled={unavailable}
+                                                        title={unavailable
+                                                            ? `${l.label} isn't installed on this execution server`
+                                                            : l.preview ? 'Student pages render in a browser preview' : 'Runs on the execution engine'}>
+                                                        <span className="ae-lang-dot" style={{ background: l.color }} />
+                                                        {l.label}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                     <button type="button" className="cw-btn-mini" onClick={insertTemplate}>
                                         + {activeLang.label} template
                                     </button>
                                 </div>
+                                {langAvail[language] === false && (
+                                    <p className="ae-lang-warn">
+                                        The {activeLang.label} runtime isn't installed on this execution server — runs and verification will fail until it is.
+                                    </p>
+                                )}
+                                {staleFrom && (
+                                    <p className="ae-lang-warn">
+                                        The starter code was written for {staleFrom} — press “+ {activeLang.label} template” to replace it, or rewrite it for {activeLang.label}.
+                                    </p>
+                                )}
                                 <div style={{ borderRadius: 11, overflow: 'hidden', border: '1px solid var(--db-border-strong)' }}>
-                                    <CodeMirror value={boilerplate} onChange={(val) => setBoilerplate(val)} height="180px"
+                                    <CodeMirror value={boilerplate} height="180px"
+                                        onChange={(val) => { setBoilerplate(val); if (!val || val === activeLang.template) setStaleFrom(null); }}
                                         extensions={[cmExtension(language)]} theme="dark" />
                                 </div>
                             </div>

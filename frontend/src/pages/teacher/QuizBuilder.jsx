@@ -11,6 +11,7 @@ import api, { invalidateCache } from '../../services/api';
 import { queryClient } from '../../lib/queryClient';
 import { quizKey, useQuiz } from '../../queries/quiz';
 import { classDetailsKey } from '../../queries/classDetails';
+import { useEngineLanguages, availabilityMap } from '../../queries/engine';
 import { SkeletonBlock } from '../../components/ui/skeletons';
 import TestCaseEditor from '../../components/teacher/TestCaseEditor';
 import HtmlChecksEditor from '../../components/teacher/HtmlChecksEditor';
@@ -35,6 +36,22 @@ function QuestionBlock({ q, index, lastIndex, onMove, update, remove, randomized
     const movedRef = useRef(false);
     const textRef = useRef(null);
     const qLang = q.type === 'coding' ? languageOf(resolveLanguage(q.language, q.boilerplate || q.expected_output)) : null;
+
+    // Switching language must not silently strand starter code written for the
+    // old one: an untouched default template travels with the switch, custom
+    // starter code stays but is flagged so the teacher sees what to replace.
+    const pickLanguage = (l) => {
+        if (!qLang || qLang.id === l.id) return;
+        if (q.boilerplate && q.boilerplate !== qLang.template) {
+            update(q.id, { language: l.id, template_stale: qLang.label });
+        } else {
+            update(q.id, {
+                language: l.id,
+                boilerplate: q.boilerplate ? l.template : q.boilerplate,
+                template_stale: null,
+            });
+        }
+    };
 
     // The textarea grows as you type (onInput) — this makes loaded questions
     // start at their full height instead of clipped to one row
@@ -130,9 +147,10 @@ function QuestionBlock({ q, index, lastIndex, onMove, update, remove, randomized
                     <input
                         type="number"
                         min="1"
+                        max="1000"
                         step="1"
                         value={q.points ?? 1}
-                        onChange={(e) => update(q.id, { points: Math.max(1, Number(e.target.value) || 1) })}
+                        onChange={(e) => update(q.id, { points: Math.min(1000, Math.max(1, Number(e.target.value) || 1)) })}
                     />
                     <span>pts</span>
                 </div>
@@ -247,25 +265,47 @@ function QuestionBlock({ q, index, lastIndex, onMove, update, remove, randomized
                                 type="button"
                                 className="le-template-btn"
                                 title="Puts example code in the editor — it replaces what is written now"
-                                onClick={() => update(q.id, { boilerplate: qLang.template })}
+                                onClick={() => update(q.id, { boilerplate: qLang.template, template_stale: null })}
                             >
                                 + Add example code
                             </button>
                         </div>
                         <div className="qb-seg">
-                            {Object.values(CODE_LANGUAGES).map((l) => (
-                                <button
-                                    key={l.id}
-                                    type="button"
-                                    onClick={() => update(q.id, { language: l.id })}
-                                    title={l.preview ? 'Answers render in a browser preview' : 'Runs on the execution engine'}
-                                    className={qLang.id === l.id ? 'active' : ''}
-                                >
-                                    <span className="qb-lang-dot" style={{ background: l.color, boxShadow: qLang.id === l.id ? `0 0 6px ${l.color}` : 'none' }} />
-                                    {l.label}
-                                </button>
-                            ))}
+                            {Object.values(CODE_LANGUAGES).map((l) => {
+                                // Unknown availability (probe still loading or
+                                // failed) never blocks the UI — treat as available
+                                const unavailable = langAvailability[l.id] === false;
+                                return (
+                                    <button
+                                        key={l.id}
+                                        type="button"
+                                        onClick={() => pickLanguage(l)}
+                                        disabled={unavailable}
+                                        title={
+                                            unavailable
+                                                ? `${l.label} isn't installed on this execution server`
+                                                : l.preview
+                                                    ? 'Answers render in a browser preview'
+                                                    : 'Runs on the execution engine'
+                                        }
+                                        className={qLang.id === l.id ? 'active' : ''}
+                                    >
+                                        <span className="qb-lang-dot" style={{ background: l.color, boxShadow: qLang.id === l.id ? `0 0 6px ${l.color}` : 'none' }} />
+                                        {l.label}
+                                    </button>
+                                );
+                            })}
                         </div>
+                        {qLang && qLang.id !== 'html' && langAvailability[qLang.id] === false && (
+                            <p className="qb-lang-warn">
+                                The {qLang.label} runtime isn't installed on this execution server — runs and verification will fail until it is.
+                            </p>
+                        )}
+                        {q.template_stale && q.boilerplate && (
+                            <p className="qb-lang-warn">
+                                The starter code was written for {q.template_stale} — press “Add example code” to replace it with the {qLang.label} example, or rewrite it for {qLang.label}.
+                            </p>
+                        )}
                         <div className="qb-coding-goal">
                             <span className="ed-card-label">Starter code students see</span>
                             <p className="qb-card-hint">Optional — leave empty and students start from scratch.</p>
@@ -276,7 +316,12 @@ function QuestionBlock({ q, index, lastIndex, onMove, update, remove, randomized
                                 height="240px"
                                 theme="dark"
                                 extensions={[cmExtension(qLang.id)]}
-                                onChange={(val) => update(q.id, { boilerplate: val })}
+                                onChange={(val) => update(q.id, {
+                                    boilerplate: val,
+                                    // Rewriting to the new language (or clearing)
+                                    // clears the stale-template warning
+                                    ...(!val || val === qLang.template ? { template_stale: null } : {}),
+                                })}
                             />
                         </div>
                         <div className="qb-coding-goal">
@@ -325,6 +370,10 @@ export default function QuizBuilder() {
     const navigate = useNavigate();
 
     const { data: quizData } = useQuiz(id);
+    // Which languages the engine can actually run — a dev box without g++
+    // disables C++ instead of letting a teacher build an unrunnable exercise.
+    const { data: engineLangs } = useEngineLanguages();
+    const langAvailability = useMemo(() => availabilityMap(engineLangs), [engineLangs]);
 
     const [quiz, setQuiz] = useState(null);
     const [questions, setQuestions] = useState([]);
@@ -803,6 +852,7 @@ export default function QuizBuilder() {
                             randomized={Boolean(quiz.is_randomized)}
                             isConfirming={deleteTarget === q.id}
                             setConfirming={(v) => setDeleteTarget(v ? q.id : null)}
+                            langAvailability={langAvailability}
                         />
                     ))}
                 </Reorder.Group>

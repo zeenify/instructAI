@@ -893,6 +893,24 @@
     color: #ffffff;
 }
 
+.ae-lang-chip:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* Missing runtime / stale starter template warning under the language chips */
+.ae-lang-warn {
+    margin: 10px 0 0;
+    padding: 9px 13px;
+    border-radius: 9px;
+    background: var(--db-amber-soft, rgba(251, 191, 36, 0.1));
+    border: 1px solid var(--db-amber-border, rgba(251, 191, 36, 0.35));
+    color: var(--db-amber);
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
 .ae-lang-dot {
     width: 6px;
     height: 6px;

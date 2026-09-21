@@ -2,7 +2,7 @@
 // questions, plus the "does my challenge even work" reference-solution
 // verifier. Used inside QuizBuilder's coding question editor.
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, Save, ShieldCheck, Eye, EyeOff, Loader2, CheckCircle2, XCircle, FlaskConical } from 'lucide-react';
+import { Plus, Trash2, Save, ShieldCheck, Eye, EyeOff, Loader2, CheckCircle2, XCircle, FlaskConical, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
 import './TestCaseEditor.css';
@@ -211,7 +211,15 @@ export default function TestCaseEditor({ question, apiBase = '/teacher/questions
                                     placeholder="Paste your solution here…"
                                     className="tce-reference"
                                 />
-                                {verifyResults && (
+                                {verifyResults && verifyResults.environment_error ? (
+                                    <div className="tce-env-error">
+                                        <AlertTriangle size={13} />
+                                        <div>
+                                            <strong>{verifyResults.environment_error}</strong>
+                                            <p>Nothing ran — this is a server setup issue, not a wrong answer. Pick another language or ask the server admin to install the runtime.</p>
+                                        </div>
+                                    </div>
+                                ) : verifyResults && (
                                     <div className="tce-results">
                                         <div className={`tce-results-title ${verifyResults.all_passed ? 'pass' : 'fail'}`}>
                                             {verifyResults.all_passed ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
@@ -232,6 +240,18 @@ export default function TestCaseEditor({ question, apiBase = '/teacher/questions
                                                 )}
                                             </div>
                                         ))}
+                                        {!verifyResults.all_passed && verifyResults.results.some((r) => !r.passed && (r.stderr || r.compile_output)) && (
+                                            <details className="tce-results-full">
+                                                <summary>Full engine output</summary>
+                                                <pre>
+                                                    {verifyResults.results
+                                                        .filter((r) => !r.passed)
+                                                        .map((r) => r.stderr || r.compile_output || '')
+                                                        .filter(Boolean)
+                                                        .join('\n\n')}
+                                                </pre>
+                                            </details>
+                                        )}
                                     </div>
                                 )}
                             </div>

@@ -82,7 +82,10 @@ export default function DateTimePicker({ value, onChange, disabled }) {
     const emitDate = (date, h, m) => {
         const d = new Date(date);
         d.setHours(parseInt(h, 10) || 0, parseInt(m, 10) || 0, 0, 0);
-        onChange(d.toISOString().slice(0, 19));
+        // Full ISO with Z. Slicing off the zone (the old behavior) produced a
+        // timezone-naive string that JS parsed as LOCAL — every display and
+        // save round-trip shifted the deadline by the UTC offset.
+        onChange(d.toISOString());
     };
 
     const selectDay = (day) => {
