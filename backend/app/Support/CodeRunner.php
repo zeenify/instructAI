@@ -181,4 +181,74 @@ class CodeRunner
             'engine_error' => true,
         ];
     }
+
+    private const LANGUAGE_LABELS = [
+        'java' => 'Java',
+        'python' => 'Python 3',
+        'javascript' => 'JavaScript',
+        'cpp' => 'C++',
+        'html' => 'HTML / CSS / JS',
+    ];
+
+    /**
+     * Which languages the engine can actually run (toolchain installed or
+     * not) — the engine probes g++/javac/python on demand. Mirrors execute()'s
+     * local-then-deployed fallback so the builder UI reflects the same engine
+     * that would run the code. Never throws: if no engine answers, every
+     * server-run language reports unavailable and only preview-only HTML stays
+     * selectable.
+     */
+    public static function languages(): array
+    {
+        $local = self::probeLanguages('http://localhost:3000/languages');
+        if ($local !== null) {
+            return ['engine' => 'local', 'languages' => $local];
+        }
+
+        $base = rtrim((string) env('EXECUTION_ENGINE_URL'), '/');
+        if (str_ends_with($base, '/execute')) {
+            $base = substr($base, 0, -strlen('/execute'));
+        }
+
+        if ($base !== '') {
+            $deployed = self::probeLanguages($base.'/languages');
+            if ($deployed !== null) {
+                return ['engine' => 'deployed', 'languages' => $deployed];
+            }
+        }
+
+        $languages = [];
+        foreach (self::LANGUAGES as $id) {
+            $languages[] = [
+                'id' => $id,
+                'label' => self::LANGUAGE_LABELS[$id] ?? $id,
+                'preview_only' => $id === 'html',
+                'available' => $id === 'html',
+            ];
+        }
+
+        return ['engine' => null, 'languages' => $languages];
+    }
+
+    private static function probeLanguages(string $url): ?array
+    {
+        try {
+            $request = Http::timeout(4);
+            $token = (string) env('EXECUTION_ENGINE_TOKEN', '');
+            if ($token !== '') {
+                $request = $request->withHeaders(['X-Engine-Token' => $token]);
+            }
+
+            $response = $request->get($url);
+            if (! $response->successful()) {
+                return null;
+            }
+
+            $languages = $response->json('languages');
+
+            return is_array($languages) ? $languages : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
 }

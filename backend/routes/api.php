@@ -97,6 +97,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('/teacher/activity-questions/{id}/test-cases', [ActivityQuestionController::class, 'updateTestCases']);
     Route::post('/teacher/activity-questions/{id}/verify', [ActivityQuestionController::class, 'verify']);
     Route::post('/teacher/run-code', [CodeRunController::class, 'run'])->middleware('throttle:code-execution');
+    // Which languages the engine can actually run (runtime installed or not)
+    Route::get('/teacher/engine-languages', [CodeRunController::class, 'languages']);
 
     // Enrollment whitelists — ADMIN ONLY (role enforced server-side). Only
     // LRNs/emails on these lists can register or sign up as students/teachers

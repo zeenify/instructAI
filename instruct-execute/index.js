@@ -211,6 +211,14 @@ function executeJob({ language, code, input, interactive = false, timeoutMs, onE
 
         const emit = (event) => { try { onEvent && onEvent(event); } catch { /* client gone */ } };
 
+        // Compiler errors and tracebacks embed the absolute temp path
+        // (…\Temp\exec-<uuid>\main.py). Never leak the host filesystem to
+        // clients — strip the folder so students/teachers see "main.py:1".
+        const scrub = (text) => {
+            if (typeof text !== 'string' || !text) return text;
+            return text.split(folderPath + path.sep).join('').split(folderPath).join('');
+        };
+
         const finish = (result) => {
             if (settled) return;
             settled = true;
@@ -222,6 +230,9 @@ function executeJob({ language, code, input, interactive = false, timeoutMs, onE
             killTree(compileChild);
             activeJobs = Math.max(0, activeJobs - 1);
             try { fs.rmSync(folderPath, { recursive: true, force: true }); } catch { /* best effort */ }
+            for (const key of ['stdout', 'stderr', 'compile_output']) {
+                result[key] = scrub(result[key]);
+            }
             resolve({
                 stdout: '',
                 stderr: '',

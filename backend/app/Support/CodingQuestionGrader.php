@@ -150,9 +150,12 @@ class CodingQuestionGrader
     /**
      * Run a teacher's reference solution against every test case — powers the
      * "Verify" button in the test-case editor. Returns per-test diagnostics.
+     * "Runtime not installed" is a server setup issue, not a wrong answer: it
+     * comes back as environment_error so the UI renders a distinct banner
+     * instead of a per-test "got …" row.
      *
      * @param  Collection<int, QuestionTestCase>|array  $testCases
-     * @return array{passed: int, total: int, all_passed: bool, results: array<int, array{test_case_index: int, passed: bool, input: string, expected_output: string, actual_output: string, compile_output: string, stderr: string, timed_out: bool}>}
+     * @return array{passed: int, total: int, all_passed: bool, engine_error?: bool, environment_error?: string, results: array<int, array{test_case_index: int, passed: bool, input: string, expected_output: string, actual_output: string, compile_output: string, stderr: string, timed_out: bool}>}
      */
     public static function verifyReference(string $language, string $referenceCode, $testCases): array
     {
@@ -167,6 +170,17 @@ class CodingQuestionGrader
                 $referenceCode,
                 ($testCase->input ?? '') !== '' ? $testCase->input : null
             );
+
+            if (! empty($run['engine_error'])) {
+                return [
+                    'passed' => $passed,
+                    'total' => $testCases->count(),
+                    'all_passed' => false,
+                    'engine_error' => true,
+                    'environment_error' => (string) $run['stderr'],
+                    'results' => $results,
+                ];
+            }
 
             $ok = ! $run['timed_out']
                 && CodeRunner::normalizeOutput($run['stdout']) === CodeRunner::normalizeOutput((string) $testCase->expected_output);

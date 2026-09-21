@@ -48,13 +48,17 @@ class ClassActivity extends Model
         'late_submission' => 'boolean',
         'max_points' => 'decimal:2',
         'late_penalty_pct' => 'decimal:2',
-        'deadline_at' => 'datetime',
-        'live_scheduled_at' => 'datetime',
-        'live_started_at' => 'datetime',
-        'live_paused_at' => 'datetime',
-        'live_question_deadline_at' => 'datetime',
-        'live_question_revealed_at' => 'datetime',
-        'close_room_at' => 'datetime',
+        // Serialize datetimes as offset-qualified ISO 8601 (…T15:59:00+00:00).
+        // The bare 'Y-m-d H:i:s' default is timezone-naive, and JS parses it
+        // as LOCAL time — deadlines shifted by the UTC offset on every
+        // display/round-trip.
+        'deadline_at' => 'datetime:Y-m-d\TH:i:sP',
+        'live_scheduled_at' => 'datetime:Y-m-d\TH:i:sP',
+        'live_started_at' => 'datetime:Y-m-d\TH:i:sP',
+        'live_paused_at' => 'datetime:Y-m-d\TH:i:sP',
+        'live_question_deadline_at' => 'datetime:Y-m-d\TH:i:sP',
+        'live_question_revealed_at' => 'datetime:Y-m-d\TH:i:sP',
+        'close_room_at' => 'datetime:Y-m-d\TH:i:sP',
         'shuffle_questions' => 'boolean',
         'per_question_durations' => 'array',
         'instruction_files' => 'array',
