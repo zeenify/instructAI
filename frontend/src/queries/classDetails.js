@@ -17,7 +17,10 @@ export function useClassDetails(classId, options = {}) {
         enabled: Boolean(classId),
         staleTime: 60 * 1000,
         queryFn: async () => {
-            const res = await api.get(`/teacher/classes/${classId}`);
+            // bypassCache: invalidation refetches must not be served by the
+            // legacy axios layer — the classwork-count badge stayed 5 minutes
+            // stale without this (same rule as every other query hook).
+            const res = await api.get(`/teacher/classes/${classId}`, { bypassCache: true });
             return res.data;
         },
         ...options,
@@ -31,7 +34,7 @@ export function useCourseContent(courseId, options = {}) {
         enabled: Boolean(courseId),
         staleTime: 30 * 1000,
         queryFn: async () => {
-            const res = await api.get(`/teacher/courses/${courseId}`);
+            const res = await api.get(`/teacher/courses/${courseId}`, { bypassCache: true });
             return res.data;
         },
         ...options,

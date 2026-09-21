@@ -56,6 +56,7 @@ export default function ActivityCard({ activity, classId, onDelete }) {
     const [classes, setClasses] = useState(null);
     const [repostingTo, setRepostingTo] = useState(null);
     const [busy, setBusy] = useState(false);
+    const [confirmUnpublish, setConfirmUnpublish] = useState(false);
 
     const refresh = () => {
         queryClient.invalidateQueries({ queryKey: classActivitiesKey(classId) });
@@ -98,6 +99,14 @@ export default function ActivityCard({ activity, classId, onDelete }) {
 
     const handleTogglePublish = (e) => {
         e.stopPropagation();
+        // Unpublishing instantly hides the activity from every student —
+        // two-step on the card too (same as the editor), never one click
+        if (activity.is_published && !confirmUnpublish) {
+            setConfirmUnpublish(true);
+            setTimeout(() => setConfirmUnpublish(false), 3500);
+            return;
+        }
+        setConfirmUnpublish(false);
         withBusy(async () => {
             const res = await api.post(`/teacher/activities/${activity.id}/publish`);
             refresh();
@@ -268,10 +277,12 @@ export default function ActivityCard({ activity, classId, onDelete }) {
                         </button>
                         {state !== 'closed' && (
                             <button
-                                className={`cw-icon-btn ${activity.is_published ? 'on' : ''}`}
+                                className={`cw-icon-btn ${activity.is_published ? (confirmUnpublish ? 'danger' : 'on') : ''}`}
                                 onClick={handleTogglePublish}
                                 type="button"
-                                title={activity.is_published ? 'Unpublish' : 'Publish'}
+                                title={activity.is_published
+                                    ? (confirmUnpublish ? 'Unpublish — click again to confirm' : 'Unpublish (hides from students)')
+                                    : 'Publish'}
                             >
                                 {activity.is_published ? <Eye size={14} /> : <EyeOff size={14} />}
                             </button>

@@ -208,6 +208,8 @@ export default function ActivityGrading() {
         return searchMatch && statusMatch;
       });
 
+  const hasEntries = submissions.length > 0 || notSubmitted.length > 0;
+
   if (loading) {
     return (
       <div className="ed-shell" style={{ paddingTop: 20 }}>
@@ -474,8 +476,10 @@ export default function ActivityGrading() {
           ) : displayList.length === 0 ? (
             <div className="ag-empty">
               <div className="ag-empty-icon"><MessageSquare size={24} /></div>
-              <p className="ag-empty-title">{submissionSearch || submissionFilter !== 'all' ? 'No matching entries' : 'No submissions yet'}</p>
-              <p className="ag-empty-sub">{submissionSearch || submissionFilter !== 'all' ? 'Try adjusting your search or filter' : isMaterial ? 'Students will appear here once they view the material' : 'Submissions will appear here once students submit'}</p>
+              {/* With nothing submitted at all, "no matching entries" reads
+                  wrong — only claim it when there is something to filter */}
+              <p className="ag-empty-title">{hasEntries ? 'No matching entries' : 'No submissions yet'}</p>
+              <p className="ag-empty-sub">{hasEntries ? 'Try adjusting your search or filter' : isMaterial ? 'Students will appear here once they view the material' : 'Submissions will appear here once students submit'}</p>
             </div>
           ) : (
             <div className="ag-rows">

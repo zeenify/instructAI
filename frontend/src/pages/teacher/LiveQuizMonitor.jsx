@@ -207,6 +207,10 @@ function TeacherPacingControls({
         ? "Countdown expired"
         : null;
 
+  // Coding questions have no single stored answer — revealing one would flip
+  // the phase with nothing shown to anyone. Hide the control for them.
+  const isCodingQuestion = question?.type === "coding";
+
   return (
     <div
       style={{
@@ -293,9 +297,11 @@ function TeacherPacingControls({
             Current Question
           </p>
           <p style={{ fontSize: "18px", fontWeight: "700", margin: 0 }}>
-            {questions.length > 0
-              ? `Question ${currentQ + 1} of ${questions.length}`
-              : "No questions"}
+            {currentQ < 0
+              ? "Not started"
+              : questions.length > 0
+                ? `Question ${currentQ + 1} of ${questions.length}`
+                : "No questions"}
           </p>
           <p
             style={{
@@ -438,6 +444,7 @@ function TeacherPacingControls({
             busy ||
             isPaused ||
             revealed ||
+            isCodingQuestion ||
             phase === "complete" ||
             phase === "waiting"
           }
@@ -458,14 +465,24 @@ function TeacherPacingControls({
               busy ||
               isPaused ||
               revealed ||
+              isCodingQuestion ||
               phase === "complete" ||
               phase === "waiting"
                 ? 0.5
                 : 1,
           }}
+          title={
+            isCodingQuestion
+              ? "Coding questions have no single answer to reveal — students see their own output"
+              : "Reveal the correct answer to the class"
+          }
         >
           <Eye size={16} />
-          {revealed ? "Answer Revealed" : "Reveal Answer"}
+          {revealed
+            ? "Answer Revealed"
+            : isCodingQuestion
+              ? "No reveal for coding"
+              : "Reveal Answer"}
         </button>
       </div>
     </div>
@@ -608,12 +625,25 @@ export default function LiveQuizMonitor() {
     setProgress(null);
   };
 
+  const setLiveStatus = (status) => {
+    // Optimistic flip — a live classroom can't wait for the next 3s poll to
+    // see the room pause. Reverted if the request fails.
+    setActivity((prev) => (prev ? { ...prev, live_status: status } : prev));
+    setBoard((prev) =>
+      prev?.activity
+        ? { ...prev, activity: { ...prev.activity, live_status: status } }
+        : prev,
+    );
+  };
+
   const handlePause = async () => {
     setBusy(true);
+    setLiveStatus("paused");
     try {
       await api.post(`/teacher/activities/${activityId}/pause-live`);
       await fetchBoard(true);
     } catch (e) {
+      setLiveStatus("active");
       setError(
         e.response?.data?.message || e.message || "Failed to pause the room",
       );
@@ -624,10 +654,12 @@ export default function LiveQuizMonitor() {
 
   const handleResume = async () => {
     setBusy(true);
+    setLiveStatus("active");
     try {
       await api.post(`/teacher/activities/${activityId}/resume-live`);
       await fetchBoard(true);
     } catch (e) {
+      setLiveStatus("paused");
       setError(
         e.response?.data?.message || e.message || "Failed to resume the room",
       );
@@ -829,7 +861,9 @@ export default function LiveQuizMonitor() {
                       ROOM CLOSED
                     </span>
                   )}
-                  {!isLive && !isClosed && (
+                  {/* Paused is its own state — the old condition (!isLive &&
+                      !isClosed) also lit NOT STARTED while paused */}
+                  {!isLive && !isPaused && !isClosed && (
                     <span
                       style={{
                         display: "inline-flex",
@@ -858,8 +892,8 @@ export default function LiveQuizMonitor() {
                   }}
                 >
                   {counts.enrolled ?? 0} enrolled ·{" "}
-                  {activity?.type === "quiz" ? "Quiz" : "Activity"} · started{" "}
-                  {formatClock(activity?.live_started_at)}
+                  {activity?.activity_type === "quiz" ? "Quiz" : "Activity"} ·
+                  started {formatClock(activity?.live_started_at)}
                 </p>
               </div>
 
