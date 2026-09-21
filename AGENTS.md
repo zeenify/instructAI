@@ -134,6 +134,11 @@ on student Modules tab already shipped.
 
 - Backend needs **PHP 8.4+** — use Herd (`C:/Users/EDRICK/.config/herd/bin/php.bat`);
     XAMPP's 8.2 fails Composer's platform check. Run: `php artisan serve --port=8000`.
+- **C++ runs via g++** — installed at `%LOCALAPPDATA%\mingw64\bin` (WinLibs gcc
+    16.2; also exported in `~/.bashrc`). The engine probes PATH first, then
+    well-known MinGW locations (MSYS2/choco/%LOCALAPPDATA%), so engine
+    restarts need no PATH setup. Only the deployed DB/frontend/backend exist
+    in this project — the execution engine is dev-local only.
     - **Two backend servers in dev** (artisan serve = 1 worker on Windows, so a
       live AI stream blocks every other request): run a second one with
       `php artisan serve --port=8010` and set `VITE_AI_RELAY_URL=http://localhost:8010/api`
