@@ -72,8 +72,34 @@ const RUNTIMES = {
     python: ['python3', 'python'].find((bin) => probe(bin)) || null,
     node: 'node',
     javac: probe('javac') ? 'javac' : null,
-    gpp: probe('g++', ['--version']) ? 'g++' : null,
+    gpp: null,
 };
+
+// Windows: spawned services often inherit a stale env that misses MinGW
+// installs entirely. Fall back to the well-known MinGW-w64 locations before
+// declaring C++ unavailable; an absolute path also sidesteps spawn's .exe
+// resolution.
+function probeGpp() {
+    if (probe('g++', ['--version'])) return 'g++';
+    if (process.platform !== 'win32') return null;
+    const known = [
+        path.join(process.env.LOCALAPPDATA || '', 'mingw64', 'bin', 'g++.exe'),
+        'C:\\msys64\\ucrt64\\bin\\g++.exe',
+        'C:\\msys64\\mingw64\\bin\\g++.exe',
+        'C:\\ProgramData\\mingw64\\mingw64\\bin\\g++.exe',
+        'C:\\mingw64\\bin\\g++.exe',
+    ];
+    for (const exe of known) {
+        try {
+            if (exe && fs.existsSync(exe)) {
+                const r = spawnSync(exe, ['--version'], { stdio: 'ignore', timeout: 8000 });
+                if (!r.error && r.status === 0) return exe;
+            }
+        } catch { /* try the next location */ }
+    }
+    return null;
+}
+RUNTIMES.gpp = probeGpp();
 
 // --- PROCESS-TREE KILL ---
 // The direct child is spawned detached (its own process group on POSIX), so a
