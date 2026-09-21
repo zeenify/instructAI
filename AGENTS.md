@@ -48,7 +48,9 @@ student class page (1:1 course logic), AI generation workflow redo (architect
 → centered Stage-1 design modal → review → content settings → 'AI generation
 studio' console, all on gen- styles in CourseBuilder.css; rate-limit
 wait-and-retry in the Python service; coding questions/lesson challenges
-require stdin-driven programs and engine-verified test cases; quiz
+require stdin-driven programs and engine-verified test cases; language
+availability is engine-reported (`GET /teacher/engine-languages` — builders
+disable runtimes the server lacks, e.g. a dev box without g++); quiz
 regeneration REPLACES questions; ai-commit takes a mode (append = default
 keeps existing modules / replace = wipes the course's modules first, chosen
 in the review modal when the class already has content); PDF text extraction
