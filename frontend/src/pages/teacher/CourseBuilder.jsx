@@ -1289,6 +1289,15 @@ export default function CourseBuilder({
         }
     };
 
+    // Hooks must not live past the skeleton early-return below, or React
+    // throws "more hooks than during the previous render" when course data
+    // arrives. Null-safe because course is still null while loading.
+    const activeModuleData = course && activeModuleId ? course.modules.find(m => m.id === activeModuleId) : null;
+    // Stable identity per course-state change: Reorder.Group re-syncs when the
+    // values array identity moves, so computing it once per render keeps drags
+    // smooth instead of fighting mid-gesture re-renders.
+    const moduleItems = useMemo(() => getSortedItems(activeModuleData), [activeModuleData]);
+
 if (loading || !course) return (
         <div className="builder-container" style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh' }}>
             <header style={{ marginBottom: '40px' }}>
@@ -1343,7 +1352,6 @@ if (loading || !course) return (
         </div>
     );
 
-    const activeModuleData = activeModuleId ? course.modules.find(m => m.id === activeModuleId) : null;
     const moduleIndex = activeModuleId ? course.modules.findIndex(m => m.id === activeModuleId) : -1;
     const mTotal = activeModuleData ? (activeModuleData.lessons?.length || 0) + (activeModuleData.quizzes?.length || 0) : 0;
     const mPublished = activeModuleData
@@ -1351,10 +1359,6 @@ if (loading || !course) return (
         : 0;
     const mPct = mTotal ? Math.round((mPublished / mTotal) * 100) : 0;
     const mAllPublished = mTotal > 0 && mPublished === mTotal;
-    // Stable identity per course-state change: Reorder.Group re-syncs when the
-    // values array identity moves, so computing it once per render keeps drags
-    // smooth instead of fighting mid-gesture re-renders.
-    const moduleItems = useMemo(() => getSortedItems(activeModuleData), [activeModuleData]);
 
     // "Add lesson / add quiz" — shown at the bottom of a populated module and
     // inside the empty state (one source, two homes).
@@ -1486,8 +1490,8 @@ if (loading || !course) return (
                             <button
                                 disabled={isUpdatingStatus}
                                 onClick={publishAllItems}
-                                style={{ padding: '10px 16px', color: '#7e22ce' }}
-                                className="text-xs font-bold uppercase tracking-wider border-none bg-transparent cursor-pointer hover:bg-blue-500/10 rounded-lg transition-all disabled:opacity-50 flex items-center gap-2"
+                                style={{ padding: '10px 16px', color: 'var(--db-accent)' }}
+                                className="text-xs font-bold border-none bg-transparent cursor-pointer hover:bg-blue-500/10 rounded-lg transition-all disabled:opacity-50 flex items-center gap-2"
                             >
                                 {isUpdatingStatus ? <Loader2 size={14} className="animate-spin" /> : 'Publish All'}
                             </button>
@@ -1568,7 +1572,7 @@ if (loading || !course) return (
                                 className={`rounded-xl text-xs font-bold uppercase transition-all border flex items-center gap-2 cursor-pointer ${
                                     isPublished
                                         ? 'bg-slate-800/40 text-slate-400 border-slate-700/40 hover:bg-slate-700/40'
-                                        : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600/50 shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-blue-600'
+                                        : 'bg-blue-600 text-white border-transparent hover:bg-blue-500'
                                 }`}
                             >
                                 {isPublished ? 'Unpublish' : 'Go Live'}
@@ -1576,7 +1580,7 @@ if (loading || !course) return (
                             <button
                                 onClick={() => setIsAiModalOpen(true)}
                                 style={{ padding: '14px 22px' }}
-                                className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl text-xs font-bold uppercase border-none cursor-pointer flex items-center gap-2 hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/20"
+                                className="bg-blue-600 text-white rounded-xl text-xs font-bold uppercase border-none cursor-pointer flex items-center gap-2 hover:bg-blue-500 transition-all"
                             >
                                 <Sparkles size={16} /> AI
                             </button>
@@ -1595,7 +1599,7 @@ if (loading || !course) return (
                             <button
                                 onClick={() => setModuleModal({ isOpen: true, mode: 'create', id: null, title: '' })}
                                 style={{ padding: '14px 22px' }}
-                                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider border-none cursor-pointer flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20"
+                                className="bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider border-none cursor-pointer flex items-center gap-2 transition-all"
                             >
                                 <Plus size={16} /> New Module
                             </button>
@@ -1635,7 +1639,7 @@ if (loading || !course) return (
                                         onClick={handleBulkDelete}
                                         disabled={isDeleting}
                                         style={{ padding: '12px 18px' }}
-                                        className="rounded-xl text-xs font-bold uppercase tracking-wider border-none cursor-pointer transition-all bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-red-500/20"
+                                        className="rounded-xl text-xs font-bold uppercase tracking-wider border-none cursor-pointer transition-all bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 "
                                     >
                                         {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                                         Delete {selectedModuleIds.size}

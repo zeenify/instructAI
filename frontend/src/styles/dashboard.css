@@ -1180,11 +1180,8 @@
 
 .cd-hero {
     --class-color: #0a84ff;
-    background:
-        radial-gradient(620px 220px at 90% -50%, color-mix(in srgb, var(--class-color) 15%, transparent), transparent 70%),
-        radial-gradient(400px 160px at 8% 120%, color-mix(in srgb, var(--class-color) 7%, transparent), transparent 70%),
-        var(--db-card);
-    border: 1px solid color-mix(in srgb, var(--class-color) 22%, var(--db-border));
+    background: var(--db-card);
+    border: 1px solid var(--db-border);
     border-radius: 20px;
     padding: 28px 32px 26px;
     margin-bottom: 26px;
@@ -1789,7 +1786,7 @@
     display: block;
     height: 100%;
     border-radius: 999px;
-    background: linear-gradient(90deg, var(--db-accent-bright), var(--db-accent));
+    background: var(--db-accent);
     transition: width 0.3s ease;
 }
 
@@ -1843,10 +1840,8 @@
     text-align: center;
     padding: 52px 32px;
     border-radius: 18px;
-    border: 1.5px dashed var(--db-accent-border);
-    background:
-        radial-gradient(420px 180px at 50% -30%, var(--db-accent-soft), transparent 70%),
-        var(--db-card);
+    border: 1px solid var(--db-border);
+    background: var(--db-card);
 }
 
 .cd-empty-build-spark {
@@ -2005,25 +2000,9 @@
     margin-bottom: 26px;
 }
 
-/* Oversized chapter number, a quiet watermark at the base (never crowding
-   the action buttons at the top right) */
+/* Number watermark retired for the Apple skin — the row numeral carries it. */
 .cd-md-num-bg {
-    position: absolute;
-    top: auto;
-    bottom: -26px;
-    right: 14px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 118px;
-    font-weight: 700;
-    line-height: 1;
-    letter-spacing: -0.04em;
-    color: var(--db-accent-soft);
-    pointer-events: none;
-    user-select: none;
-}
-
-:root[data-theme='light'] .cd-md-num-bg {
-    color: rgba(10, 132, 255, 0.1);
+    display: none;
 }
 
 .cd-md-hero-top {
@@ -2110,7 +2089,7 @@
     display: block;
     height: 100%;
     border-radius: 999px;
-    background: linear-gradient(90deg, var(--db-accent-bright), var(--db-accent));
+    background: var(--db-accent);
     transition: width 0.3s ease;
 }
 
@@ -2728,7 +2707,7 @@
     display: block;
     height: 100%;
     border-radius: 999px;
-    background: linear-gradient(90deg, var(--db-accent-bright), var(--db-accent));
+    background: var(--db-accent);
 }
 
 .sv-module {
@@ -3112,10 +3091,8 @@
     place-items: center;
     border-radius: 50%;
     color: #ffffff;
-    background: linear-gradient(135deg, #409cff, #0066cc);
-    box-shadow:
-        0 0 0 8px var(--db-accent-soft),
-        0 10px 30px rgba(10, 132, 255, 0.45);
+    background: var(--db-accent);
+    box-shadow: 0 0 0 8px var(--db-accent-soft);
     animation: db-pop-in 0.35s cubic-bezier(0.25, 1, 0.5, 1) both;
 }
 
