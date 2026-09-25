@@ -144,12 +144,13 @@ on student Modules tab already shipped.
     well-known MinGW locations (MSYS2/choco/%LOCALAPPDATA%), so engine
     restarts need no PATH setup. Only the deployed DB/frontend/backend exist
     in this project — the execution engine is dev-local only.
-    - **Two backend servers in dev** (artisan serve = 1 worker on Windows, so a
-      live AI stream blocks every other request): run a second one with
-      `php artisan serve --port=8010` and set `VITE_AI_RELAY_URL=http://localhost:8010/api`
-      in `frontend/.env.local` — the AI stream calls use it, saves stay instant.
-      Production (php-fpm) doesn't need this; unset there the fallback is the
-      normal API URL.
+    - **Single backend in dev** (port 8000). Artisan serve = 1 worker on
+      Windows, so while an AI generation stream is live every other request
+      blocks until it finishes — accepted (solo dev box). Production (php-fpm
+      worker pool) doesn't have this issue. The old 8010 relay was removed:
+      `VITE_AI_RELAY_URL` is gone from `frontend/.env.local` and streams fall
+      back to the normal API URL (`CourseBuilder` still supports the var as an
+      escape hatch if dev blocking ever becomes a problem again).
 - Frontend dev API URL is pinned in `frontend/.env.local`
   (`VITE_API_URL=http://localhost:8000/api`, gitignored). The committed `.env`
   still points at `instructai.test` (currently not served).
