@@ -87,6 +87,7 @@ export default function QuizRoomView() {
   const pendingSaveRef = useRef(null);
   const heartbeaterRef = useRef(null);
   const pollerRef = useRef(null);
+  const mountedJoinRef = useRef(null);
 
   useEffect(() => {
     answersRef.current = answers;
@@ -97,6 +98,15 @@ export default function QuizRoomView() {
   useEffect(() => {
     payloadRef.current = payload;
   }, [payload]);
+
+  // Questions the student left blank — surfaced in the finish confirmation so
+  // a silent zero can't happen by accident (mirrors the activities flow).
+  const unansweredCount = (payload?.questions || []).filter((q) => {
+    const v = answers[q.id];
+    if (v == null) return true;
+    if (Array.isArray(v)) return v.every((s) => !String(s || "").trim());
+    return !String(v).trim();
+  }).length;
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
@@ -194,6 +204,11 @@ export default function QuizRoomView() {
   }, [activityId, applyPayload]);
 
   useEffect(() => {
+    // Guard the mount call only — StrictMode double-mounts would otherwise
+    // fire the room's slowest request (join) twice. Deliberate loadQuiz()
+    // retries elsewhere are unaffected.
+    if (mountedJoinRef.current === activityId) return;
+    mountedJoinRef.current = activityId;
     loadQuiz();
   }, [loadQuiz]);
 
@@ -1717,8 +1732,12 @@ export default function QuizRoomView() {
         isOpen={showFinishModal}
         onClose={() => setShowFinishModal(false)}
         onConfirm={handleFinish}
-        title="Finish Quiz?"
-        message="Your answers are saved. After submitting you cannot change them."
+        title={unansweredCount > 0 ? "Finish with unanswered questions?" : "Finish Quiz?"}
+        message={
+          unansweredCount > 0
+            ? `You have ${unansweredCount} unanswered question${unansweredCount !== 1 ? "s" : ""}. Unanswered questions are graded as incorrect.`
+            : "Your answers are saved. After submitting you cannot change them."
+        }
         confirmText="Finish Quiz"
         loading={finishing}
         variant="warning"
