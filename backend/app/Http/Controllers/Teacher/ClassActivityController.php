@@ -133,6 +133,9 @@ class ClassActivityController extends Controller
             ->orderBy('order_index', 'asc')
             ->get();
 
+        // Self-heal forgotten rooms so the board's LIVE state stays honest
+        $activities->where('is_live', true)->each->syncExpiredRoom();
+
         $enrolledCount = Enrollment::where('class_id', $classId)->count();
         $activities->each->setAttribute('enrolled_count', $enrolledCount);
 
@@ -505,43 +508,7 @@ class ClassActivityController extends Controller
     {
         $activity = $this->authorizeActivity($id);
 
-        $result = DB::transaction(function () use ($activity) {
-            if (! $activity->is_live) {
-                return ['finalized' => 0, 'missed' => 0];
-            }
-
-            $now = now();
-            $submissions = ActivitySubmission::where('activity_id', $activity->id)
-                ->where('status', 'draft')
-                ->get();
-
-            $finalized = 0;
-            $missed = 0;
-
-            foreach ($submissions as $submission) {
-                if ($submission->started_at) {
-                    ActivityGrading::finalizeSubmission($submission, $activity, $now->toDateTimeString());
-                    $finalized++;
-                } else {
-                    $submission->update([
-                        'status' => 'missed',
-                        'submitted_at' => $now,
-                        'room_closed_at' => $now,
-                    ]);
-                    $missed++;
-                }
-            }
-
-            $activity->update([
-                'is_live' => false,
-                'live_status' => 'completed',
-                'close_room_at' => $now,
-                'live_question_deadline_at' => null,
-                'live_question_revealed_at' => null,
-            ]);
-
-            return ['finalized' => $finalized, 'missed' => $missed];
-        });
+        $result = $activity->closeRoomNow();
 
         return response()->json([
             'message' => 'Quiz ended',
@@ -652,6 +619,7 @@ class ClassActivityController extends Controller
     public function liveBoard($id)
     {
         $activity = $this->authorizeActivity($id);
+        $activity->syncExpiredRoom();
         $this->syncExpiredQuestion($activity);
 
         $board = $this->liveRoster($activity);

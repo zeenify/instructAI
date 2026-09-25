@@ -71,6 +71,9 @@ class ClassActivityController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Self-heal forgotten rooms so the LIVE NOW strip stays honest
+        $activities->where('is_live', true)->each->syncExpiredRoom();
+
         $studentId = auth()->id();
         $now = now();
 

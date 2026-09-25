@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Support\ActivityGrading;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class ClassActivity extends Model
 {
@@ -82,5 +84,73 @@ class ClassActivity extends Model
     public function submissions()
     {
         return $this->hasMany(ActivitySubmission::class, 'activity_id');
+    }
+
+    /**
+     * Quiz rooms are assessments, not homework windows — one still open 24
+     * hours after it started is a forgotten room. Checked lazily (there is
+     * no scheduler): every surface that touches the room finalizes it the
+     * exact way the teacher's End Room button does, so an in-flight student
+     * keeps their earned points instead of being zeroed.
+     */
+    public function syncExpiredRoom(): void
+    {
+        if (! $this->is_live || ! $this->live_started_at) {
+            return;
+        }
+
+        if (! $this->live_started_at->copy()->addHours(24)->isPast()) {
+            return;
+        }
+
+        $this->closeRoomNow();
+        $this->refresh();
+    }
+
+    /**
+     * The single close path for a live room — used by BOTH the teacher's
+     * End Room endpoint and the 24h auto-close so their outcomes are
+     * identical: started drafts are graded on what was answered, never
+     * started drafts become missed, the room flips to completed.
+     */
+    public function closeRoomNow(): array
+    {
+        return DB::transaction(function () {
+            if (! $this->is_live) {
+                return ['finalized' => 0, 'missed' => 0];
+            }
+
+            $now = now();
+            $submissions = ActivitySubmission::where('activity_id', $this->id)
+                ->where('status', 'draft')
+                ->get();
+
+            $finalized = 0;
+            $missed = 0;
+
+            foreach ($submissions as $submission) {
+                if ($submission->started_at) {
+                    ActivityGrading::finalizeSubmission($submission, $this, $now->toDateTimeString());
+                    $finalized++;
+                } else {
+                    $submission->update([
+                        'status' => 'missed',
+                        'submitted_at' => $now,
+                        'room_closed_at' => $now,
+                    ]);
+                    $missed++;
+                }
+            }
+
+            $this->update([
+                'is_live' => false,
+                'live_status' => 'completed',
+                'close_room_at' => $now,
+                'live_question_deadline_at' => null,
+                'live_question_revealed_at' => null,
+            ]);
+
+            return ['finalized' => $finalized, 'missed' => $missed];
+        });
     }
 }

@@ -33,6 +33,10 @@ class LiveQuizController extends Controller
             abort(422, 'Not a quiz');
         }
 
+        // Rooms auto-close 24h after start — every student touchpoint (join,
+        // state, answers, heartbeat, finish) finalizes a forgotten room here
+        $activity->syncExpiredRoom();
+
         return $activity;
     }
 

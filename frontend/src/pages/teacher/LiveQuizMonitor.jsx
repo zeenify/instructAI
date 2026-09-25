@@ -1123,7 +1123,7 @@ export default function LiveQuizMonitor() {
                   }}
                 >
                   <Radio size={14} color="#10b981" />
-                  Refreshes every 3s
+                  Refreshes every 3s · rooms auto-close after 24h
                 </span>
               </div>
 
