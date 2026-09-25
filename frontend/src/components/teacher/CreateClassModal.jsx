@@ -5,7 +5,7 @@ import api from '../../services/api';
 import { useClasses } from '../../context/ClassContext';
 import { CLASS_COLORS } from '../ui/ColorSwatches';
 
-const DEFAULT_CLASS_COLOR = '#6d5ae0';
+const DEFAULT_CLASS_COLOR = '#0a84ff';
 
 /** Event name used to open the modal from anywhere in the dashboard shell. */
 export const OPEN_CREATE_CLASS = 'instructai:create-class';

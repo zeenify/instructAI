@@ -31,7 +31,7 @@
 }
 
 .is-wiggling .group {
-    border-color: rgba(167, 139, 250, 0.4) !important;
+    border-color: rgba(64, 156, 255, 0.4) !important;
 }
 
 /* Enhanced Drag Styles */
@@ -69,8 +69,8 @@
 .timeline-item:active {
     z-index: 100 !important;
     cursor: grabbing;
-    background: rgba(167, 139, 250, 0.05) !important;
-    border-color: rgba(167, 139, 250, 0.3) !important;
+    background: rgba(64, 156, 255, 0.05) !important;
+    border-color: rgba(64, 156, 255, 0.3) !important;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
 }
 
@@ -84,7 +84,7 @@
 }
 .item-drag-handle:hover {
     color: white;
-    background: rgba(168, 85, 247, 0.15);
+    background: rgba(10, 132, 255, 0.15);
 }
 
 .timeline-item.is-draft { opacity: 0.6; }
@@ -131,7 +131,7 @@
     cursor: pointer;
 }
 
-.edit-pill-btn.lesson:hover { background: rgba(167, 139, 250, 0.2); color: #c084fc; }
+.edit-pill-btn.lesson:hover { background: rgba(64, 156, 255, 0.2); color: #0066cc; }
 .edit-pill-btn.quiz:hover { background: rgba(34, 211, 238, 0.2); color: #22d3ee; }
 
 /* Status Badges */

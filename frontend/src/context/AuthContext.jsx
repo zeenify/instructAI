@@ -66,7 +66,7 @@ export const AuthProvider = ({ children }) => {
     // Show a loading screen while we fetch the user info
     if (loading) return (
         <div className="h-screen bg-[#030014] flex items-center justify-center">
-            <div className="w-12 h-12 border-2 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
+            <div className="w-12 h-12 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
         </div>
     );
 

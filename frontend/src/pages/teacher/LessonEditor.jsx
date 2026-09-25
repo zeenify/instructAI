@@ -886,7 +886,7 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
                             <div style={{ marginTop: 10 }}>
                                 <HtmlChecksEditor
                                     title="Page Checks"
-                                    accent="#8b7bff"
+                                    accent="#409cff"
                                     checks={block.data.html_checks || []}
                                     onChange={(next) => update(block.id, { html_checks: next })}
                                     referenceHtml={composeWebProject(normalizeFiles(block.data.files, block.data.code))}

@@ -194,17 +194,17 @@ function renderStandardBlock(block) {
                     href={data.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ padding: '24px 28px', display: 'flex', alignItems: 'center', borderRadius: '20px', background: 'rgba(168, 85, 247, 0.05)', border: '1px solid rgba(168, 85, 247, 0.2)', textDecoration: 'none', transition: 'all 0.3s', gap: '20px', cursor: 'pointer' }}
+                    style={{ padding: '24px 28px', display: 'flex', alignItems: 'center', borderRadius: '20px', background: 'rgba(10, 132, 255, 0.05)', border: '1px solid rgba(10, 132, 255, 0.2)', textDecoration: 'none', transition: 'all 0.3s', gap: '20px', cursor: 'pointer' }}
                     onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(168, 85, 247, 0.15)';
-                        e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.4)';
+                        e.currentTarget.style.background = 'rgba(10, 132, 255, 0.15)';
+                        e.currentTarget.style.borderColor = 'rgba(10, 132, 255, 0.4)';
                     }}
                     onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(168, 85, 247, 0.05)';
-                        e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.2)';
+                        e.currentTarget.style.background = 'rgba(10, 132, 255, 0.05)';
+                        e.currentTarget.style.borderColor = 'rgba(10, 132, 255, 0.2)';
                     }}
                 >
-                    <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(168, 85, 247, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d8b4fe', flexShrink: 0 }}>
+                    <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(10, 132, 255, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d8b4fe', flexShrink: 0 }}>
                         <ExternalLink size={28} />
                     </div>
                     <div>

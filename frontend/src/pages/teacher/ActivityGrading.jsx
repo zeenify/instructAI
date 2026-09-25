@@ -64,7 +64,7 @@ function StudentAvatar({ student, size = 32, style: outerStyle }) {
       {(!avatar || error) && (
         <div style={{
           width: '100%', height: '100%', borderRadius: '50%',
-          background: isNotSubmitted ? 'var(--db-card-2)' : 'linear-gradient(135deg, #8b7bff, #5b46c9)',
+          background: isNotSubmitted ? 'var(--db-card-2)' : 'linear-gradient(135deg, #409cff, #0066cc)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: isNotSubmitted ? 'var(--db-text-3)' : '#ffffff',
           fontWeight: 700, fontSize: Math.round(size * 0.44) + 'px',

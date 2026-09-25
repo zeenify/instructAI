@@ -48,7 +48,7 @@ export default function DashboardLayout({ children }) {
       <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#05011d]/50 backdrop-blur-xl border-r border-white/5 transition-transform duration-300 lg:relative ${!isSidebarOpen ? '-translate-x-full lg:translate-x-0' : 'translate-x-0'}`}>
         <div className="h-full flex flex-col p-6">
           <Link to="/dashboard/teacher" className="flex items-center gap-3 mb-8 px-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-accent rounded-lg flex items-center justify-center font-bold shadow-[0_0_15px_rgba(167,139,250,0.4)]">I</div>
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-accent rounded-lg flex items-center justify-center font-bold shadow-[0_0_15px_rgba(64,156,255,0.4)]">I</div>
             <span className="font-bold text-xl tracking-tighter">InstructAI</span>
           </Link>
 
@@ -57,7 +57,7 @@ export default function DashboardLayout({ children }) {
             <div className="mb-8">
               <div className="flex items-center justify-between px-2 mb-4">
                 <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">My Classes</span>
-                <Link to="/dashboard/teacher/classes/new" className="p-1 hover:bg-white/5 rounded text-slate-400 hover:text-purple-400 transition-colors">
+                <Link to="/dashboard/teacher/classes/new" className="p-1 hover:bg-white/5 rounded text-slate-400 hover:text-blue-400 transition-colors">
                   <Plus size={14} />
                 </Link>
               </div>
@@ -66,9 +66,9 @@ export default function DashboardLayout({ children }) {
                   <Link
                     key={c.id}
                     to={`/dashboard/teacher/class/${c.id}`}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border ${location.pathname.includes(`/class/${c.id}`) ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' : 'border-transparent text-slate-400 hover:text-white hover:bg-white/5'}`}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border ${location.pathname.includes(`/class/${c.id}`) ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'border-transparent text-slate-400 hover:text-white hover:bg-white/5'}`}
                   >
-                    <div className={`w-2 h-2 rounded-full ${location.pathname.includes(`/class/${c.id}`) ? 'bg-purple-500 shadow-[0_0_8px_rgba(167,139,250,0.6)]' : 'bg-slate-700'}`} />
+                    <div className={`w-2 h-2 rounded-full ${location.pathname.includes(`/class/${c.id}`) ? 'bg-blue-500 shadow-[0_0_8px_rgba(64,156,255,0.6)]' : 'bg-slate-700'}`} />
                     <span className="truncate font-medium">{c.name}</span>
                   </Link>
                 ))}

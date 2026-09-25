@@ -16,7 +16,7 @@ const C = {
     green: '#10b981',
     amber: '#f59e0b',
     red: '#ef4444',
-    violet: '#8b5cf6',
+    violet: '#0a84ff',
     blue: '#3b82f6',
     slate: '#94a3b8',
     cyan: '#06b6d4',
@@ -235,7 +235,7 @@ export default function ActivityResults() {
                     <>
                         {/* ── Hero: winner podium ── */}
                         {visualPodium.length > 0 && (
-                            <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.10), rgba(16, 185, 129, 0.06))', border: '1px solid rgba(139, 92, 246, 0.28)', borderRadius: '22px', padding: '30px 24px 40px', marginBottom: '24px' }}>
+                            <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg, rgba(10, 132, 255, 0.10), rgba(16, 185, 129, 0.06))', border: '1px solid rgba(10, 132, 255, 0.28)', borderRadius: '22px', padding: '30px 24px 40px', marginBottom: '24px' }}>
                                 <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
                                     {confetti.map((c, i) => (
                                         <span key={i} style={{ position: 'absolute', top: 0, left: `${c.left}%`, width: c.size, height: Math.round(c.size * 0.6), background: c.color, borderRadius: 2, opacity: 0, animation: `confettiFall ${c.dur}s linear ${c.delay}s infinite` }} />
@@ -351,7 +351,7 @@ export default function ActivityResults() {
 
                             if (!items.length) return null;
                             return (
-                                <div style={{ marginBottom: '24px', padding: '18px 22px', borderRadius: '16px', background: 'rgba(139, 92, 246, 0.06)', border: '1px solid rgba(139, 92, 246, 0.25)' }}>
+                                <div style={{ marginBottom: '24px', padding: '18px 22px', borderRadius: '16px', background: 'rgba(10, 132, 255, 0.06)', border: '1px solid rgba(10, 132, 255, 0.25)' }}>
                                     <p style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.violet, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         <Lightbulb size={14} /> Insights
                                     </p>

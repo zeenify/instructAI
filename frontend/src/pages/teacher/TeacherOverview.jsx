@@ -24,7 +24,7 @@ import { StatCardSkeleton, ClassCardSkeleton, SkeletonBlock } from '../../compon
 import { OPEN_CREATE_CLASS } from '../../components/teacher/CreateClassModal';
 import '../../styles/dashboard.css';
 
-const DEFAULT_CLASS_COLOR = '#6d5ae0';
+const DEFAULT_CLASS_COLOR = '#0a84ff';
 
 /**
  * Time-of-day greeting. Morning starts at 5am (4am is still night),

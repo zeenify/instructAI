@@ -75,14 +75,14 @@ function App() {
               border: '1px solid rgba(255,255,255,0.08)',
             },
             actionButtonStyle: {
-              background: '#6d5ae0',
+              background: '#0a84ff',
               color: '#ffffff',
               border: 'none',
               borderRadius: '10px',
               fontWeight: 600,
               fontSize: '13.5px',
               padding: '8px 15px',
-              boxShadow: '0 3px 12px rgba(109, 90, 224, 0.35)',
+              boxShadow: '0 3px 12px rgba(10, 132, 255, 0.35)',
             },
             cancelButtonStyle: {
               background: 'transparent',

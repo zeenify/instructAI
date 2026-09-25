@@ -46,8 +46,8 @@
 }
 
 .nav-item:hover, .nav-item.active {
-    background: rgba(167, 139, 250, 0.15); 
-    color: #a78bfa;
+    background: rgba(64, 156, 255, 0.15); 
+    color: #409cff;
 }
 
 .class-dot {
@@ -83,7 +83,7 @@
 }
 
 .stat-card:hover {
-    border-color: rgba(167, 139, 250, 0.2);
+    border-color: rgba(64, 156, 255, 0.2);
     transform: translateY(-2px);
 }
 

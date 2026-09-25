@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 
 const accentColors = {
-  primary: "#a78bfa",
+  primary: "#409cff",
   student: "#22d3ee",
 };
 

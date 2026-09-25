@@ -131,7 +131,7 @@ export default function ClassDetails() {
     return (
         <div>
             {/* Header — hero card tinted with the class color */}
-            <div className="cd-hero" style={{ '--class-color': classroom.color || '#6d5ae0' }}>
+            <div className="cd-hero" style={{ '--class-color': classroom.color || '#0a84ff' }}>
                 <p className="cd-eyebrow">Class</p>
                 <div className="cd-title-row">
                     <h1 className="cd-title">{classroom.name}</h1>

@@ -48,7 +48,7 @@ export default function HtmlChecksEditor({
     referenceHtml = '',
     onReferenceChange,
     title = 'Page Checks',
-    accent = '#8b5cf6',
+    accent = '#0a84ff',
 }) {
     const [testState, setTestState] = useState(null); // null | 'running' | results array
     const [reference, setReference] = useState(referenceHtml || '');

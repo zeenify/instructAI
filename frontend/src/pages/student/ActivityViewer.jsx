@@ -14,7 +14,7 @@ import ConfirmModal from '../../components/ui/ConfirmModal';
 import '../../pages/student/Student.css';
 
 const typeConfig = {
-  quiz: { label: 'Quiz', color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.12)' },
+  quiz: { label: 'Quiz', color: '#409cff', bg: 'rgba(64, 156, 255, 0.12)' },
   file: { label: 'File Submission', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.12)' },
   questions: { label: 'Q&A', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' },
   material: { label: 'Material', color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' },
@@ -472,7 +472,7 @@ export default function ActivityViewer() {
 
               {!isSubmitted && uploadedFiles.length > 0 && (
                 <button onClick={handleSubmit} disabled={submitting}
-                  style={{ marginTop: '16px', width: '100%', padding: '14px', borderRadius: '12px', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer', background: '#7c3aed', color: 'white', fontWeight: 700, fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: submitting ? 0.6 : 1 }}>
+                  style={{ marginTop: '16px', width: '100%', padding: '14px', borderRadius: '12px', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer', background: '#0071e3', color: 'white', fontWeight: 700, fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: submitting ? 0.6 : 1 }}>
                   {submitting ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
                   {submitting ? 'Submitting...' : 'Turn In'}
                 </button>
@@ -491,7 +491,7 @@ export default function ActivityViewer() {
               ))}
 
               <button onClick={handleSubmit} disabled={submitting}
-                style={{ width: '100%', padding: '16px', borderRadius: '12px', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer', background: '#7c3aed', color: 'white', fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: submitting ? 0.6 : 1 }}>
+                style={{ width: '100%', padding: '16px', borderRadius: '12px', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer', background: '#0071e3', color: 'white', fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: submitting ? 0.6 : 1 }}>
                 {submitting ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
                 {submitting ? 'Submitting...' : 'Submit Answers'}
               </button>
@@ -534,8 +534,8 @@ function QuestionRenderer({ question, index, value, onChange, onCheckResults }) 
         <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. {question.question_text}</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {(question.options || []).map((opt, i) => (
-            <label key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '10px', border: `1px solid ${value === String(i) ? '#a78bfa' : 'var(--border-color)'}`, background: value === String(i) ? 'rgba(167, 139, 250, 0.08)' : 'var(--bg-primary)', cursor: 'pointer', transition: 'all 0.2s' }}>
-              <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: `2px solid ${value === String(i) ? '#a78bfa' : 'var(--border-color)'}`, background: value === String(i) ? '#a78bfa' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <label key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '10px', border: `1px solid ${value === String(i) ? '#409cff' : 'var(--border-color)'}`, background: value === String(i) ? 'rgba(64, 156, 255, 0.08)' : 'var(--bg-primary)', cursor: 'pointer', transition: 'all 0.2s' }}>
+              <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: `2px solid ${value === String(i) ? '#409cff' : 'var(--border-color)'}`, background: value === String(i) ? '#409cff' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 {value === String(i) && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'white' }} />}
               </div>
               <span style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{opt}</span>

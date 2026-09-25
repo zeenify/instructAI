@@ -27,8 +27,8 @@ const STATUS_META = {
   taking: { label: "Taking", color: "#10b981", bg: "rgba(16,185,129,0.12)" },
   submitted: {
     label: "Submitted",
-    color: "#8b5cf6",
-    bg: "rgba(139,92,246,0.12)",
+    color: "#0a84ff",
+    bg: "rgba(10,132,255,0.12)",
   },
   joined: { label: "Joined", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
   disconnected: {
@@ -160,7 +160,7 @@ function TeacherPacingControls({
             : "Waiting";
   const phaseColor =
     phase === "complete"
-      ? "#8b5cf6"
+      ? "#0a84ff"
       : phase === "paused"
         ? "#f59e0b"
         : phase === "revealed"
@@ -232,7 +232,7 @@ function TeacherPacingControls({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <Radio size={18} color="#8b5cf6" />
+          <Radio size={18} color="#0a84ff" />
           <h2 style={{ fontSize: "16px", fontWeight: "600", margin: 0 }}>
             Question Control
           </h2>
@@ -242,9 +242,9 @@ function TeacherPacingControls({
               fontWeight: "700",
               padding: "3px 10px",
               borderRadius: "999px",
-              backgroundColor: "rgba(139,92,246,0.12)",
-              border: "1px solid rgba(139,92,246,0.35)",
-              color: "#8b5cf6",
+              backgroundColor: "rgba(10,132,255,0.12)",
+              border: "1px solid rgba(10,132,255,0.35)",
+              color: "#0a84ff",
               letterSpacing: "0.06em",
             }}
           >
@@ -849,15 +849,15 @@ export default function LiveQuizMonitor() {
                         gap: "6px",
                         padding: "4px 12px",
                         borderRadius: "999px",
-                        backgroundColor: "rgba(139,92,246,0.12)",
-                        border: "1px solid rgba(139,92,246,0.35)",
-                        color: "#8b5cf6",
+                        backgroundColor: "rgba(10,132,255,0.12)",
+                        border: "1px solid rgba(10,132,255,0.35)",
+                        color: "#0a84ff",
                         fontSize: "12px",
                         fontWeight: "700",
                         letterSpacing: "0.08em",
                       }}
                     >
-                      <Square size={10} fill="#8b5cf6" />
+                      <Square size={10} fill="#0a84ff" />
                       ROOM CLOSED
                     </span>
                   )}
@@ -974,10 +974,10 @@ export default function LiveQuizMonitor() {
                       alignItems: "center",
                       gap: "8px",
                       padding: "12px 20px",
-                      backgroundColor: "rgba(139,92,246,0.12)",
-                      border: "1px solid rgba(139,92,246,0.4)",
+                      backgroundColor: "rgba(10,132,255,0.12)",
+                      border: "1px solid rgba(10,132,255,0.4)",
                       borderRadius: "8px",
-                      color: "#8b5cf6",
+                      color: "#0a84ff",
                       fontWeight: "600",
                       fontSize: "14px",
                       cursor: "pointer",
@@ -1059,7 +1059,7 @@ export default function LiveQuizMonitor() {
                 icon={ListChecks}
                 label="Submitted"
                 value={counts.submitted ?? 0}
-                color="#8b5cf6"
+                color="#0a84ff"
               />
               <CountCard
                 icon={HelpCircle}
@@ -1309,7 +1309,7 @@ export default function LiveQuizMonitor() {
                                 fontWeight: "600",
                                 color:
                                   row.status === "submitted"
-                                    ? "#8b5cf6"
+                                    ? "#0a84ff"
                                     : "var(--db-text-3)",
                               }}
                             >
@@ -1722,8 +1722,8 @@ export default function LiveQuizMonitor() {
                       style={{
                         marginTop: "20px",
                         padding: "16px",
-                        backgroundColor: "rgba(139,92,246,0.08)",
-                        border: "1px solid rgba(139,92,246,0.3)",
+                        backgroundColor: "rgba(10,132,255,0.08)",
+                        border: "1px solid rgba(10,132,255,0.3)",
                         borderRadius: "10px",
                       }}
                     >
@@ -1731,7 +1731,7 @@ export default function LiveQuizMonitor() {
                         style={{
                           fontSize: "13px",
                           fontWeight: "700",
-                          color: "#8b5cf6",
+                          color: "#0a84ff",
                           margin: "0 0 4px",
                         }}
                       >

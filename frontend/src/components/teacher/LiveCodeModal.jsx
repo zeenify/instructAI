@@ -48,7 +48,7 @@ export default function LiveCodeModal({ activityId, onClose }) {
                 {/* Header */}
                 <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ padding: '8px 10px', borderRadius: '10px', background: 'rgba(139, 92, 246, 0.12)', color: '#8b5cf6', display: 'flex' }}>
+                        <div style={{ padding: '8px 10px', borderRadius: '10px', background: 'rgba(10, 132, 255, 0.12)', color: '#0a84ff', display: 'flex' }}>
                             <Code2 size={16} />
                         </div>
                         <div>

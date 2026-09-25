@@ -49,7 +49,7 @@ const OUTPUT_COLORS = {
     compile: { bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.3)', text: '#ef4444', label: '⚠️ COMPILATION ERROR' },
     runtime: { bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.3)', text: '#f97316', label: '⚠️ RUNTIME ERROR' },
     timeout: { bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.3)', text: '#ef4444', label: '⏱️ EXECUTION TIMED OUT' },
-    system: { bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.3)', text: '#a855f7', label: '⚠️ SYSTEM ERROR' },
+    system: { bg: 'rgba(10, 132, 255, 0.1)', border: 'rgba(10, 132, 255, 0.3)', text: '#0a84ff', label: '⚠️ SYSTEM ERROR' },
 };
 
 export default function CodeIDE({ block, onSolve, lessonId }) {
@@ -405,7 +405,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         if (isCorrect) return { bg: 'rgba(16, 185, 129, 0.1)', border: '#10b981', text: '#10b981' };
         if (isWrong) return { bg: 'rgba(239, 68, 68, 0.1)', border: '#ef4444', text: '#ef4444' };
         if (mode === 'challenge') return { bg: 'rgba(34, 211, 238, 0.08)', border: '#22d3ee', text: '#22d3ee' };
-        return { bg: 'rgba(168, 85, 247, 0.08)', border: '#a855f7', text: '#a855f7' };
+        return { bg: 'rgba(10, 132, 255, 0.08)', border: '#0a84ff', text: '#0a84ff' };
     };
 
     const colors = getModeColor();
@@ -536,11 +536,11 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                             textTransform: 'uppercase',
                             letterSpacing: '0.1em',
                             border: 'none',
-                            background: activeTab === tab.id ? 'rgba(168, 85, 247, 0.1)' : 'transparent',
-                            color: activeTab === tab.id ? '#a855f7' : 'var(--text-tertiary)',
+                            background: activeTab === tab.id ? 'rgba(10, 132, 255, 0.1)' : 'transparent',
+                            color: activeTab === tab.id ? '#0a84ff' : 'var(--text-tertiary)',
                             cursor: 'pointer',
                             transition: 'all 0.3s',
-                            borderBottom: activeTab === tab.id ? '2px solid #a855f7' : 'none',
+                            borderBottom: activeTab === tab.id ? '2px solid #0a84ff' : 'none',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -550,7 +550,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         <tab.icon size={13} />
                         {tab.label}
                         {tab.id === 'console' && consoleLines.length > 0 && (
-                            <span style={{ background: '#a855f7', color: '#fff', borderRadius: '999px', fontSize: '9px', padding: '1px 7px', fontWeight: 900 }}>{consoleLines.length}</span>
+                            <span style={{ background: '#0a84ff', color: '#fff', borderRadius: '999px', fontSize: '9px', padding: '1px 7px', fontWeight: 900 }}>{consoleLines.length}</span>
                         )}
                     </button>
                 ))}
@@ -676,7 +676,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 {!isHtml && activeTab === 'shell' && (
                     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: '#050120' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px', flexShrink: 0 }}>
-                            <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#a855f7' }}>
+                            <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#0a84ff' }}>
                                 Interactive Shell — the program waits for your input, like a real terminal
                             </span>
                             <div style={{ display: 'flex', gap: '8px' }}>
@@ -688,7 +688,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                                 </button>
                                 <button
                                     onClick={() => shellRef.current?.triggerRun()}
-                                    style={{ padding: '8px 14px', background: 'rgba(168, 85, 247, 0.12)', border: '1px solid rgba(168, 85, 247, 0.3)', borderRadius: '8px', color: '#c084fc', cursor: 'pointer', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '5px' }}
+                                    style={{ padding: '8px 14px', background: 'rgba(10, 132, 255, 0.12)', border: '1px solid rgba(10, 132, 255, 0.3)', borderRadius: '8px', color: '#0066cc', cursor: 'pointer', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '5px' }}
                                 >
                                     <Play size={10} /> Run
                                 </button>
@@ -717,7 +717,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                             rows={3}
                             style={{
                                 width: 'calc(100% - 40px)', margin: '4px 20px 14px', boxSizing: 'border-box',
-                                background: '#111127', border: '1px solid rgba(168, 85, 247, 0.25)', borderRadius: '10px',
+                                background: '#111127', border: '1px solid rgba(10, 132, 255, 0.25)', borderRadius: '10px',
                                 color: '#e2e8f0', fontFamily: 'monospace', fontSize: '12px', padding: '10px 12px', resize: 'vertical',
                                 outline: 'none',
                             }}
@@ -792,20 +792,20 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                             display: 'flex',
                             alignItems: 'center',
                             gap: '10px',
-                            background: 'rgba(168, 85, 247, 0.15)',
-                            color: '#a855f7',
-                            boxShadow: '0 10px 30px rgba(168, 85, 247, 0.2)',
+                            background: 'rgba(10, 132, 255, 0.15)',
+                            color: '#0a84ff',
+                            boxShadow: '0 10px 30px rgba(10, 132, 255, 0.2)',
                             transition: 'all 0.3s',
                             opacity: isRunning ? 0.6 : 1,
                         }}
                         onMouseEnter={(e) => {
                             if (isRunning) return;
                             e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 15px 40px rgba(168, 85, 247, 0.3)';
+                            e.currentTarget.style.boxShadow = '0 15px 40px rgba(10, 132, 255, 0.3)';
                         }}
                         onMouseLeave={(e) => {
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 10px 30px rgba(168, 85, 247, 0.2)';
+                            e.currentTarget.style.boxShadow = '0 10px 30px rgba(10, 132, 255, 0.2)';
                         }}
                     >
                         <Play size={16} fill="currentColor" />

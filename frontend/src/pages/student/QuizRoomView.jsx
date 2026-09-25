@@ -827,14 +827,14 @@ export default function QuizRoomView() {
               marginBottom: "16px",
             }}
           >
-            <Radio size={18} color="#a78bfa" />
+            <Radio size={18} color="#409cff" />
             <span
               style={{
                 fontSize: "11px",
                 fontWeight: 900,
                 letterSpacing: "0.2em",
                 textTransform: "uppercase",
-                color: "#a78bfa",
+                color: "#409cff",
               }}
             >
               Live Quiz
@@ -1779,7 +1779,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
               fontWeight: 900,
               textTransform: "uppercase",
               letterSpacing: "0.15em",
-              color: "#a78bfa",
+              color: "#409cff",
             }}
           >
             Multiple Choice · {question.points} pts
@@ -1875,7 +1875,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
               fontWeight: 900,
               textTransform: "uppercase",
               letterSpacing: "0.15em",
-              color: "#a78bfa",
+              color: "#409cff",
             }}
           >
             True or False · {question.points} pts
@@ -1946,7 +1946,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
               fontWeight: 900,
               textTransform: "uppercase",
               letterSpacing: "0.15em",
-              color: "#a78bfa",
+              color: "#409cff",
             }}
           >
             {question.type === "identification"
@@ -2009,7 +2009,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
               fontWeight: 900,
               textTransform: "uppercase",
               letterSpacing: "0.15em",
-              color: "#a78bfa",
+              color: "#409cff",
             }}
           >
             Enumeration · {question.points} pts
@@ -2129,7 +2129,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
               fontWeight: 900,
               textTransform: "uppercase",
               letterSpacing: "0.15em",
-              color: "#a78bfa",
+              color: "#409cff",
             }}
           >
             Coding · {question.points} pts
@@ -2168,7 +2168,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
             fontWeight: 900,
             textTransform: "uppercase",
             letterSpacing: "0.15em",
-            color: "#a78bfa",
+            color: "#409cff",
           }}
         >
           Essay · {question.points} pts

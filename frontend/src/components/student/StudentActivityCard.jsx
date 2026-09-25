@@ -4,7 +4,7 @@ import { format, isPast, parseISO } from 'date-fns';
 import { deriveState } from '../../utils/activityState';
 
 const typeConfig = {
-  quiz: { label: 'Quiz', icon: HelpCircle, color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.12)' },
+  quiz: { label: 'Quiz', icon: HelpCircle, color: '#409cff', bg: 'rgba(64, 156, 255, 0.12)' },
   file: { label: 'Assignment', icon: FileText, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.12)' },
   questions: { label: 'Q&A', icon: HelpCircle, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' },
   material: { label: 'Material', icon: BookOpen, color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' },

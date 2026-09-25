@@ -1487,7 +1487,7 @@ if (loading || !course) return (
                                 disabled={isUpdatingStatus}
                                 onClick={publishAllItems}
                                 style={{ padding: '10px 16px', color: '#7e22ce' }}
-                                className="text-xs font-bold uppercase tracking-wider border-none bg-transparent cursor-pointer hover:bg-purple-500/10 rounded-lg transition-all disabled:opacity-50 flex items-center gap-2"
+                                className="text-xs font-bold uppercase tracking-wider border-none bg-transparent cursor-pointer hover:bg-blue-500/10 rounded-lg transition-all disabled:opacity-50 flex items-center gap-2"
                             >
                                 {isUpdatingStatus ? <Loader2 size={14} className="animate-spin" /> : 'Publish All'}
                             </button>
@@ -1503,7 +1503,7 @@ if (loading || !course) return (
                                 {!embedded && <span className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">Course</span>}
                                 <div style={{ marginTop: '12px', gap: '12px' }} className="flex items-center group">
 {isTitleEditing ? (
-                                        <div style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid #a78bfa' }} className="flex items-center gap-2 rounded-xl p-2 flex-1">
+                                        <div style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid #409cff' }} className="flex items-center gap-2 rounded-xl p-2 flex-1">
                                             <input
                                                 autoFocus
                                                 value={editingTitle}
@@ -1532,7 +1532,7 @@ if (loading || !course) return (
                                         <>
                                             {!embedded && (
                                             <>
-                                            <h1 style={{ color: 'var(--text-primary)' }} className="text-5xl font-black tracking-tight cursor-pointer hover:text-purple-400 transition-colors" onClick={() => {
+                                            <h1 style={{ color: 'var(--text-primary)' }} className="text-5xl font-black tracking-tight cursor-pointer hover:text-blue-400 transition-colors" onClick={() => {
                                                 setEditingTitle(course.title);
                                                 setIsTitleEditing(true);
                                             }}>
@@ -1568,7 +1568,7 @@ if (loading || !course) return (
                                 className={`rounded-xl text-xs font-bold uppercase transition-all border flex items-center gap-2 cursor-pointer ${
                                     isPublished
                                         ? 'bg-slate-800/40 text-slate-400 border-slate-700/40 hover:bg-slate-700/40'
-                                        : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white border-purple-600/50 shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-purple-600'
+                                        : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600/50 shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-blue-600'
                                 }`}
                             >
                                 {isPublished ? 'Unpublish' : 'Go Live'}
@@ -1595,7 +1595,7 @@ if (loading || !course) return (
                             <button
                                 onClick={() => setModuleModal({ isOpen: true, mode: 'create', id: null, title: '' })}
                                 style={{ padding: '14px 22px' }}
-                                className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider border-none cursor-pointer flex items-center gap-2 transition-all shadow-lg shadow-purple-500/20"
+                                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider border-none cursor-pointer flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20"
                             >
                                 <Plus size={16} /> New Module
                             </button>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Palette } from 'lucide-react';
 
 export const CLASS_COLORS = [
-    '#6d5ae0', // iris
+    '#0a84ff', // blue
     '#4f7cf0', // blue
     '#0ea5e9', // sky
     '#14b8a6', // teal

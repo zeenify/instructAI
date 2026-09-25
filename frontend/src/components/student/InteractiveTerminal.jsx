@@ -19,7 +19,7 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
             theme: {
                 background: '#050120',
                 foreground: '#cbd5e1',
-                cursor: '#a855f7',
+                cursor: '#0a84ff',
             },
             fontFamily: 'Courier New, monospace',
             fontSize: 13,
@@ -173,10 +173,10 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
             height: '100%',
             margin: compact ? '0' : '32px 0',
             borderRadius: compact ? '0' : '24px',
-            border: compact ? 'none' : '1.5px solid rgba(168, 85, 247, 0.3)',
+            border: compact ? 'none' : '1.5px solid rgba(10, 132, 255, 0.3)',
             overflow: 'hidden',
             background: compact ? 'transparent' : '#050120',
-            boxShadow: compact ? 'none' : '0 0 30px rgba(168, 85, 247, 0.1)',
+            boxShadow: compact ? 'none' : '0 0 30px rgba(10, 132, 255, 0.1)',
         }}>
             {/* Header */}
             {!compact && <div style={{
@@ -193,8 +193,8 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
                     <div style={{
                         padding: '8px 10px',
                         borderRadius: '10px',
-                        background: 'rgba(168, 85, 247, 0.1)',
-                        color: '#a855f7',
+                        background: 'rgba(10, 132, 255, 0.1)',
+                        color: '#0a84ff',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center'
@@ -206,7 +206,7 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
                         fontWeight: 900,
                         textTransform: 'uppercase',
                         letterSpacing: '0.15em',
-                        color: '#a855f7'
+                        color: '#0a84ff'
                     }}>
                         Interactive Terminal
                     </span>
@@ -247,22 +247,22 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
                         display: 'flex',
                         alignItems: 'center',
                         gap: '10px',
-                        background: 'rgba(168, 85, 247, 0.15)',
-                        color: '#a855f7',
-                        boxShadow: '0 10px 30px rgba(168, 85, 247, 0.2)',
+                        background: 'rgba(10, 132, 255, 0.15)',
+                        color: '#0a84ff',
+                        boxShadow: '0 10px 30px rgba(10, 132, 255, 0.2)',
                         opacity: isRunning ? 0.6 : 1,
                         transition: 'all 0.3s'
                     }}
                     onMouseEnter={(e) => {
                         if (!isRunning) {
                             e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 15px 40px rgba(168, 85, 247, 0.3)';
+                            e.currentTarget.style.boxShadow = '0 15px 40px rgba(10, 132, 255, 0.3)';
                         }
                     }}
                     onMouseLeave={(e) => {
                         if (!isRunning) {
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 10px 30px rgba(168, 85, 247, 0.2)';
+                            e.currentTarget.style.boxShadow = '0 10px 30px rgba(10, 132, 255, 0.2)';
                         }
                     }}
                 >
