@@ -147,6 +147,16 @@ export default function TeacherLayout() {
                 <button className="db-backdrop" aria-label="Close menu" onClick={() => setMobileOpen(false)} />
             )}
 
+            {/* Reopen affordance for the collapsed sidebar. The collapsed aside
+                is translateX(-105%) + hidden — nav, profile and Sign Out all
+                vanish with it, so without this button collapse is a one-way
+                door. CSS reveals it only via .db-shell.is-collapsed (mobile
+                keeps the top-bar burger instead). */}
+            <button className="db-sidebar-float" title="Open sidebar" aria-label="Open sidebar"
+                onClick={() => setCollapsed(false)}>
+                <Menu size={20} />
+            </button>
+
             {/* Mobile top bar: the menu button lives in the flow so it never
                 covers page content (the old floating burger overlapped heroes) */}
             <div className="db-mobilebar">

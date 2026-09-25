@@ -471,7 +471,7 @@ function QuestionBlock({ question, index, onUpdate, onDelete, onEdit, disabled, 
             <div className="ae-q-head">
                 <span className="ae-q-num">#{index + 1}</span>
                 <span className="ae-q-type">{getTypeLabel(question.type)}</span>
-                <span className="ae-q-points">{question.points} pt{question.points !== 1 ? 's' : ''}</span>
+                <span className="ae-q-points">{question.points} pt{Number(question.points) !== 1 ? 's' : ''}</span>
                 {question.is_temp && <span className="ae-q-saving">Saving…</span>}
             </div>
 
@@ -1111,7 +1111,7 @@ export default function ActivityEditor() {
                                 <p className="ae-seg-hint">
                                     {activity.pacing_mode === 'teacher'
                                         ? 'After each question: correctness appears when you reveal it. At the end: results only when the room closes.'
-                                        : 'Answers are never revealed mid-quiz.'}
+                                        : 'Immediate: results appear right after a student submits. Room close: results stay hidden until you end the room.'}
                                 </p>
                             </div>
                         </div>

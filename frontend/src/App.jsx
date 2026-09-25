@@ -1,7 +1,8 @@
 import { Toaster } from 'sonner';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { ClassProvider } from './context/ClassContext'; 
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ClassProvider } from './context/ClassContext';
 import { useTheme } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -39,6 +40,18 @@ import ActivityViewer from './pages/student/ActivityViewer';
 // Layouts
 import TeacherLayout from './components/layouts/TeacherLayout';
 import StudentLayout from './components/layouts/StudentLayout';
+
+// /logout used to be a dead route (catch-all → blank "/") with the session
+// still intact — make it actually end the session.
+function LogoutRoute() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  useEffect(() => {
+    logout();
+    navigate('/login', { replace: true });
+  }, [logout, navigate]);
+  return null;
+}
 
 function App() {
   const { theme } = useTheme();
@@ -82,6 +95,7 @@ function App() {
           {/* --- Public Routes --- */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/logout" element={<LogoutRoute />} />
           <Route path="/register/teacher" element={<TeacherRegisterPage />} />
           <Route path="/register/student" element={<StudentRegisterPage />} />
           
