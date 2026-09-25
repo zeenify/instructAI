@@ -135,7 +135,7 @@ export default function TeacherOverview() {
                             label="Class Progress"
                             value="Who needs you"
                             caption="At-risk students, missing work, and to-grade counts per class"
-                            onClick={() => classes?.[0]?.id && navigate(`/dashboard/teacher/class/${classes[0].id}?tab=progress`)}
+                            onClick={() => classes?.[0]?.id && navigate(`/dashboard/teacher/progress?class=${classes[0].id}`)}
                         />
                     </div>
 

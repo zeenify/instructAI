@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Search, ClipboardCheck, CircleDashed, PlayCircle, ChevronRight,
+    Search, ClipboardCheck, CircleDashed, PlayCircle, ChevronRight, Clock,
     BookOpen, Zap, TrendingUp,
 } from 'lucide-react';
 import { useMonitorStats, useMonitorStudents, useStudentProgress } from '../../queries/pulse';
@@ -19,7 +19,7 @@ function relTime(ts) {
     return `${days}d ago`;
 }
 
-export default function ClassPulse({ classId, course }) {
+export default function ClassPulse({ classId, course, embedded = false }) {
     const navigate = useNavigate();
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState('all');
@@ -27,7 +27,10 @@ export default function ClassPulse({ classId, course }) {
 
     const { data: stats } = useMonitorStats(classId, course?.id);
     const { data: students = [], isLoading: studentsLoading } = useMonitorStudents(classId, course?.id);
-    const { data: gradebook } = useClassGradebook(classId);
+    const { data: gradebook, isLoading: gradebookLoading } = useClassGradebook(classId);
+    // Hold the whole board until BOTH land — partial data renders "0 missing"
+    // then swaps to real counts, which reads as the page lying
+    const dataLoading = studentsLoading || gradebookLoading;
 
     // Classwork counts (to grade / missing per student) merged onto the roster —
     // the gradebook payload already knows submission status per published activity
@@ -39,12 +42,19 @@ export default function ClassPulse({ classId, course }) {
         Object.entries(gradebook.grades || {}).forEach(([studentId, perActivity]) => {
             let pending = 0;
             let missing = 0;
+            const pendingTitles = [];
+            const missingTitles = [];
             published.forEach((a) => {
                 const g = perActivity[a.id];
-                if (g?.status === 'submitted') pending += 1;
-                else if (!g && a.deadline_at && new Date(a.deadline_at) < now) missing += 1;
+                if (g?.status === 'submitted') {
+                    pending += 1;
+                    pendingTitles.push(a.title);
+                } else if (!g && a.deadline_at && new Date(a.deadline_at) < now) {
+                    missing += 1;
+                    missingTitles.push(a.title);
+                }
             });
-            map[Number(studentId)] = { pending, missing };
+            map[Number(studentId)] = { pending, missing, pendingTitles, missingTitles };
         });
         return map;
     }, [gradebook]);
@@ -117,27 +127,19 @@ export default function ClassPulse({ classId, course }) {
 
     return (
         <div>
-            {/* Header */}
-            <div className="pu-head">
-                <div>
-                    <p className="pu-kicker">Classroom · Progress</p>
-                    <h3 className="pu-title">Progress</h3>
-                    <div className="pu-meta">
-                        {stats && (
-                            <>
-                                <span><b>{stats.completion_percentage ?? 0}%</b> finished everything</span>
-                                <span>·</span>
-                                <span><b>{stats.average_quiz_score ?? 0}%</b> avg quiz score</span>
-                                <span>·</span>
-                            </>
-                        )}
-                        <span><b>{students.length}</b> student{students.length !== 1 ? 's' : ''}</span>
+            {/* Header — skipped when embedded in the sidebar Progress page,
+                which carries the page header + live stats itself */}
+            {!embedded && (
+                <div className="pu-head">
+                    <div>
+                        <p className="pu-kicker">Classroom · Progress</p>
+                        <h3 className="pu-title">Progress</h3>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* Attention tiles — the three questions a teacher actually asks */}
-            {tiles.length > 0 ? (
+            {!dataLoading && (tiles.length > 0 ? (
                 <div className="pu-tiles">
                     {tiles.map((t) => {
                         const Icon = t.icon;
@@ -163,7 +165,7 @@ export default function ClassPulse({ classId, course }) {
                         </span>
                     </div>
                 </div>
-            )}
+            ))}
 
             {/* Roster */}
             <div className="pu-toolbar">
@@ -187,7 +189,7 @@ export default function ClassPulse({ classId, course }) {
                 </div>
             </div>
 
-            {studentsLoading ? (
+            {dataLoading ? (
                 <div className="pu-rows">
                     {[0, 1, 2].map((i) => (
                         <div key={i} className="db-skeleton" style={{ height: 68, borderRadius: 14 }} />
@@ -234,7 +236,7 @@ export default function ClassPulse({ classId, course }) {
                                     </div>
                                     <span className={`pu-caret ${expanded ? 'open' : ''}`}><ChevronRight size={16} /></span>
                                 </button>
-                                {expanded && <StudentDetail classId={classId} courseId={course?.id} studentId={r.id} />}
+                                {expanded && <StudentDetail classId={classId} courseId={course?.id} studentId={r.id} classwork={r.cw} />}
                             </div>
                         );
                     })}
@@ -249,7 +251,7 @@ export default function ClassPulse({ classId, course }) {
     );
 }
 
-function StudentDetail({ classId, courseId, studentId }) {
+function StudentDetail({ classId, courseId, studentId, classwork }) {
     const { data, isLoading } = useStudentProgress(classId, courseId, studentId);
     if (isLoading) {
         return (
@@ -259,10 +261,30 @@ function StudentDetail({ classId, courseId, studentId }) {
         );
     }
     const modules = data?.modules || [];
+    const hasModules = modules.length > 0;
+    const hasClasswork = (classwork?.missingTitles?.length || 0) + (classwork?.pendingTitles?.length || 0) > 0;
     return (
         <div className="pu-detail">
-            {modules.length === 0 && (
-                <p style={{ fontSize: 13.5, color: 'var(--db-text-3)', margin: 0 }}>No course content yet.</p>
+            {hasClasswork && (
+                <div className="pu-module">
+                    <p className="pu-module-name">Classwork</p>
+                    <div className="pu-items">
+                        {(classwork.missingTitles || []).map((title) => (
+                            <div key={`m-${title}`} className="pu-item">
+                                <Clock size={13} style={{ color: 'var(--db-danger)', flexShrink: 0 }} />
+                                <span className="pu-item-name">{title}</span>
+                                <span className="pu-item-state not">Missing</span>
+                            </div>
+                        ))}
+                        {(classwork.pendingTitles || []).map((title) => (
+                            <div key={`g-${title}`} className="pu-item">
+                                <Clock size={13} style={{ color: 'var(--db-amber)', flexShrink: 0 }} />
+                                <span className="pu-item-name">{title}</span>
+                                <span className="pu-item-state wip">To grade</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             )}
             {modules.map((m) => (
                 <div key={m.id} className="pu-module">
@@ -291,6 +313,11 @@ function StudentDetail({ classId, courseId, studentId }) {
                     </div>
                 </div>
             ))}
+            {!hasModules && !hasClasswork && (
+                <p style={{ fontSize: 13.5, color: 'var(--db-text-3)', margin: 0 }}>
+                    Nothing yet — this student has no course progress and no classwork.
+                </p>
+            )}
         </div>
     );
 }

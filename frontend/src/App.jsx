@@ -16,6 +16,7 @@ import StudentRegisterPage from './pages/auth/StudentRegisterPage';
 import TeacherOverview from './pages/teacher/TeacherOverview';
 import CreateClass from './pages/teacher/CreateClass';
 import ClassDetails from './pages/teacher/ClassDetails';
+import TeacherProgress from './pages/teacher/TeacherProgress';
 import CourseBuilder from './pages/teacher/CourseBuilder';
 import LessonEditor from './pages/teacher/LessonEditor';
 import QuizBuilder from './pages/teacher/QuizBuilder';
@@ -111,6 +112,7 @@ function App() {
             } 
           >
             <Route index element={<TeacherOverview />} />
+            <Route path="progress" element={<TeacherProgress />} />
             <Route path="grading" element={<GradingQueue />} />
             <Route path="students" element={<div>Students Page</div>} />
             <Route path="classes/new" element={<CreateClass />} />

@@ -110,7 +110,12 @@ class StudentMonitorController extends Controller
             'total_enrolled' => $totalEnrolled,
             'average_quiz_score' => $averageQuizScore,
             'not_started_count' => $notStartedCount,
-            'stuck_count' => $stuckCount
+            'stuck_count' => $stuckCount,
+            // Lets the UI tell a vacuous 100%/0% (no content published, no
+            // quiz attempted) apart from real values — "100% finished" on a
+            // content-less course reads as a lie to teachers
+            'total_items' => $totalItems,
+            'has_quiz_attempts' => $quizScoreCount > 0,
         ]);
     }
 

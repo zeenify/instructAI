@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useClasses } from '../../context/ClassContext';
-import { LayoutDashboard, ClipboardCheck, LogOut, Plus, ChevronRight, PanelLeftClose, Menu } from 'lucide-react';
+import { LayoutDashboard, ClipboardCheck, LogOut, Plus, ChevronRight, PanelLeftClose, Menu, TrendingUp } from 'lucide-react';
 import ThemeToggle from '../ui/ThemeToggle';
 import { useGradingQueue } from '../../queries/grading';
 import CreateClassModal, { OPEN_CREATE_CLASS } from '../teacher/CreateClassModal';
@@ -110,6 +110,7 @@ export default function TeacherLayout() {
                 <div className="db-side-label">Management</div>
                 <nav style={{ display: 'flex', flexDirection: 'column' }}>
                     <NavLink to="/dashboard/teacher" icon={LayoutDashboard} label="Overview" />
+                    <NavLink to="/dashboard/teacher/progress" icon={TrendingUp} label="Progress" />
                     <NavLink to="/dashboard/teacher/grading" icon={ClipboardCheck} label="To grade" badge={gradingQueue.length} />
                     <div style={{ marginTop: '8px', padding: '0 4px' }}>
                         <ThemeToggle variant="dark-panel" />
