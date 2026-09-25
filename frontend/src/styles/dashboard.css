@@ -844,9 +844,7 @@
 .db-class-band {
     height: 84px;
     flex: none;
-    background:
-        radial-gradient(340px 120px at 82% -30%, rgba(255, 255, 255, 0.28), transparent 70%),
-        linear-gradient(135deg, var(--class-color, var(--db-accent)) 0%, color-mix(in srgb, var(--class-color, var(--db-accent)) 72%, #1c1917) 100%);
+    background: var(--class-color, var(--db-accent));
     position: relative;
 }
 
@@ -909,7 +907,6 @@
     border-radius: 14px;
     color: #ffffff;
     background: var(--class-color, var(--db-accent));
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--class-color, var(--db-accent)) 40%, transparent);
 }
 
 .db-class-name {
@@ -1029,9 +1026,9 @@
     display: grid;
     place-items: center;
     border-radius: 50%;
-    background: var(--db-accent-soft);
-    border: 1px solid var(--db-accent-border);
-    color: var(--db-accent-text);
+    background: none;
+    border: none;
+    color: var(--db-text-3);
     transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
 }
 
@@ -1091,7 +1088,7 @@
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
 }
 
-/* ---------- Dashed create tile ---------- */
+/* ---------- Create tile ---------- */
 
 .db-create-tile {
     display: flex;
@@ -1102,7 +1099,7 @@
     min-height: 330px;
     padding: 24px;
     border-radius: 18px;
-    border: 1.5px dashed var(--db-border-strong);
+    border: 1px solid var(--db-border);
     background: transparent;
     color: var(--db-text-2);
     cursor: pointer;
@@ -1122,7 +1119,7 @@
     display: grid;
     place-items: center;
     border-radius: 50%;
-    border: 1.5px solid var(--db-border-strong);
+    border: 1px solid var(--db-border-strong);
     margin-bottom: 10px;
     color: var(--db-text-2);
     transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
@@ -2982,10 +2979,10 @@
 
 .db-field-label {
     display: block;
-    font-size: 14px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.11em;
+    font-size: 14.5px;
+    font-weight: 600;
+
+    letter-spacing: 0;
     color: var(--db-text-2);
     margin-bottom: 9px;
 }
