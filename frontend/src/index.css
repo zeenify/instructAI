@@ -125,7 +125,7 @@ li {
 
 /* The action button (e.g. Undo) — solid accent, unmistakably clickable */
 [data-sonner-toast] [data-button] {
-    background: #0a84ff !important;
+    background: var(--db-accent, #0a84ff) !important;
     color: #ffffff !important;
     border: none !important;
     border-radius: 10px !important;
@@ -133,16 +133,16 @@ li {
     font-weight: 600 !important;
     font-size: 13.5px !important;
     padding: 8px 15px !important;
-    box-shadow: 0 3px 12px rgba(10, 132, 255, 0.35);
+    box-shadow: none;
 }
 
 [data-sonner-toast] [data-button]:hover {
-    background: #409cff !important;
+    background: var(--db-accent-bright, #409cff) !important;
 }
 
 /* The close affordance */
 [data-sonner-toast] [data-close-button] {
-    background: #0a84ff !important;
+    background: var(--db-accent, #0a84ff) !important;
     color: #ffffff !important;
     border: none !important;
     border-radius: 8px !important;

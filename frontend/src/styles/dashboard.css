@@ -4,38 +4,37 @@
    Dashboard.css classes still used by pages that haven't been redesigned yet.
 
    Theming: tokens flip with [data-theme] on <html> (ThemeContext sets
-   'dark' | 'light'). Dark = night-owl navy. Light = warm morning paper —
-   the sidebar transforms with it.
+   'dark' | 'light'). Design language: "Apple simple & elegant" — neutral
+   grays, iOS blue accent, Inter type, hairline borders, quiet shadows,
+   flat glyphs (no decorative halos).
    ========================================================================== */
 
 :root[data-theme='dark'] {
-    --logo-chip-bg: #f3ecdd;
-    --logo-i-color: #16130e;
+    --logo-chip-bg: #f5f5f7;
+    --logo-i-color: #1d1d1f;
     --logo-chip-shadow: rgba(0, 0, 0, 0.5);
-    --db-canvas: #0a0d16;
-    --db-card: #151b2e;
-    --db-card-2: #1a2138;
-    --db-border: #252d49;
-    --db-border-strong: #333d63;
-    --db-text: #eaedf5;
-    --db-text-2: #9aa4bf;
-    --db-text-3: #647093;
-    --db-shadow: 0 12px 34px rgba(2, 5, 16, 0.5);
-    --db-shadow-soft: 0 4px 16px rgba(2, 5, 16, 0.4);
+    --db-canvas: #0b0b0c;
+    --db-card: #17171a;
+    --db-card-2: #1d1d21;
+    --db-border: rgba(255, 255, 255, 0.08);
+    --db-border-strong: rgba(255, 255, 255, 0.16);
+    --db-text: #f5f5f7;
+    --db-text-2: #a1a1a6;
+    --db-text-3: #6e6e73;
+    --db-shadow: 0 12px 32px rgba(0, 0, 0, 0.48);
+    --db-shadow-soft: 0 2px 10px rgba(0, 0, 0, 0.35);
     --db-accent: #0a84ff;
     --db-accent-bright: #409cff;
     --db-accent-text: #7cc0ff;
     --db-accent-soft: rgba(10, 132, 255, 0.16);
     --db-accent-border: rgba(10, 132, 255, 0.42);
-    --db-green: #34d399;
-    --db-green-soft: rgba(52, 211, 153, 0.13);
-    --db-green-border: rgba(52, 211, 153, 0.4);
-    --db-danger: #f87171;
-    --db-danger-soft: rgba(248, 113, 113, 0.1);
-    --db-amber: #fbbf24;
+    --db-green: #30d158;
+    --db-green-soft: rgba(48, 209, 88, 0.13);
+    --db-green-border: rgba(48, 209, 88, 0.4);
+    --db-danger: #ff453a;
+    --db-danger-soft: rgba(255, 69, 58, 0.1);
+    --db-amber: #ffd60a;
     --db-shimmer: rgba(255, 255, 255, 0.06);
-    --db-glow-top: radial-gradient(1100px 380px at 12% -8%, rgba(10, 132, 255, 0.14), transparent 70%);
-    --db-glow-bottom: radial-gradient(900px 420px at 4% 108%, rgba(10, 132, 255, 0.12), transparent 70%);
 }
 
 :root[data-theme='light'] {
@@ -64,23 +63,27 @@
     --db-danger-soft: rgba(220, 38, 38, 0.07);
     --db-amber: #b45309;
     --db-shimmer: rgba(23, 25, 35, 0.12);
-    --db-glow-top: radial-gradient(1100px 380px at 12% -8%, rgba(0, 113, 227, 0.09), transparent 70%);
-    --db-glow-bottom: radial-gradient(900px 420px at 4% 108%, rgba(0, 113, 227, 0.07), transparent 70%);
 }
 
 /* ---------- Shell ---------- */
 
-/* Dashboard display font — modern premium headings. Landing keeps Fraunces;
-   the app uses Sora so headings feel current, not old-fashioned. */
+/* Display font — Inter everywhere (SF Pro stand-in). Landing keeps Fraunces. */
 .db-shell,
 .db-modal-backdrop {
-    --db-font-display: 'Sora', 'Inter', sans-serif;
+    --db-font-display: 'Inter', -apple-system, 'Segoe UI', sans-serif;
 }
 
 .db-shell {
     display: flex;
     min-height: 100vh;
     background: var(--db-canvas);
+    font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+}
+
+.db-shell h1,
+.db-shell h2,
+.db-shell h3 {
+    letter-spacing: -0.02em;
 }
 
 .db-main {
@@ -89,10 +92,7 @@
     min-width: 0;
     padding: 44px 52px 64px;
     color: var(--db-text);
-    background:
-        var(--db-glow-top),
-        var(--db-glow-bottom),
-        var(--db-canvas);
+    background: var(--db-canvas);
     transition: background 0.3s ease, color 0.3s ease, margin-left 0.28s ease;
 }
 
@@ -100,24 +100,24 @@
     margin-left: 0;
 }
 
-/* ---------- Sidebar (dark at night, warm paper in the morning) ---------- */
+/* ---------- Sidebar (neutral dark at night, light gray in the morning) ---------- */
 
 .db-sidebar {
-    --side-text: #e9ecf5;
-    --side-text-2: #9aa3bd;
-    --side-text-3: #5f6a89;
-    --side-line: #1c2233;
-    --side-hover: rgba(255, 255, 255, 0.05);
-    --side-active-bg: linear-gradient(135deg, rgba(10, 132, 255, 0.34), rgba(10, 132, 255, 0.22));
-    --side-active-ring: rgba(64, 156, 255, 0.35);
-    --side-card-bg: rgba(255, 255, 255, 0.04);
-    --side-danger-bg: rgba(248, 113, 113, 0.08);
-    --side-danger-border: rgba(248, 113, 113, 0.22);
-    --side-danger-text: #f8a5a5;
-    --side-danger-hover: rgba(248, 113, 113, 0.16);
-    --side-track: #2c3554;
-    --side-track-border: #3a4568;
-    --side-knob: #e9ecf5;
+    --side-text: #f5f5f7;
+    --side-text-2: #a1a1a6;
+    --side-text-3: #6e6e73;
+    --side-line: rgba(255, 255, 255, 0.07);
+    --side-hover: rgba(255, 255, 255, 0.06);
+    --side-active-bg: rgba(10, 132, 255, 0.16);
+    --side-active-ring: rgba(10, 132, 255, 0.35);
+    --side-card-bg: rgba(255, 255, 255, 0.05);
+    --side-danger-bg: rgba(255, 69, 58, 0.08);
+    --side-danger-border: rgba(255, 69, 58, 0.22);
+    --side-danger-text: #ff8a80;
+    --side-danger-hover: rgba(255, 69, 58, 0.16);
+    --side-track: #2a2a2e;
+    --side-track-border: #3a3a40;
+    --side-knob: #f5f5f7;
 
     width: 272px;
     position: fixed;
@@ -126,7 +126,7 @@
     display: flex;
     flex-direction: column;
     padding: 26px 16px 20px;
-    background: #10131d;
+    background: #141417;
     border-right: 1px solid var(--side-line);
     overflow-y: auto;
     transition: background 0.3s ease, transform 0.28s ease, visibility 0.28s ease;
@@ -138,23 +138,23 @@
 }
 
 :root[data-theme='light'] .db-sidebar {
-    --side-text: #2a2417;
-    --side-text-2: #6d6450;
-    --side-text-3: #a89e86;
-    --side-line: #e7e4dc;
-    --side-hover: rgba(29, 35, 48, 0.05);
-    --side-active-bg: linear-gradient(135deg, rgba(0, 113, 227, 0.14), rgba(0, 113, 227, 0.08));
+    --side-text: #1d1d1f;
+    --side-text-2: #6e6e73;
+    --side-text-3: #aeaeb2;
+    --side-line: rgba(0, 0, 0, 0.07);
+    --side-hover: rgba(0, 0, 0, 0.05);
+    --side-active-bg: rgba(0, 113, 227, 0.1);
     --side-active-ring: rgba(0, 113, 227, 0.3);
-    --side-card-bg: #faf9f6;
+    --side-card-bg: rgba(0, 0, 0, 0.04);
     --side-danger-bg: rgba(220, 38, 38, 0.07);
     --side-danger-border: rgba(220, 38, 38, 0.22);
     --side-danger-text: #b91c1c;
     --side-danger-hover: rgba(220, 38, 38, 0.13);
-    --side-track: #e7e4dc;
-    --side-track-border: #d8d4c8;
-    --side-knob: #ffffff;
+    --side-track: #e5e5ea;
+    --side-track-border: #d2d2d7;
+    --side-knob: #1d1d1f;
 
-    background: #ffffff;
+    background: #f5f5f7;
 }
 
 .db-logo-row {
@@ -273,10 +273,9 @@
 }
 
 .db-side-label {
-    font-size: 10px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
     color: var(--side-text-3);
     padding: 0 10px;
     margin: 22px 0 10px;
@@ -304,7 +303,7 @@
 .db-nav-badge {
     margin-left: auto;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 11.5px;
     font-weight: 700;
     padding: 2px 8px;
     border-radius: 999px;
@@ -342,7 +341,6 @@
     border-radius: 50%;
     flex: none;
     background: var(--db-accent);
-    box-shadow: 0 0 8px rgba(10, 132, 255, 0.55);
 }
 
 .db-side-spacer {
@@ -376,7 +374,7 @@
 }
 
 .db-profile-name {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--side-text);
     margin: 0 0 2px;
@@ -386,7 +384,7 @@
 }
 
 .db-profile-email {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--side-text-3);
     margin: 0;
     overflow: hidden;
@@ -411,7 +409,7 @@
     border: 1px solid var(--side-danger-border);
     background: var(--side-danger-bg);
     color: var(--side-danger-text);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.18s ease, border-color 0.18s ease;
@@ -446,7 +444,7 @@
     gap: 12px;
     flex: 1;
     color: var(--side-text-2);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     white-space: nowrap;
 }
@@ -497,7 +495,7 @@
 
 .db-hero-title {
     font-family: var(--db-font-display);
-    font-size: 44px;
+    font-size: 46px;
     font-weight: 700;
     letter-spacing: -0.015em;
     line-height: 1.08;
@@ -506,7 +504,7 @@
 }
 
 .db-hero-sub {
-    font-size: 16px;
+    font-size: 17px;
     color: var(--db-text-2);
     margin: 0;
 }
@@ -521,7 +519,7 @@
     border: 1px solid var(--db-border-strong);
     background: var(--db-card);
     color: var(--db-text-2);
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 600;
     box-shadow: var(--db-shadow-soft);
 }
@@ -583,26 +581,25 @@
 }
 
 .db-stat-icon {
-    width: 56px;
-    height: 56px;
+    width: auto;
+    height: auto;
     flex: none;
     display: grid;
     place-items: center;
-    border-radius: 50%;
+}
+
+.db-stat-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke-width: 1.8;
 }
 
 .db-stat-icon.violet {
-    background: radial-gradient(circle at 32% 28%, rgba(64, 156, 255, 0.35), rgba(10, 132, 255, 0.12) 65%);
-    border: 1px solid var(--db-accent-border);
-    color: var(--db-accent-bright);
-    box-shadow: 0 0 22px rgba(10, 132, 255, 0.28);
+    color: var(--db-accent);
 }
 
 .db-stat-icon.green {
-    background: radial-gradient(circle at 32% 28%, rgba(52, 211, 153, 0.32), rgba(52, 211, 153, 0.1) 65%);
-    border: 1px solid var(--db-green-border);
     color: var(--db-green);
-    box-shadow: 0 0 22px rgba(52, 211, 153, 0.22);
 }
 
 :root[data-theme='light'] .db-stat-icon.violet {
@@ -615,17 +612,16 @@
 }
 
 .db-stat-label {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.13em;
+    font-size: 13.5px;
+    font-weight: 500;
+    letter-spacing: 0;
     color: var(--db-text-2);
     margin: 0 0 7px;
 }
 
 .db-stat-value {
     font-family: var(--db-font-display);
-    font-size: 40px;
+    font-size: 42px;
     font-weight: 700;
     line-height: 1;
     color: var(--db-text);
@@ -633,12 +629,12 @@
 }
 
 .db-stat-value.is-title {
-    font-size: 21px;
+    font-size: 22.5px;
     padding: 8px 0;
 }
 
 .db-stat-caption {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--db-text-3);
     margin: 0;
 }
@@ -651,9 +647,9 @@
     display: grid;
     place-items: center;
     border-radius: 50%;
-    color: var(--db-accent-text);
-    background: var(--db-accent-soft);
-    border: 1px solid var(--db-accent-border);
+    color: var(--db-text-3);
+    background: none;
+    border: none;
     transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease;
 }
 
@@ -682,16 +678,16 @@
 }
 
 .db-section-icon {
-    width: 48px;
-    height: 48px;
     flex: none;
     display: grid;
     place-items: center;
-    border-radius: 50%;
-    background: radial-gradient(circle at 32% 28%, rgba(64, 156, 255, 0.35), rgba(10, 132, 255, 0.12) 65%);
-    border: 1px solid var(--db-accent-border);
-    color: var(--db-accent-bright);
-    box-shadow: 0 0 22px rgba(10, 132, 255, 0.25);
+    color: var(--db-accent);
+}
+
+.db-section-icon svg {
+    width: 21px;
+    height: 21px;
+    stroke-width: 1.8;
 }
 
 :root[data-theme='light'] .db-section-icon {
@@ -700,14 +696,14 @@
 
 .db-section-title {
     font-family: var(--db-font-display);
-    font-size: 22px;
+    font-size: 23.5px;
     font-weight: 700;
     margin: 0;
     color: var(--db-text);
 }
 
 .db-section-sub {
-    font-size: 13.5px;
+    font-size: 14.5px;
     color: var(--db-text-3);
     margin: 3px 0 0;
 }
@@ -720,13 +716,12 @@
     gap: 8px;
     padding: 12px 20px;
     border-radius: 12px;
-    border: 1px solid rgba(64, 156, 255, 0.5);
+    border: 1px solid transparent;
     background: var(--db-accent);
     color: #ffffff;
-    font-size: 14.5px;
+    font-size: 15.5px;
     font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 4px 18px rgba(10, 132, 255, 0.4);
     transition: filter 0.18s ease, transform 0.18s ease;
 }
 
@@ -751,7 +746,7 @@
     border: 1px solid rgba(248, 113, 113, 0.5);
     background: var(--db-danger);
     color: #ffffff;
-    font-size: 14.5px;
+    font-size: 15.5px;
     font-weight: 600;
     cursor: pointer;
     box-shadow: 0 4px 18px rgba(220, 38, 38, 0.3);
@@ -791,11 +786,9 @@
 }
 
 .db-delete-box-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 13.5px;
     font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-danger);
     margin: 0 0 8px;
 }
@@ -813,7 +806,7 @@
     display: flex;
     align-items: center;
     gap: 9px;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 500;
     color: var(--db-text-2);
 }
@@ -921,7 +914,7 @@
 
 .db-class-name {
     font-family: var(--db-font-display);
-    font-size: 18.5px;
+    font-size: 19.5px;
     font-weight: 650;
     color: var(--db-text);
     margin: 0;
@@ -933,14 +926,14 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--db-text-3);
     margin: 2px 0 auto;
 }
 
 .db-code-chip {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     letter-spacing: 0.08em;
     color: var(--db-text);
@@ -1006,13 +999,13 @@
 }
 
 .db-class-stat b {
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 700;
     color: var(--db-text);
 }
 
 .db-class-stat span {
-    font-size: 12.5px;
+    font-size: 13.5px;
 }
 
 .db-class-footer {
@@ -1020,7 +1013,7 @@
     align-items: center;
     justify-content: space-between;
     padding-top: 14px;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--db-text-3);
 }
 
@@ -1142,14 +1135,14 @@
 }
 
 .db-create-tile-title {
-    font-size: 16.5px;
+    font-size: 17.5px;
     font-weight: 650;
     color: var(--db-text);
     margin: 0;
 }
 
 .db-create-tile-sub {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--db-text-3);
     text-align: center;
     max-width: 260px;
@@ -1202,7 +1195,7 @@
 }
 
 .cd-eyebrow {
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.18em;
@@ -1220,7 +1213,7 @@
 
 .cd-title {
     font-family: var(--db-font-display);
-    font-size: 42px;
+    font-size: 44px;
     font-weight: 700;
     letter-spacing: -0.015em;
     line-height: 1.1;
@@ -1233,7 +1226,7 @@
     align-items: center;
     gap: 9px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     letter-spacing: 0.12em;
     color: var(--db-text);
@@ -1247,7 +1240,7 @@
 
 /* the word "Copy" before the code — no more mystery icon */
 .cd-code-chip-hint {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -1282,7 +1275,7 @@
     gap: 10px;
     flex-wrap: wrap;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 500;
     color: var(--db-text-2);
     margin: 16px 0 0;
@@ -1313,7 +1306,7 @@
     border: none;
     background: transparent;
     color: var(--db-text-2);
-    font-size: 16.5px;
+    font-size: 17.5px;
     font-weight: 500;
     cursor: pointer;
     border-bottom: 2px solid transparent;
@@ -1336,7 +1329,7 @@
 }
 
 .cd-tab-count {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     color: var(--db-text-2);
     background: var(--db-card-2);
@@ -1370,7 +1363,7 @@
 
 .cd-module-index {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--db-text-3);
     width: 30px;
@@ -1379,7 +1372,7 @@
 
 .cd-module-name {
     font-family: var(--db-font-display);
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 600;
     color: var(--db-text);
     margin: 0;
@@ -1398,7 +1391,7 @@
 }
 
 .cd-chip {
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     padding: 4px 11px;
     border-radius: 999px;
@@ -1425,14 +1418,14 @@
 }
 
 .cd-student-name {
-    font-size: 14.5px;
+    font-size: 15.5px;
     font-weight: 600;
     color: var(--db-text);
     margin: 0 0 2px;
 }
 
 .cd-student-email {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--db-text-3);
     margin: 0;
 }
@@ -1451,14 +1444,14 @@
 
 .cd-empty-title {
     font-family: var(--db-font-display);
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 600;
     color: var(--db-text);
     margin: 0;
 }
 
 .cd-empty p {
-    font-size: 13.5px;
+    font-size: 14.5px;
     margin: 0;
 }
 
@@ -1480,7 +1473,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -1535,7 +1528,7 @@
     border: 1px solid var(--db-border);
     background: transparent;
     color: var(--db-text-2);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
@@ -1557,7 +1550,6 @@
     color: #ffffff;
     background: var(--db-accent);
     border-color: var(--db-accent-border);
-    box-shadow: 0 3px 12px rgba(10, 132, 255, 0.35);
 }
 
 .cd-tbtn-accent:hover {
@@ -1614,14 +1606,13 @@
     gap: 8px;
     padding: 10px 16px;
     border-radius: 10px;
-    border: 1px solid rgba(64, 156, 255, 0.5);
+    border: 1px solid transparent;
     background: var(--db-accent);
     color: #ffffff;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 700;
     cursor: pointer;
     white-space: nowrap;
-    box-shadow: 0 3px 14px rgba(10, 132, 255, 0.4);
     transition: filter 0.15s ease, transform 0.15s ease;
 }
 
@@ -1696,7 +1687,7 @@
 
 .cd-mod-index {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--db-text-3);
 }
@@ -1713,7 +1704,7 @@
     flex: 1;
     min-width: 0;
     font-family: var(--db-font-display);
-    font-size: 20px;
+    font-size: 21.5px;
     font-weight: 700;
     color: var(--db-text);
     margin: 0;
@@ -1807,7 +1798,7 @@
 
 .cd-mod-progress-label {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--db-text-3);
     white-space: nowrap;
@@ -1825,7 +1816,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 13.5px;
+    font-size: 14.5px;
     padding: 6px 13px;
 }
 
@@ -1839,7 +1830,7 @@
 }
 
 .cd-mod-items {
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 600;
     color: var(--db-text-3);
     margin-left: auto;
@@ -1864,14 +1855,16 @@
 .cd-empty-build-spark {
     display: grid;
     place-items: center;
-    width: 58px;
-    height: 58px;
-    border-radius: 50%;
-    color: var(--db-accent-bright);
-    background: var(--db-accent-soft);
-    border: 1px solid var(--db-accent-border);
-    box-shadow: 0 0 24px rgba(10, 132, 255, 0.3);
+    width: auto;
+    height: auto;
+    color: var(--db-accent);
     margin-bottom: 16px;
+}
+
+.cd-empty-build-spark svg {
+    width: 34px;
+    height: 34px;
+    stroke-width: 1.7;
 }
 
 :root[data-theme='light'] .cd-empty-build-spark {
@@ -1880,14 +1873,14 @@
 
 .cd-empty-build-title {
     font-family: var(--db-font-display);
-    font-size: 20px;
+    font-size: 21.5px;
     font-weight: 700;
     color: var(--db-text);
     margin: 0 0 8px;
 }
 
 .cd-empty-build-text {
-    font-size: 14px;
+    font-size: 15px;
     color: var(--db-text-2);
     max-width: 460px;
     margin: 0 0 20px;
@@ -1904,19 +1897,19 @@
 
 .cd-tbtn-lg {
     padding: 12px 20px;
-    font-size: 14.5px;
+    font-size: 15.5px;
     border-radius: 12px;
 }
 
 .cd-visibility {
-    font-size: 14.5px;
+    font-size: 15.5px;
     color: var(--db-text-2);
     margin: 10px 2px 0;
     padding-left: 2px;
 }
 
 .cd-mod-add-hint {
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 600;
     color: var(--db-accent-bright);
     margin-left: auto;
@@ -1942,7 +1935,7 @@
     border: 1px solid var(--db-accent-border);
     color: var(--db-accent-bright);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.14em;
 }
@@ -1955,7 +1948,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--db-text-3);
     margin: -8px 2px 0;
 }
@@ -1976,7 +1969,7 @@
     box-shadow: var(--db-shadow-soft);
     cursor: pointer;
     color: var(--db-text-2);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
@@ -2055,7 +2048,7 @@
 .cd-md-kicker {
     display: inline-block;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     letter-spacing: 0.16em;
     color: var(--db-text-3);
@@ -2063,7 +2056,7 @@
 
 .cd-md-title {
     font-family: var(--db-font-display);
-    font-size: 30px;
+    font-size: 32px;
     font-weight: 700;
     letter-spacing: -0.01em;
     line-height: 1.2;
@@ -2077,7 +2070,7 @@
     align-items: center;
     gap: 7px;
     flex-wrap: wrap;
-    font-size: 14.5px;
+    font-size: 15.5px;
     color: var(--db-text-2);
     margin: 0 0 16px;
 }
@@ -2126,7 +2119,7 @@
 
 .cd-md-progress-label {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--db-text-3);
     white-space: nowrap;
@@ -2157,7 +2150,7 @@
 
 .cd-md-seq-label {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     letter-spacing: 0.16em;
     text-transform: uppercase;
@@ -2165,7 +2158,7 @@
 }
 
 .cd-md-seq-hint {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 500;
     color: var(--db-text-2);
 }
@@ -2258,7 +2251,7 @@
 
 .cd-md-num {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 600;
     color: var(--db-text-3);
     width: 24px;
@@ -2273,7 +2266,7 @@
     padding: 5px 12px;
     border-radius: 999px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
     letter-spacing: 0.1em;
 }
@@ -2301,7 +2294,7 @@
 }
 
 .cd-md-name {
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 600;
     color: var(--db-text);
     line-height: 1.35;
@@ -2312,7 +2305,7 @@
 }
 
 .cd-md-sub {
-    font-size: 13.5px;
+    font-size: 14.5px;
     color: var(--db-text-3);
     margin-top: 2px;
 }
@@ -2327,7 +2320,7 @@
     align-items: center;
     gap: 6px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -2420,7 +2413,7 @@
     border: 1px solid var(--db-accent-border);
     color: var(--db-accent-bright);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -2462,7 +2455,7 @@
 .cd-md-add-tag {
     flex: none;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
     letter-spacing: 0.1em;
     padding: 4px 10px;
@@ -2492,7 +2485,7 @@
     background: transparent;
     color: var(--db-text);
     font-family: inherit;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     outline: none;
 }
@@ -2548,7 +2541,7 @@
     padding: 16px 16px;
     border-radius: 14px;
     border: 1.5px solid transparent;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
     cursor: pointer;
     transition: filter 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
@@ -2638,7 +2631,7 @@
 /* ---------- Student class page (sv-) ---------- */
 
 .sv-hero-desc {
-    font-size: 14.5px;
+    font-size: 15.5px;
     color: var(--db-text-2);
     margin: 10px 0 0;
     max-width: 560px;
@@ -2664,18 +2657,18 @@
     border-radius: 50%;
     background: var(--db-accent);
     color: #ffffff;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
 }
 
 .sv-teacher-name {
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 600;
     color: var(--db-text);
 }
 
 .sv-teacher-role {
-    font-size: 11.5px;
+    font-size: 12.5px;
     color: var(--db-text-3);
 }
 
@@ -2689,14 +2682,14 @@
 
 .sv-progress-title {
     font-family: var(--db-font-display);
-    font-size: 15.5px;
+    font-size: 16.5px;
     font-weight: 600;
     color: var(--db-text);
     margin-right: 10px;
 }
 
 .sv-progress-caption {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--db-text-3);
 }
 
@@ -2707,7 +2700,7 @@
 }
 
 .sv-progress-word {
-    font-size: 10.5px;
+    font-size: 11.5px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.12em;
@@ -2716,7 +2709,7 @@
 
 .sv-progress-num {
     font-family: var(--db-font-display);
-    font-size: 22px;
+    font-size: 23.5px;
     font-weight: 700;
     color: var(--db-accent-bright);
 }
@@ -2795,7 +2788,7 @@
 .sv-lesson-title {
     flex: 1;
     min-width: 0;
-    font-size: 14.5px;
+    font-size: 15.5px;
     font-weight: 600;
     color: var(--db-text);
     overflow: hidden;
@@ -2807,7 +2800,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 700;
     color: var(--db-green);
     background: var(--db-green-soft);
@@ -2855,7 +2848,7 @@
 }
 
 .sv-due-label {
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.14em;
@@ -2871,7 +2864,7 @@
     border: 1px solid rgba(251, 191, 36, 0.35);
     background: rgba(251, 191, 36, 0.1);
     color: var(--db-text);
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     cursor: pointer;
     transition: border-color 0.15s ease, background 0.15s ease;
@@ -2888,7 +2881,7 @@
 }
 
 .sv-lesson-cost {
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
     color: var(--db-text-3);
     white-space: nowrap;
@@ -2901,7 +2894,6 @@
     margin-left: 8px;
     border-radius: 999px;
     background: var(--db-accent-bright);
-    box-shadow: 0 0 8px rgba(64, 156, 255, 0.7);
     vertical-align: middle;
 }
 
@@ -2933,7 +2925,7 @@
     border: 1px solid var(--db-border-strong);
     box-shadow:
         0 30px 80px rgba(2, 4, 12, 0.6),
-        0 0 0 1px rgba(10, 132, 255, 0.08);
+        0 0 0 1px rgba(128, 128, 128, 0.1);
     padding: 30px 32px 28px;
     animation: db-modal-in 0.24s cubic-bezier(0.25, 1, 0.5, 1) both;
 }
@@ -2965,7 +2957,7 @@
 
 .db-modal-title {
     font-family: var(--db-font-display);
-    font-size: 27px;
+    font-size: 29px;
     font-weight: 700;
     letter-spacing: -0.01em;
     margin: 0 0 7px;
@@ -2973,7 +2965,7 @@
 }
 
 .db-modal-sub {
-    font-size: 15.5px;
+    font-size: 16.5px;
     color: var(--db-text-2);
     margin: 0;
 }
@@ -2990,7 +2982,7 @@
 
 .db-field-label {
     display: block;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.11em;
@@ -3014,7 +3006,7 @@
     background: var(--db-card-2);
     color: var(--db-text);
     font-family: inherit;
-    font-size: 15.5px;
+    font-size: 16.5px;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -3062,7 +3054,7 @@
 }
 
 .db-modal-error {
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 600;
     color: var(--db-danger);
     background: var(--db-danger-soft);
@@ -3089,7 +3081,7 @@
     border: 1px solid var(--db-border-strong);
     background: transparent;
     color: var(--db-text-2);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
     transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
@@ -3189,7 +3181,7 @@
     background: var(--db-accent-soft);
     color: var(--db-text);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 38px;
+    font-size: 40px;
     font-weight: 700;
     letter-spacing: 0.22em;
     text-indent: 0.22em; /* visually recenters spaced mono digits */
@@ -3216,7 +3208,7 @@
 }
 
 .db-code-hint {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--db-text-3);
     margin: 12px 0 0;
 }
@@ -3299,7 +3291,7 @@
     }
 
     .db-hero-title {
-        font-size: 30px;
+        font-size: 32px;
     }
 }
 
@@ -3314,16 +3306,16 @@
     }
 
     .db-hero-title {
-        font-size: 25px;
+        font-size: 26.5px;
     }
 
     .db-hero-sub {
-        font-size: 14px;
+        font-size: 15px;
     }
 
     .db-hero-meta {
         padding: 9px 13px;
-        font-size: 12.5px;
+        font-size: 13.5px;
     }
 
     .db-stats-grid {
@@ -3342,20 +3334,20 @@
     }
 
     .db-stat-value {
-        font-size: 32px;
+        font-size: 34px;
     }
 
     .db-stat-value.is-title {
-        font-size: 18px;
+        font-size: 19px;
     }
 
     .db-section-title {
-        font-size: 19px;
+        font-size: 20.5px;
     }
 
     .db-btn-primary {
         padding: 10px 15px;
-        font-size: 13.5px;
+        font-size: 14.5px;
     }
 
     .db-class-grid {
@@ -3384,7 +3376,7 @@
     }
 
     .db-class-name {
-        font-size: 16.5px;
+        font-size: 17.5px;
     }
 
     .db-class-stat {
@@ -3398,11 +3390,11 @@
     }
 
     .db-class-stat b {
-        font-size: 15px;
+        font-size: 16px;
     }
 
     .db-class-stat span {
-        font-size: 11.5px;
+        font-size: 12.5px;
     }
 
     .db-create-tile {
@@ -3414,7 +3406,7 @@
     }
 
     .db-code-hero {
-        font-size: 27px;
+        font-size: 29px;
         padding: 16px;
     }
 }
@@ -3475,7 +3467,7 @@
 
     .db-mobilebar-brand {
         font-family: var(--db-font-display);
-        font-size: 16.5px;
+        font-size: 17.5px;
         font-weight: 700;
         letter-spacing: -0.01em;
         color: var(--db-text);
@@ -3549,7 +3541,7 @@
 
 .ed-kicker {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
     letter-spacing: 0.16em;
     text-transform: uppercase;
@@ -3563,7 +3555,7 @@
     padding: 3px 10px;
     border-radius: 999px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 11.5px;
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -3582,7 +3574,7 @@
     background: transparent;
     color: var(--db-text);
     font-family: var(--db-font-display);
-    font-size: 24px;
+    font-size: 25.5px;
     font-weight: 700;
     letter-spacing: -0.01em;
     outline: none;
@@ -3606,7 +3598,7 @@
     gap: 8px;
     flex-wrap: wrap;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--db-text-3);
     margin-top: 4px;
 }
@@ -3627,7 +3619,7 @@
     align-items: center;
     gap: 6px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     color: var(--db-text-3);
     white-space: nowrap;
@@ -3692,7 +3684,7 @@
 .ed-insert-label {
     display: block;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     letter-spacing: 0.16em;
     text-transform: uppercase;
@@ -3755,13 +3747,13 @@
 }
 
 .ed-insert-name {
-    font-size: 15.5px;
+    font-size: 16.5px;
     font-weight: 700;
     color: var(--db-text);
 }
 
 .ed-insert-sub {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--db-text-3);
     line-height: 1.35;
 }
@@ -3782,7 +3774,7 @@
     border: 1px solid var(--db-border-strong);
     background: var(--db-card);
     color: var(--db-text);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
     transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
@@ -3950,7 +3942,7 @@
 
 .ed-insert-pop .ed-insert-chip {
     padding: 7px 12px;
-    font-size: 12.5px;
+    font-size: 13.5px;
 }
 
 .ed-block:hover .le-h1 {
@@ -3962,7 +3954,7 @@
     align-items: center;
     gap: 8px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -3985,14 +3977,14 @@
 
 .ed-empty h3 {
     font-family: var(--db-font-display);
-    font-size: 19px;
+    font-size: 20.5px;
     font-weight: 700;
     color: var(--db-text);
     margin: 8px 0 0;
 }
 
 .ed-empty p {
-    font-size: 15px;
+    font-size: 16px;
     max-width: 420px;
     margin: 0;
     line-height: 1.55;
@@ -4005,7 +3997,7 @@
     }
 
     .ed-title-input {
-        font-size: 20px;
+        font-size: 21.5px;
     }
 
     .ed-header-actions {
@@ -4026,7 +4018,7 @@
     background: var(--db-card);
     color: var(--db-accent-bright);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
     letter-spacing: 0.06em;
     cursor: pointer;
@@ -4080,14 +4072,14 @@
 }
 
 .ed-ai-chip-label > :first-child {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
     color: var(--db-text);
 }
 
 .ed-ai-chip-state {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.06em;
     color: var(--db-text-3);
@@ -4122,7 +4114,7 @@
     .cd-tab {
         flex: none;
         padding: 13px 15px;
-        font-size: 15px;
+        font-size: 16px;
     }
 
     .cd-hero {
@@ -4130,11 +4122,11 @@
     }
 
     .cd-title {
-        font-size: 29px;
+        font-size: 31px;
     }
 
     .cd-code-chip-lg {
-        font-size: 13px;
+        font-size: 14px;
         padding: 7px 11px;
     }
 
@@ -4203,7 +4195,7 @@
     background: var(--db-card-2);
     color: var(--db-text);
     font-family: inherit;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     text-align: left;
@@ -4272,7 +4264,7 @@
     background: transparent;
     color: var(--db-text-2);
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 500;
     cursor: pointer;
     transition: background 0.12s ease, color 0.12s ease;
