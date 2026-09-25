@@ -9,7 +9,7 @@
     display: flex;
     align-items: center;
     gap: 9px;
-    font-size: 14.5px;
+    font-size: 15.5px;
     font-weight: 500;
     color: var(--db-text-2);
     background: var(--db-card-2);
@@ -44,15 +44,14 @@
 }
 
 .le-ai-chip-label > :first-child {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
 }
 
 .le-ai-chip-state {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    letter-spacing: 0.06em;
+    letter-spacing: 0;
     color: var(--db-text-3);
 }
 
@@ -80,7 +79,7 @@
     overflow: hidden;
     color: var(--db-text);
     font-family: var(--db-font-display);
-    font-size: 32px;
+    font-size: 34px;
     font-weight: 700;
     letter-spacing: -0.015em;
     line-height: 1.2;
@@ -124,7 +123,7 @@
 
 .le-prose {
     color: var(--db-text);
-    font-size: 17px;
+    font-size: 18px;
     line-height: 1.75;
     min-height: 40px;
 }
@@ -144,9 +143,9 @@
 }
 
 .le-prose h1 { font-size: 26px; }
-.le-prose h2 { font-size: 22px; }
-.le-prose h3 { font-size: 19px; }
-.le-prose h4 { font-size: 17px; }
+.le-prose h2 { font-size: 23.5px; }
+.le-prose h3 { font-size: 20.5px; }
+.le-prose h4 { font-size: 18px; }
 
 .le-prose p {
     margin: 0.55em 0;
@@ -163,7 +162,7 @@
     border-radius: 6px;
     padding: 1px 6px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
+    font-size: 15px;
 }
 
 .le-prose blockquote {
@@ -283,7 +282,7 @@
     outline: none;
     color: var(--db-text);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .le-menu-link button {
@@ -325,7 +324,7 @@
     border: 1px solid var(--db-border);
     background: var(--db-card-2);
     color: var(--db-text);
-    font-size: 15.5px;
+    font-size: 16.5px;
     outline: none;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -371,10 +370,8 @@
 }
 
 .le-video-empty p {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    font-size: 12.5px;
+    letter-spacing: 0;
     margin: 0;
 }
 
@@ -417,13 +414,13 @@
 }
 
 .le-link-fields input:first-child {
-    font-size: 17.5px;
+    font-size: 19px;
     font-weight: 700;
 }
 
 .le-link-fields input:last-child {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13.5px;
+    font-size: 14.5px;
     color: var(--db-text-3);
 }
 
@@ -450,9 +447,8 @@
     backdrop-filter: blur(6px);
     color: var(--db-accent-bright);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+    font-size: 13px;
+    letter-spacing: 0;
 }
 
 .le-image-body {
@@ -525,10 +521,9 @@
     background: transparent;
     color: var(--db-text-2);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     cursor: pointer;
     transition: background 0.15s ease, color 0.15s ease;
 }
@@ -556,7 +551,7 @@
     border: none;
     background: transparent;
     color: var(--db-accent-bright);
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 600;
     cursor: pointer;
     padding: 4px 6px;
@@ -587,21 +582,19 @@
 }
 
 .le-challenge label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-text-2);
 }
 
 .le-challenge-input {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 14.5px;
+    font-size: 15.5px;
 }
 
 .le-challenge-hint {
-    font-size: 13.5px;
+    font-size: 14.5px;
     color: var(--db-text-2);
     margin: 0;
     line-height: 1.5;
@@ -625,7 +618,7 @@
     background: transparent;
     color: var(--db-text-2);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 700;
     cursor: pointer;
     transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
@@ -654,7 +647,7 @@
     border: 1.5px dashed var(--db-border-strong);
     color: var(--db-text-3);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 700;
     cursor: pointer;
     transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
@@ -671,10 +664,9 @@
 }
 
 .le-file-main {
-    font-size: 9.5px;
+    font-size: 10.5px;
     font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-text-3);
     background: var(--db-card-2);
     border: 1px solid var(--db-border);
@@ -724,7 +716,7 @@
 
 .le-preview-h1 {
     font-family: var(--db-font-display);
-    font-size: 32px;
+    font-size: 34px;
     font-weight: 700;
     letter-spacing: -0.015em;
     color: var(--db-text);
@@ -745,9 +737,8 @@
 .le-preview-figure figcaption {
     margin-top: 10px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    font-size: 13px;
+    letter-spacing: 0;
     color: var(--db-text-3);
 }
 
@@ -760,7 +751,7 @@
     border: 1px solid var(--db-accent-border);
     background: var(--db-accent-soft);
     color: var(--db-accent-bright);
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     text-decoration: none;
 }
@@ -778,10 +769,9 @@
 
 .le-preview-code-head {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-text-2);
     margin-bottom: 10px;
 }
@@ -789,7 +779,7 @@
 .le-preview-file {
     display: inline-block;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 700;
     color: var(--db-text-2);
     margin: 8px 0 4px;
@@ -803,13 +793,13 @@
     border: 1px solid var(--db-border);
     overflow-x: auto;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.6;
     color: var(--db-text);
 }
 
 .le-preview-expected {
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 600;
     color: var(--db-danger);
     margin: 4px 0 0;
@@ -858,7 +848,7 @@
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
     color: var(--db-text);
 }
@@ -872,7 +862,7 @@
 }
 
 .le-mode-sub {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--db-text-2);
     line-height: 1.4;
 }
@@ -902,7 +892,7 @@
     border-radius: 9px;
     background: color-mix(in srgb, var(--db-canvas) 78%, transparent);
     color: var(--db-text);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.15s ease, color 0.15s ease;
@@ -928,7 +918,7 @@
 }
 
 .le-image-pick-title {
-    font-size: 15.5px;
+    font-size: 16.5px;
     font-weight: 700;
     color: var(--db-text-2);
     margin: 0;
@@ -948,7 +938,7 @@
 }
 
 .le-image-pick-sub {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--db-text-3);
 }
 
@@ -958,7 +948,7 @@
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--db-text-2);
     text-decoration: none;
@@ -979,7 +969,7 @@
     border: 1px solid var(--db-accent-border);
     background: var(--db-accent-soft);
     color: var(--db-accent-bright);
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 600;
     text-decoration: none;
     transition: filter 0.15s ease;
@@ -1020,7 +1010,7 @@
     border: 1.5px dashed var(--db-accent-border);
     background: var(--db-accent-soft);
     color: var(--db-accent-bright);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer;
     transition: border-color 0.15s ease, background 0.15s ease;
@@ -1036,7 +1026,7 @@
 }
 
 .le-tc-hint {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--db-text-2);
     line-height: 1.5;
     margin: 0;
@@ -1055,7 +1045,7 @@
 
 .le-tc-num {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     color: var(--db-text-3);
     padding-top: 22px;
@@ -1069,11 +1059,9 @@
 }
 
 .le-tc-field-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 11.5px;
     font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-text-3);
 }
 
@@ -1087,7 +1075,7 @@
     background: var(--db-card);
     color: var(--db-text);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.5;
     outline: none;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;

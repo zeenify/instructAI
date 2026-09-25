@@ -32,14 +32,14 @@
 }
 
 .qb-card-hint {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--db-text-3);
     line-height: 1.45;
     margin: -6px 0 0;
 }
 
 .qb-card-error {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
     color: var(--db-danger);
     margin: 0;
@@ -64,7 +64,7 @@
     outline: none;
     color: var(--db-text);
     font-family: var(--db-font-display);
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 700;
     text-align: right;
 }
@@ -79,11 +79,9 @@
 }
 
 .qb-unit {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-text-3);
     white-space: nowrap;
 }
@@ -98,13 +96,13 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    font-size: 13.5px;
+    font-size: 14.5px;
     color: var(--db-text-2);
 }
 
 .qb-summary-row b {
     font-family: var(--db-font-display);
-    font-size: 19px;
+    font-size: 20.5px;
     font-weight: 700;
     color: var(--db-text);
 }
@@ -132,18 +130,16 @@
     background: var(--db-accent);
     color: #ffffff;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
 }
 
 .qb-q-type {
     flex: 1;
     min-width: 0;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-text-3);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -167,7 +163,7 @@
     outline: none;
     color: var(--db-text);
     font-family: var(--db-font-display);
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 700;
     text-align: right;
 }
@@ -180,11 +176,9 @@
 }
 
 .qb-q-weight span {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-accent-bright);
 }
 
@@ -202,7 +196,7 @@
     overflow: hidden;
     color: var(--db-text);
     font-family: var(--db-font-display);
-    font-size: 20px;
+    font-size: 21.5px;
     font-weight: 700;
     line-height: 1.35;
     padding: 4px 10px;
@@ -232,11 +226,9 @@
 }
 
 .qb-field-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 11.5px;
     font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-text-3);
 }
 
@@ -248,7 +240,7 @@
     background: var(--db-card-2);
     color: var(--db-text);
     font-family: inherit;
-    font-size: 14.5px;
+    font-size: 15.5px;
     outline: none;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -314,7 +306,7 @@
     background: transparent;
     outline: none;
     color: var(--db-text);
-    font-size: 14.5px;
+    font-size: 15.5px;
     font-weight: 500;
 }
 
@@ -336,10 +328,9 @@
     border: 1px solid var(--db-border);
     background: var(--db-card-2);
     color: var(--db-text-2);
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     cursor: pointer;
     transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
@@ -371,7 +362,7 @@
 
 .qb-enum-num {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     color: var(--db-text-3);
     width: 22px;
@@ -387,7 +378,7 @@
     border: 1px solid var(--db-border);
     background: var(--db-card-2);
     color: var(--db-text);
-    font-size: 14.5px;
+    font-size: 15.5px;
     outline: none;
     transition: border-color 0.15s ease;
 }
@@ -429,7 +420,7 @@
     border-radius: 9px;
     background: transparent;
     color: var(--db-text-3);
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     cursor: pointer;
     transition: color 0.15s ease, border-color 0.15s ease;
@@ -472,10 +463,9 @@
     background: var(--db-card-2);
     color: var(--db-text-2);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0;
     cursor: pointer;
     transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
@@ -504,7 +494,7 @@
     background: var(--db-amber-soft, rgba(251, 191, 36, 0.1));
     border: 1px solid var(--db-amber-border, rgba(251, 191, 36, 0.35));
     color: var(--db-amber);
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     line-height: 1.5;
 }
@@ -557,7 +547,7 @@
     border: 1px solid var(--db-border);
     background: var(--db-card-2);
     color: var(--db-text-2);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: border-color 0.15s ease, background 0.15s ease;
@@ -606,7 +596,7 @@
     border: 1.5px dashed var(--db-accent-border);
     background: var(--db-accent-soft);
     color: var(--db-accent-bright);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
 }
 
@@ -629,7 +619,7 @@
     background: var(--db-danger-soft);
     border: 1px solid rgba(248, 113, 113, 0.4);
     color: var(--db-text);
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 600;
     box-shadow: var(--db-shadow);
 }
@@ -672,11 +662,9 @@
 }
 
 .qb-q-warn {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-amber);
     background: rgba(251, 191, 36, 0.1);
     border: 1px solid rgba(251, 191, 36, 0.35);
@@ -695,7 +683,7 @@
     border-radius: 9px;
     background: var(--db-accent);
     color: #ffffff;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 700;
     cursor: pointer;
     transition: filter 0.15s ease;
@@ -719,7 +707,7 @@
     }
 
     .qb-q-text {
-        font-size: 16.5px;
+        font-size: 17.5px;
     }
 
     /* One option per line so answers stay readable */
@@ -728,7 +716,7 @@
     }
 
     .qb-tf-btn {
-        font-size: 14px;
+        font-size: 15px;
         padding: 12px;
     }
 }

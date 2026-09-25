@@ -30,7 +30,7 @@ function needsAnswer(q) {
 }
 
 /** One quiz question block with hover toolbar (drag / move / delete). */
-function QuestionBlock({ q, index, lastIndex, onMove, update, remove, randomized, isConfirming, setConfirming }) {
+function QuestionBlock({ q, index, lastIndex, onMove, update, remove, randomized, isConfirming, setConfirming, langAvailability }) {
     const controls = useDragControls();
     const [dragging, setDragging] = useState(false);
     const movedRef = useRef(false);

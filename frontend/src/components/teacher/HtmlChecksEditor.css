@@ -25,23 +25,20 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-text-2);
 }
 
 .hc-count {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
     color: var(--db-text-3);
 }
 
 .hc-desc {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--db-text-2);
     line-height: 1.5;
     margin: 0;
@@ -83,7 +80,7 @@
     background: var(--db-card-2);
     color: var(--db-text);
     font-family: inherit;
-    font-size: 13px;
+    font-size: 14px;
     outline: none;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -117,7 +114,7 @@
 }
 
 .hc-row-label {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--db-text-3);
 }
 
@@ -155,7 +152,7 @@
     border: 1px solid var(--db-border-strong);
     background: transparent;
     color: var(--db-text-2);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: color 0.15s ease, border-color 0.15s ease;
@@ -180,7 +177,7 @@
     border-radius: 10px;
     background: var(--db-accent);
     color: #ffffff;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer;
     transition: filter 0.15s ease;
@@ -196,7 +193,7 @@
 }
 
 .hc-hint {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--db-text-3);
 }
 
@@ -212,7 +209,7 @@
     background: var(--db-card);
     color: var(--db-text);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     line-height: 1.6;
     outline: none;
     transition: border-color 0.15s ease;
@@ -239,11 +236,9 @@
 }
 
 .hc-results-title {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    letter-spacing: 0;
 }
 
 .hc-results-title.pass {
@@ -258,7 +253,7 @@
     display: flex;
     align-items: center;
     gap: 9px;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--db-text-2);
 }
 
@@ -271,7 +266,7 @@
 }
 
 .hc-result-detail {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--db-danger);
 }
 
