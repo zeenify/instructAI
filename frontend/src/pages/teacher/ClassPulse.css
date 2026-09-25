@@ -15,18 +15,16 @@
 }
 
 .pu-kicker {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-text-3);
     margin: 0 0 6px;
 }
 
 .pu-title {
     font-family: var(--db-font-display);
-    font-size: 27px;
+    font-size: 29px;
     font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--db-text);
@@ -38,8 +36,7 @@
     align-items: center;
     gap: 9px;
     flex-wrap: wrap;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--db-text-3);
     margin: 9px 0 0;
 }
@@ -123,14 +120,14 @@
 
 .pu-tile-num {
     font-family: var(--db-font-display);
-    font-size: 22px;
+    font-size: 23.5px;
     font-weight: 700;
     color: var(--db-text);
     line-height: 1.1;
 }
 
 .pu-tile-label {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--db-text-2);
     margin-top: 2px;
 }
@@ -170,7 +167,7 @@
     background: var(--db-card-2);
     color: var(--db-text);
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: 14.5px;
     outline: none;
     box-sizing: border-box;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -200,7 +197,7 @@
     border: none;
     background: transparent;
     color: var(--db-text-2);
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
@@ -257,7 +254,7 @@
 }
 
 .pu-row-name {
-    font-size: 14.5px;
+    font-size: 15.5px;
     font-weight: 600;
     color: var(--db-text);
     margin: 0 0 3px;
@@ -277,11 +274,9 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 11.5px;
     font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     padding: 3px 9px;
     border-radius: 999px;
     white-space: nowrap;
@@ -312,8 +307,7 @@
 }
 
 .pu-last {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     color: var(--db-text-3);
     white-space: nowrap;
 }
@@ -338,17 +332,14 @@
 }
 
 .pu-progress-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-text-3);
 }
 
 .pu-progress-pct {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 700;
     color: var(--db-text);
 }
@@ -395,11 +386,9 @@
 }
 
 .pu-module-name {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 13.5px;
     font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-text-2);
     margin: 0 0 8px;
 }
@@ -418,16 +407,14 @@
     border-radius: 9px;
     border: 1px solid var(--db-border);
     background: var(--db-card);
-    font-size: 13px;
+    font-size: 14px;
     color: var(--db-text);
 }
 
 .pu-item-state {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     padding: 2px 8px;
     border-radius: 6px;
     white-space: nowrap;
@@ -453,8 +440,7 @@
 
 .pu-item-score {
     margin-left: auto;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
     color: var(--db-text-2);
     white-space: nowrap;
@@ -497,14 +483,14 @@
 
 .pu-empty-title {
     font-family: var(--db-font-display);
-    font-size: 18px;
+    font-size: 19px;
     font-weight: 700;
     color: var(--db-text);
     margin: 0 0 5px;
 }
 
 .pu-empty-sub {
-    font-size: 14px;
+    font-size: 15px;
     color: var(--db-text-2);
     margin: 0;
 }

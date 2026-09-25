@@ -65,8 +65,8 @@ function Card({ title, subtitle, right, children, style }) {
         <div style={{ backgroundColor: 'var(--db-card)', border: '1px solid var(--db-border)', borderRadius: '16px', padding: '22px', boxShadow: 'var(--card-shadow)', ...style }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', gap: '12px' }}>
                 <div>
-                    <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: 'var(--db-text)' }}>{title}</h3>
-                    {subtitle && <p style={{ fontSize: '12px', color: 'var(--db-text-3)', margin: '4px 0 0 0' }}>{subtitle}</p>}
+                    <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--db-text)' }}>{title}</h3>
+                    {subtitle && <p style={{ fontSize: '13px', color: 'var(--db-text-3)', margin: '4px 0 0 0' }}>{subtitle}</p>}
                 </div>
                 {right}
             </div>
@@ -83,9 +83,9 @@ function KpiCard({ icon, label, value, sub, color }) {
                 <IconComponent size={20} color={color} />
             </div>
             <div style={{ minWidth: 0 }}>
-                <p style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--db-text-3)', margin: '0 0 4px 0' }}>{label}</p>
-                <p style={{ fontSize: '22px', fontWeight: 800, color: 'var(--db-text)', margin: 0, lineHeight: 1.2 }}>{value}</p>
-                {sub && <p style={{ fontSize: '11px', color: 'var(--db-text-3)', margin: '2px 0 0 0' }}>{sub}</p>}
+                <p style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0', color: 'var(--db-text-3)', margin: '0 0 4px 0' }}>{label}</p>
+                <p style={{ fontSize: '23.5px', fontWeight: 800, color: 'var(--db-text)', margin: 0, lineHeight: 1.2 }}>{value}</p>
+                {sub && <p style={{ fontSize: '12px', color: 'var(--db-text-3)', margin: '2px 0 0 0' }}>{sub}</p>}
             </div>
         </div>
     );
@@ -94,7 +94,7 @@ function KpiCard({ icon, label, value, sub, color }) {
 function ChartTooltip({ active, payload, label, format }) {
     if (!active || !payload?.length) return null;
     return (
-        <div style={{ background: 'var(--db-card)', border: '1px solid var(--db-border)', borderRadius: '10px', padding: '10px 12px', fontSize: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.18)', maxWidth: '300px' }}>
+        <div style={{ background: 'var(--db-card)', border: '1px solid var(--db-border)', borderRadius: '10px', padding: '10px 12px', fontSize: '13px', boxShadow: '0 8px 24px rgba(0,0,0,0.18)', maxWidth: '300px' }}>
             {label && <div style={{ fontWeight: 700, marginBottom: '6px', color: 'var(--db-text)' }}>{label}</div>}
             {payload.map((p, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--db-text-2)', padding: '2px 0', lineHeight: 1.4 }}>
@@ -161,7 +161,7 @@ export default function ActivityResults() {
                 <div className="max-w-7xl mx-auto" style={{ padding: '32px 24px' }}>
                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', gap: '10px' }}>
                         <RefreshCw size={18} className="animate-spin" />
-                        <span style={{ color: 'var(--db-text-2)', fontSize: '14px' }}>Loading results analysis...</span>
+                        <span style={{ color: 'var(--db-text-2)', fontSize: '15px' }}>Loading results analysis...</span>
                     </div>
                 </div>
             </div>
@@ -172,7 +172,7 @@ export default function ActivityResults() {
         return (
             <div style={{ minHeight: '100vh', backgroundColor: 'var(--db-canvas)', color: 'var(--db-text)', transition: 'all 0.3s ease' }}>
                 <div className="max-w-7xl mx-auto" style={{ padding: '32px 24px' }}>
-                    <div style={{ padding: '24px', borderRadius: '12px', backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', fontSize: '14px', fontWeight: '500' }}>{error || 'No data'}</div>
+                    <div style={{ padding: '24px', borderRadius: '12px', backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', fontSize: '15px', fontWeight: '500' }}>{error || 'No data'}</div>
                 </div>
             </div>
         );
@@ -187,7 +187,7 @@ export default function ActivityResults() {
             <div className="max-w-7xl mx-auto" style={{ padding: '32px 24px', paddingBottom: '64px' }}>
                 <button
                     onClick={() => navigate(`/dashboard/teacher/class/${classId}`)}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: 'var(--db-card)', border: '1px solid var(--db-border)', borderRadius: '8px', color: 'var(--db-text-2)', fontWeight: '500', fontSize: '14px', cursor: 'pointer', transition: 'all 200ms ease-in-out', marginBottom: '24px' }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: 'var(--db-card)', border: '1px solid var(--db-border)', borderRadius: '8px', color: 'var(--db-text-2)', fontWeight: '500', fontSize: '15px', cursor: 'pointer', transition: 'all 200ms ease-in-out', marginBottom: '24px' }}
                 >
                     <ChevronLeft size={18} />
                     Back to Class
@@ -196,12 +196,12 @@ export default function ActivityResults() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap', marginBottom: '28px' }}>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                            <h1 style={{ fontSize: '24px', fontWeight: 800, margin: 0 }}>{data.activity.title}</h1>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '999px', background: 'rgba(16, 185, 129, 0.12)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                            <h1 style={{ fontSize: '25.5px', fontWeight: 800, margin: 0 }}>{data.activity.title}</h1>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, padding: '4px 10px', borderRadius: '999px', background: 'rgba(16, 185, 129, 0.12)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                                 <BarChart3 size={12} /> RESULTS ANALYSIS
                             </span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', fontSize: '13px', color: 'var(--db-text-3)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', fontSize: '14px', color: 'var(--db-text-3)' }}>
                             <span>{typeLabel(data.activity.activity_type)}</span>
                             <span>·</span>
                             <span>{data.activity.question_count} question{data.activity.question_count !== 1 ? 's' : ''}</span>
@@ -218,7 +218,7 @@ export default function ActivityResults() {
                     <button
                         onClick={() => fetchAnalysis(true)}
                         disabled={refreshing}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: 'var(--db-card)', border: '1px solid var(--db-border)', borderRadius: '8px', color: 'var(--db-text-2)', fontWeight: '600', fontSize: '13px', cursor: 'pointer', opacity: refreshing ? 0.6 : 1 }}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: 'var(--db-card)', border: '1px solid var(--db-border)', borderRadius: '8px', color: 'var(--db-text-2)', fontWeight: '600', fontSize: '14px', cursor: 'pointer', opacity: refreshing ? 0.6 : 1 }}
                     >
                         <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
                         {refreshing ? 'Refreshing...' : 'Refresh'}
@@ -228,8 +228,8 @@ export default function ActivityResults() {
                 {!hasResults ? (
                     <div style={{ border: '2px dashed var(--db-border)', borderRadius: '20px', padding: '80px 40px', textAlign: 'center', background: 'var(--db-card)' }}>
                         <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--db-card-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: C.slate }}><BarChart3 size={28} /></div>
-                        <h3 style={{ fontSize: '17px', fontWeight: 700, margin: '0 0 6px 0' }}>No scored results yet</h3>
-                        <p style={{ fontSize: '14px', color: 'var(--db-text-3)', margin: 0 }}>Analysis appears once students submit work. {stats.draft_count > 0 ? `${stats.draft_count} submission${stats.draft_count !== 1 ? 's are' : ' is'} still in progress.` : ''}</p>
+                        <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 6px 0' }}>No scored results yet</h3>
+                        <p style={{ fontSize: '15px', color: 'var(--db-text-3)', margin: 0 }}>Analysis appears once students submit work. {stats.draft_count > 0 ? `${stats.draft_count} submission${stats.draft_count !== 1 ? 's are' : ' is'} still in progress.` : ''}</p>
                     </div>
                 ) : (
                     <>
@@ -244,13 +244,13 @@ export default function ActivityResults() {
                                 <div style={{ position: 'relative' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                                         <PartyPopper size={15} color={C.violet} />
-                                        <p style={{ margin: 0, fontSize: '11px', fontWeight: 800, letterSpacing: '0.12em', color: C.violet, textTransform: 'uppercase' }}>Quiz complete</p>
+                                        <p style={{ margin: 0, fontSize: '12px', fontWeight: 800, letterSpacing: '0', color: C.violet }}>Quiz complete</p>
                                     </div>
-                                    <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: 'var(--db-text)', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                    <h2 style={{ margin: 0, fontSize: '25.5px', fontWeight: 800, color: 'var(--db-text)', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                                         <Crown size={22} color={C.amber} />
                                         {top3.length === 1 ? `${top3[0].student} tops the quiz with ${top3[0].score_pct}%` : `${top3[0].student} takes 1st place with ${top3[0].score_pct}%`}
                                     </h2>
-                                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--db-text-3)' }}>
+                                    <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: 'var(--db-text-3)' }}>
                                         {stats.submitted} of {stats.enrolled} enrolled students submitted · {data.activity.question_count} question{data.activity.question_count !== 1 ? 's' : ''} · Top 3 shown
                                     </p>
 
@@ -268,10 +268,10 @@ export default function ActivityResults() {
                                                             '--podium-h': `${p.h}px`,
                                                         }}
                                                     >
-                                                        <span style={{ fontSize: '22px', fontWeight: 900, color: 'rgba(255,255,255,0.95)', textShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>{rank}</span>
+                                                        <span style={{ fontSize: '23.5px', fontWeight: 900, color: 'rgba(255,255,255,0.95)', textShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>{rank}</span>
                                                     </div>
-                                                    <p style={{ margin: '10px 0 0 0', fontSize: '13px', fontWeight: 700, color: 'var(--db-text)', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.student}>{r.student}</p>
-                                                    <p style={{ margin: '2px 0 0 0', fontSize: '15px', fontWeight: 800, color: colorForPct(r.score_pct) }}>{r.score_pct}%</p>
+                                                    <p style={{ margin: '10px 0 0 0', fontSize: '14px', fontWeight: 700, color: 'var(--db-text)', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.student}>{r.student}</p>
+                                                    <p style={{ margin: '2px 0 0 0', fontSize: '16px', fontWeight: 800, color: colorForPct(r.score_pct) }}>{r.score_pct}%</p>
                                                 </div>
                                             );
                                         })}
@@ -287,7 +287,7 @@ export default function ActivityResults() {
                                 subtitle="How the class answered each question — the % next to each question is accuracy"
                                 style={{ marginBottom: '24px' }}
                                 right={
-                                    <div style={{ display: 'flex', gap: '14px', fontSize: '12px', color: 'var(--db-text-3)', flexWrap: 'wrap' }}>
+                                    <div style={{ display: 'flex', gap: '14px', fontSize: '13px', color: 'var(--db-text-3)', flexWrap: 'wrap' }}>
                                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><span style={{ width: 10, height: 10, borderRadius: 3, background: C.green, display: 'inline-block' }} /> Correct</span>
                                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><span style={{ width: 10, height: 10, borderRadius: 3, background: C.red, display: 'inline-block' }} /> Wrong</span>
                                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><span style={{ width: 10, height: 10, borderRadius: 3, background: C.amber, display: 'inline-block' }} /> Pending</span>
@@ -298,12 +298,12 @@ export default function ActivityResults() {
                                 <ResponsiveContainer width="100%" height={Math.max(180, questions.length * 58)}>
                                     <BarChart data={questions} layout="vertical" margin={{ top: 0, right: 40, left: 8, bottom: 0 }} barSize={26}>
                                         <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
-                                        <XAxis type="number" allowDecimals={false} tick={{ fill: axisColor, fontSize: 12 }} axisLine={false} tickLine={false} />
+                                        <XAxis type="number" allowDecimals={false} tick={{ fill: axisColor, fontSize: 13 }} axisLine={false} tickLine={false} />
                                         <YAxis
                                             type="category"
                                             dataKey="text"
                                             width={320}
-                                            tick={{ fill: axisColor, fontSize: 11 }}
+                                            tick={{ fill: axisColor, fontSize: 12 }}
                                             axisLine={false}
                                             tickLine={false}
                                             tickFormatter={(v, i) => {
@@ -352,12 +352,12 @@ export default function ActivityResults() {
                             if (!items.length) return null;
                             return (
                                 <div style={{ marginBottom: '24px', padding: '18px 22px', borderRadius: '16px', background: 'rgba(10, 132, 255, 0.06)', border: '1px solid rgba(10, 132, 255, 0.25)' }}>
-                                    <p style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.violet, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <p style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0', color: C.violet, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         <Lightbulb size={14} /> Insights
                                     </p>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         {items.map((it, i) => (
-                                            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', color: 'var(--db-text-2)', lineHeight: 1.5 }}>
+                                            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '14px', color: 'var(--db-text-2)', lineHeight: 1.5 }}>
                                                 <it.icon size={15} color={it.color} style={{ flexShrink: 0, marginTop: '2px' }} />
                                                 <span>{it.text}</span>
                                             </div>
@@ -373,14 +373,14 @@ export default function ActivityResults() {
                                 <ResponsiveContainer width="100%" height={240}>
                                     <BarChart data={data.histogram} margin={{ top: 24, right: 8, left: -18, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-                                        <XAxis dataKey="label" tick={{ fill: axisColor, fontSize: 12 }} axisLine={{ stroke: gridColor }} tickLine={false} />
-                                        <YAxis allowDecimals={false} tick={{ fill: axisColor, fontSize: 12 }} axisLine={false} tickLine={false} />
+                                        <XAxis dataKey="label" tick={{ fill: axisColor, fontSize: 13 }} axisLine={{ stroke: gridColor }} tickLine={false} />
+                                        <YAxis allowDecimals={false} tick={{ fill: axisColor, fontSize: 13 }} axisLine={false} tickLine={false} />
                                         <Tooltip content={<ChartTooltip format={(v) => `${v} student${v !== 1 ? 's' : ''}`} />} cursor={{ fill: gridColor }} />
                                         <Bar dataKey="count" name="Students" radius={[6, 6, 0, 0]}>
                                             {data.histogram.map((bin, i) => (
                                                 <Cell key={i} fill={bin.count > 0 ? C.green : 'var(--db-card-2)'} />
                                             ))}
-                                            <LabelList dataKey="count" position="top" style={{ fill: axisColor, fontSize: 12, fontWeight: 700 }} />
+                                            <LabelList dataKey="count" position="top" style={{ fill: axisColor, fontSize: 13, fontWeight: 700 }} />
                                         </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -402,8 +402,8 @@ export default function ActivityResults() {
                                         {data.types.map((t) => (
                                             <div key={t.type} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                 <span style={{ width: 10, height: 10, borderRadius: 3, background: TYPE_COLORS[t.type] || C.slate, flexShrink: 0 }} />
-                                                <span style={{ fontSize: '13px', color: 'var(--db-text-2)', flex: 1 }}>{typeLabel(t.type)}</span>
-                                                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--db-text)' }}>{t.accuracy_pct === null ? '—' : `${t.accuracy_pct}%`}</span>
+                                                <span style={{ fontSize: '14px', color: 'var(--db-text-2)', flex: 1 }}>{typeLabel(t.type)}</span>
+                                                <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--db-text)' }}>{t.accuracy_pct === null ? '—' : `${t.accuracy_pct}%`}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -417,9 +417,9 @@ export default function ActivityResults() {
                                 <ResponsiveContainer width="100%" height={220}>
                                     <ScatterChart margin={{ top: 8, right: 16, left: -18, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-                                        <XAxis type="number" dataKey="duration_seconds" name="Time taken" tick={{ fill: axisColor, fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={fmtDuration} unit="" />
-                                        <YAxis type="number" dataKey="score_pct" name="Score" domain={[0, 100]} tick={{ fill: axisColor, fontSize: 12 }} axisLine={false} tickLine={false} unit="%" />
-                                        <ReferenceLine y={60} stroke={C.amber} strokeDasharray="5 5" label={{ value: 'Pass 60%', fill: C.amber, fontSize: 11, position: 'insideTopRight' }} />
+                                        <XAxis type="number" dataKey="duration_seconds" name="Time taken" tick={{ fill: axisColor, fontSize: 13 }} axisLine={false} tickLine={false} tickFormatter={fmtDuration} unit="" />
+                                        <YAxis type="number" dataKey="score_pct" name="Score" domain={[0, 100]} tick={{ fill: axisColor, fontSize: 13 }} axisLine={false} tickLine={false} unit="%" />
+                                        <ReferenceLine y={60} stroke={C.amber} strokeDasharray="5 5" label={{ value: 'Pass 60%', fill: C.amber, fontSize: 12, position: 'insideTopRight' }} />
                                         <Tooltip content={<ChartTooltip format={(v, p) => (p.name === 'Score' ? `${v}%` : `${fmtDuration(v)} taken`)} />} cursor={{ strokeDasharray: '3 3', stroke: axisColor }} />
                                         {scatterData.length === 0 ? (
                                             <></>
@@ -438,12 +438,12 @@ export default function ActivityResults() {
                                 <ResponsiveContainer width="100%" height={Math.max(120, rankingData.length * 42)}>
                                     <BarChart data={rankingData} layout="vertical" margin={{ top: 0, right: 36, left: 8, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
-                                        <XAxis type="number" domain={[0, 100]} tick={{ fill: axisColor, fontSize: 12 }} axisLine={false} tickLine={false} unit="%" />
+                                        <XAxis type="number" domain={[0, 100]} tick={{ fill: axisColor, fontSize: 13 }} axisLine={false} tickLine={false} unit="%" />
                                         <YAxis
                                             type="category"
                                             dataKey="student"
                                             width={170}
-                                            tick={{ fill: axisColor, fontSize: 12 }}
+                                            tick={{ fill: axisColor, fontSize: 13 }}
                                             axisLine={false}
                                             tickLine={false}
                                             tickFormatter={(v, i) => `${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`} ${v}`}
@@ -453,7 +453,7 @@ export default function ActivityResults() {
                                             {rankingData.map((r, i) => (
                                                 <Cell key={i} fill={colorForPct(r.score_pct)} />
                                             ))}
-                                            <LabelList dataKey="score_pct" position="right" formatter={(v) => `${v}%`} style={{ fill: axisColor, fontSize: 12, fontWeight: 700 }} />
+                                            <LabelList dataKey="score_pct" position="right" formatter={(v) => `${v}%`} style={{ fill: axisColor, fontSize: 13, fontWeight: 700 }} />
                                         </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -464,7 +464,7 @@ export default function ActivityResults() {
                         {questions.length > 0 && (
                             <>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                                    <h2 style={{ fontSize: '17px', fontWeight: 700, margin: 0 }}>Question breakdown</h2>
+                                    <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Question breakdown</h2>
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '16px', marginBottom: '24px' }}>
                                     {questions.map((q) => {
@@ -476,22 +476,22 @@ export default function ActivityResults() {
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
                                                     <div style={{ minWidth: 0 }}>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                                                            <span style={{ fontSize: '11px', fontWeight: 700, color: TYPE_COLORS[q.type] || C.slate, background: `${TYPE_COLORS[q.type] || C.slate}1a`, padding: '3px 8px', borderRadius: '6px' }}>{typeLabel(q.type)}</span>
-                                                            <span style={{ fontSize: '11px', color: 'var(--db-text-3)', fontWeight: 600 }}>{q.points} pts</span>
+                                                            <span style={{ fontSize: '12px', fontWeight: 700, color: TYPE_COLORS[q.type] || C.slate, background: `${TYPE_COLORS[q.type] || C.slate}1a`, padding: '3px 8px', borderRadius: '6px' }}>{typeLabel(q.type)}</span>
+                                                            <span style={{ fontSize: '12px', color: 'var(--db-text-3)', fontWeight: 600 }}>{q.points} pts</span>
                                                         </div>
-                                                        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--db-text)', margin: 0, lineHeight: 1.45 }}>Q{q.order}. {q.text}</p>
+                                                        <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--db-text)', margin: 0, lineHeight: 1.45 }}>Q{q.order}. {q.text}</p>
                                                     </div>
                                                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                                        <p style={{ fontSize: '24px', fontWeight: 800, margin: 0, color: q.attempted ? colorForPct(q.accuracy_pct) : 'var(--db-text-3)' }}>
+                                                        <p style={{ fontSize: '25.5px', fontWeight: 800, margin: 0, color: q.attempted ? colorForPct(q.accuracy_pct) : 'var(--db-text-3)' }}>
                                                             {q.attempted ? `${q.accuracy_pct}%` : '—'}
                                                         </p>
-                                                        <p style={{ fontSize: '11px', color: 'var(--db-text-3)', margin: 0 }}>accuracy</p>
+                                                        <p style={{ fontSize: '12px', color: 'var(--db-text-3)', margin: 0 }}>accuracy</p>
                                                     </div>
                                                 </div>
                                                 <div style={{ height: '8px', borderRadius: '999px', background: 'var(--db-card-2)', overflow: 'hidden' }}>
                                                     <div style={{ height: '100%', width: q.attempted ? `${Math.max(2, q.accuracy_pct)}%` : '0%', background: q.attempted ? colorForPct(q.accuracy_pct) : 'var(--db-card-2)', transition: 'width 300ms ease' }} />
                                                 </div>
-                                                <div style={{ display: 'flex', gap: '10px', fontSize: '11px', flexWrap: 'wrap' }}>
+                                                <div style={{ display: 'flex', gap: '10px', fontSize: '12px', flexWrap: 'wrap' }}>
                                                     <span style={{ color: C.green, fontWeight: 600 }}>{q.correct} correct</span>
                                                     <span style={{ color: C.red, fontWeight: 600 }}>{q.wrong} wrong</span>
                                                     {q.pending > 0 && <span style={{ color: C.amber, fontWeight: 600 }}>{q.pending} pending</span>}
@@ -499,7 +499,7 @@ export default function ActivityResults() {
                                                 </div>
                                                 {dist.length > 0 && total > 0 && (
                                                     <div>
-                                                        <p style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--db-text-3)', margin: '0 0 6px 0' }}>Answer distribution</p>
+                                                        <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0', color: 'var(--db-text-3)', margin: '0 0 6px 0' }}>Answer distribution</p>
                                                         <div style={{ display: 'flex', height: '22px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--db-border)' }}>
                                                             {dist.map((d, i) => (
                                                                 <div key={i} title={`"${d.label}" — ${d.count} answer${d.count !== 1 ? 's' : ''}`} style={{ width: total ? `${(d.count / total) * 100}%` : 0, background: [C.violet, C.blue, C.cyan, C.amber, C.green, C.red][i % 6], minWidth: d.count ? '4px' : 0, cursor: 'default' }} />
@@ -507,7 +507,7 @@ export default function ActivityResults() {
                                                         </div>
                                                         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '8px' }}>
                                                             {dist.map((d, i) => (
-                                                                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--db-text-3)' }}>
+                                                                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--db-text-3)' }}>
                                                                     <span style={{ width: 8, height: 8, borderRadius: 2, background: [C.violet, C.blue, C.cyan, C.amber, C.green, C.red][i % 6], display: 'inline-block' }} />
                                                                     {d.label} · {d.count}
                                                                 </span>
@@ -526,31 +526,31 @@ export default function ActivityResults() {
                         {matrix.length > 0 && questions.length > 0 && (
                             <div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                                    <h2 style={{ fontSize: '17px', fontWeight: 700, margin: 0 }}>Answer matrix</h2>
-                                    <p style={{ fontSize: '12px', color: 'var(--db-text-3)', margin: 0 }}>One row per student — spot who skipped questions or where the whole class tripped.</p>
+                                    <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Answer matrix</h2>
+                                    <p style={{ fontSize: '13px', color: 'var(--db-text-3)', margin: 0 }}>One row per student — spot who skipped questions or where the whole class tripped.</p>
                                 </div>
                                 <div style={{ backgroundColor: 'var(--db-card)', border: '1px solid var(--db-border)', borderRadius: '14px', overflowX: 'auto', boxShadow: 'var(--card-shadow)' }}>
                                     <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: '520px' }}>
                                         <thead>
                                             <tr style={{ borderBottom: '1px solid var(--db-border)' }}>
-                                                <th style={{ textAlign: 'left', padding: '12px 16px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--db-text-3)' }}>Student</th>
+                                                <th style={{ textAlign: 'left', padding: '12px 16px', fontSize: '12px', fontWeight: 700, letterSpacing: '0', color: 'var(--db-text-3)' }}>Student</th>
                                                 {questions.map((q) => (
-                                                    <th key={q.id} style={{ textAlign: 'center', padding: '12px 8px', fontSize: '11px', fontWeight: 700, color: 'var(--db-text-3)' }} title={q.text}>Q{q.order}</th>
+                                                    <th key={q.id} style={{ textAlign: 'center', padding: '12px 8px', fontSize: '12px', fontWeight: 700, color: 'var(--db-text-3)' }} title={q.text}>Q{q.order}</th>
                                                 ))}
-                                                <th style={{ textAlign: 'right', padding: '12px 16px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--db-text-3)' }}>Score</th>
+                                                <th style={{ textAlign: 'right', padding: '12px 16px', fontSize: '12px', fontWeight: 700, letterSpacing: '0', color: 'var(--db-text-3)' }}>Score</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {matrix.map((row, i) => (
                                                 <tr key={i} style={{ borderBottom: '1px solid var(--db-border)' }}>
-                                                    <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600, color: 'var(--db-text)', whiteSpace: 'nowrap' }}>{row.student}</td>
+                                                    <td style={{ padding: '10px 16px', fontSize: '14px', fontWeight: 600, color: 'var(--db-text)', whiteSpace: 'nowrap' }}>{row.student}</td>
                                                     {row.cells.map((cell, j) => (
                                                         <td key={j} style={{ textAlign: 'center', padding: '10px 8px' }}>
                                                             <span
                                                                 title={cell.state === 'correct' ? 'Correct' : cell.state === 'wrong' ? 'Wrong' : cell.state === 'pending' ? 'Awaiting grade' : 'Not answered'}
                                                                 style={{
                                                                     width: '22px', height: '22px', borderRadius: '7px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                                                    fontSize: '12px', fontWeight: 700,
+                                                                    fontSize: '13px', fontWeight: 700,
                                                                     background: cell.state === 'correct' ? 'rgba(16,185,129,0.15)' : cell.state === 'wrong' ? 'rgba(239,68,68,0.15)' : cell.state === 'pending' ? 'rgba(245,158,11,0.15)' : 'var(--db-card-2)',
                                                                     color: cell.state === 'correct' ? C.green : cell.state === 'wrong' ? C.red : cell.state === 'pending' ? C.amber : 'var(--db-text-3)',
                                                                 }}
@@ -559,13 +559,13 @@ export default function ActivityResults() {
                                                             </span>
                                                         </td>
                                                     ))}
-                                                    <td style={{ textAlign: 'right', padding: '10px 16px', fontSize: '13px', fontWeight: 800, color: colorForPct(row.score_pct), whiteSpace: 'nowrap' }}>{row.score_pct}%</td>
+                                                    <td style={{ textAlign: 'right', padding: '10px 16px', fontSize: '14px', fontWeight: 800, color: colorForPct(row.score_pct), whiteSpace: 'nowrap' }}>{row.score_pct}%</td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
                                 </div>
-                                <div style={{ display: 'flex', gap: '18px', marginTop: '12px', fontSize: '12px', color: 'var(--db-text-3)', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', gap: '18px', marginTop: '12px', fontSize: '13px', color: 'var(--db-text-3)', flexWrap: 'wrap' }}>
                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><span style={{ width: 12, height: 12, borderRadius: 4, background: 'rgba(16,185,129,0.25)', display: 'inline-block' }} /> Correct</span>
                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><span style={{ width: 12, height: 12, borderRadius: 4, background: 'rgba(239,68,68,0.25)', display: 'inline-block' }} /> Wrong</span>
                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><span style={{ width: 12, height: 12, borderRadius: 4, background: 'rgba(245,158,11,0.25)', display: 'inline-block' }} /> Pending grade</span>
