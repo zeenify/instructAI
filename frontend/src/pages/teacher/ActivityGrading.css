@@ -46,11 +46,9 @@
 }
 
 .ag-kicker {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-text-2);
 }
 
@@ -61,10 +59,9 @@
     padding: 3px 10px;
     border-radius: 999px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 11.5px;
     font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-accent-bright);
     background: var(--db-accent-soft);
     border: 1px solid var(--db-accent-border);
@@ -84,8 +81,7 @@
 }
 
 .ag-meta {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--db-text-3);
     margin: 7px 0 0;
 }
@@ -130,7 +126,7 @@
     background: var(--db-card-2);
     color: var(--db-text);
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: 14.5px;
     outline: none;
     box-sizing: border-box;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -160,7 +156,7 @@
     border: none;
     background: transparent;
     color: var(--db-text-2);
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
@@ -220,7 +216,7 @@
 }
 
 .ag-row-name {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     color: var(--db-text);
     margin: 0 0 3px;
@@ -238,11 +234,9 @@
 }
 
 .ag-chip {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 11.5px;
     font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     padding: 2px 9px;
     border-radius: 999px;
 }
@@ -271,7 +265,7 @@
 
 .ag-row-date {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     color: var(--db-text-3);
 }
 
@@ -280,7 +274,7 @@
     align-items: center;
     gap: 4px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
     color: var(--db-text-2);
 }
@@ -292,7 +286,7 @@
 }
 
 .ag-score-num {
-    font-size: 19px;
+    font-size: 20.5px;
     font-weight: 700;
 }
 
@@ -305,12 +299,12 @@
 }
 
 .ag-score-max {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--db-text-3);
 }
 
 .ag-score-pct {
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
 }
 
@@ -323,8 +317,7 @@
 }
 
 .ag-pending {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--db-amber);
 }
@@ -360,14 +353,14 @@
 
 .ag-empty-title {
     font-family: var(--db-font-display);
-    font-size: 18px;
+    font-size: 19px;
     font-weight: 700;
     color: var(--db-text);
     margin: 0 0 5px;
 }
 
 .ag-empty-sub {
-    font-size: 14px;
+    font-size: 15px;
     color: var(--db-text-2);
     margin: 0;
 }
@@ -384,7 +377,7 @@
     border: none;
     cursor: pointer;
     color: var(--db-text-2);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
 }
 
@@ -408,24 +401,21 @@
 }
 
 .ag-student-name {
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 700;
     color: var(--db-text);
     margin: 0 0 2px;
 }
 
 .ag-student-sub {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--db-text-3);
 }
 
 .ag-section-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
-    letter-spacing: 0.13em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-text-2);
     margin: 0 0 9px;
 }
@@ -448,11 +438,9 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     padding: 4px 12px;
     border-radius: 999px;
 }
@@ -470,7 +458,7 @@
 }
 
 .ag-pill-note {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--db-text-3);
 }
 
@@ -493,15 +481,14 @@
 
 .ag-mq-label {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--db-text-3);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0;
 }
 
 .ag-mq-text {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     color: var(--db-text);
     margin: 0 0 11px;
@@ -517,7 +504,7 @@
     border: 1px solid var(--db-border);
     color: var(--db-text);
     font-family: inherit;
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1.6;
     white-space: pre-wrap;
     word-break: break-word;
@@ -525,7 +512,7 @@
 
 .ag-pre.mono {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     white-space: pre;
     overflow-x: auto;
     color: var(--db-text-2);
@@ -535,7 +522,7 @@
     border-style: dashed;
     color: var(--db-text-3);
     font-style: italic;
-    font-size: 13.5px;
+    font-size: 14.5px;
 }
 
 .ag-score-row {
@@ -545,7 +532,7 @@
 }
 
 .ag-score-label {
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 700;
     color: var(--db-text-2);
     white-space: nowrap;
@@ -559,7 +546,7 @@
     background: var(--db-card);
     color: var(--db-text);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     outline: none;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -572,7 +559,7 @@
 
 .ag-score-max-label {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--db-text-3);
 }
 
@@ -595,7 +582,7 @@
 }
 
 .ag-aq-text {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--db-text);
     margin: 0;
@@ -605,12 +592,12 @@
 .ag-aq-text .ag-qnum {
     color: var(--db-text-3);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
 }
 
 .ag-aq-answer {
-    font-size: 13.5px;
+    font-size: 14.5px;
     color: var(--db-text-2);
     padding: 6px 11px;
     border-radius: 8px;
@@ -624,7 +611,7 @@
 
 .ag-verdict {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     white-space: nowrap;
 }
@@ -651,7 +638,7 @@
 }
 
 .ag-read-title {
-    font-size: 14.5px;
+    font-size: 15.5px;
     font-weight: 700;
     color: var(--db-green);
     margin: 0 0 2px;
@@ -665,7 +652,7 @@
     background: var(--db-card-2);
     color: var(--db-text);
     font-family: inherit;
-    font-size: 14.5px;
+    font-size: 15.5px;
     line-height: 1.5;
     outline: none;
     resize: vertical;
@@ -701,7 +688,7 @@
     border: 1px solid var(--db-accent-border);
     color: var(--db-accent-bright);
     font-weight: 600;
-    font-size: 13.5px;
+    font-size: 14.5px;
     text-decoration: none;
 }
 
@@ -712,7 +699,7 @@
 .ag-file-caption {
     padding: 8px 12px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     color: var(--db-text-2);
     border-top: 1px solid var(--db-border);
     display: flex;
@@ -747,10 +734,9 @@
     padding: 3px 10px;
     border-radius: 999px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    letter-spacing: 0;
 }
 
 .ag-cv-tabs {
@@ -769,10 +755,9 @@
     color: var(--db-text-3);
     cursor: pointer;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 11.5px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0;
     transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
@@ -798,10 +783,9 @@
 
 .ag-cv-checks-title {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 11.5px;
     font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: #7dd3fc;
     margin-bottom: 6px;
 }
@@ -810,7 +794,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: 13px;
     padding: 2px 0;
     color: #cbd5e1;
 }
@@ -830,10 +814,9 @@
 
 .ag-cv-stdin-label {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 11.5px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0;
     color: #94a3b8;
 }
 
@@ -845,10 +828,9 @@
     color: #04110c;
     cursor: pointer;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -873,7 +855,7 @@
     border-radius: 9px;
     color: #e2e8f0;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     padding: 9px 11px;
     resize: vertical;
     outline: none;
@@ -885,7 +867,7 @@
     padding: 13px 17px;
     background: #0d1122;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     line-height: 1.6;
     white-space: pre-wrap;
     word-break: break-word;
@@ -904,6 +886,6 @@
     }
 
     .ag-score-num {
-        font-size: 16px;
+        font-size: 17px;
     }
 }

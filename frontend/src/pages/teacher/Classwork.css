@@ -16,7 +16,7 @@
 
 .cw-title {
     font-family: var(--db-font-display);
-    font-size: 30px;
+    font-size: 32px;
     font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--db-text);
@@ -29,7 +29,7 @@
     gap: 8px;
     flex-wrap: wrap;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--db-text-3);
     margin: 8px 0 0;
 }
@@ -57,7 +57,7 @@
     border: none;
     background: transparent;
     color: var(--db-text-2);
-    font-size: 15.5px;
+    font-size: 16.5px;
     font-weight: 500;
     cursor: pointer;
     border-bottom: 2px solid transparent;
@@ -113,18 +113,15 @@
 }
 
 .cw-group-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-text-2);
     margin: 0;
 }
 
 .cw-group-count {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--db-text-2);
     background: var(--db-card-2);
@@ -134,7 +131,7 @@
 }
 
 .cw-group-hint {
-    font-size: 14px;
+    font-size: 15px;
     color: var(--db-text-3);
     margin: 0 0 0 2px;
 }
@@ -192,10 +189,9 @@
     background: var(--db-card-2);
     border: 1px solid var(--db-border);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--db-text-2);
     white-space: nowrap;
 }
@@ -207,10 +203,9 @@
     padding: 5px 11px;
     border-radius: 999px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     white-space: nowrap;
 }
 
@@ -258,7 +253,7 @@
 
 .cw-card-title {
     font-family: var(--db-font-display);
-    font-size: 19px;
+    font-size: 20.5px;
     font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--db-text);
@@ -268,7 +263,7 @@
 }
 
 .cw-card-desc {
-    font-size: 14.5px;
+    font-size: 15.5px;
     color: var(--db-text-2);
     line-height: 1.5;
     margin: 0 0 4px;
@@ -287,7 +282,7 @@
     margin-top: 12px;
     border-top: 1px solid var(--db-border);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--db-text-3);
 }
 
@@ -327,10 +322,9 @@
     background: var(--db-danger-soft);
     color: var(--db-danger);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     cursor: pointer;
     transition: filter 0.15s ease, background 0.15s ease;
 }
@@ -350,10 +344,9 @@
     background: var(--db-card);
     color: var(--db-text-2);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     cursor: pointer;
     transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
@@ -449,7 +442,7 @@
 }
 
 .cw-empty-sub {
-    font-size: 15.5px;
+    font-size: 16.5px;
     color: var(--db-text-2);
     margin: 0 0 22px;
     max-width: 420px;
@@ -518,14 +511,14 @@
 }
 
 .cw-type-name {
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 700;
     color: var(--db-text);
     margin: 0 0 3px;
 }
 
 .cw-type-desc {
-    font-size: 13.5px;
+    font-size: 14.5px;
     color: var(--db-text-2);
     line-height: 1.45;
     margin: 0;
@@ -533,8 +526,7 @@
 
 .cw-type-eg {
     display: block;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--db-text-3);
     margin-top: 4px;
 }
@@ -553,7 +545,7 @@
     border: 1px solid var(--db-border-strong);
     background: transparent;
     color: var(--db-text-2);
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     cursor: pointer;
     transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
@@ -581,7 +573,7 @@
 }
 
 .cw-seg-hint {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--db-text-3);
     margin: 8px 0 0;
     line-height: 1.45;
@@ -600,7 +592,7 @@
     background: transparent;
     color: var(--db-text-2);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
@@ -675,14 +667,14 @@
 }
 
 .cw-choice-name {
-    font-size: 14.5px;
+    font-size: 15.5px;
     font-weight: 700;
     color: var(--db-text);
     margin: 0 0 2px;
 }
 
 .cw-choice-desc {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--db-text-2);
     line-height: 1.4;
     margin: 0;
@@ -725,15 +717,14 @@
 
 .cw-repost-name {
     display: block;
-    font-size: 14.5px;
+    font-size: 15.5px;
     font-weight: 700;
     color: var(--db-text);
 }
 
 .cw-repost-sub {
     display: block;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     color: var(--db-text-3);
     margin-top: 3px;
 }
