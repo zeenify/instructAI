@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Radio, Play, DraftingCompass, BookOpen, TrendingUp, ListOrdered, Loader2 } from 'lucide-react';
+import { Plus, Radio, Play, DraftingCompass, BookOpen, TrendingUp, ListOrdered } from 'lucide-react';
 import { toast } from 'sonner';
 import { useClassActivities, useClassGradebook, useDeleteActivity } from '../../queries/classwork';
 import ActivityCard from '../../components/teacher/ActivityCard';
@@ -193,13 +193,10 @@ export default function Classwork({ classId }) {
                 )
             )}
 
-            {/* Gradebook View */}
-            {view === 'gradebook' && gradebookLoading && (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '260px' }}>
-                    <Loader2 className="animate-spin" size={26} color="var(--db-text-3)" />
-                </div>
-            )}
-            {view === 'gradebook' && !gradebookLoading && (
+            {/* Gradebook View — Gradebook owns its skeleton; gating it behind
+                a circle spinner left the tab spinning for the whole slow
+                dev-server fetch instead of showing progress */}
+            {view === 'gradebook' && (
                 <Gradebook data={gradebookData} loading={gradebookLoading} onActivityClick={handleActivityClick} />
             )}
 
