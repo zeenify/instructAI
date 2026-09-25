@@ -77,8 +77,13 @@ page, content tab/module view, lesson + quiz editors, classwork list/create
 modal/editor (mobile top bar in
 TeacherLayout replaced
 the floating burger; verify pages at 390px with `tools/browser/mobile-audit.mjs`).
-Next up: quiz-taking view + remaining student pages, gradebook/grading/results
-refresh, then analytics/monitor refresh.
+Next up: quiz-taking view + remaining student pages (gradebook/grading/results
+and the analytics→Progress rethink are DONE — Analytics/Monitor/Settings pages
+were removed; Progress is a sidebar page `TeacherProgress.jsx` at
+`/dashboard/teacher/progress?class=<id>` with a class switcher wrapping the
+embedded ClassPulse, and the sidebar Management section is Overview/Progress/
+To grade; quiz live rooms auto-close 24h after start via lazy
+`ClassActivity::syncExpiredRoom()`).
 Old file versions were replaced outright (no V2/V3 suffixes) — keep it that way.
 
 Dashboard-side conventions: styles live in \`styles/dashboard.css\` (\`db-\` prefix,
