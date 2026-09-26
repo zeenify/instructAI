@@ -33,13 +33,13 @@ export default function StudentOverview() {
                         <Zap size={26} />
                     </div>
                     <div>
-                        <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-tertiary)', margin: '0 0 2px 0' }}>Server status</p>
-                        <p style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-primary)', margin: '0', letterSpacing: '-0.02em' }}>Online</p>
+                        <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-tertiary)', margin: '0 0 2px 0' }}>Courses</p>
+                        <p style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-primary)', margin: '0', letterSpacing: '-0.02em' }}>{classes?.reduce((n, c) => n + (c.courses_count || 0), 0) || 0}</p>
                     </div>
                 </div>
             </div>
 
-            <h2 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 24px 0' }}>Your workspaces</h2>
+            <h2 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 24px 0' }}>Your classes</h2>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px', paddingBottom: '80px' }}>
                 {classes.map(c => (

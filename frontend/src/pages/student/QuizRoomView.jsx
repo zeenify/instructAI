@@ -827,14 +827,14 @@ export default function QuizRoomView() {
               marginBottom: "16px",
             }}
           >
-            <Radio size={18} color="#409cff" />
+            <Radio size={18} color="var(--accent)" />
             <span
               style={{
                 fontSize: "11px",
                 fontWeight: 700,
                 letterSpacing: "0.2em",
-                textTransform: "uppercase",
-                color: "#409cff",
+                textTransform: "none",
+                color: 'var(--accent)',
               }}
             >
               Live Quiz
@@ -899,7 +899,7 @@ export default function QuizRoomView() {
                 style={{
                   fontSize: "10px",
                   fontWeight: 700,
-                  textTransform: "uppercase",
+                  textTransform: "none",
                   letterSpacing: "0.1em",
                   color: "var(--text-tertiary)",
                   margin: "0 0 4px 0",
@@ -930,7 +930,7 @@ export default function QuizRoomView() {
                 style={{
                   fontSize: "10px",
                   fontWeight: 700,
-                  textTransform: "uppercase",
+                  textTransform: "none",
                   letterSpacing: "0.1em",
                   color: "var(--text-tertiary)",
                   margin: "0 0 4px 0",
@@ -961,7 +961,7 @@ export default function QuizRoomView() {
                 style={{
                   fontSize: "10px",
                   fontWeight: 700,
-                  textTransform: "uppercase",
+                  textTransform: "none",
                   letterSpacing: "0.1em",
                   color: "var(--text-tertiary)",
                   margin: "0 0 4px 0",
@@ -1008,7 +1008,7 @@ export default function QuizRoomView() {
               fontWeight: 700,
               fontSize: "14px",
               letterSpacing: "0.1em",
-              textTransform: "uppercase",
+              textTransform: "none",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -1123,7 +1123,7 @@ export default function QuizRoomView() {
                   style={{
                     fontSize: "12px",
                     fontWeight: 700,
-                    textTransform: "uppercase",
+                    textTransform: "none",
                     letterSpacing: "0.2em",
                     color: "var(--text-tertiary)",
                     margin: "0 0 8px 0",
@@ -1278,7 +1278,7 @@ export default function QuizRoomView() {
                         }}
                       >
                         {correct === null || correct === undefined ? (
-                          <Clock size={16} color="#94a3b8" />
+                          <Clock size={16} color="var(--text-tertiary)" />
                         ) : correct ? (
                           <CheckCircle2 size={16} color="#10b981" />
                         ) : (
@@ -1353,7 +1353,7 @@ export default function QuizRoomView() {
               fontWeight: 700,
               fontSize: "13px",
               letterSpacing: "0.1em",
-              textTransform: "uppercase",
+              textTransform: "none",
               cursor: "pointer",
             }}
           >
@@ -1416,7 +1416,7 @@ export default function QuizRoomView() {
               style={{
                 fontSize: "11px",
                 fontWeight: 700,
-                textTransform: "uppercase",
+                textTransform: "none",
                 letterSpacing: "0.12em",
                 color: "var(--text-tertiary)",
                 margin: "0 0 2px 0",
@@ -1685,7 +1685,7 @@ export default function QuizRoomView() {
                     fontWeight: 700,
                     fontSize: "13px",
                     letterSpacing: "0.08em",
-                    textTransform: "uppercase",
+                    textTransform: "none",
                     cursor: finishing ? "wait" : "pointer",
                     display: "flex",
                     alignItems: "center",
@@ -1712,7 +1712,7 @@ export default function QuizRoomView() {
                     fontWeight: 700,
                     fontSize: "13px",
                     letterSpacing: "0.08em",
-                    textTransform: "uppercase",
+                    textTransform: "none",
                     cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
@@ -1777,9 +1777,9 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
             style={{
               fontSize: "11px",
               fontWeight: 700,
-              textTransform: "uppercase",
+              textTransform: "none",
               letterSpacing: "0.15em",
-              color: "#409cff",
+              color: 'var(--accent)',
             }}
           >
             Multiple Choice · {question.points} pts
@@ -1873,9 +1873,9 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
             style={{
               fontSize: "11px",
               fontWeight: 700,
-              textTransform: "uppercase",
+              textTransform: "none",
               letterSpacing: "0.15em",
-              color: "#409cff",
+              color: 'var(--accent)',
             }}
           >
             True or False · {question.points} pts
@@ -1944,9 +1944,9 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
             style={{
               fontSize: "11px",
               fontWeight: 700,
-              textTransform: "uppercase",
+              textTransform: "none",
               letterSpacing: "0.15em",
-              color: "#409cff",
+              color: 'var(--accent)',
             }}
           >
             {question.type === "identification"
@@ -2007,9 +2007,9 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
             style={{
               fontSize: "11px",
               fontWeight: 700,
-              textTransform: "uppercase",
+              textTransform: "none",
               letterSpacing: "0.15em",
-              color: "#409cff",
+              color: 'var(--accent)',
             }}
           >
             Enumeration · {question.points} pts
@@ -2127,9 +2127,9 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
             style={{
               fontSize: "11px",
               fontWeight: 700,
-              textTransform: "uppercase",
+              textTransform: "none",
               letterSpacing: "0.15em",
-              color: "#409cff",
+              color: 'var(--accent)',
             }}
           >
             Coding · {question.points} pts
@@ -2166,9 +2166,9 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
           style={{
             fontSize: "11px",
             fontWeight: 700,
-            textTransform: "uppercase",
+            textTransform: "none",
             letterSpacing: "0.15em",
-            color: "#409cff",
+            color: 'var(--accent)',
           }}
         >
           Essay · {question.points} pts
@@ -2222,9 +2222,9 @@ function RevealFeedback({ feedback, question, value }) {
 
   if (!answered) {
     tone = {
-      border: "rgba(148,163,184,0.35)",
-      bg: "rgba(148,163,184,0.08)",
-      color: "#94a3b8",
+      border: "var(--border-color)",
+      bg: "var(--bg-tertiary)",
+      color: "var(--text-tertiary)",
     };
     title = "No answer submitted";
     detail = "You didn't answer this question in time.";

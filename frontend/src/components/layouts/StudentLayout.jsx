@@ -103,7 +103,7 @@ export default function StudentLayout() {
                         <img src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.student_profile?.first_name}`} className="w-10 h-10 rounded-full border border-white/10 shadow-lg flex-shrink-0" alt="" />
                         <div style={{ minWidth: 0, flex: 1 }}>
                             <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.student_profile?.first_name}</p>
-                            <p style={{ fontSize: '10px', color: 'var(--text-tertiary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Student Account</p>
+                            <p style={{ fontSize: '11.5px', color: 'var(--text-tertiary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Student Account</p>
                         </div>
                     </div>
                     <div style={{ marginBottom: '12px' }}>

@@ -268,7 +268,7 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
                                                         {detail.test_results.passed}/{detail.test_results.total} test cases passed{detail.score != null ? ` · ${detail.score} pts` : ''}
                                                     </span>
                                                     {detail.test_results.passed !== detail.test_results.total && (
-                                                        <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#94a3b8' }}>
+                                                        <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-tertiary)' }}>
                                                             every test must pass for full points
                                                         </span>
                                                     )}
@@ -365,7 +365,7 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
                 {/* HEADER */}
                 <div style={{ gap: '24px', display: 'flex', flexDirection: 'column', textAlign: 'center' }}>
                     <div className="qz-float" style={{ width: '80px', height: '80px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', background: 'var(--accent-light)', border: '1px solid var(--accent-border)' }}>
-                        <ShieldCheck style={{ color: 'var(--accent)', filter: 'drop-shadow(0 0 8px var(--accent-glow))' }} size={44} />
+                        <ShieldCheck style={{ color: 'var(--accent)' }} size={44} />
                     </div>
                     <div style={{ gap: '12px', display: 'flex', flexDirection: 'column' }}>
                         <h2 style={{ fontSize: '48px', fontWeight: 700, color: 'var(--text-primary)', margin: '0', letterSpacing: '-0.02em', lineHeight: '1.1' }}>{quizData.title}</h2>
@@ -375,28 +375,28 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
 
                 {/* STATS GRID */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-                    <div className="qz-premium-card" style={{ padding: '32px 28px', gap: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: '16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', transition: 'all 0.3s ease' }}>
+                    <div className="qz-stat-card" style={{ padding: '32px 28px', gap: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: '16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', transition: 'all 0.3s ease' }}>
                         <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
                             <ListOrdered size={28} />
                         </div>
                         <p style={{ fontSize: '12.5px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, color: 'var(--text-tertiary)', margin: '0 0 8px 0' }}>Questions</p>
-                        <p style={{ fontSize: '36px', fontWeight: 700, color: 'var(--text-primary)', margin: '0', textShadow: '0 0 20px var(--accent-glow)' }}>{quizData.questions.length}</p>
+                        <p style={{ fontSize: '36px', fontWeight: 700, color: 'var(--text-primary)', margin: '0' }}>{quizData.questions.length}</p>
                     </div>
 
-                    <div className="qz-premium-card" style={{ padding: '32px 28px', gap: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: '16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', transition: 'all 0.3s ease' }}>
+                    <div className="qz-stat-card" style={{ padding: '32px 28px', gap: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: '16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', transition: 'all 0.3s ease' }}>
                         <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(16, 185, 129, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
                             <Target size={28} />
                         </div>
                         <p style={{ fontSize: '12.5px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, color: 'var(--text-tertiary)', margin: '0 0 8px 0' }}>Passing Score</p>
-                        <p style={{ fontSize: '36px', fontWeight: 700, color: 'var(--text-primary)', margin: '0', textShadow: '0 0 20px rgba(16, 185, 129, 0.2)' }}>{quizData.passing_score}</p>
+                        <p style={{ fontSize: '36px', fontWeight: 700, color: 'var(--text-primary)', margin: '0' }}>{quizData.passing_score}</p>
                     </div>
 
-                    <div className="qz-premium-card" style={{ padding: '32px 28px', gap: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: '16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', transition: 'all 0.3s ease' }}>
-                        <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.2) 0%, rgba(249, 115, 22, 0.08) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f97316', boxShadow: '0 0 20px rgba(249, 115, 22, 0.15)' }}>
+                    <div className="qz-stat-card" style={{ padding: '32px 28px', gap: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: '16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', transition: 'all 0.3s ease' }}>
+                        <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.2) 0%, rgba(249, 115, 22, 0.08) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f97316',  }}>
                             <Clock size={28} />
                         </div>
                         <p style={{ fontSize: '12.5px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, color: 'var(--text-tertiary)', margin: '0 0 8px 0' }}>Time Limit</p>
-                        <p style={{ fontSize: '36px', fontWeight: 700, color: 'var(--text-primary)', margin: '0', textShadow: '0 0 20px rgba(249, 115, 22, 0.2)' }}>{formatTime(Math.floor(quizData.time_limit_minutes * 60))}</p>
+                        <p style={{ fontSize: '36px', fontWeight: 700, color: 'var(--text-primary)', margin: '0' }}>{formatTime(Math.floor(quizData.time_limit_minutes * 60))}</p>
                     </div>
                 </div>
 
@@ -404,7 +404,7 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
                 {previousResult && (
                     <div style={{ padding: '28px 32px', gap: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', boxShadow: 'var(--card-shadow)' }}>
                         <div>
-                            <p style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'none', letterSpacing: 0, margin: '0 0 8px 0' }}>Previous attempt</p>
+                            <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'none', letterSpacing: 0, margin: '0 0 8px 0' }}>Previous attempt</p>
                             <p style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-primary)', margin: '0' }}>{previousResult.score} <span style={{ fontSize: '18px', color: 'var(--text-secondary)' }}>/ {previousResult.max_score}</span></p>
                         </div>
                         <div style={{ padding: '12px 24px', borderRadius: '999px', fontSize: '12.5px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, background: previousResult.score >= quizData.passing_score ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.1) 100%)' : 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%)', color: previousResult.score >= quizData.passing_score ? '#10b981' : '#ef4444', border: previousResult.score >= quizData.passing_score ? '1.5px solid rgba(16, 185, 129, 0.3)' : '1.5px solid rgba(239, 68, 68, 0.3)', boxShadow: previousResult.score >= quizData.passing_score ? '0 0 15px rgba(16, 185, 129, 0.15)' : '0 0 15px rgba(239, 68, 68, 0.15)' }}>
@@ -418,7 +418,7 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
                     <div style={{ padding: '20px 32px', borderRadius: '14px', background: 'rgba(16, 185, 129, 0.08)', border: '1.5px solid rgba(16, 185, 129, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
                         <CheckCircle2 size={24} style={{ color: '#10b981' }} />
                         <div style={{ textAlign: 'left' }}>
-                            <p style={{ fontSize: '10px', fontWeight: 700, color: '#10b981', textTransform: 'none', letterSpacing: 0, margin: '0 0 4px 0' }}>Quiz Completed</p>
+                            <p style={{ fontSize: '12px', fontWeight: 700, color: '#10b981', textTransform: 'none', letterSpacing: 0, margin: '0 0 4px 0' }}>Quiz Completed</p>
                             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0' }}>You've already passed this assessment</p>
                         </div>
                     </div>

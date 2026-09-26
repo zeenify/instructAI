@@ -4,8 +4,8 @@ import { format, isPast, parseISO } from 'date-fns';
 import { deriveState } from '../../utils/activityState';
 
 const typeConfig = {
-  quiz: { label: 'Quiz', icon: HelpCircle, color: '#409cff', bg: 'rgba(64, 156, 255, 0.12)' },
-  file: { label: 'Assignment', icon: FileText, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.12)' },
+  quiz: { label: 'Quiz', icon: HelpCircle, color: 'var(--accent)', bg: 'var(--accent-light)' },
+  file: { label: 'Assignment', icon: FileText, color: 'var(--accent)', bg: 'var(--accent-light)' },
   questions: { label: 'Q&A', icon: HelpCircle, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' },
   material: { label: 'Material', icon: BookOpen, color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' },
 };
@@ -13,10 +13,10 @@ const typeConfig = {
 const stateConfig = {
   live: { label: 'Join now', icon: Radio, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.14)', border: 'rgba(239, 68, 68, 0.4)', pulse: true },
   in_progress: { label: 'In progress', icon: PlayCircle, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.35)' },
-  waiting: { label: 'Starts soon', icon: Circle, color: '#60a5fa', bg: 'rgba(59, 130, 246, 0.12)', border: 'rgba(59, 130, 246, 0.35)' },
+  waiting: { label: 'Starts soon', icon: Circle, color: 'var(--accent)', bg: 'var(--accent-light)', border: 'rgba(59, 130, 246, 0.35)' },
   graded: { label: 'Done', icon: CheckCircle2, color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.35)' },
   submitted: { label: 'Pending grade', icon: Hourglass, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.35)' },
-  todo: { label: 'To do', icon: Circle, color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.3)' },
+  todo: { label: 'To do', icon: Circle, color: 'var(--text-tertiary)', bg: 'var(--bg-tertiary)', border: 'var(--border-color)' },
   missed: { label: 'Missed', icon: AlertTriangle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.35)' },
 };
 
@@ -81,7 +81,7 @@ export default function StudentActivityCard({ activity, classId, isActive }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px', flexWrap: 'wrap' }}>
           <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activity.title}</h4>
-          <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: typeInfo.bg, color: typeInfo.color, flexShrink: 0, whiteSpace: 'nowrap' }}>{typeInfo.label}</span>
+          <span style={{ fontSize: '11.5px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: typeInfo.bg, color: typeInfo.color, flexShrink: 0, whiteSpace: 'nowrap' }}>{typeInfo.label}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text-tertiary)', flexWrap: 'wrap' }}>
           {activity.questions_count > 0 && (

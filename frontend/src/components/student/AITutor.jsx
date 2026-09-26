@@ -60,7 +60,9 @@ export default function AITutor({
     const [showCharacterMenu, setShowCharacterMenu] = useState(false);
     const scrollRef = useRef(null);
 
-    // Load characters on mount and restore selected character from localStorage
+    // Load characters on mount and restore selected character from localStorage.
+    // Failure stays silent (console only): the Python AI service being down is
+    // an environment condition, not something the student should be toast-spammed about.
     useEffect(() => {
         const aiServiceUrl = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8001';
         fetch(`${aiServiceUrl}/ai/characters`)
@@ -75,7 +77,6 @@ export default function AITutor({
             })
             .catch(err => {
                 console.error('Failed to load characters:', err);
-                toast.error('Failed to load AI characters');
             });
     }, []);
 
@@ -189,9 +190,10 @@ export default function AITutor({
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setIsOpen(true)}
                 className="ai-fab"
+                style={quizId ? { bottom: 176 } : undefined}
                 title="Open AI Tutor"
             >
-                <div className="fab-glow" />
+                
                 <Bot size={28} className="relative z-10" />
                 <div className="fab-badge">
                     <Sparkles size={10} />

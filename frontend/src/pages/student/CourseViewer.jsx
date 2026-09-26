@@ -201,15 +201,15 @@ export default function CourseViewer() {
                                             <div style={{ flexShrink: 0 }}>
                                                 {isLocked ? <Lock size={16} /> : isDone ? <CheckCircle2 size={18} style={{ color: '#10b981' }} /> : <PlayCircle size={18} style={{ color: isActive ? 'var(--accent)' : 'var(--text-tertiary)' }} />}
                                             </div>
-                                            <span style={{ overflow: 'hidden', flex: 1 }}>
-                                                <motion.span
-                                                    initial={{ x: 0 }}
-                                                    whileHover={{ x: -Math.max(0, item.title.length * 7 - 150), transition: { duration: item.title.length * 0.2, ease: 'linear', repeat: Infinity, repeatType: 'mirror' } }}
-                                                    style={{ display: 'inline-block', whiteSpace: 'nowrap' }}
-                                                >
-                                                    {item.title}
-                                                </motion.span>
-                                            </span>
+                                                <span style={{ overflow: 'hidden', flex: 1 }}>
+                                                    <motion.span
+                                                        initial={{ x: 0 }}
+                                                        whileHover={{ x: -Math.max(0, item.title.length * 7 - 150), transition: { duration: item.title.length * 0.2, ease: 'linear', repeat: Infinity, repeatType: 'mirror' } }}
+                                                        style={{ display: 'inline-block', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}
+                                                    >
+                                                        {item.title}
+                                                    </motion.span>
+                                                </span>
                                         </button>
                                     );
                                 })}
@@ -286,9 +286,11 @@ export default function CourseViewer() {
                     >
                         {isNavigating ? <Loader2 className="animate-spin" size={16}/> :
                          canProceed ? (
-                             <>Next Chapter <ArrowRight size={16} /></>
+                             <>Next chapter <ArrowRight size={16} /></>
+                         ) : itemType === 'quiz' ? (
+                             <><Lock size={14}/> Pass this quiz to continue</>
                          ) : (
-                             <><Lock size={14}/> Content Locked</>
+                             <><Lock size={14}/> Finish the lesson to continue</>
                          )}
                     </button>
                 </footer>
