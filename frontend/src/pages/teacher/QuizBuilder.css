@@ -304,6 +304,7 @@
     min-width: 0;
     border: none;
     background: transparent;
+    text-overflow: ellipsis;
     outline: none;
     color: var(--db-text);
     font-size: 15.5px;

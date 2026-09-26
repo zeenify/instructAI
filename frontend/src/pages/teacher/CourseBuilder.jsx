@@ -143,6 +143,18 @@ function ModuleItemRow({ item, index, lastIndex, onOpen, onToggle, onMove, onDel
  * page mirrors it into ?module= so refresh/back/share keep the view) or left
  * uncontrolled (standalone route keeps it in local state).
  */
+
+// Curriculum files are stored URL-encoded; show teachers the real name.
+const decodeFileName = (url) => {
+    const raw = url ? url.split('/').pop() : null;
+    if (!raw) return null;
+    try {
+        return decodeURIComponent(raw);
+    } catch {
+        return raw;
+    }
+};
+
 export default function CourseBuilder({
     courseId = null,
     embedded = false,
@@ -1482,7 +1494,7 @@ if (loading || !course) return (
                             {course.curriculum_file_url && (
                                 <div style={{ padding: '10px 16px' }} className="flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-xs font-bold uppercase">
                                     <FileText size={14} />
-                                    <span className="text-[11px]">{course.curriculum_file_url.split('/').pop()?.slice(0, 30) || 'Curriculum'}</span>
+                                    <span className="text-[11px]">{decodeFileName(course.curriculum_file_url)?.slice(0, 30) || 'Curriculum'}</span>
                                 </div>
                             )}
                         </div>
@@ -1937,7 +1949,7 @@ if (loading || !course) return (
                 isOpen={isAiModalOpen}
                 onClose={() => setIsAiModalOpen(false)}
                 onExecute={handleExecuteAI}
-                curriculumFile={course?.curriculum_file_url ? course.curriculum_file_url.split('/').pop() : null}
+                curriculumFile={decodeFileName(course?.curriculum_file_url)}
             />
             <CurriculumReviewModal isOpen={isReviewOpen} data={aiResult} expectedParams={structureParams} existingModules={course?.modules?.length || 0} onCancel={() => setIsReviewOpen(false)} onConfirm={handleConfirmAI} onRegenerate={() => { setIsReviewOpen(false); setIsAiModalOpen(true); }} />
 

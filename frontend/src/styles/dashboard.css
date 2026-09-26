@@ -1268,7 +1268,6 @@
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
-    font-family: 'JetBrains Mono', monospace;
     font-size: 14.5px;
     font-weight: 500;
     color: var(--db-text-2);
@@ -3542,6 +3541,7 @@
 
 .ed-title-input {
     width: 100%;
+    text-overflow: ellipsis;
     border: none;
     background: transparent;
     color: var(--db-text);
@@ -3569,7 +3569,7 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    font-family: 'JetBrains Mono', monospace;
+
     font-size: 14px;
     color: var(--db-text-3);
     margin-top: 4px;
