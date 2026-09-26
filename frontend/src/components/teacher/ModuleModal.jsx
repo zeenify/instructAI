@@ -65,7 +65,7 @@ export default function ModuleModal({ open, mode = 'create', initialTitle = '', 
 
                 <span className="db-kicker-chip">
                     <Layers size={13} />
-                    MODULE {String(moduleNumber).padStart(2, '0')}
+                    Module {String(moduleNumber).padStart(2, '0')}
                 </span>
 
                 <div className="db-modal-head" style={{ marginTop: 14 }}>

@@ -60,7 +60,7 @@ export default function LiveCodeModal({ activityId, onClose }) {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         {data && (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '999px', background: `${lang.color}1f`, border: `1px solid ${lang.color}55`, fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: lang.color }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '999px', background: `${lang.color}1f`, border: `1px solid ${lang.color}55`, fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', color: lang.color }}>
                                 {lang.label}
                             </span>
                         )}
@@ -103,7 +103,7 @@ export default function LiveCodeModal({ activityId, onClose }) {
                                     <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                                         {d.student_name}
                                     </span>
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: d.code ? '#10b981' : 'var(--text-tertiary)' }}>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '11.5px', fontWeight: 700, letterSpacing: '0', color: d.code ? '#10b981' : 'var(--text-tertiary)' }}>
                                         {d.code ? `draft · ${d.code.length} chars` : 'nothing yet'}
                                     </span>
                                 </button>

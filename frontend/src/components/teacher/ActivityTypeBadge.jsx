@@ -27,7 +27,7 @@ export default function ActivityTypeBadge({ type, submissionType, size = 'sm' })
         borderRadius: '8px',
         fontSize,
         fontWeight: 700,
-        textTransform: 'uppercase',
+        
         letterSpacing: '0.12em',
         background: config.bg,
         color: config.color,

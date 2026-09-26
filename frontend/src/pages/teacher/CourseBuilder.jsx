@@ -1317,10 +1317,10 @@ if (loading || !course) return (
 
                 <div style={{ padding: '24px 28px', marginBottom: '32px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }} className="rounded-2xl flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="h-8 w-20 bg-white/5 rounded-lg animate-pulse" />
-                        <div className="h-8 w-24 bg-white/5 rounded-lg animate-pulse" />
+                        <div className="h-8 w-20 bg-black/5 rounded-lg animate-pulse" />
+                        <div className="h-8 w-24 bg-black/5 rounded-lg animate-pulse" />
                     </div>
-                    <div className="h-8 w-32 bg-white/5 rounded-lg animate-pulse ml-auto" />
+                    <div className="h-8 w-32 bg-black/5 rounded-lg animate-pulse ml-auto" />
                 </div>
 
 <div style={{ marginBottom: '32px', gap: '24px' }} className="flex flex-col md:flex-row md:items-end md:justify-between">
@@ -1350,11 +1350,11 @@ if (loading || !course) return (
                         <div key={i} style={{ padding: '24px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }} className="rounded-3xl overflow-hidden">
                             <div style={{ marginBottom: '16px', height: '120px', background: 'var(--skeleton-bg)' }} className="animate-pulse rounded-lg" />
                             <div className="space-y-4">
-                                <div className="h-6 w-full bg-white/5 rounded-lg animate-pulse" />
-                                <div className="h-4 w-3/4 bg-white/5 rounded-lg animate-pulse" />
-                                <div style={{ marginTop: '16px', paddingTop: '16px' }} className="flex gap-3 border-t border-white/5">
-                                    <div className="h-6 w-24 bg-white/5 rounded-lg animate-pulse" />
-                                    <div className="h-6 w-16 bg-white/5 rounded-lg animate-pulse ml-auto" />
+                                <div className="h-6 w-full bg-black/5 rounded-lg animate-pulse" />
+                                <div className="h-4 w-3/4 bg-black/5 rounded-lg animate-pulse" />
+                                <div style={{ marginTop: '16px', paddingTop: '16px' }} className="flex gap-3 border-t border-black/5">
+                                    <div className="h-6 w-24 bg-black/5 rounded-lg animate-pulse" />
+                                    <div className="h-6 w-16 bg-black/5 rounded-lg animate-pulse ml-auto" />
                                 </div>
                             </div>
                         </div>
@@ -1484,15 +1484,15 @@ if (loading || !course) return (
                 {!activeModuleId && !embedded && (
                     <div style={{ padding: '24px 28px', marginBottom: '32px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', boxShadow: 'var(--card-shadow)' }} className="rounded-2xl flex flex-wrap items-center justify-between gap-6">
                         <div className="flex items-center gap-3 flex-wrap">
-                            <span style={{ padding: '10px 16px' }} className={`rounded-lg text-xs font-bold uppercase tracking-wider ${
+                            <span style={{ padding: '10px 16px' }} className={`rounded-lg text-xs font-bold ${
                                 isPublished
-                                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                                    : 'bg-slate-600/20 text-slate-300 border border-slate-500/30'
+                                    ? 'bg-green-500/15 text-green-600 border border-green-500/30'
+                                    : 'bg-slate-500/15 text-slate-500 border border-slate-500/25'
                             }`}>
                                 {isPublished ? '✓ Live' : '◊ Draft'}
                             </span>
                             {course.curriculum_file_url && (
-                                <div style={{ padding: '10px 16px' }} className="flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-xs font-bold uppercase">
+                                <div style={{ padding: '10px 16px' }} className="flex items-center gap-2 bg-emerald-500/15 border border-emerald-500/25 rounded-lg text-emerald-600 text-xs font-bold">
                                     <FileText size={14} />
                                     <span className="text-[11px]">{decodeFileName(course.curriculum_file_url)?.slice(0, 30) || 'Curriculum'}</span>
                                 </div>
@@ -1516,10 +1516,10 @@ if (loading || !course) return (
                     <div className="flex-1">
                         {(
                             <>
-                                {!embedded && <span className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">Course</span>}
+                                {!embedded && <span className="text-xs font-semibold" style={{ color: 'var(--db-text-3)' }}>Course</span>}
                                 <div style={{ marginTop: '12px', gap: '12px' }} className="flex items-center group">
 {isTitleEditing ? (
-                                        <div style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid #409cff' }} className="flex items-center gap-2 rounded-xl p-2 flex-1">
+                                        <div style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--db-accent)' }} className="flex items-center gap-2 rounded-xl p-2 flex-1">
                                             <input
                                                 autoFocus
                                                 value={editingTitle}
@@ -1548,13 +1548,13 @@ if (loading || !course) return (
                                         <>
                                             {!embedded && (
                                             <>
-                                            <h1 style={{ color: 'var(--text-primary)' }} className="text-5xl font-black tracking-tight cursor-pointer hover:text-blue-400 transition-colors" onClick={() => {
+                                            <h1 style={{ color: 'var(--text-primary)' }} className="text-5xl font-black tracking-tight cursor-pointer hover:opacity-70 transition-opacity" onClick={() => {
                                                 setEditingTitle(course.title);
                                                 setIsTitleEditing(true);
                                             }}>
                                                 {course.title}
                                             </h1>
-                                            <span className="text-slate-500 text-xs uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Click to edit</span>
+                                            <span className="text-slate-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity">Click to edit</span>
                                             </>
                                     )}
                                         </>
@@ -1573,7 +1573,7 @@ if (loading || !course) return (
 <button
                                 onClick={() => setShowCurriculumModal(true)}
                                 style={{ padding: '14px 22px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}
-                                className="text-slate-500 hover:text-brand-text rounded-xl text-xs font-bold uppercase flex items-center gap-2 transition-all cursor-pointer"
+                                className="text-slate-500 hover:opacity-70 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer"
                             >
                                 <FileText size={16} />
                                 {course.curriculum_file_url ? 'Manage' : 'Upload'}
@@ -1581,10 +1581,10 @@ if (loading || !course) return (
                             <button
                                 onClick={toggleCourseStatus}
                                 style={{ padding: '14px 22px' }}
-                                className={`rounded-xl text-xs font-bold uppercase transition-all border flex items-center gap-2 cursor-pointer ${
+                                className={`rounded-xl text-xs font-bold transition-all border flex items-center gap-2 cursor-pointer ${
                                     isPublished
-                                        ? 'bg-slate-800/40 text-slate-400 border-slate-700/40 hover:bg-slate-700/40'
-                                        : 'bg-blue-600 text-white border-transparent hover:bg-blue-500'
+                                        ? 'bg-slate-500/10 text-slate-500 border-slate-500/20 hover:bg-slate-500/20'
+                                        : 'bg-[#0a84ff] text-white border-transparent hover:bg-[#409cff]'
                                 }`}
                             >
                                 {isPublished ? 'Unpublish' : 'Go Live'}
@@ -1592,7 +1592,7 @@ if (loading || !course) return (
                             <button
                                 onClick={() => setIsAiModalOpen(true)}
                                 style={{ padding: '14px 22px' }}
-                                className="bg-blue-600 text-white rounded-xl text-xs font-bold uppercase border-none cursor-pointer flex items-center gap-2 hover:bg-blue-500 transition-all"
+                                className="bg-[#0a84ff] text-white rounded-xl text-xs font-bold border-none cursor-pointer flex items-center gap-2 hover:bg-[#409cff] transition-all"
                             >
                                 <Sparkles size={16} /> AI
                             </button>
@@ -1611,7 +1611,7 @@ if (loading || !course) return (
                             <button
                                 onClick={() => setModuleModal({ isOpen: true, mode: 'create', id: null, title: '' })}
                                 style={{ padding: '14px 22px' }}
-                                className="bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider border-none cursor-pointer flex items-center gap-2 transition-all"
+                                className="bg-[#0a84ff] hover:bg-[#409cff] text-white rounded-xl text-xs font-bold border-none cursor-pointer flex items-center gap-2 transition-all"
                             >
                                 <Plus size={16} /> New Module
                             </button>
@@ -1620,10 +1620,10 @@ if (loading || !course) return (
                                 <button
                                     onClick={() => setIsReorderMode(!isReorderMode)}
                                     style={{ padding: '12px 18px' }}
-                                    className={`rounded-xl text-xs font-bold uppercase tracking-wider border transition-all flex items-center gap-2 cursor-pointer ${
+                                    className={`rounded-xl text-xs font-bold border transition-all flex items-center gap-2 cursor-pointer ${
                                         isReorderMode
-                                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                                            : 'bg-transparent text-slate-500 border-white/10 hover:text-slate-300 hover:border-white/20'
+                                            ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30'
+                                            : 'bg-transparent text-slate-500 border-slate-400/30 hover:opacity-70'
                                     }`}
                                 >
                                     <GripHorizontal size={16} />
@@ -1636,10 +1636,10 @@ if (loading || !course) return (
                                         setSelectedModuleIds(new Set());
                                     }}
                                     style={{ padding: '12px 18px' }}
-                                    className={`rounded-xl text-xs font-bold uppercase tracking-wider border transition-all flex items-center gap-2 cursor-pointer ${
+                                    className={`rounded-xl text-xs font-bold border transition-all flex items-center gap-2 cursor-pointer ${
                                         isBulkDeleteMode
-                                            ? 'bg-red-500/20 text-red-400 border-red-500/40'
-                                            : 'bg-transparent text-slate-500 border-white/10 hover:text-slate-300 hover:border-white/20'
+                                            ? 'bg-red-500/15 text-red-600 border-red-500/30'
+                                            : 'bg-transparent text-slate-500 border-slate-400/30 hover:opacity-70'
                                     }`}
                                 >
                                     <Trash2 size={16} />
@@ -1651,7 +1651,7 @@ if (loading || !course) return (
                                         onClick={handleBulkDelete}
                                         disabled={isDeleting}
                                         style={{ padding: '12px 18px' }}
-                                        className="rounded-xl text-xs font-bold uppercase tracking-wider border-none cursor-pointer transition-all bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 "
+                                        className="rounded-xl text-xs font-bold border-none cursor-pointer transition-all bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 "
                                     >
                                         {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                                         Delete {selectedModuleIds.size}

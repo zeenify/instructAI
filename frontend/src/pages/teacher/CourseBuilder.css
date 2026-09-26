@@ -76,7 +76,7 @@
 
 .item-drag-handle {
     cursor: grab;
-    color: #64748b;
+    color: var(--db-text-3);
     padding: 10px 12px;
     pointer-events: auto !important;
     border-radius: 8px;
@@ -125,9 +125,9 @@
     padding: 10px 16px; border-radius: 12px;
     font-size: 12.5px; font-weight: 600; letter-spacing: 0;
     display: flex; align-items: center; gap: 8px;
-    border: none;
-    background: rgba(255,255,255,0.05);
-    color: white; transition: all 0.2s;
+    border: 1px solid var(--db-border);
+    background: var(--db-card-2);
+    color: var(--db-text-2); transition: all 0.2s;
     cursor: pointer;
 }
 
@@ -154,8 +154,8 @@
 /* Custom Scrollbar for Logs */
 .custom-scrollbar::-webkit-scrollbar { width: 6px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.35); border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(128,128,128,0.5); }
 /* ---------- Curriculum modal (cur-) — opened from the class Content toolbar ---------- */
 
 .cur-overlay {

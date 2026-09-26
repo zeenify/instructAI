@@ -89,7 +89,7 @@ export default function TeacherLayout() {
                             >
                                 <span
                                     className="db-class-dot"
-                                    style={c.color ? { background: c.color, boxShadow: `0 0 8px ${c.color}88` } : undefined}
+                                    style={c.color ? { background: c.color } : undefined}
                                 />
                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
                             </Link>
