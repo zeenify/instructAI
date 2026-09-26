@@ -21,7 +21,7 @@ export default function StudentLayout() {
     });
     const [loading, setLoading] = useState(() => !sessionStorage.getItem('sidebar:student:classes-last'));
 
-    const [isJoinModalOpen, setIsJoinModalOpen] = useState(false); 
+    const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
 
     const fetchClasses = async (forceRefresh = false) => {
         const cacheKey = 'sidebar:student:classes';

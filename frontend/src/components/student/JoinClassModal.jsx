@@ -38,16 +38,16 @@ export default function JoinClassModal({ isOpen, onClose, onSuccess }) {
                         className="absolute inset-0 bg-black/80 backdrop-blur-md"
                     />
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        initial={{ opacity: 0, scale: 0.96, y: 16 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '32px', boxShadow: '0 20px 60px var(--accent-glow)' }}
+                        exit={{ opacity: 0, scale: 0.96, y: 16 }}
+                        style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '16px', boxShadow: 'var(--card-shadow)' }}
                         className="relative z-10 w-full max-w-md overflow-hidden"
                     >
                         <div style={{ padding: '32px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-                                <h2 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <PlusCircle style={{ color: 'var(--accent)' }} /> Join Class
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
+                                <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', letterSpacing: '-0.01em' }}>
+                                    <PlusCircle style={{ color: 'var(--accent)' }} /> Join a class
                                 </h2>
                                 <button onClick={onClose} style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 10px', transition: 'color 0.3s' }}
                                     className="hover:text-[var(--text-primary)]">
@@ -57,7 +57,7 @@ export default function JoinClassModal({ isOpen, onClose, onSuccess }) {
 
                             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                                 <Input
-                                    label="6-Digit Class Code"
+                                    label="Class code"
                                     icon={Hash}
                                     placeholder="e.g. X7B9K2"
                                     value={classCode}
@@ -66,8 +66,8 @@ export default function JoinClassModal({ isOpen, onClose, onSuccess }) {
                                     required
                                 />
 
-                                <Button variant="student" loading={loading} style={{ padding: '16px 24px' }} className="w-full uppercase font-bold tracking-widest">
-                                    Join Workspace
+                                <Button variant="student" loading={loading} style={{ padding: '15px 24px', fontSize: '15px' }} className="w-full font-semibold">
+                                    Join class
                                 </Button>
                             </form>
                         </div>

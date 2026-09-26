@@ -1,104 +1,118 @@
-/* --- STUDENT THEME OVERRIDES --- */
+/* ==========================================================================
+   STUDENT THEME — "Morning Paper"
+   Warm cream + ink + sage, bridging the Paper & Ink landing identity into
+   the app. Night mode is warm dark paper (never navy). Vars are scoped to
+   .student-theme so the student portal carries its own palette everywhere.
+   ========================================================================== */
 
-/* Sidebar Branding */
+/* ---------- Morning Paper (light) ---------- */
+:root[data-theme='light'] .student-theme {
+    --bg-primary: #faf6ef;
+    --bg-secondary: #fffdf7;
+    --bg-tertiary: #f3ecdd;
+    --text-primary: #16130e;
+    --text-secondary: #57503f;
+    --text-tertiary: #8a8171;
+    --border-color: rgba(22, 19, 14, 0.1);
+    --skeleton-bg: rgba(22, 19, 14, 0.07);
+    --accent: #3e8e7e;
+    --accent-light: rgba(62, 142, 126, 0.12);
+    --accent-glow: rgba(62, 142, 126, 0.3);
+    --card-shadow: 0 2px 10px rgba(22, 19, 14, 0.05);
+    --student-input-bg: #ffffff;
+}
+
+/* ---------- Night Paper (dark) ---------- */
+:root[data-theme='dark'] .student-theme {
+    --bg-primary: #17130d;
+    --bg-secondary: #201b13;
+    --bg-tertiary: #282217;
+    --text-primary: #f3ecdd;
+    --text-secondary: #b8ad9a;
+    --text-tertiary: #7d7362;
+    --border-color: rgba(243, 236, 221, 0.09);
+    --skeleton-bg: rgba(243, 236, 221, 0.08);
+    --accent: #6cc5ad;
+    --accent-light: rgba(108, 197, 173, 0.12);
+    --accent-glow: rgba(108, 197, 173, 0.3);
+    --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    --student-input-bg: #262019;
+}
+
+/* ---------- Sidebar chrome ---------- */
+.student-theme .sidebar {
+    transition: background 0.3s ease;
+}
+:root[data-theme='light'] .student-theme .sidebar {
+    background: #f3ecdd;
+    border-right: 1px solid rgba(22, 19, 14, 0.08);
+}
+:root[data-theme='dark'] .student-theme .sidebar {
+    background: #1c1812;
+    border-right: 1px solid rgba(243, 236, 221, 0.07);
+}
+
 .student-theme .logo-sq {
     background: var(--accent);
-    box-shadow: 0 0 20px var(--accent-glow);
+    box-shadow: none;
+    border-radius: 8px;
 }
 
-/* Nav Links & Class Items */
-.student-theme .nav-link.active, 
-.student-theme .class-item.active {
+.student-theme .sidebar-section-label {
+    text-transform: none;
+    letter-spacing: 0.01em;
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text-tertiary);
+}
+
+.student-theme .nav-item {
+    color: var(--text-secondary);
+}
+
+.student-theme .nav-item.active {
     background: var(--accent-light);
-    color: var(--accent);
-    border-color: var(--accent-glow);
+    color: var(--text-primary);
 }
 
-.student-theme .status-dot {
-    background: #164e63;
+.student-theme .class-dot {
+    background: var(--text-tertiary);
 }
 
-.student-theme .class-item.active .status-dot {
+.student-theme .nav-item.active .class-dot {
     background: var(--accent);
-    box-shadow: 0 0 10px var(--accent);
 }
 
-/* Buttons */
-.student-theme .btn-student {
-    background: var(--accent);
-    color: var(--bg-primary);
-    border: none;
+/* ---------- Scrollbar (thin, sage on hover) ---------- */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
 }
-
-.student-theme .btn-student:hover {
-    background: var(--bg-secondary);
-    box-shadow: 0 0 20px var(--accent-glow);
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
 }
-
-/* The Join Class Button in Sidebar */
-.student-theme .add-class-btn {
-    border-color: var(--accent-light);
-    color: var(--accent);
-}
-
-.student-theme .add-class-btn:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: var(--accent-light);
-}
-
-/* Sidebar Footer Adjustments */
-.student-theme .logout-action:hover {
-    color: var(--accent);
-}
-
-.student-theme .user-pill {
-    border-color: var(--accent-light);
-}
-
-/* Custom Scrollbar for Accent */
 .student-theme .custom-scrollbar::-webkit-scrollbar-thumb {
     background: var(--accent-light);
-}
-/* --- PRO SCROLLBAR FOR STUDENT PORTAL --- */
-
-/* The 'custom-scrollbar' class we used in the JSX */
-.custom-scrollbar::-webkit-scrollbar {
-    width: 4px; /* Very thin and elegant */
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent; /* No background tray */
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: var(--accent-light);
     border-radius: 20px;
-    transition: background 0.3s;
 }
-
-.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+.student-theme .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: var(--accent-glow);
 }
-
-/* Fix for Firefox */
 .custom-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: var(--accent-light) transparent;
 }
-
-/* Ensure the main timeline items don't jump when the scrollbar appears */
 aside {
     scrollbar-gutter: stable;
 }
 
-/* --- INTERACTIVE TERMINAL: always dark regardless of theme --- */
+/* ---------- Interactive terminal: stays dark in both themes ---------- */
 .interactive-terminal {
     isolation: isolate;
 }
-
 .interactive-terminal .xterm,
 .interactive-terminal .xterm-viewport,
 .interactive-terminal .xterm-screen {
-    background: #050120 !important;
+    background: #12100c !important;
 }

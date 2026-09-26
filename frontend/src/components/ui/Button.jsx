@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 
 const accentColors = {
   primary: "var(--db-accent-bright, #409cff)",
-  student: "#22d3ee",
+  student: "var(--accent, #3e8e7e)",
 };
 
 export default function Button({ children, loading, loadingText = "Processing...", className = "", variant = "primary", ...props }) {
@@ -15,7 +15,7 @@ export default function Button({ children, loading, loadingText = "Processing...
 
   return (
     <motion.button
-      whileHover={!loading ? { scale: 1.02, boxShadow: `0 0 24px ${accent}44` } : {}}
+      whileHover={!loading ? { scale: 1.02 } : {}}
       whileTap={!loading ? { scale: 0.97 } : {}}
       disabled={loading}
       className={`${variants[variant]} relative overflow-hidden flex items-center justify-center gap-3 disabled:cursor-wait ${className}`}
