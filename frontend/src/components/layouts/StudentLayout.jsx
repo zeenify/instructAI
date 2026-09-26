@@ -117,7 +117,7 @@ export default function StudentLayout() {
                         </div>
                     </div>
                     <div style={{ marginBottom: '12px' }}>
-                        <ThemeToggle />
+                        <ThemeToggle variant="dark-panel" />
                     </div>
                     <button onClick={() => { logout(); navigate('/login'); }} className="nav-item w-full border-none bg-transparent cursor-pointer hover:text-[var(--accent)]" style={{ border: 'none', background: 'none' }}>
                         <LogOut size={16} /> <span>Sign Out</span>

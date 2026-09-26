@@ -85,6 +85,18 @@
     background: var(--accent);
 }
 
+/* ---------- Theme toggle (same switch as the teacher sidebar) ---------- */
+.student-theme .sidebar {
+    --side-hover: rgba(22, 19, 14, 0.06);
+    --side-text-2: var(--text-secondary);
+    --side-track: var(--bg-tertiary);
+    --side-track-border: var(--border-color);
+    --side-knob: var(--text-primary);
+}
+:root[data-theme='dark'] .student-theme .sidebar {
+    --side-hover: rgba(243, 236, 221, 0.06);
+}
+
 /* ---------- Scrollbar (thin, sage on hover) ---------- */
 .custom-scrollbar::-webkit-scrollbar {
     width: 4px;
