@@ -216,7 +216,7 @@ function renderStandardBlock(block) {
 
 function LessonSkeleton() {
     return (
-        <div style={{ maxWidth: '900px', margin: '0 auto', padding: '40px 20px', display: 'flex', flexDirection: 'column', gap: '32px', animation: 'pulse 2s infinite' }}>
+        <div style={{ padding: '40px 24px', display: 'flex', flexDirection: 'column', gap: '32px', animation: 'pulse 2s infinite' }}>
             <div style={{ height: '40px', background: 'var(--accent-light)', borderRadius: '8px' }} />
             <div style={{ height: '120px', background: 'var(--accent-light)', borderRadius: '8px' }} />
             <div style={{ height: '400px', background: 'var(--accent-light)', borderRadius: '8px' }} />

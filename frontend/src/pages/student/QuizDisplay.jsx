@@ -202,7 +202,7 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
     );
 
     if (result) return (
-        <div style={{ gap: '32px', maxWidth: '1300px', margin: '0 auto', width: '100%' }} className="flex flex-col animate-in fade-in duration-700 pb-32">
+        <div style={{ gap: '32px', width: '100%' }} className="flex flex-col animate-in fade-in duration-700 pb-32">
             <div style={{ padding: '50px 40px', textAlign: 'center', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '14px', boxShadow: 'var(--card-shadow)', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'var(--accent)', opacity: 0.5 }} />
                 <div style={{ marginBottom: '24px' }}>
@@ -361,7 +361,7 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
             alignItems: 'center',
             justifyContent: 'center'
         }} className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
-            <div style={{ gap: '36px', display: 'flex', flexDirection: 'column', width: '100%', maxWidth: '760px', marginLeft: 'auto', marginRight: 'auto', paddingLeft: '16px', paddingRight: '16px' }}>
+            <div style={{ gap: '36px', display: 'flex', flexDirection: 'column', width: '100%', padding: '0 8px' }}>
                 {/* HEADER — large serif title on canvas */}
                 <div style={{ gap: '14px', display: 'flex', flexDirection: 'column', textAlign: 'center' }}>
                     <div style={{ width: '68px', height: '68px', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', background: 'var(--accent-light)', color: 'var(--accent)' }}>
@@ -430,7 +430,7 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
     const q = questions[currentIdx];
 
     return (
-        <div style={{ gap: '32px', maxWidth: '1300px', margin: '0 auto', width: '100%' }} className="pb-40 relative flex flex-col">
+        <div style={{ gap: '32px', width: '100%' }} className="pb-40 relative flex flex-col">
             <div style={{ padding: '20px 24px', gap: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: '16px', background: 'var(--bg-secondary)', border: '1.5px solid var(--accent-glow)', backdropFilter: 'blur(12px)', boxShadow: 'var(--card-shadow)' }}>
                 {/* LEFT: PROGRESS INDICATOR */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
@@ -873,7 +873,7 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
 
 function QuizSkeleton() {
     return (
-        <div style={{ padding: '60px 40px', maxWidth: '900px', margin: '0 auto' }}>
+        <div style={{ padding: '60px 40px', margin: '0 auto' }}>
             {/* Header Icon */}
             <div style={{ height: '80px', width: '80px', borderRadius: '16px', background: 'var(--accent-light)', margin: '0 auto 32px', border: '1px solid var(--border-color)' }} className="qz-shimmer" />
 

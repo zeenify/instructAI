@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { LayoutDashboard, Book, LogOut, Plus, Loader2, Sparkles, Hash } from 'lucide-react';
+import { LayoutDashboard, Book, LogOut, Plus, Loader2, Sparkles, Hash, Menu } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import cache from '../../utils/cache';
@@ -22,6 +22,7 @@ export default function StudentLayout() {
     const [loading, setLoading] = useState(() => !sessionStorage.getItem('sidebar:student:classes-last'));
 
     const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+    const [navOpen, setNavOpen] = useState(false);
 
     const fetchClasses = async (forceRefresh = false) => {
         const cacheKey = 'sidebar:student:classes';
@@ -48,11 +49,19 @@ export default function StudentLayout() {
     return (
         /* CHANGE 1: Use dashboard-container to match the CSS */
         <div className="dashboard-container student-theme">
-            
-            
-            <aside className="sidebar">
+
+            {/* Mobile top bar — the immortal sidebar becomes a drawer below 900px */}
+            <div className="sv-mobilebar">
+                <button type="button" className="sv-burger" onClick={() => setNavOpen(true)} aria-label="Open navigation">
+                    <Menu size={20} />
+                </button>
+                <span className="sv-mobilebar-brand">InstructAI</span>
+            </div>
+            {navOpen && <div className="sv-backdrop" onClick={() => setNavOpen(false)} />}
+
+            <aside className={`sidebar ${navOpen ? 'open' : ''}`}>
                 <div className="sidebar-top">
-                    <Link to="/dashboard/student" className="sidebar-logo">
+                    <Link to="/dashboard/student" className="sidebar-logo" onClick={() => setNavOpen(false)}>
                         <div className="logo-sq">I</div>
                         <span className="font-bold text-xl" style={{ color: 'var(--text-primary)', marginLeft: '10px' }}>InstructAI</span>
                     </Link>
@@ -70,14 +79,15 @@ export default function StudentLayout() {
                                 ))
                             ) :
                                 classes.map(c => (
-                                    <Link key={c.id} to={`/dashboard/student/class/${c.id}`} 
+                                    <Link key={c.id} to={`/dashboard/student/class/${c.id}`}
+                                        onClick={() => setNavOpen(false)}
                                         className={`nav-item ${location.pathname.includes(`/class/${c.id}`) ? 'active' : ''}`}>
                                         <div className="class-dot" />
                                         <span className="truncate">{c.name}</span>
                                     </Link>
                                 ))
                             }
-                            <button 
+                            <button
                                 onClick={() => setIsJoinModalOpen(true)}
                                 className="nav-item w-full bg-transparent border-none cursor-pointer"
                                 style={{ border: 'none', background: 'none', textAlign: 'left', marginTop: '10px', color: 'var(--accent)' }}
@@ -91,7 +101,7 @@ export default function StudentLayout() {
                     <div className="nav-group mt-8">
                         <label className="sidebar-section-label">Portal</label>
                         <nav className="flex-grow">
-                            <Link to="/dashboard/student" className={`nav-item ${location.pathname === '/dashboard/student' ? 'active' : ''}`}>
+                            <Link to="/dashboard/student" onClick={() => setNavOpen(false)} className={`nav-item ${location.pathname === '/dashboard/student' ? 'active' : ''}`}>
                                 <LayoutDashboard size={18} /> <span>Overview</span>
                             </Link>
                         </nav>

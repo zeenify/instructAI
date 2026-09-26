@@ -11,7 +11,7 @@ export default function StudentOverview() {
     const totalCourses = classes?.reduce((n, c) => n + (c.courses_count || 0), 0) || 0;
 
     return (
-        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '48px 24px 80px' }}>
+        <div style={{ width: '100%', padding: '48px 40px 80px' }}>
             <div style={{ marginBottom: '40px' }}>
                 <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-tertiary)', margin: '0 0 6px 0' }}>Home</p>
                 <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '38px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 8px 0', letterSpacing: '-0.01em' }}>

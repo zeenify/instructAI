@@ -288,7 +288,7 @@ export default function ActivityViewer() {
 
       {/* RIGHT CONTENT */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }} className="custom-scrollbar">
-        <div style={{ maxWidth: '1160px', margin: '0 auto', width: '100%', padding: '40px 24px 120px' }}>
+        <div style={{ width: '100%', padding: '40px 32px 120px' }}>
 
           {/* HEADER */}
           <div style={{ marginBottom: '32px' }}>

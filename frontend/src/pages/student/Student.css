@@ -438,3 +438,67 @@ aside {
     border-radius: 999px;
     background: var(--accent);
 }
+
+/* ---------- Mobile top bar + sidebar drawer (<900px) ----------
+   The immortal sidebar becomes an off-canvas drawer; a compact top bar
+   carries the burger + brand. Desktop is untouched. */
+.sv-mobilebar { display: none; }
+@media (max-width: 900px) {
+    .sv-mobilebar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        position: sticky;
+        top: 0;
+        z-index: 55;
+        padding: 12px 16px;
+        background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border-color);
+    }
+    .sv-burger {
+        border: none;
+        background: transparent;
+        color: var(--text-primary);
+        cursor: pointer;
+        padding: 8px;
+        display: grid;
+        place-items: center;
+        border-radius: 8px;
+    }
+    .sv-mobilebar-brand {
+        font-weight: 700;
+        font-size: 17px;
+        color: var(--text-primary);
+        letter-spacing: -0.01em;
+    }
+    .student-theme .sidebar {
+        position: fixed;
+        z-index: 70;
+        transform: translateX(-105%);
+        transition: transform 0.28s ease;
+        box-shadow: none;
+    }
+    .student-theme .sidebar.open {
+        transform: none;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    }
+    .sv-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 65;
+        background: rgba(0, 0, 0, 0.5);
+    }
+    .student-theme .main-content {
+        margin-left: 0;
+        padding: 28px 16px 64px;
+    }
+}
+@media (max-width: 900px) {
+    .student-theme.dashboard-container {
+        flex-direction: column;
+        display: flex;
+    }
+    .student-theme .sv-mobilebar {
+        width: 100%;
+    }
+}
