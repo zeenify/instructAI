@@ -76,20 +76,17 @@ export default function LessonRenderer({ lessonId, onProgressUpdate, isCompleted
 
     return (
         <div style={{ padding: '40px 20px', display: 'flex', flexDirection: 'column', gap: '48px', animationName: 'fadeIn', animationDuration: '0.8s', maxWidth: '100%' }}>
-            {/* HEADER */}
-            <header style={{ paddingBottom: '24px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                    <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--accent)' }} />
+            {/* HEADER — large serif title on canvas, no box */}
+            <header style={{ paddingBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                     <span style={{ fontSize: '13px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, color: 'var(--text-tertiary)' }}>Lesson</span>
                     {isCompleted && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '999px', background: 'var(--accent-light)', color: 'var(--accent)', fontSize: '12.5px', fontWeight: 600, marginLeft: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '999px', background: 'var(--accent-light)', color: 'var(--accent)', fontSize: '12.5px', fontWeight: 600 }}>
                             <CheckCircle2 size={14}/> Completed
                         </div>
                     )}
                 </div>
-                <div style={{ padding: '30px 34px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '18px' }}>
-                    <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '38px', fontWeight: 600, color: 'var(--text-primary)', margin: '0', lineHeight: '1.2', letterSpacing: '-0.01em' }}>{lesson.title}</h1>
-                </div>
+                <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '36px', fontWeight: 600, color: 'var(--text-primary)', margin: '0', lineHeight: '1.2', letterSpacing: '-0.01em' }}>{lesson.title}</h1>
             </header>
 
             {/* CONTENT BLOCKS */}

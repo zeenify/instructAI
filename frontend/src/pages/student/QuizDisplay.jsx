@@ -361,54 +361,41 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
             alignItems: 'center',
             justifyContent: 'center'
         }} className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
-            <div style={{ gap: '32px', display: 'flex', flexDirection: 'column', width: '100%', maxWidth: '900px', marginLeft: 'auto', marginRight: 'auto', paddingLeft: '16px', paddingRight: '16px' }}>
-                {/* HEADER */}
-                <div style={{ gap: '24px', display: 'flex', flexDirection: 'column', textAlign: 'center' }}>
-                    <div className="qz-float" style={{ width: '80px', height: '80px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', background: 'var(--accent-light)', border: '1px solid var(--accent-border)' }}>
-                        <ShieldCheck style={{ color: 'var(--accent)' }} size={44} />
+            <div style={{ gap: '36px', display: 'flex', flexDirection: 'column', width: '100%', maxWidth: '760px', marginLeft: 'auto', marginRight: 'auto', paddingLeft: '16px', paddingRight: '16px' }}>
+                {/* HEADER — large serif title on canvas */}
+                <div style={{ gap: '14px', display: 'flex', flexDirection: 'column', textAlign: 'center' }}>
+                    <div style={{ width: '68px', height: '68px', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', background: 'var(--accent-light)', color: 'var(--accent)' }}>
+                        <ShieldCheck size={36} />
                     </div>
-                    <div style={{ gap: '12px', display: 'flex', flexDirection: 'column' }}>
-                        <h2 style={{ fontSize: '48px', fontWeight: 700, color: 'var(--text-primary)', margin: '0', letterSpacing: '-0.02em', lineHeight: '1.1' }}>{quizData.title}</h2>
-                        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'none', letterSpacing: 0, margin: '0' }}>Ready when you are — good luck!</p>
-                    </div>
+                    <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '38px', fontWeight: 600, color: 'var(--text-primary)', margin: '0', letterSpacing: '-0.01em', lineHeight: '1.15' }}>{quizData.title}</h2>
+                    <p style={{ fontSize: '15.5px', color: 'var(--text-secondary)', fontWeight: 500, textTransform: 'none', letterSpacing: 0, margin: '0' }}>Ready when you are — good luck!</p>
                 </div>
 
-                {/* STATS GRID */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-                    <div className="qz-stat-card" style={{ padding: '32px 28px', gap: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: '16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', transition: 'all 0.3s ease' }}>
-                        <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
-                            <ListOrdered size={28} />
-                        </div>
-                        <p style={{ fontSize: '12.5px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, color: 'var(--text-tertiary)', margin: '0 0 8px 0' }}>Questions</p>
-                        <p style={{ fontSize: '36px', fontWeight: 700, color: 'var(--text-primary)', margin: '0' }}>{quizData.questions.length}</p>
+                {/* STATS — one hairline card, three columns */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', borderRadius: '16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                    <div style={{ padding: '22px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                        <p style={{ fontSize: '12.5px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, color: 'var(--text-tertiary)', margin: '0' }}>Questions</p>
+                        <p style={{ fontSize: '30px', fontWeight: 700, color: 'var(--text-primary)', margin: '0' }}>{quizData.questions.length}</p>
                     </div>
-
-                    <div className="qz-stat-card" style={{ padding: '32px 28px', gap: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: '16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', transition: 'all 0.3s ease' }}>
-                        <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(16, 185, 129, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
-                            <Target size={28} />
-                        </div>
-                        <p style={{ fontSize: '12.5px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, color: 'var(--text-tertiary)', margin: '0 0 8px 0' }}>Passing Score</p>
-                        <p style={{ fontSize: '36px', fontWeight: 700, color: 'var(--text-primary)', margin: '0' }}>{quizData.passing_score}</p>
+                    <div style={{ padding: '22px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', borderLeft: '1px solid var(--border-color)' }}>
+                        <p style={{ fontSize: '12.5px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, color: 'var(--text-tertiary)', margin: '0' }}>Passing score</p>
+                        <p style={{ fontSize: '30px', fontWeight: 700, color: 'var(--text-primary)', margin: '0' }}>{quizData.passing_score}</p>
                     </div>
-
-                    <div className="qz-stat-card" style={{ padding: '32px 28px', gap: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: '16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', transition: 'all 0.3s ease' }}>
-                        <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.2) 0%, rgba(249, 115, 22, 0.08) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f97316',  }}>
-                            <Clock size={28} />
-                        </div>
-                        <p style={{ fontSize: '12.5px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, color: 'var(--text-tertiary)', margin: '0 0 8px 0' }}>Time Limit</p>
-                        <p style={{ fontSize: '36px', fontWeight: 700, color: 'var(--text-primary)', margin: '0' }}>{formatTime(Math.floor(quizData.time_limit_minutes * 60))}</p>
+                    <div style={{ padding: '22px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', borderLeft: '1px solid var(--border-color)' }}>
+                        <p style={{ fontSize: '12.5px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, color: 'var(--text-tertiary)', margin: '0' }}>Time limit</p>
+                        <p style={{ fontSize: '30px', fontWeight: 700, color: 'var(--text-primary)', margin: '0' }}>{formatTime(Math.floor(quizData.time_limit_minutes * 60))}</p>
                     </div>
                 </div>
 
                 {/* PREVIOUS RESULT */}
                 {previousResult && (
-                    <div style={{ padding: '28px 32px', gap: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', boxShadow: 'var(--card-shadow)' }}>
+                    <div style={{ padding: '22px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
                         <div>
-                            <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'none', letterSpacing: 0, margin: '0 0 8px 0' }}>Previous attempt</p>
-                            <p style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-primary)', margin: '0' }}>{previousResult.score} <span style={{ fontSize: '18px', color: 'var(--text-secondary)' }}>/ {previousResult.max_score}</span></p>
+                            <p style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'none', letterSpacing: 0, margin: '0 0 6px 0' }}>Previous attempt</p>
+                            <p style={{ fontSize: '26px', fontWeight: 700, color: 'var(--text-primary)', margin: '0' }}>{previousResult.score} <span style={{ fontSize: '17px', color: 'var(--text-secondary)' }}>/ {previousResult.max_score}</span></p>
                         </div>
-                        <div style={{ padding: '12px 24px', borderRadius: '999px', fontSize: '12.5px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, background: previousResult.score >= quizData.passing_score ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.1) 100%)' : 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%)', color: previousResult.score >= quizData.passing_score ? '#10b981' : '#ef4444', border: previousResult.score >= quizData.passing_score ? '1.5px solid rgba(16, 185, 129, 0.3)' : '1.5px solid rgba(239, 68, 68, 0.3)', boxShadow: previousResult.score >= quizData.passing_score ? '0 0 15px rgba(16, 185, 129, 0.15)' : '0 0 15px rgba(239, 68, 68, 0.15)' }}>
-                            {previousResult.score >= quizData.passing_score ? '✓ Passed' : '✗ Not Passed'}
+                        <div style={{ padding: '10px 20px', borderRadius: '999px', fontSize: '13px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, background: previousResult.score >= quizData.passing_score ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.08)', color: previousResult.score >= quizData.passing_score ? '#10b981' : '#ef4444', border: previousResult.score >= quizData.passing_score ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)' }}>
+                            {previousResult.score >= quizData.passing_score ? '✓ Passed' : '✗ Not passed'}
                         </div>
                     </div>
                 )}
@@ -418,19 +405,19 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
                     <div style={{ padding: '20px 32px', borderRadius: '14px', background: 'rgba(16, 185, 129, 0.08)', border: '1.5px solid rgba(16, 185, 129, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
                         <CheckCircle2 size={24} style={{ color: '#10b981' }} />
                         <div style={{ textAlign: 'left' }}>
-                            <p style={{ fontSize: '12px', fontWeight: 700, color: '#10b981', textTransform: 'none', letterSpacing: 0, margin: '0 0 4px 0' }}>Quiz Completed</p>
-                            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0' }}>You've already passed this assessment</p>
+                            <p style={{ fontSize: '13px', fontWeight: 700, color: '#10b981', textTransform: 'none', letterSpacing: 0, margin: '0 0 4px 0' }}>Quiz completed</p>
+                            <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: '0' }}>You've already passed this assessment</p>
                         </div>
                     </div>
                 ) : (
-                    <button onClick={startQuiz} style={{ padding: '18px 56px', borderRadius: '14px', background: 'var(--accent)', color: '#fff', fontWeight: 700, textTransform: 'none', letterSpacing: 0, fontSize: '13px', border: 'none', cursor: 'pointer', transition: 'all 0.3s', display: 'inline-block', margin: '0 auto', width: 'auto' }}
+                    <button onClick={startQuiz} style={{ padding: '16px 52px', borderRadius: '12px', background: 'var(--accent)', color: '#fffdf7', fontWeight: 600, textTransform: 'none', letterSpacing: 0, fontSize: '15px', border: 'none', cursor: 'pointer', transition: 'all 0.2s', display: 'inline-block', margin: '0 auto', width: 'auto' }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 30px 60px var(--accent-glow)';
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.filter = 'brightness(1.06)';
                         }}
                         onMouseLeave={(e) => {
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 20px 50px var(--accent-glow)';
+                            e.currentTarget.style.filter = 'none';
                         }}
                     >
                         Start Assessment

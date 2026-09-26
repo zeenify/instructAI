@@ -237,7 +237,7 @@ export default function CourseViewer() {
                 </div>
 
                 <div style={{ padding: '32px 24px 180px', gap: '24px' }} className="flex-grow overflow-y-auto custom-scrollbar flex flex-col">
-                    <div style={{ maxWidth: '1300px', margin: '0 auto', width: '100%' }}>
+                    <div style={{ maxWidth: '820px', margin: '0 auto', width: '100%' }}>
                         <AnimatePresence mode="wait">
                             <motion.div 
                                 key={`${itemType}-${itemId}`}
@@ -352,7 +352,7 @@ function CourseSkeleton() {
 
                 {/* Content area */}
                 <div style={{ flex: 1, overflow: 'auto', padding: '48px 24px', display: 'flex', flexDirection: 'column', gap: '32px', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ maxWidth: '1300px', width: '100%', gap: '48px', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ maxWidth: '820px', width: '100%', gap: '48px', display: 'flex', flexDirection: 'column' }}>
                         {/* Title */}
                         <div style={{ height: '52px', width: '70%', borderRadius: '24px', background: 'var(--skeleton-bg)', margin: '0 auto' }} className="shimmer" />
                         {/* Subtitle */}
