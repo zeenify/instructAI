@@ -4,6 +4,24 @@ AI-powered LMS for programming education, built for Penaranda Senior High School
 Stack: Laravel (backend/, port 8000) · React 19 + Vite (frontend/, port 5173) ·
 Python RAG service (instruct-ai-service/) · Kotlin Android app (cognify/).
 
+## Commands
+
+- Frontend (from `frontend/`): `npm run dev` (5173) · `npm run build` (vite
+  build — run after every frontend change as the verification gate) ·
+  `npm run lint` (eslint) · `npm run format` (prettier).
+- Backend: `php artisan serve --port=8000` with Herd's PHP 8.4 (see gotchas).
+- AI service: `python main.py` from `instruct-ai-service/` (FastAPI, port 8001).
+
+## Roles & admin
+
+Three roles — admin / teacher / student — enforced by `EnsureRole` middleware
+(alias `role`, registered in `bootstrap/app.php`). Admin-only whitelist
+management gates registration: `/api/admin/student-whitelist` and
+`/api/admin/teacher-whitelist` CRUD over the `EnrolledStudent` (student LRN
+numbers) and `WhitelistedTeacher` models; UI in `pages/admin/`
+(`StudentWhitelist.jsx`, `TeacherWhitelist.jsx`) on the shared `AdminLayout`
+with `components/admin/WhitelistManager.jsx`.
+
 ## Data layer migration (ACTIVE — read before touching any page's fetching)
 
 We are migrating all data fetching to **TanStack Query** (stale-while-revalidate)
@@ -108,7 +126,9 @@ in the student shell is Fraunces (greetings, class/lesson titles; loaded
 globally in index.css). Legacy standalone `/class/:classId/course/:id` route
 was deleted — the builder lives embedded in the teacher class page. The
 floating AI-tutor FAB stays glow-free and fails silently when the Python AI
-service is down (no error toasts). Layouts are Apple-pattern (large titles on
+service is down (no error toasts). The sidebar theme toggle is
+`ThemeToggle variant="dark-panel"` — the same track/knob switch the teacher
+sidebar uses (user-required parity; paper-scoped `side-*` vars in Student.css). Layouts are Apple-pattern (large titles on
 canvas, segmented controls, grouped lists) and full-width: the legacy 1400px
 `.main-content` cap is overridden in the student shell, all per-page max-width
 columns were removed, and below 900px the sidebar becomes an off-canvas drawer
