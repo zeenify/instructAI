@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { formatDistanceToNow, parseISO, isPast, format } from 'date-fns';
 import InlineCodeAnswer from '../../components/student/InlineCodeAnswer';
 import StudentActivityCard from '../../components/student/StudentActivityCard';
+import { deriveState as activityCardState } from '../../utils/activityState';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import '../../pages/student/Student.css';
 
@@ -244,15 +245,43 @@ export default function ActivityViewer() {
           ) : sidebarActivities.length === 0 ? (
             <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', textAlign: 'center', padding: '24px' }}>No activities yet</p>
           ) : (
-            sidebarActivities.map(a => (
-              <Link
-                key={a.id}
-                to={`/dashboard/student/class/${classId}/activity/${a.id}`}
-                style={{ display: 'block', textDecoration: 'none', marginBottom: '6px' }}
-              >
-                <StudentActivityCard activity={a} classId={classId} isActive={String(a.id) === String(activityId)} />
-              </Link>
-            ))
+            sidebarActivities.map(a => {
+              const st = activityCardState(a);
+              const stateMeta = {
+                done: { color: 'var(--accent)', label: 'Done' },
+                missed: { color: '#ef4444', label: 'Missed' },
+                live: { color: '#ef4444', label: 'Live' },
+                todo: { color: 'var(--text-tertiary)', label: 'To do' },
+                in_progress: { color: '#f59e0b', label: 'In progress' },
+                waiting: { color: 'var(--text-tertiary)', label: 'Scheduled' },
+                graded: { color: 'var(--accent)', label: 'Graded' },
+                submitted: { color: 'var(--accent)', label: 'Submitted' },
+              }[st] || { color: 'var(--text-tertiary)', label: '' };
+              const active = String(a.id) === String(activityId);
+              return (
+                <Link
+                  key={a.id}
+                  to={`/dashboard/student/class/${classId}/activity/${a.id}`}
+                  style={{
+                    display: 'block', textDecoration: 'none', marginBottom: '6px',
+                    padding: '11px 12px', borderRadius: 10,
+                    background: active ? 'var(--accent-light)' : 'transparent',
+                    border: `1px solid ${active ? 'var(--accent-border)' : 'transparent'}`,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    <span style={{ width: 7, height: 7, borderRadius: 999, flexShrink: 0, background: st === 'missed' || st === 'live' ? '#ef4444' : 'var(--accent)' }} />
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: active ? 'var(--text-primary)' : 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {a.title}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3, paddingLeft: 15, fontSize: 11.5, color: 'var(--text-tertiary)' }}>
+                    <span>{stateMeta.label}</span>
+                    {a.questions_count ? <span>· {a.questions_count} {a.questions_count === 1 ? 'question' : 'questions'}</span> : null}
+                  </div>
+                </Link>
+              );
+            })
           )}
         </div>
       </aside>
