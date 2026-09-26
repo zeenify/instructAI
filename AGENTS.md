@@ -108,7 +108,12 @@ in the student shell is Fraunces (greetings, class/lesson titles; loaded
 globally in index.css). Legacy standalone `/class/:classId/course/:id` route
 was deleted — the builder lives embedded in the teacher class page. The
 floating AI-tutor FAB stays glow-free and fails silently when the Python AI
-service is down (no error toasts).
+service is down (no error toasts). Layouts are Apple-pattern (large titles on
+canvas, segmented controls, grouped lists) and full-width: the legacy 1400px
+`.main-content` cap is overridden in the student shell, all per-page max-width
+columns were removed, and below 900px the sidebar becomes an off-canvas drawer
+behind a sticky burger top bar (`.sv-mobilebar`/`.sv-backdrop` in Student.css).
+Focus-mode routes are wrapped in `.student-theme` at the route level in App.jsx.
 
 Dashboard-side conventions: styles live in \`styles/dashboard.css\` (\`db-\`
 prefix, Inter display font, Apple-neutral dark/light themes, iOS blue accent).
