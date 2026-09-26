@@ -17,7 +17,6 @@ import TeacherOverview from './pages/teacher/TeacherOverview';
 import CreateClass from './pages/teacher/CreateClass';
 import ClassDetails from './pages/teacher/ClassDetails';
 import TeacherProgress from './pages/teacher/TeacherProgress';
-import CourseBuilder from './pages/teacher/CourseBuilder';
 import LessonEditor from './pages/teacher/LessonEditor';
 import QuizBuilder from './pages/teacher/QuizBuilder';
 import ActivityEditor from './pages/teacher/ActivityEditor';
@@ -117,8 +116,8 @@ function App() {
             <Route path="students" element={<div>Students Page</div>} />
             <Route path="classes/new" element={<CreateClass />} />
             <Route path="class/:id" element={<ClassDetails />} />
-            {/* Added classId to these routes to keep Sidebar highlighted */}
-            <Route path="class/:classId/course/:id" element={<CourseBuilder />} />
+            {/* The standalone /class/:classId/course/:id route was removed —
+                the builder lives embedded in the class page's Content tab. */}
             <Route path="class/:classId/lesson/:id" element={<LessonEditor />} />
             <Route path="class/:classId/quiz/:id" element={<QuizBuilder />} />
             <Route path="class/:classId/activity/:activityId" element={<ActivityEditor />} />

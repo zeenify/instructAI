@@ -1444,7 +1444,7 @@ if (loading || !course) return (
                             className={`cd-tbtn ${course.curriculum_file_url ? 'cd-tbtn-cur-ok' : ''}`}
                             onClick={() => setShowCurriculumModal(true)}
                             title={course.curriculum_file_url
-                                ? `Curriculum uploaded: ${course.curriculum_file_url.split('/').pop()} — click to view or replace`
+                                ? `Curriculum uploaded: ${decodeFileName(course.curriculum_file_url)} — click to view or replace`
                                 : 'Upload your curriculum file (PDF or DOC) — AI uses it as the source for generated content'}
                         >
                             {course.curriculum_file_url ? <FileCheck2 size={16} /> : <Upload size={16} />}
@@ -1480,124 +1480,9 @@ if (loading || !course) return (
                     <p className="cd-visibility">{visibilityText}</p>
                 )}
 
-                {/* Top Control Bar - Enhanced (standalone route only) */}
-                {!activeModuleId && !embedded && (
-                    <div style={{ padding: '24px 28px', marginBottom: '32px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', boxShadow: 'var(--card-shadow)' }} className="rounded-2xl flex flex-wrap items-center justify-between gap-6">
-                        <div className="flex items-center gap-3 flex-wrap">
-                            <span style={{ padding: '10px 16px' }} className={`rounded-lg text-xs font-bold ${
-                                isPublished
-                                    ? 'bg-green-500/15 text-green-600 border border-green-500/30'
-                                    : 'bg-slate-500/15 text-slate-500 border border-slate-500/25'
-                            }`}>
-                                {isPublished ? '✓ Live' : '◊ Draft'}
-                            </span>
-                            {course.curriculum_file_url && (
-                                <div style={{ padding: '10px 16px' }} className="flex items-center gap-2 bg-emerald-500/15 border border-emerald-500/25 rounded-lg text-emerald-600 text-xs font-bold">
-                                    <FileText size={14} />
-                                    <span className="text-[11px]">{decodeFileName(course.curriculum_file_url)?.slice(0, 30) || 'Curriculum'}</span>
-                                </div>
-                            )}
-                        </div>
-<div className="flex items-center gap-3 ml-auto">
-                            <button
-                                disabled={isUpdatingStatus}
-                                onClick={publishAllItems}
-                                style={{ padding: '10px 16px', color: 'var(--db-accent)' }}
-                                className="text-xs font-bold border-none bg-transparent cursor-pointer hover:bg-blue-500/10 rounded-lg transition-all disabled:opacity-50 flex items-center gap-2"
-                            >
-                                {isUpdatingStatus ? <Loader2 size={14} className="animate-spin" /> : 'Publish All'}
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {/* Course title (standalone route only — the embedded class page has its own header) */}
-                {!embedded && <div style={{ marginBottom: '32px', gap: '24px' }} className="flex flex-col md:flex-row md:items-end md:justify-between">
-                    <div className="flex-1">
-                        {(
-                            <>
-                                {!embedded && <span className="text-xs font-semibold" style={{ color: 'var(--db-text-3)' }}>Course</span>}
-                                <div style={{ marginTop: '12px', gap: '12px' }} className="flex items-center group">
-{isTitleEditing ? (
-                                        <div style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--db-accent)' }} className="flex items-center gap-2 rounded-xl p-2 flex-1">
-                                            <input
-                                                autoFocus
-                                                value={editingTitle}
-                                                onChange={(e) => setEditingTitle(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') handleCourseTitle(editingTitle);
-                                                    if (e.key === 'Escape') setIsTitleEditing(false);
-                                                }}
-                                                style={{ color: 'var(--text-primary)' }}
-                                                className="flex-1 bg-transparent border-none text-4xl font-black outline-none"
-                                            />
-                                            <button
-                                                onClick={() => handleCourseTitle(editingTitle)}
-                                                className="p-2 hover:bg-green-500/20 text-green-400 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
-                                            >
-                                                <Check size={20} />
-                                            </button>
-                                            <button
-                                                onClick={() => setIsTitleEditing(false)}
-                                                className="p-2 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
-                                            >
-                                                <X size={20} />
-                                            </button>
-                                        </div>
-) : (
-                                        <>
-                                            {!embedded && (
-                                            <>
-                                            <h1 style={{ color: 'var(--text-primary)' }} className="text-5xl font-black tracking-tight cursor-pointer hover:opacity-70 transition-opacity" onClick={() => {
-                                                setEditingTitle(course.title);
-                                                setIsTitleEditing(true);
-                                            }}>
-                                                {course.title}
-                                            </h1>
-                                            <span className="text-slate-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity">Click to edit</span>
-                                            </>
-                                    )}
-                                        </>
-                                    )}
-                                </div>
-                                {course.description && !embedded && (
-                                    <p style={{ color: 'var(--text-secondary)' }} className="text-sm mt-3 max-w-2xl">{course.description}</p>
-                                )}
-                            </>
-                        )}
-                    </div>
-
-                    {/* Action Buttons - Redesigned */}
-                    {!activeModuleId && (
-                        <div className="flex flex-wrap gap-4 md:flex-nowrap md:justify-end">
-<button
-                                onClick={() => setShowCurriculumModal(true)}
-                                style={{ padding: '14px 22px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}
-                                className="text-slate-500 hover:opacity-70 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer"
-                            >
-                                <FileText size={16} />
-                                {course.curriculum_file_url ? 'Manage' : 'Upload'}
-                            </button>
-                            <button
-                                onClick={toggleCourseStatus}
-                                style={{ padding: '14px 22px' }}
-                                className={`rounded-xl text-xs font-bold transition-all border flex items-center gap-2 cursor-pointer ${
-                                    isPublished
-                                        ? 'bg-slate-500/10 text-slate-500 border-slate-500/20 hover:bg-slate-500/20'
-                                        : 'bg-[#0a84ff] text-white border-transparent hover:bg-[#409cff]'
-                                }`}
-                            >
-                                {isPublished ? 'Unpublish' : 'Go Live'}
-                            </button>
-                            <button
-                                onClick={() => setIsAiModalOpen(true)}
-                                style={{ padding: '14px 22px' }}
-                                className="bg-[#0a84ff] text-white rounded-xl text-xs font-bold border-none cursor-pointer flex items-center gap-2 hover:bg-[#409cff] transition-all"
-                            >
-                                <Sparkles size={16} /> AI
-                            </button>
-                        </div>
-                    )}</div>}
+                {/* The standalone-route control bar, title editor and toolbar
+                    were removed — the builder is embedded in the class page
+                    and its compact toolbar above is the only chrome. */}
             </header>
 
             <AnimatePresence mode="wait">
@@ -1606,59 +1491,6 @@ if (loading || !course) return (
                     grid and self-clean from the URL */}
                 {!activeModuleId || !activeModuleData ? (
 <motion.div key="grid" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
-                        {/* Control Toolbar (standalone route only) */}
-                        {!embedded && <div style={{ padding: '20px 28px', marginBottom: '32px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', boxShadow: 'var(--card-shadow)' }} className="flex flex-wrap justify-between items-center gap-4 rounded-2xl">
-                            <button
-                                onClick={() => setModuleModal({ isOpen: true, mode: 'create', id: null, title: '' })}
-                                style={{ padding: '14px 22px' }}
-                                className="bg-[#0a84ff] hover:bg-[#409cff] text-white rounded-xl text-xs font-bold border-none cursor-pointer flex items-center gap-2 transition-all"
-                            >
-                                <Plus size={16} /> New Module
-                            </button>
-
-                            <div className="flex gap-2 ml-auto">
-                                <button
-                                    onClick={() => setIsReorderMode(!isReorderMode)}
-                                    style={{ padding: '12px 18px' }}
-                                    className={`rounded-xl text-xs font-bold border transition-all flex items-center gap-2 cursor-pointer ${
-                                        isReorderMode
-                                            ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30'
-                                            : 'bg-transparent text-slate-500 border-slate-400/30 hover:opacity-70'
-                                    }`}
-                                >
-                                    <GripHorizontal size={16} />
-                                    {isReorderMode ? 'Done' : 'Reorder'}
-                                </button>
-
-                                <button
-                                    onClick={() => {
-                                        setIsBulkDeleteMode(!isBulkDeleteMode);
-                                        setSelectedModuleIds(new Set());
-                                    }}
-                                    style={{ padding: '12px 18px' }}
-                                    className={`rounded-xl text-xs font-bold border transition-all flex items-center gap-2 cursor-pointer ${
-                                        isBulkDeleteMode
-                                            ? 'bg-red-500/15 text-red-600 border-red-500/30'
-                                            : 'bg-transparent text-slate-500 border-slate-400/30 hover:opacity-70'
-                                    }`}
-                                >
-                                    <Trash2 size={16} />
-                                    {isBulkDeleteMode ? 'Cancel' : 'Delete'}
-                                </button>
-
-                                {isBulkDeleteMode && selectedModuleIds.size > 0 && (
-                                    <button
-                                        onClick={handleBulkDelete}
-                                        disabled={isDeleting}
-                                        style={{ padding: '12px 18px' }}
-                                        className="rounded-xl text-xs font-bold border-none cursor-pointer transition-all bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 "
-                                    >
-                                        {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                                        Delete {selectedModuleIds.size}
-                                    </button>
-                                )}
-                            </div>
-                        </div>}
 
                         {course.modules.length === 0 && (
                             <div className="cd-empty-build">
