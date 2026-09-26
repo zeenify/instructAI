@@ -4,112 +4,123 @@ from services.retrieval_service import retrieval_service
 from utils.ai_client_pool import AIClientPool, is_rate_limit_error
 from config.models import GEN_CONTENT_MODEL
 
+# Shared prompt blocks. Personality comes from config/characters.py; these
+# blocks carry the behavior contract that must survive regardless of persona.
+
+LANGUAGE_POLICY = """LANGUAGE:
+- Reply in clear, simple ENGLISH by default.
+- Only when the student writes in Tagalog or heavy Taglish, reply in natural
+  Taglish (the casual Filipino-English mix Filipino students actually use) —
+  never stiff, formal Tagalog.
+- Technical terms, code, and identifiers always stay in English.
+"""
+
+TOPIC_SCOPE = """TOPIC SCOPE:
+- You are a school tutor for Penaranda Senior High School. IN SCOPE: the
+  student's lessons, quizzes, activities, and course materials (including the
+  context provided below), AND their school subjects in general — e.g.
+  programming, math, science, English — even if the exact topic is not in the
+  provided context.
+- OUT OF SCOPE: games as a topic, celebrities, sports, romance, personal chat,
+  general trivia, and anything unrelated to schoolwork.
+- If a question is out of scope, refuse briefly and stay fully in character:
+  one short in-persona line saying you only cover schoolwork, then redirect to
+  the current material. Never lecture; never break character.
+"""
+
+NORMAL_RULES = """ASSESSMENT MODE: FREE HELP
+The student is studying (not inside a quiz or graded challenge), so help fully:
+- Explain concepts clearly, then show worked examples and correct code when the
+  subject calls for it.
+- Structure answers: short direct answer or explanation first, then the
+  step-by-step, then a quick check-for-understanding question.
+- If they ask for their exact homework answer with no effort shown, teach the
+  method with a similar example first, then invite them to try theirs.
+"""
+
+RESTRICTED_RULES = """ASSESSMENT MODE: RESTRICTED — QUIZ/CHALLENGE IN PROGRESS
+The student is inside a live quiz or graded coding challenge. ABSOLUTE RULES:
+1. NEVER reveal the correct answer (any question type) and never confirm or
+   deny whether their attempt is right or close ("that's right", "not A and B",
+   "close" — all banned).
+2. NEVER provide solution code, pseudocode, or a step-by-step path that
+   directly produces the answer.
+3. NEVER give hints specific enough to reveal the answer.
+4. ONLY: ask guiding questions, point to the relevant concept or lesson
+   section, suggest what to review.
+- Multiple choice / true-false: ask what concept the item tests; never rank or
+  eliminate options.
+- Coding: ask what error they got or what a suspect line does; suggest a
+  different approach in words only.
+- Identification / short answer: ask what lesson section covers it; never give
+  the term or definitions narrow enough to be the answer.
+- If they ask you to just tell them the answer: stay in character, say you
+  can't during an assessment, and offer to think it through with them instead.
+"""
+
+FORMATTING = """FORMATTING:
+- Markdown: fenced code blocks with the language tag, **bold** for key terms,
+  bullets/numbered steps for procedures.
+- Short paragraphs (2-3 sentences), blank lines between sections.
+- Stay in character in every reply — the persona must come through even when
+  you refuse, redirect, or keep an answer short.
+"""
+
+
 class RAGTutorService:
     def __init__(self):
         self.ai_pool = AIClientPool()
 
     def detect_question_depth(self, question: str) -> str:
         """Detect if question is casual/simple or deep/complex"""
-        # Casual indicators: short, simple language, greetings, single word
         casual_indicators = ['hi', 'hey', 'hello', 'thanks', 'ok', 'cool', 'what is', 'how do i', 'why', 'when']
         question_lower = question.lower().strip()
 
-        # If very short (under 10 chars), likely casual
         if len(question) < 10:
             return 'casual'
 
-        # If multiple punctuation marks, complex
         if question.count('?') > 1 or question.count(',') > 2:
             return 'deep'
 
-        # If contains complex keywords, deep
         deep_keywords = ['explain', 'compare', 'analyze', 'design', 'implement', 'solve', 'how does', 'why does', 'difference between', 'give an example']
         if any(keyword in question_lower for keyword in deep_keywords):
             return 'deep'
 
-        # If contains casual keywords, casual
         if any(indicator in question_lower for indicator in casual_indicators):
             return 'casual'
 
-        # Default to casual for short questions
         if len(question) < 30:
             return 'casual'
 
         return 'deep'
 
-    def build_prompt(self,
-                     character_name: str,
-                     mode: str,
-                     question: str,
-                     current_lesson_content: str,
-                     retrieved_context: list,
-                     chat_history: list,
-                     lesson_content: str = None,
-                     quiz_content: str = None) -> list:
-        """Build prompt with character, context, and history"""
+    def _prepare_messages(self,
+                          character_name: str,
+                          mode: str,
+                          question: str,
+                          current_lesson_content: str,
+                          retrieved_context: list,
+                          chat_history: list,
+                          lesson_content: str = None,
+                          quiz_content: str = None) -> list:
+        """Build the full message list: system prompt + history + question"""
 
         character = get_character(character_name)
-
-        # Detect question depth
         question_depth = self.detect_question_depth(question)
 
-        # Base system prompt
-        system_content = f"{character['personality']}\n\n"
+        system_content = character['personality'] + "\n\n"
 
-        # Mode-specific instructions
-        if mode == "restricted":
-            system_content += """🚫 RESTRICTED MODE - QUIZ/CHALLENGE IN PROGRESS 🚫
-⛔ STRICT ASSESSMENT MODE - NO ANSWERS ALLOWED ⛔
+        system_content += RESTRICTED_RULES if mode == "restricted" else NORMAL_RULES
+        system_content += "\n" + TOPIC_SCOPE + "\n" + LANGUAGE_POLICY
 
-ABSOLUTE RULES (DO NOT VIOLATE):
-1. ❌ NEVER reveal the correct answer (multiple choice, true/false, identification, coding, or any type)
-2. ❌ NEVER confirm if their answer is correct or even close
-3. ❌ NEVER say "that's right", "correct", "yes", "exactly", "good", or any confirmation
-4. ❌ NEVER provide the solution code, pseudocode, algorithm, or working implementation
-5. ❌ NEVER give step-by-step instructions that directly lead to the answer
-6. ❌ NEVER directly answer identification questions or fill-in-the-blank
-7. ❌ NEVER provide hints that are so specific they reveal the answer
-8. ❌ NEVER analyze their work and show corrections
-9. ✅ ONLY: Ask guiding questions, point to concepts in the lesson, suggest they review material
-
-FOR MULTIPLE CHOICE / TRUE FALSE:
-- ❌ DO NOT hint which option is correct
-- ❌ DO NOT say "not that one" or "not A and B, so it's C"
-- ✅ ASK: "What concept does this question test?", "Can you explain what each option means?"
-
-FOR CODE CHALLENGES:
-- ❌ DO NOT fix their code or show how to fix it
-- ❌ DO NOT write any working code
-- ✅ ASK: "What error did you get?", "What do you think this line does?", "Try a different approach"
-
-FOR IDENTIFICATION / SHORT ANSWER:
-- ❌ DO NOT give the term, definition, or answer
-- ❌ DO NOT say "close" or guide them letter by letter to the answer
-- ✅ ASK: "What section of the lesson covers this?", "What do you remember about this concept?"
-
-IF THEY ASK DIRECTLY: "Can you just tell me the answer?"
-- RESPOND: "I can't do that - it defeats the purpose of the assessment. But I can help you think through it. What concepts are relevant here?"
-
-YOUR GOAL: They must figure it out themselves. Hints should make them think, not solve it for them.
-"""
-        else:
-            system_content += """You can answer questions fully and helpfully. Provide clear explanations, examples, step-by-step guidance, and code samples when appropriate.
-"""
-
-        # Panel fix: the tutor stays inside the study scope — schoolwork only
-        system_content += """TOPIC SCOPE:
-- You are a school tutor for Penaranda Senior High School. IN SCOPE: the student's lessons, quizzes, activities, and course materials (the context provided above), AND their school subjects in general — e.g. Java programming, math, science, English — even if the exact topic is not present in the provided context.
-- OUT OF SCOPE: games, celebrities, sports, personal chat, general trivia, and anything unrelated to schoolwork.
-- If the question is out of scope, DO NOT answer it. Reply with ONE short friendly line explaining that you can only help with topics related to their lessons and coursework, then offer to help with the current material instead.
-"""
-
-        # Response length guidance based on question depth
         if question_depth == 'casual':
-            system_content += "\nRESPONSE LENGTH: Keep it SHORT and conversational. 1-2 sentences max.\n"
-        else:  # deep
-            system_content += "\nRESPONSE LENGTH: Provide detailed, thorough answers with step-by-step explanations, examples, and context as needed.\n"
+            system_content += "\nRESPONSE LENGTH: Keep it SHORT and conversational — 1-3 sentences unless code is needed.\n"
+        else:
+            system_content += "\nRESPONSE LENGTH: Give a thorough answer — steps, examples, and context as needed, but no padding.\n"
 
-        # PRIORITY 1: Add the EXACT lesson/quiz the student is currently viewing
+        system_content += "\n" + FORMATTING
+
+        # PRIORITY 1: the exact lesson/quiz the student is viewing right now
         if lesson_content:
             system_content += f"""
 ═══════════════════════════════════════════════════════════════
@@ -130,47 +141,34 @@ THIS IS THE EXACT QUIZ THE STUDENT IS CURRENTLY TAKING:
 {quiz_content}
 ═══════════════════════════════════════════════════════════════
 
-Use this quiz context to provide hints about the questions. Remember you're in RESTRICTED mode, so give hints but NOT direct answers.
+Use this quiz context for hints about the topics. You are in RESTRICTED mode — hints only, never answers.
 """
 
-        # PRIORITY 2: Add current lesson context (if different)
+        # PRIORITY 2: the containing lesson's extracted text (if different)
         if current_lesson_content and current_lesson_content != lesson_content:
             system_content += f"\nADDITIONAL LESSON CONTEXT:\n{current_lesson_content[:1500]}\n"
 
-        # PRIORITY 3: Add retrieved context from RAG
+        # PRIORITY 3: RAG chunks from elsewhere in the course
         if retrieved_context:
             context_text = "\n\n".join([f"[Source {i+1}]: {chunk['text']}" for i, chunk in enumerate(retrieved_context)])
             system_content += f"\nRELATED COURSE MATERIALS (from other lessons):\n{context_text}\n"
 
-        system_content += """
-FORMATTING & TONE:
-- Use markdown code blocks: ```language code ```
-- Use **bold** for important terms
-- Use bullet points and numbered lists for clarity
-- Keep paragraphs short (2-3 sentences)
-- Be conversational and encouraging
-- Add blank lines between sections
-
-RESPONSE STRATEGY:
-- Lead with a clarifying question or observation
-- Provide hints or concepts without solutions
-- End with a guiding question that helps them debug/think
-- If showing any code, make it an example from the LESSON only, never new working solutions"""
-
-        # Build messages
         messages = [{"role": "system", "content": system_content}]
 
-        # Add chat history (last 8 messages)
         for msg in chat_history[-8:]:
             messages.append({
                 "role": "assistant" if msg['sender'] == 'ai' else "user",
                 "content": msg['message']
             })
 
-        # Add current question
         messages.append({"role": "user", "content": question})
-
         return messages
+
+    def _retrieve(self, class_id: int, course_id: int, question: str, lesson_id: int):
+        """Embed the question and pull course-scoped chunks"""
+        query_embedding = embedding_service.embed_text(question)
+        # Chunks are stored under course_id; class_id is a legacy fallback
+        return retrieval_service.search(course_id or class_id, query_embedding, top_k=2, lesson_id=lesson_id)
 
     def chat(self,
              class_id: int,
@@ -183,34 +181,14 @@ RESPONSE STRATEGY:
              lesson_content: str = None,
              quiz_content: str = None,
              course_id: int = None) -> str:
-        """RAG-powered chat with current lesson/quiz context"""
+        """RAG-powered chat with current lesson/quiz context (non-streaming)"""
 
-        # Detect question depth
-        question_depth = self.detect_question_depth(question)
+        print(f"\n[RAG CHAT] class_id={class_id} course_id={course_id} character={character_name} mode={mode} depth={self.detect_question_depth(question)}")
 
-        print(f"\n[RAG CHAT] Starting chat")
-        print(f"  class_id: {class_id}")
-        print(f"  question: {question[:50]}...")
-        print(f"  question_depth: {question_depth}")
-        print(f"  character: {character_name}")
-        print(f"  mode: {mode}")
-        print(f"  lesson_id: {lesson_id}")
-        print(f"  has_lesson_content: {lesson_content is not None}")
-
-        # 1. Embed question
-        print(f"[RAG CHAT] Embedding question...")
-        query_embedding = embedding_service.embed_text(question)
-        print(f"[RAG CHAT] Embedding done, dimension: {len(query_embedding)}")
-
-        # 2. Retrieve relevant context
-        print(f"[RAG CHAT] Retrieving context from class {class_id}...")
-        # Chunks are stored under course_id — class_id here was a legacy mismatch
-        retrieved_context = retrieval_service.search(course_id or class_id, query_embedding, top_k=2, lesson_id=lesson_id)
+        retrieved_context = self._retrieve(class_id, course_id, question, lesson_id)
         print(f"[RAG CHAT] Retrieved {len(retrieved_context)} chunks")
 
-        # 3. Build prompt
-        print(f"[RAG CHAT] Building prompt...")
-        messages = self.build_prompt(
+        messages = self._prepare_messages(
             character_name=character_name,
             mode=mode,
             question=question,
@@ -220,27 +198,78 @@ RESPONSE STRATEGY:
             lesson_content=lesson_content,
             quiz_content=quiz_content
         )
-        print(f"[RAG CHAT] Prompt built with {len(messages)} messages")
 
-        # 4. Call Groq LLM with rotating keys
-        print(f"[RAG CHAT] Calling Groq LLM...")
+        return self._complete(messages)
+
+    def chat_stream(self,
+                    class_id: int,
+                    question: str,
+                    character_name: str,
+                    mode: str,
+                    current_lesson_content: str,
+                    chat_history: list,
+                    lesson_id: int = None,
+                    lesson_content: str = None,
+                    quiz_content: str = None,
+                    course_id: int = None):
+        """Same as chat() but yields text chunks as they arrive"""
+        print(f"\n[RAG CHAT STREAM] class_id={class_id} course_id={course_id} character={character_name} mode={mode}")
+
+        retrieved_context = self._retrieve(class_id, course_id, question, lesson_id)
+        print(f"[RAG CHAT STREAM] Retrieved {len(retrieved_context)} chunks")
+
+        messages = self._prepare_messages(
+            character_name=character_name,
+            mode=mode,
+            question=question,
+            current_lesson_content=current_lesson_content,
+            retrieved_context=retrieved_context,
+            chat_history=chat_history,
+            lesson_content=lesson_content,
+            quiz_content=quiz_content
+        )
+
+        yield from self._complete_stream(messages)
+
+    def _complete(self, messages) -> str:
+        """One-shot completion with key rotation and rate-limit backoff"""
+        client, key_num = self.ai_pool.get_available_client()
         try:
-            client, key_num = self.ai_pool.get_available_client()
-            print(f"[RAG CHAT] Using key {key_num}")
-
             response = client.chat.completions.create(
                 model=GEN_CONTENT_MODEL,
                 messages=messages,
                 temperature=0.7,
-                max_tokens=1000
+                max_tokens=1200
             )
-
             self.ai_pool.mark_success(key_num)
-            answer = response.choices[0].message.content
-            print(f"[RAG CHAT] Got answer: {answer[:50]}...")
-            return answer
+            return response.choices[0].message.content
         except Exception as e:
             print(f"[RAG CHAT ERROR] LLM call failed: {str(e)}")
+            if is_rate_limit_error(e):
+                self.ai_pool.mark_rate_limited(key_num, backoff_seconds=60)
+            raise
+
+    def _complete_stream(self, messages):
+        """Streaming completion; yields content deltas"""
+        client, key_num = self.ai_pool.get_available_client()
+        try:
+            stream = client.chat.completions.create(
+                model=GEN_CONTENT_MODEL,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1200,
+                stream=True,
+            )
+            for chunk in stream:
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta
+                content = getattr(delta, "content", None)
+                if content:
+                    yield content
+            self.ai_pool.mark_success(key_num)
+        except Exception as e:
+            print(f"[RAG CHAT STREAM ERROR] {str(e)}")
             if is_rate_limit_error(e):
                 self.ai_pool.mark_rate_limited(key_num, backoff_seconds=60)
             raise

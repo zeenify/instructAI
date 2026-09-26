@@ -159,7 +159,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // AI Chat (Student)
     Route::post('/student/ai/chat', [AIChatController::class, 'chat']);
+    Route::post('/student/ai/chat-stream', [AIChatController::class, 'chatStream']);
     Route::post('/student/ai/history', [AIChatController::class, 'loadHistory']);
+    Route::post('/student/ai/clear', [AIChatController::class, 'clearHistory']);
     Route::post('/student/generate-reviewer', [ReviewerController::class, 'generate']);
     Route::post('/student/reviewer/transform-tts', [ReviewerController::class, 'transformTts']);
     Route::post('/student/extract-text', [ReviewerController::class, 'extractText']);

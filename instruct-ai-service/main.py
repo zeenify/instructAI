@@ -616,6 +616,7 @@ class TutorChatRequest(BaseModel):
     lesson_content: str | None = None
     quiz_content: str | None = None
     course_id: int | None = None
+    course_id: int | None = None
 
 
 @app.post("/ai/tutor-chat")
@@ -637,7 +638,7 @@ async def tutor_chat(request: Request):
 
         answer = rag_tutor_service.chat(
             class_id=data.class_id,
-            course_id=getattr(data, 'course_id', None),
+            course_id=data.course_id,
             question=data.question,
             character_name=data.character_name,
             mode=data.mode,
@@ -653,6 +654,48 @@ async def tutor_chat(request: Request):
         import traceback
         traceback.print_exc()
         return {"error": str(e), "answer": "I'm having trouble accessing the tutoring system right now. Please try again."}
+
+
+@app.post("/ai/tutor-chat-stream")
+async def tutor_chat_stream(request: Request):
+    """RAG-powered AI tutor chat, streamed as plain text chunks.
+
+    The Laravel backend proxies this to the student frontend, so auth and
+    chat-history persistence stay server-side there.
+    """
+    try:
+        body = await request.json()
+        data = TutorChatRequest(**body)
+    except Exception as e:
+        print(f"[Tutor Chat Stream Error] bad request: {str(e)}")
+        return {"error": str(e)}
+
+    async def generate():
+        try:
+            for chunk in rag_tutor_service.chat_stream(
+                class_id=data.class_id,
+                course_id=data.course_id,
+                question=data.question,
+                character_name=data.character_name,
+                mode=data.mode,
+                current_lesson_content=data.current_lesson_content,
+                lesson_content=data.lesson_content,
+                quiz_content=data.quiz_content,
+                chat_history=data.chat_history,
+                lesson_id=data.lesson_id
+            ):
+                yield chunk
+        except Exception as e:
+            print(f"[Tutor Chat Stream Error] {type(e).__name__}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            yield "\n\n(I lost my train of thought there — send that again?)"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/plain; charset=utf-8",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ===== EXTRACT TEXT FROM FILE =====
