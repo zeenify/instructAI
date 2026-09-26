@@ -49,12 +49,12 @@ export default function ClassView() {
     if (isLoading || !classroom) {
         return (
             <div>
-                <div className="cd-hero" style={{ marginBottom: 20 }}>
-                    <SkeletonBlock style={{ width: 52, height: 11, marginBottom: 12 }} />
-                    <SkeletonBlock style={{ width: 320, height: 40, borderRadius: 12 }} />
-                    <SkeletonBlock style={{ width: 420, height: 14, marginTop: 12 }} />
+                <div className="sv-class-head">
+                    <SkeletonBlock style={{ width: 52, height: 12, marginBottom: 12 }} />
+                    <SkeletonBlock style={{ width: 340, height: 42, borderRadius: 12 }} />
+                    <SkeletonBlock style={{ width: 420, height: 14, marginTop: 14 }} />
                 </div>
-                <div className="cd-tab-bar" style={{ marginBottom: 22 }}>
+                <div className="sv-seg" style={{ marginBottom: 22 }}>
                     <SkeletonBlock style={{ width: 92, height: 15 }} />
                 </div>
                 <ContentSkeleton />
@@ -84,16 +84,14 @@ export default function ClassView() {
 
     return (
         <div>
-            {/* Hero — class identity + teacher */}
-            <div className="cd-hero" style={{ '--class-color': classroom.color || '#3e8e7e' }}>
-                <p className="cd-eyebrow">Class</p>
-                <div className="cd-title-row">
-                    <h1 className="cd-title">{classroom.name}</h1>
-                </div>
-                <p className="sv-hero-desc">{classroom.description || `Welcome to ${teacherName}'s digital classroom.`}</p>
-                <div className="sv-teacher-chip">
+            {/* Class head — large title on canvas, not boxed in a card */}
+            <div className="sv-class-head">
+                <p className="sv-eyebrow">Class</p>
+                <h1 className="sv-title">{classroom.name}</h1>
+                <p className="sv-desc">{classroom.description || `Welcome to ${teacherName}'s digital classroom.`}</p>
+                <div className="sv-teacher-row">
                     {classroom.teacher?.avatar ? (
-                        <img src={classroom.teacher.avatar} alt="" className="db-profile-avatar" style={{ width: 30, height: 30 }} />
+                        <img src={classroom.teacher.avatar} alt="" className="db-profile-avatar" style={{ width: 28, height: 28 }} />
                     ) : (
                         <span className="sv-teacher-avatar">
                             {classroom.teacher?.teacher_profile?.first_name?.charAt(0) || 'T'}
@@ -104,21 +102,16 @@ export default function ClassView() {
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="cd-tab-bar">
-                <button type="button" className={`cd-tab ${activeTab === 'modules' ? 'active' : ''}`} onClick={() => setTab('modules')}>
-                    <Layers size={17} />
+            {/* Segmented control — Modules | Classwork */}
+            <div className="sv-seg">
+                <button type="button" className={`sv-seg-btn ${activeTab === 'modules' ? 'on' : ''}`} onClick={() => setTab('modules')}>
+                    <Layers size={16} />
                     Modules
                 </button>
-                <button type="button" className={`cd-tab ${activeTab === 'classwork' ? 'active' : ''}`} onClick={() => setTab('classwork')}>
-                    <ClipboardList size={17} />
+                <button type="button" className={`sv-seg-btn ${activeTab === 'classwork' ? 'on' : ''}`} onClick={() => setTab('classwork')}>
+                    <ClipboardList size={16} />
                     Classwork
-                    <span
-                        className="cd-tab-count"
-                        title={activitiesLoading ? 'Loading classwork…' : `${activities.length} visible to you`}
-                    >
-                        {activitiesLoading ? '…' : activities.length}
-                    </span>
+                    <span className="sv-seg-count">{activitiesLoading ? '…' : activities.length}</span>
                 </button>
             </div>
 
@@ -169,39 +162,37 @@ export default function ClassView() {
                         )}
 
                         {modules.map((mod, mi) => (
-                            <div key={mod.id} className="sv-module">
-                                <div className="sv-module-head">
-                                    <span className="cd-mod-index">{String(mi + 1).padStart(2, '0')}</span>
-                                    <h3 className="cd-mod-title">{mod.title}</h3>
+                            <div key={mod.id} className="sv-group">
+                                <div className="sv-group-head">
+                                    <span className="sv-group-index">{String(mi + 1).padStart(2, '0')}</span>
+                                    <h3 className="sv-group-title">{mod.title}</h3>
                                 </div>
-                                <div className="sv-lesson-list">
+                                <div className="sv-group-list">
                                     {[...(mod.lessons || []).map(l => ({ ...l, kind: 'lesson' })), ...(mod.quizzes || []).map(q => ({ ...q, kind: 'quiz' }))]
                                         .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
                                         .map((item) => (
                                             <button
                                                 key={`${item.kind}-${item.id}`}
                                                 type="button"
-                                                className="db-card sv-lesson-row db-clickable"
+                                                className="sv-row"
                                                 onClick={() => navigate(`/dashboard/student/course/${course.id}/${item.kind}/${item.id}`)}
                                             >
-                                                <span className={`sv-lesson-icon ${item.kind}`}>
+                                                <span className={`sv-row-icon ${item.kind}`}>
                                                     {item.kind === 'lesson' ? <BookOpen size={16} /> : <ClipboardList size={16} />}
                                                 </span>
-                                                <span className="sv-lesson-title">
+                                                <span className="sv-row-title">
                                                     {item.title}
                                                     {isNew(item.created_at) && <span className="sv-new-dot" title="New" />}
                                                 </span>
                                                 {item.kind === 'lesson' && (
-                                                    <span className="sv-lesson-cost">
+                                                    <span className="sv-row-meta">
                                                         ~{Math.max(5, Math.round((item.content?.length || 0) * 0.75))} min
                                                     </span>
                                                 )}
                                                 {item.kind === 'lesson' && item.is_completed && (
-                                                    <span className="sv-lesson-done"><Check size={13} /> Done</span>
+                                                    <span className="sv-row-done"><Check size={13} /> Done</span>
                                                 )}
-                                                <span className="db-class-footer-arrow" style={{ width: 28, height: 28 }}>
-                                                    <ChevronRight size={14} />
-                                                </span>
+                                                <ChevronRight size={15} className="sv-row-chevron" />
                                             </button>
                                         ))}
                                 </div>

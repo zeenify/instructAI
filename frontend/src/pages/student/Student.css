@@ -200,3 +200,241 @@ aside {
     padding: 4px 0 4px 16px;
     color: var(--text-secondary);
 }
+
+/* ==========================================================================
+   CLASS VIEW — Apple layout: large title on canvas, segmented control,
+   grouped lists (rows inside one rounded container, hairline separators)
+   ========================================================================== */
+.sv-class-head {
+    margin-bottom: 28px;
+}
+.sv-eyebrow {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    margin: 0 0 6px;
+}
+.sv-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 40px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+    color: var(--text-primary);
+    margin: 0 0 10px;
+}
+.sv-desc {
+    font-size: 16px;
+    color: var(--text-secondary);
+    margin: 0 0 16px;
+}
+.sv-teacher-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.sv-teacher-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #fffdf7;
+    font-size: 13px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+}
+.sv-teacher-name {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.sv-teacher-role {
+    font-size: 12.5px;
+    color: var(--text-tertiary);
+    background: var(--bg-tertiary);
+    padding: 3px 10px;
+    border-radius: 999px;
+}
+
+/* Segmented control */
+.sv-seg {
+    display: inline-flex;
+    gap: 4px;
+    background: var(--bg-tertiary);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 30px;
+}
+.sv-seg-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 18px;
+    border-radius: 9px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.sv-seg-btn.on {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    box-shadow: var(--card-shadow);
+}
+.sv-seg-count {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+}
+.sv-seg-btn.on .sv-seg-count {
+    color: var(--accent);
+}
+
+/* Grouped lists — one rounded container per module, hairline rows */
+.sv-group {
+    margin-bottom: 30px;
+}
+.sv-group-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 10px;
+    padding: 0 4px;
+}
+.sv-group-index {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+}
+.sv-group-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+    margin: 0;
+}
+.sv-group-list {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    overflow: hidden;
+}
+.sv-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 15px 18px;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.sv-row + .sv-row {
+    border-top: 1px solid var(--border-color);
+}
+.sv-row:hover {
+    background: var(--accent-light);
+}
+.sv-row-icon {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+.sv-row-icon.lesson {
+    color: var(--accent);
+}
+.sv-row-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.sv-row-meta {
+    flex: none;
+    font-size: 13px;
+    color: var(--text-tertiary);
+}
+.sv-row-done {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+}
+.sv-row-chevron {
+    flex: none;
+    color: var(--text-tertiary);
+}
+
+/* Progress — inline, unboxed */
+.sv-progress-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding: 0 4px;
+}
+.sv-progress-info {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+.sv-progress-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.sv-progress-caption {
+    font-size: 13.5px;
+    color: var(--text-tertiary);
+}
+.sv-progress-num-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+}
+.sv-progress-num {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--accent);
+}
+.sv-progress-word {
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--text-tertiary);
+}
+.sv-progress-track {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--bg-tertiary);
+    overflow: hidden;
+    margin-bottom: 26px;
+}
+.sv-progress-track > span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--accent);
+}

@@ -32,7 +32,7 @@ import TeacherWhitelist from './pages/admin/TeacherWhitelist';
 
 // Student Pages
 import StudentOverview from './pages/student/StudentOverview';
-import ClassView from './pages/student/Classview';
+import ClassView from './pages/student/ClassView';
 import QuizRoomView from './pages/student/QuizRoomView';
 import CourseViewer from './pages/student/CourseViewer';
 import ActivityViewer from './pages/student/ActivityViewer';
