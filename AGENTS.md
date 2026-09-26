@@ -97,6 +97,19 @@ only for code/filenames/numbers), hairline borders, easy-read font sizes
 legacy pages match. Landing/auth/EUNA keep Paper & Ink; Cognify keeps its
 purple brand. Fonts must stay BIG and readable — don't shrink them back.
 
+**Student retheme (done):** the whole student side runs on "Morning Paper" —
+warm cream `#faf6ef` / ink / sage `#3e8e7e` in light, warm brown "Night Paper"
+`#17130d` / cream / sage `#6cc5ad` in dark. Vars live in `Student.css` scoped
+to `.student-theme` (which also remaps the `db-*` tokens to paper values inside
+the student shell — ClassView's cd-/sv- classes resolve warm there). Focus-mode
+pages (CourseViewer, ActivityViewer, QuizRoomView) carry the `student-theme`
+class on their root div since they render outside StudentLayout. Display font
+in the student shell is Fraunces (greetings, class/lesson titles; loaded
+globally in index.css). Legacy standalone `/class/:classId/course/:id` route
+was deleted — the builder lives embedded in the teacher class page. The
+floating AI-tutor FAB stays glow-free and fails silently when the Python AI
+service is down (no error toasts).
+
 Dashboard-side conventions: styles live in \`styles/dashboard.css\` (\`db-\`
 prefix, Inter display font, Apple-neutral dark/light themes, iOS blue accent).
 Data via \`src/queries/\`
