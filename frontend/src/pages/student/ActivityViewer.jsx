@@ -259,7 +259,7 @@ export default function ActivityViewer() {
 
       {/* RIGHT CONTENT */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }} className="custom-scrollbar">
-        <div style={{ maxWidth: '1400px', margin: '0 auto', width: '100%', padding: '40px 64px 120px' }}>
+        <div style={{ maxWidth: '1160px', margin: '0 auto', width: '100%', padding: '40px 24px 120px' }}>
 
           {/* HEADER */}
           <div style={{ marginBottom: '32px' }}>
@@ -285,7 +285,7 @@ export default function ActivityViewer() {
                     <span style={{ fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b' }}>Late</span>
                   )}
                 </div>
-                <h1 style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 8px 0', letterSpacing: '-0.02em' }}>{activity.title}</h1>
+                <h1 style={{ fontFamily: 'Fraunces, Georgia, serif', fontSize: '30px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 8px 0', letterSpacing: '-0.01em' }}>{activity.title}</h1>
                 {deadlineDate && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: isOverdue ? '#ef4444' : 'var(--text-tertiary)' }}>
                     <Clock size={14} />
