@@ -502,3 +502,8 @@ aside {
         width: 100%;
     }
 }
+
+/* Legacy .main-content carries a 1400px cap — the student shell fills the screen */
+.student-theme .main-content {
+    max-width: none;
+}
