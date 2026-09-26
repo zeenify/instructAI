@@ -153,26 +153,30 @@ function App() {
           </Route>
 
           {/* --- Student Course Viewer (Focus Mode - No Main Sidebar) --- */}
-          <Route 
-              path="/dashboard/student/course/:id" 
+          <Route
+              path="/dashboard/student/course/:id"
               element={
                   <ProtectedRoute allowedRole="student">
-                      <CourseViewer />
+                      <div className="student-theme">
+                          <CourseViewer />
+                      </div>
                   </ProtectedRoute>
-              } 
+              }
           >
             {/* These sub-routes allow the URL to change to /lesson/5 or /quiz/1 */}
             <Route path=":itemType/:itemId" element={<CourseViewer />} />
           </Route>
 
           {/* --- Student Activity Viewer (Focus Mode - No Main Sidebar) --- */}
-          <Route 
-              path="/dashboard/student/class/:classId/activity/:activityId" 
+          <Route
+              path="/dashboard/student/class/:classId/activity/:activityId"
               element={
                   <ProtectedRoute allowedRole="student">
-                      <ActivityViewer />
+                      <div className="student-theme">
+                          <ActivityViewer />
+                      </div>
                   </ProtectedRoute>
-              } 
+              }
           />
 
           {/* --- Student Live Quiz Room (Focus Mode - No Main Sidebar) --- */}
@@ -180,7 +184,9 @@ function App() {
               path="/dashboard/student/class/:classId/quiz/:activityId"
               element={
                   <ProtectedRoute allowedRole="student">
-                      <QuizRoomView />
+                      <div className="student-theme">
+                          <QuizRoomView />
+                      </div>
                   </ProtectedRoute>
               }
           />
