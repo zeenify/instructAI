@@ -19,7 +19,7 @@ const ERROR_STYLES = {
     compile: { color: '#fca5a5', label: 'COMPILATION ERROR' },
     runtime: { color: '#fdba74', label: 'RUNTIME ERROR' },
     timeout: { color: '#f87171', label: 'EXECUTION TIMED OUT' },
-    system: { color: '#d8b4fe', label: 'SYSTEM ERROR' },
+    system: { color: '#7dd3a8', label: 'SYSTEM ERROR' },
 };
 
 export default function InlineCodeAnswer({
@@ -172,7 +172,7 @@ export default function InlineCodeAnswer({
                         display: 'inline-flex', alignItems: 'center', gap: '6px',
                         padding: '4px 10px', borderRadius: '999px',
                         background: `${lang.color}1f`, border: `1px solid ${lang.color}55`,
-                        fontSize: '9px', fontWeight: 900, letterSpacing: '0.1em',
+                        fontSize: '10.5px', fontWeight: 900, letterSpacing: '0.1em',
                         textTransform: 'uppercase', color: lang.color,
                     }}>
                         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: lang.color }} />
@@ -182,7 +182,7 @@ export default function InlineCodeAnswer({
                         {headerLabel}
                     </span>
                     {passed && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '4px 10px', borderRadius: '999px' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10.5px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '4px 10px', borderRadius: '999px' }}>
                             ✓ Output matches
                         </span>
                     )}
@@ -208,7 +208,7 @@ export default function InlineCodeAnswer({
             {/* Sample tests: show the I/O contract for input-dependent problems */}
             {!isHtml && sampleTests.length > 0 && tab === 'code' && (
                 <div style={{ padding: '10px 16px', background: 'rgba(56, 189, 248, 0.05)', borderBottom: '1px solid var(--border-color)' }}>
-                    <p style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#38bdf8', margin: '0 0 6px 0' }}>
+                    <p style={{ fontSize: '10.5px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#7dd3a8', margin: '0 0 6px 0' }}>
                         Sample tests — your program must produce the expected output for the given input
                     </p>
                     {sampleTests.map((t, i) => (
@@ -258,12 +258,12 @@ export default function InlineCodeAnswer({
                     {htmlChecks.length > 0 && (
                         <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(255,255,255,.06)', background: '#0d0d1a' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                                <span style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '.2em', color: '#22d3ee', textTransform: 'uppercase' }}>
+                                <span style={{ fontSize: '10.5px', fontWeight: 900, letterSpacing: '.2em', color: '#7dd3a8', textTransform: 'uppercase' }}>
                                     Page Checks
                                 </span>
                                 {checkResults && (
                                     <span style={{
-                                        fontSize: '9px', fontWeight: 900, padding: '2px 8px', borderRadius: '999px',
+                                        fontSize: '10.5px', fontWeight: 900, padding: '2px 8px', borderRadius: '999px',
                                         color: checkResults.every((r) => r.passed) ? '#34d399' : '#fbbf24',
                                         background: checkResults.every((r) => r.passed) ? 'rgba(16,185,129,.12)' : 'rgba(245,158,11,.12)',
                                     }}>
@@ -314,7 +314,7 @@ export default function InlineCodeAnswer({
                                 {ERROR_STYLES[errorType].label}
                             </span>
                             {errorType === 'system' && (
-                                <button onClick={handleRun} type="button" style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid rgba(216, 180, 254, 0.4)', borderRadius: '6px', color: '#d8b4fe', cursor: 'pointer', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '3px 8px' }}>
+                                <button onClick={handleRun} type="button" style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid rgba(125, 211, 168, 0.4)', borderRadius: '6px', color: '#7dd3a8', cursor: 'pointer', fontSize: '10.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '3px 8px' }}>
                                     Retry
                                 </button>
                             )}
@@ -323,12 +323,12 @@ export default function InlineCodeAnswer({
                     {meta && (
                         <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
                             {meta.duration_ms != null && (
-                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#94a3b8', background: 'rgba(148, 163, 184, 0.12)', padding: '2px 8px', borderRadius: '999px' }}>
+                                <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#94a3b8', background: 'rgba(148, 163, 184, 0.12)', padding: '2px 8px', borderRadius: '999px' }}>
                                     {(meta.duration_ms / 1000).toFixed(2)}s
                                 </span>
                             )}
                             {meta.exit_code != null && meta.exit_code !== 0 && (
-                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#f87171', background: 'rgba(248, 113, 113, 0.12)', padding: '2px 8px', borderRadius: '999px' }}>
+                                <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#f87171', background: 'rgba(248, 113, 113, 0.12)', padding: '2px 8px', borderRadius: '999px' }}>
                                     EXIT {meta.exit_code}
                                 </span>
                             )}
@@ -338,13 +338,13 @@ export default function InlineCodeAnswer({
                     {challengeExpected != null && actualOutput !== null && !errorType && (
                         <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
                             <div style={{ flex: 1, minWidth: '45%' }}>
-                                <p style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', margin: '0 0 4px 0' }}>Expected</p>
+                                <p style={{ fontSize: '10.5px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', margin: '0 0 4px 0' }}>Expected</p>
                                 <div style={{ background: '#111127', border: '1px solid rgba(134, 239, 172, 0.3)', borderRadius: '8px', padding: '8px 10px', color: '#86efac', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
                                     {String(challengeExpected)}
                                 </div>
                             </div>
                             <div style={{ flex: 1, minWidth: '45%' }}>
-                                <p style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', margin: '0 0 4px 0' }}>Your output</p>
+                                <p style={{ fontSize: '10.5px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', margin: '0 0 4px 0' }}>Your output</p>
                                 <div style={{ background: '#111127', border: `1px solid ${passed ? 'rgba(134, 239, 172, 0.3)' : 'rgba(248, 113, 113, 0.3)'}`, borderRadius: '8px', padding: '8px 10px', color: passed ? '#86efac' : '#fca5a5', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
                                     {actualOutput || '(no output)'}
                                 </div>
@@ -361,10 +361,10 @@ export default function InlineCodeAnswer({
             {!isHtml && showStdin && tab === 'code' && (
                 <div style={{ borderTop: '1px solid var(--border-color)', background: '#0d0d1a' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 16px 2px' }}>
-                        <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#94a3b8' }}>
+                        <span style={{ fontSize: '10.5px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#94a3b8' }}>
                             {readsInput ? 'This program reads input — one line per read:' : 'Input (stdin) — one line per read:'}
                         </span>
-                        <button onClick={() => setShowStdin(false)} type="button" style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                        <button onClick={() => setShowStdin(false)} type="button" style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '10.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                             Hide
                         </button>
                     </div>
@@ -389,14 +389,14 @@ export default function InlineCodeAnswer({
                         <button
                             onClick={() => { setShowStdin(true); setTab('code'); }}
                             type="button"
-                            style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: readsInput ? '#38bdf8' : 'var(--text-tertiary)', cursor: 'pointer', fontWeight: 800, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                            style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: readsInput ? '#7dd3a8' : 'var(--text-tertiary)', cursor: 'pointer', fontWeight: 800, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
                             title="Provide standard input"
                         >
                             <ChevronUp size={12} />
                             {readsInput ? 'Input needed' : 'Stdin'}
                         </button>
                     )}
-                    <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
+                    <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.12em', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
                         {isHtml ? 'Renders in a sandboxed preview' : '⌘/Ctrl + Enter to run'}
                     </span>
                 </div>

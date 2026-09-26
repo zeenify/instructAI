@@ -831,7 +831,7 @@ export default function QuizRoomView() {
             <span
               style={{
                 fontSize: "11px",
-                fontWeight: 900,
+                fontWeight: 700,
                 letterSpacing: "0.2em",
                 textTransform: "uppercase",
                 color: "#409cff",
@@ -842,7 +842,7 @@ export default function QuizRoomView() {
             <span
               style={{
                 fontSize: "10px",
-                fontWeight: 900,
+                fontWeight: 700,
                 padding: "4px 10px",
                 borderRadius: "999px",
                 background: "rgba(239, 68, 68, 0.12)",
@@ -857,7 +857,7 @@ export default function QuizRoomView() {
           <h1
             style={{
               fontSize: "32px",
-              fontWeight: 900,
+              fontWeight: 700,
               color: "var(--text-primary)",
               margin: "0 0 8px 0",
               letterSpacing: "-0.02em",
@@ -898,7 +898,7 @@ export default function QuizRoomView() {
               <p
                 style={{
                   fontSize: "10px",
-                  fontWeight: 900,
+                  fontWeight: 700,
                   textTransform: "uppercase",
                   letterSpacing: "0.1em",
                   color: "var(--text-tertiary)",
@@ -910,7 +910,7 @@ export default function QuizRoomView() {
               <p
                 style={{
                   fontSize: "22px",
-                  fontWeight: 900,
+                  fontWeight: 700,
                   color: "var(--text-primary)",
                   margin: 0,
                 }}
@@ -929,7 +929,7 @@ export default function QuizRoomView() {
               <p
                 style={{
                   fontSize: "10px",
-                  fontWeight: 900,
+                  fontWeight: 700,
                   textTransform: "uppercase",
                   letterSpacing: "0.1em",
                   color: "var(--text-tertiary)",
@@ -941,7 +941,7 @@ export default function QuizRoomView() {
               <p
                 style={{
                   fontSize: "22px",
-                  fontWeight: 900,
+                  fontWeight: 700,
                   color: "var(--text-primary)",
                   margin: 0,
                 }}
@@ -960,7 +960,7 @@ export default function QuizRoomView() {
               <p
                 style={{
                   fontSize: "10px",
-                  fontWeight: 900,
+                  fontWeight: 700,
                   textTransform: "uppercase",
                   letterSpacing: "0.1em",
                   color: "var(--text-tertiary)",
@@ -972,7 +972,7 @@ export default function QuizRoomView() {
               <p
                 style={{
                   fontSize: "16px",
-                  fontWeight: 900,
+                  fontWeight: 700,
                   color: "var(--text-primary)",
                   margin: 0,
                   lineHeight: 1.3,
@@ -1005,7 +1005,7 @@ export default function QuizRoomView() {
               border: "none",
               background: "var(--accent)",
               color: "#fff",
-              fontWeight: 900,
+              fontWeight: 700,
               fontSize: "14px",
               letterSpacing: "0.1em",
               textTransform: "uppercase",
@@ -1099,7 +1099,7 @@ export default function QuizRoomView() {
                 <h1
                   style={{
                     fontSize: "26px",
-                    fontWeight: 900,
+                    fontWeight: 700,
                     color: "var(--text-primary)",
                     margin: "0 0 8px 0",
                   }}
@@ -1122,7 +1122,7 @@ export default function QuizRoomView() {
                 <p
                   style={{
                     fontSize: "12px",
-                    fontWeight: 900,
+                    fontWeight: 700,
                     textTransform: "uppercase",
                     letterSpacing: "0.2em",
                     color: "var(--text-tertiary)",
@@ -1134,7 +1134,7 @@ export default function QuizRoomView() {
                 <h1
                   style={{
                     fontSize: "56px",
-                    fontWeight: 900,
+                    fontWeight: 700,
                     color: "var(--text-primary)",
                     margin: "0 0 4px 0",
                     letterSpacing: "-0.03em",
@@ -1174,7 +1174,7 @@ export default function QuizRoomView() {
                 <h1
                   style={{
                     fontSize: "26px",
-                    fontWeight: 900,
+                    fontWeight: 700,
                     color: "var(--text-primary)",
                     margin: "0 0 8px 0",
                   }}
@@ -1350,7 +1350,7 @@ export default function QuizRoomView() {
               border: "none",
               background: "var(--accent)",
               color: "#fff",
-              fontWeight: 900,
+              fontWeight: 700,
               fontSize: "13px",
               letterSpacing: "0.1em",
               textTransform: "uppercase",
@@ -1415,7 +1415,7 @@ export default function QuizRoomView() {
             <p
               style={{
                 fontSize: "11px",
-                fontWeight: 900,
+                fontWeight: 700,
                 textTransform: "uppercase",
                 letterSpacing: "0.12em",
                 color: "var(--text-tertiary)",
@@ -1498,7 +1498,7 @@ export default function QuizRoomView() {
             <span
               style={{
                 fontSize: "16px",
-                fontWeight: 900,
+                fontWeight: 700,
                 color: timerTone(timeLeft),
                 fontVariantNumeric: "tabular-nums",
                 minWidth: "44px",
@@ -1517,7 +1517,7 @@ export default function QuizRoomView() {
           <div
             style={{
               height: "100%",
-              background: "linear-gradient(90deg, var(--accent), #06b6d4)",
+              background: "var(--accent)",
               transition: "width 0.3s ease",
               width: `${questionCount > 0 ? ((currentIdx + 1) / questionCount) * 100 : 0}%`,
             }}
@@ -1682,7 +1682,7 @@ export default function QuizRoomView() {
                     border: "none",
                     background: "var(--accent)",
                     color: "#fff",
-                    fontWeight: 900,
+                    fontWeight: 700,
                     fontSize: "13px",
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
@@ -1709,7 +1709,7 @@ export default function QuizRoomView() {
                     border: "none",
                     background: "var(--accent)",
                     color: "#fff",
-                    fontWeight: 900,
+                    fontWeight: 700,
                     fontSize: "13px",
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
@@ -1776,7 +1776,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
           <span
             style={{
               fontSize: "11px",
-              fontWeight: 900,
+              fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.15em",
               color: "#409cff",
@@ -1872,7 +1872,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
           <span
             style={{
               fontSize: "11px",
-              fontWeight: 900,
+              fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.15em",
               color: "#409cff",
@@ -1943,7 +1943,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
           <span
             style={{
               fontSize: "11px",
-              fontWeight: 900,
+              fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.15em",
               color: "#409cff",
@@ -2006,7 +2006,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
           <span
             style={{
               fontSize: "11px",
-              fontWeight: 900,
+              fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.15em",
               color: "#409cff",
@@ -2126,7 +2126,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
           <span
             style={{
               fontSize: "11px",
-              fontWeight: 900,
+              fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.15em",
               color: "#409cff",
@@ -2165,7 +2165,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
         <span
           style={{
             fontSize: "11px",
-            fontWeight: 900,
+            fontWeight: 700,
             textTransform: "uppercase",
             letterSpacing: "0.15em",
             color: "#409cff",

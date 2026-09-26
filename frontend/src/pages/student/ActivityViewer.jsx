@@ -230,11 +230,11 @@ export default function ActivityViewer() {
       <aside style={{ width: '300px', flexShrink: 0, background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)' }}>
           <Link to={`/dashboard/student/class/${classId}?tab=activities`}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-tertiary)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none', marginBottom: '12px' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-tertiary)', fontSize: '12.5px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, textDecoration: 'none', marginBottom: '12px' }}
             className="hover:text-[var(--text-primary)] transition-all">
             <ChevronLeft size={14} /> Back to Class
           </Link>
-          <h3 style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, textTransform: 'none', letterSpacing: 0 }}>
             Activities
           </h3>
         </div>
@@ -300,7 +300,7 @@ export default function ActivityViewer() {
           {/* INSTRUCTIONS */}
           {activity.description && (
             <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', marginBottom: '24px' }}>
-              <h4 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 10px 0' }}>Instructions</h4>
+              <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'none', letterSpacing: 0, margin: '0 0 10px 0' }}>Instructions</h4>
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>{activity.description}</p>
             </div>
           )}
@@ -308,7 +308,7 @@ export default function ActivityViewer() {
           {/* INSTRUCTION FILES */}
           {activity.instruction_files?.length > 0 && (
             <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', marginBottom: '24px' }}>
-              <h4 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 10px 0' }}>Materials</h4>
+              <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'none', letterSpacing: 0, margin: '0 0 10px 0' }}>Materials</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {activity.instruction_files.map((f, i) => {
                   const isImage = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.name);

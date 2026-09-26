@@ -615,7 +615,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 {isHtml && activeTab === 'preview' && htmlChecks.length > 0 && (
                     <div style={{ padding: '14px 18px', borderTop: '1px solid rgba(255,255,255,.06)', background: '#0d0d1a' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                            <span style={{ fontSize: '10px', fontWeight: 900, letterSpacing: '.2em', color: '#22d3ee', textTransform: 'uppercase' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: 0, color: '#22d3ee', textTransform: 'uppercase' }}>
                                 Page Checks
                             </span>
                             {checkResults && (
@@ -676,7 +676,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 {!isHtml && activeTab === 'shell' && (
                     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: '#050120' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px', flexShrink: 0 }}>
-                            <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#0a84ff' }}>
+                            <span style={{ fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#0a84ff' }}>
                                 Interactive Shell — the program waits for your input, like a real terminal
                             </span>
                             <div style={{ display: 'flex', gap: '8px' }}>
@@ -703,7 +703,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 {!isHtml && activeTab === 'editor' && showStdin && (
                     <div style={{ borderTop: '1px solid var(--border-color)', background: '#0d0d1a' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 20px 4px' }}>
-                            <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: readsInput ? '#38bdf8' : '#94a3b8' }}>
+                            <span style={{ fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: readsInput ? '#38bdf8' : '#94a3b8' }}>
                                 {readsInput ? 'This program reads input — one line per read:' : 'Stdin — text fed to your program'}
                             </span>
                             <button onClick={() => setShowStdin(false)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
