@@ -116,3 +116,45 @@ aside {
 .interactive-terminal .xterm-screen {
     background: #12100c !important;
 }
+
+/* ---------- Morning Paper values for shared dashboard tokens ----------
+   ClassView (cd-/sv-/db- classes) consumes the teacher-side db-* vars;
+   inside the student shell they resolve to the warm paper palette so the
+   content matches the sidebar instead of cool teacher grays. */
+:root[data-theme='light'] .student-theme {
+    --db-canvas: #faf6ef;
+    --db-card: #fffdf7;
+    --db-card-2: #f3ecdd;
+    --db-border: rgba(22, 19, 14, 0.1);
+    --db-border-strong: rgba(22, 19, 14, 0.18);
+    --db-text: #16130e;
+    --db-text-2: #57503f;
+    --db-text-3: #8a8171;
+    --db-shadow: 0 8px 24px rgba(22, 19, 14, 0.06);
+    --db-shadow-soft: 0 2px 10px rgba(22, 19, 14, 0.05);
+    --db-accent: #3e8e7e;
+    --db-accent-bright: #3e8e7e;
+    --db-accent-text: #2e6f62;
+    --db-accent-soft: rgba(62, 142, 126, 0.1);
+    --db-accent-border: rgba(62, 142, 126, 0.28);
+    --db-font-display: 'Fraunces', Georgia, serif;
+}
+
+:root[data-theme='dark'] .student-theme {
+    --db-canvas: #17130d;
+    --db-card: #201b13;
+    --db-card-2: #282217;
+    --db-border: rgba(243, 236, 221, 0.09);
+    --db-border-strong: rgba(243, 236, 221, 0.16);
+    --db-text: #f3ecdd;
+    --db-text-2: #b8ad9a;
+    --db-text-3: #7d7362;
+    --db-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    --db-shadow-soft: 0 2px 10px rgba(0, 0, 0, 0.35);
+    --db-accent: #6cc5ad;
+    --db-accent-bright: #6cc5ad;
+    --db-accent-text: #8fd4bf;
+    --db-accent-soft: rgba(108, 197, 173, 0.12);
+    --db-accent-border: rgba(108, 197, 173, 0.3);
+    --db-font-display: 'Fraunces', Georgia, serif;
+}

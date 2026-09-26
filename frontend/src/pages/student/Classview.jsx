@@ -257,7 +257,7 @@ export default function ClassView() {
                                     <div key={key} style={{ marginBottom: 30 }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                                             {key === 'live' && <span className="sv-live-dot" style={{ width: 9, height: 9 }} />}
-                                            <h3 style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.14em', color: key === 'live' || key === 'missed' ? 'var(--db-danger)' : 'var(--db-text-2)', margin: 0 }}>{sectionMeta[key].title}</h3>
+                                            <h3 style={{ fontSize: 14, fontWeight: 700, letterSpacing: 0, color: key === 'live' || key === 'missed' ? 'var(--db-danger)' : 'var(--db-text-2)', margin: 0 }}>{sectionMeta[key].title}</h3>
                                             <span className="cd-tab-count">{list.length}</span>
                                         </div>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
