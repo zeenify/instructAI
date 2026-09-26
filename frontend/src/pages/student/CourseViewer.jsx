@@ -151,28 +151,28 @@ export default function CourseViewer() {
     if (loading) return <CourseSkeleton />;
 
     return (
-        <div style={{ background: 'var(--bg-primary)' }} className="flex h-screen overflow-hidden">
+        <div className="student-theme flex h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
             {/* LEFT: PERSISTENT TIMELINE */}
             <aside style={{ background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-color)' }} className={`fixed lg:relative z-50 w-80 h-full flex flex-col backdrop-blur-2xl transition-transform duration-300 ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
                 <div style={{ padding: '24px 28px', paddingBottom: '20px', borderBottom: '1px solid var(--border-color)' }}>
                     <Link
                         to={`/dashboard/student/class/${course.class_id}`}
-                        style={{ gap: '8px', marginBottom: '16px', color: 'var(--text-tertiary)', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none', display: 'flex', alignItems: 'center' }}
+                        style={{ gap: '8px', marginBottom: '16px', color: 'var(--text-tertiary)', fontSize: '12.5px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, textDecoration: 'none', display: 'flex', alignItems: 'center' }}
                         className="hover:text-[var(--text-primary)] transition-all"
                     >
-                        <ChevronLeft size={14} /> Exit Course
+                        <ChevronLeft size={14} /> Exit course
                     </Link>
                     <h2 style={{ marginBottom: '16px', color: 'var(--text-primary)' }} className="font-bold text-lg leading-tight line-clamp-2">{course.title}</h2>
 
                     <div style={{ gap: '12px' }} className="flex flex-col">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)' }}>
-                            <span>Your Progress</span>
-                            <span>{stats}%</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, color: 'var(--text-secondary)' }}>
+                            <span>Your progress</span>
+                            <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{stats}%</span>
                         </div>
                         <div style={{ height: '6px', width: '100%', background: 'var(--bg-tertiary)', borderRadius: '999px', overflow: 'hidden' }}>
                             <motion.div
                                 initial={{ width: 0 }} animate={{ width: `${stats}%` }}
-                                style={{ height: '100%', background: 'linear-gradient(90deg, var(--accent), #06b6d4)', boxShadow: '0 0 10px var(--accent-glow)' }}
+                                style={{ height: '100%', background: 'var(--accent)' }}
                             />
                         </div>
                     </div>
@@ -181,7 +181,7 @@ export default function CourseViewer() {
                 <div key={`sidebar-${course?.id}-${progress.lessons.length}-${progress.quizzes.length}`} style={{ gap: '24px', padding: '24px', paddingBottom: '48px' }} className="flex-grow overflow-y-auto flex flex-col custom-scrollbar">
                     {course.modules.map(module => (
                         <div key={module.id} style={{ marginBottom: '16px' }}>
-                            <h3 style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: 'var(--text-tertiary)', marginBottom: '12px', padding: '0' }}>{module.title}</h3>
+                            <h3 style={{ fontSize: '12.5px', fontWeight: 700, textTransform: 'none', letterSpacing: 0, color: 'var(--text-tertiary)', marginBottom: '12px', padding: '0' }}>{module.title}</h3>
                             <div style={{ gap: '8px', display: 'flex', flexDirection: 'column' }}>
                                 {getTimeline(module).map(item => {
                                     const timelineItem = flattenedTimeline.find(t => String(t.id) === String(item.id) && t.itemType === item.itemType);
@@ -273,7 +273,7 @@ export default function CourseViewer() {
                 <footer style={{ padding: '20px 28px', gap: '24px', background: 'var(--bg-secondary)', backdropFilter: 'blur(20px)', borderTop: '1px solid var(--border-color)' }} className="fixed bottom-0 right-0 left-0 lg:left-80 flex justify-between items-center z-40">
                     <button
                         onClick={() => navigate(-1)}
-                        style={{ gap: '8px', display: 'flex', alignItems: 'center', color: 'var(--text-tertiary)', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', background: 'transparent', border: 'none', cursor: 'pointer', transition: 'all 0.3s' }}
+                        style={{ gap: '8px', display: 'flex', alignItems: 'center', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '13px', textTransform: 'none', letterSpacing: 0, background: 'transparent', border: 'none', cursor: 'pointer', transition: 'all 0.3s' }}
                         className="hover:text-[var(--text-primary)]"
                     >
                         <ArrowLeft size={16} /> Back
@@ -282,7 +282,7 @@ export default function CourseViewer() {
                     <button
                         disabled={!canProceed || isNavigating}
                         onClick={handleNext}
-                        style={{ padding: '14px 28px', gap: '12px', display: 'flex', alignItems: 'center', fontWeight: 900, borderRadius: '16px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.2em', border: 'none', transition: 'all 0.3s', boxShadow: canProceed && !isNavigating ? '0 4px 12px var(--accent-glow)' : 'none', background: canProceed && !isNavigating ? 'var(--accent)' : 'var(--bg-tertiary)', color: canProceed && !isNavigating ? '#fff' : 'var(--text-tertiary)', cursor: canProceed && !isNavigating ? 'pointer' : 'not-allowed' }}
+                        style={{ padding: '13px 26px', gap: '12px', display: 'flex', alignItems: 'center', fontWeight: 600, borderRadius: '12px', fontSize: '15px', textTransform: 'none', letterSpacing: 0, border: 'none', transition: 'all 0.3s', background: canProceed && !isNavigating ? 'var(--accent)' : 'var(--bg-tertiary)', color: canProceed && !isNavigating ? '#fffdf7' : 'var(--text-tertiary)', cursor: canProceed && !isNavigating ? 'pointer' : 'not-allowed' }}
                     >
                         {isNavigating ? <Loader2 className="animate-spin" size={16}/> :
                          canProceed ? (

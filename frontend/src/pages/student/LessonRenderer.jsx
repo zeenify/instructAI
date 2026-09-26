@@ -77,18 +77,18 @@ export default function LessonRenderer({ lessonId, onProgressUpdate, isCompleted
     return (
         <div style={{ padding: '40px 20px', display: 'flex', flexDirection: 'column', gap: '48px', animationName: 'fadeIn', animationDuration: '0.8s', maxWidth: '100%' }}>
             {/* HEADER */}
-            <header style={{ paddingBottom: '40px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+            <header style={{ paddingBottom: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
                     <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--accent)' }} />
-                    <span style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: 'var(--accent)' }}>Learning Module</span>
+                    <span style={{ fontSize: '13px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, color: 'var(--text-tertiary)' }}>Lesson</span>
                     {isCompleted && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', marginLeft: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '999px', background: 'var(--accent-light)', color: 'var(--accent)', fontSize: '12.5px', fontWeight: 600, marginLeft: '8px' }}>
                             <CheckCircle2 size={14}/> Completed
                         </div>
                     )}
                 </div>
-                <div style={{ padding: '32px 36px', background: 'linear-gradient(135deg, var(--accent-light) 0%, rgba(6, 182, 212, 0.04) 100%)', border: '1px solid var(--accent-glow)', borderRadius: '20px', backdropFilter: 'blur(10px)' }}>
-                    <h1 style={{ fontSize: '52px', fontWeight: 900, color: 'var(--text-primary)', margin: '0', lineHeight: '1.15', letterSpacing: '-0.03em' }}>{lesson.title}</h1>
+                <div style={{ padding: '30px 34px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '18px' }}>
+                    <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '38px', fontWeight: 600, color: 'var(--text-primary)', margin: '0', lineHeight: '1.2', letterSpacing: '-0.01em' }}>{lesson.title}</h1>
                 </div>
             </header>
 
@@ -133,13 +133,13 @@ function renderStandardBlock(block) {
 
     switch (type) {
         case 'h1':
-            return <h2 style={{ fontSize: '36px', fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 24px 0', letterSpacing: '-0.02em', paddingBottom: '12px', borderBottom: '2px solid var(--accent-glow)' }}>{data.text}</h2>;
+            return <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 22px 0', letterSpacing: '-0.01em', paddingBottom: '10px', borderBottom: '1px solid var(--border-color)' }}>{data.text}</h2>;
 
         case 'text':
             return (
                 <div
-                    style={{ fontSize: '18px', color: 'var(--text-primary)', lineHeight: '1.9', margin: '0' }}
-                    className="prose prose-invert max-w-none"
+                    style={{ fontSize: '17px', color: 'var(--text-primary)', lineHeight: '1.85', margin: '0' }}
+                    className="lesson-prose max-w-none"
                     dangerouslySetInnerHTML={{ __html: data.text }}
                 />
             );
@@ -147,11 +147,11 @@ function renderStandardBlock(block) {
         case 'image':
             return (
                 <figure style={{ margin: '32px 0', textAlign: 'center' }}>
-                    <div style={{ borderRadius: '24px', overflow: 'hidden', border: '1px solid var(--accent-glow)', boxShadow: 'var(--card-shadow)', transition: 'transform 0.3s' }}>
+                    <div style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color)', boxShadow: 'var(--card-shadow)' }}>
                         <img src={data.url} style={{ width: '100%', display: 'block' }} alt={data.caption} />
                     </div>
                     {data.caption && (
-                        <figcaption style={{ marginTop: '16px', fontSize: '13px', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                        <figcaption style={{ marginTop: '14px', fontSize: '13.5px', color: 'var(--text-tertiary)', fontWeight: 500 }}>
                             {data.caption}
                         </figcaption>
                     )}
@@ -164,10 +164,10 @@ function renderStandardBlock(block) {
                 <div style={{ margin: '32px 0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444' }}>
                         <Play size={16} fill="currentColor" />
-                        <span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0' }}>Video Demonstration</span>
+                        <span style={{ fontSize: '13px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, margin: '0' }}>Video demonstration</span>
                     </div>
                     {ytId ? (
-                        <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '24px', border: '1px solid var(--accent-glow)', boxShadow: 'var(--card-shadow)' }}>
+                        <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--card-shadow)' }}>
                             <iframe
                                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
                                 src={`https://www.youtube.com/embed/${ytId}`}
@@ -177,11 +177,11 @@ function renderStandardBlock(block) {
                             />
                         </div>
                     ) : (
-                        <div style={{ padding: '40px', background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(249, 115, 22, 0.05) 100%)', borderRadius: '24px', border: '1px dashed rgba(239, 68, 68, 0.2)', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
-                            <VideoIcon size={40} style={{ color: 'rgba(239, 68, 68, 0.4)' }} />
+                        <div style={{ padding: '40px', background: 'var(--bg-secondary)', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+                            <VideoIcon size={40} style={{ color: 'var(--text-tertiary)' }} />
                             <div>
                                 <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px 0' }}>{data.title || "Video Suggestion"}</p>
-                                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0' }}>{data.description || "Teacher will add video link"}</p>
+                                <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: '0' }}>{data.description || "Teacher will add video link"}</p>
                             </div>
                         </div>
                     )}
@@ -194,22 +194,20 @@ function renderStandardBlock(block) {
                     href={data.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ padding: '24px 28px', display: 'flex', alignItems: 'center', borderRadius: '20px', background: 'rgba(10, 132, 255, 0.05)', border: '1px solid rgba(10, 132, 255, 0.2)', textDecoration: 'none', transition: 'all 0.3s', gap: '20px', cursor: 'pointer' }}
+                    style={{ padding: '22px 26px', display: 'flex', alignItems: 'center', borderRadius: '16px', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', textDecoration: 'none', transition: 'all 0.2s', gap: '20px', cursor: 'pointer' }}
                     onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(10, 132, 255, 0.15)';
-                        e.currentTarget.style.borderColor = 'rgba(10, 132, 255, 0.4)';
+                        e.currentTarget.style.borderColor = 'var(--accent)';
                     }}
                     onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(10, 132, 255, 0.05)';
-                        e.currentTarget.style.borderColor = 'rgba(10, 132, 255, 0.2)';
+                        e.currentTarget.style.borderColor = 'var(--accent-border)';
                     }}
                 >
-                    <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(10, 132, 255, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d8b4fe', flexShrink: 0 }}>
-                        <ExternalLink size={28} />
+                    <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fffdf7', flexShrink: 0 }}>
+                        <ExternalLink size={26} />
                     </div>
-                    <div>
-                        <h4 style={{ fontSize: '18px', fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>{data.title || 'View Resource'}</h4>
-                        <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'Courier New, monospace', letterSpacing: '0.05em', margin: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '400px' }}>{data.url}</p>
+                    <div style={{ minWidth: 0 }}>
+                        <h4 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>{data.title || 'View Resource'}</h4>
+                        <p style={{ fontSize: '12.5px', color: 'var(--text-tertiary)', fontFamily: "'JetBrains Mono', monospace", margin: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '400px' }}>{data.url}</p>
                     </div>
                 </a>
             );
