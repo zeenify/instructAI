@@ -86,8 +86,20 @@ To grade; quiz live rooms auto-close 24h after start via lazy
 `ClassActivity::syncExpiredRoom()`).
 Old file versions were replaced outright (no V2/V3 suffixes) — keep it that way.
 
-Dashboard-side conventions: styles live in \`styles/dashboard.css\` (\`db-\` prefix,
-Sora display font, night navy + morning paper themes). Data via \`src/queries/\`
+**Apple retheme (teacher side, done):** per user direction the dashboard now
+follows "Apple simple & elegant" — no purple anywhere (purple reads as
+AI-generated; iOS blue `#0a84ff` dark / `#0071e3` light is the accent), neutral
+Apple grays replace night-navy/morning-paper, Inter replaces Sora, flat glyph
+icons (no tinted circles, no resting glows), sentence-case labels (mono kept
+only for code/filenames/numbers), hairline borders, easy-read font sizes
+(+1px small text, ~5–8% display). The legacy palette vars in `index.css`
+(`--bg-primary`, `--accent`, …) share the same values so CourseBuilder and
+legacy pages match. Landing/auth/EUNA keep Paper & Ink; Cognify keeps its
+purple brand. Fonts must stay BIG and readable — don't shrink them back.
+
+Dashboard-side conventions: styles live in \`styles/dashboard.css\` (\`db-\`
+prefix, Inter display font, Apple-neutral dark/light themes, iOS blue accent).
+Data via \`src/queries/\`
 TanStack hooks. Loading = skeletons (\`components/ui/skeletons.jsx\`), never
 spinners for page content. Native \`<select>\` is banned in redesigned UIs — use
 the shared \`components/ui/Dropdown.jsx\` (\`dd-\` styles in dashboard.css;
