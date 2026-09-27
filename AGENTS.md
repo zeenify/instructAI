@@ -173,6 +173,35 @@ on student Modules tab already shipped.
 - Landing persona system: choosing teacher/student writes
   `localStorage['instructai-landing-role']` and adapts content; EUNA reads it too.
 
+## AI Tutor (student side, components/student/AITutor.jsx)
+
+- 12 tutors from `instruct-ai-service/config/characters.py`: the barkada
+  (Ate Kai, Migs, Eya, Kuya Raf — no art yet, UI renders serif monograms) +
+  guest anime cast ported from cognify (Gojo, Toji, Makima, Reze, Miku,
+  Marin, Shinobu, Horikita — images in `frontend/public/tutor/`, copied from
+  cognify drawables). `/ai/characters` returns each with its selection `key`.
+- Streaming flow: Laravel `POST /student/ai/chat-prepare` (enrollment +
+  ai_enabled + quiz-question guard, saves student turn, returns payload +
+  single-use turn token cached 10 min) → browser streams Python
+  `/ai/tutor-chat-stream` DIRECTLY (artisan serve's single worker wedged
+  when Laravel proxied chunked streams — don't reintroduce that proxy) →
+  `POST /student/ai/chat-commit` persists the AI turn. Python ends the
+  stream with a `<<<END_OF_TUTOR>>>` marker (HTTP keep-alive makes stream
+  EOF unreliable); frontend strips it. Non-streaming `/student/ai/chat`
+  stays as fallback.
+- Prompt contract (`rag_tutor_service.py`): persona + mode rules (normal =
+  full help; restricted = quiz/challenge guardrails) + topic scope with
+  in-character refusal + language policy (ENGLISH default; Taglish only when
+  the student writes Tagalog — verified both directions) + length by
+  question depth. `TutorChatRequest` carries course_id for course-scoped
+  retrieval.
+- UI: ink-owl SVG FAB (no robot icon), character sheet (barkada/guests grid,
+  monogram placeholders), mode-aware follow-up chips, double-click clear
+  chat (`/student/ai/clear`), per-message + per-code-block copy. History is
+  per student+class+character; a versioned-request guard keeps slow history
+  loads from clobbering the optimistic send (StrictMode double-effects in
+  dev make this load-bearing).
+
 ## EUNA chatbot (components/landing/EunaChatSection.jsx)
 
 - 3D: `public/euna/euna_chibi.glb` + tex_*.jpg — vanilla three.js ported from the
@@ -204,6 +233,10 @@ on student Modules tab already shipped.
 - Frontend dev API URL is pinned in `frontend/.env.local`
   (`VITE_API_URL=http://localhost:8000/api`, gitignored). The committed `.env`
   still points at `instructai.test` (currently not served).
+- **Python service env drift**: `requirements.txt` pins `numpy<2` — a stray
+  `pip install` that pulls numpy 2.x breaks torch 2.2's numpy bridge and the
+  embedding service dies with "Numpy is not available". Fix:
+  `pip install "numpy<2"` and restart `python main.py`.
 - AutoClaw restarts rewrite `~/.openclaw-autoclaw/.gateway-token` and briefly
   remove it — the skill script re-reads it per call; just retry after a restart.
 - Asset matting (white→alpha) tool: `tools/matte/` (`matte.js`, `trim.js`).
