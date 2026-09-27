@@ -59,7 +59,7 @@ class IndexingController extends Controller
 
         try {
             // Call FastAPI to embed and search
-            $response = Http::timeout(30)->post(env('AI_SERVICE_URL') . '/ai/test-search', [
+            $response = Http::timeout(30)->withHeaders(\App\Services\AiService::authHeader())->post(env('AI_SERVICE_URL') . '/ai/test-search', [
                 'course_id' => $course->id,
                 'query' => $request->input('query'),
             ]);
@@ -113,7 +113,7 @@ class IndexingController extends Controller
             }
 
             // Send combined content to FastAPI for unified indexing
-            $response = Http::timeout(60)->post(env('AI_SERVICE_URL') . '/ai/index-course-combined', [
+            $response = Http::timeout(60)->withHeaders(\App\Services\AiService::authHeader())->post(env('AI_SERVICE_URL') . '/ai/index-course-combined', [
                 'class_id' => $course->class_id,
                 'course_id' => $course->id,
                 'combined_content' => $combinedContent,
@@ -150,7 +150,7 @@ class IndexingController extends Controller
         }
 
         try {
-            Http::timeout(30)->post(env('AI_SERVICE_URL') . '/ai/index-lesson', [
+            Http::timeout(30)->withHeaders(\App\Services\AiService::authHeader())->post(env('AI_SERVICE_URL') . '/ai/index-lesson', [
                 'class_id' => $lesson->module->course->class_id,
                 'course_id' => $lesson->module->course->id,
                 'lesson_id' => $lesson->id,

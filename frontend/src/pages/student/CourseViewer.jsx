@@ -225,7 +225,6 @@ export default function CourseViewer() {
                 quizId={itemType === 'quiz' ? itemId : null}
                 aiEnabled={true}
                 contextItem={activeItem}
-                lessonContent={itemType === 'lesson' && activeItem?.content ? JSON.stringify(activeItem.content) : null}
             />
 
             {/* RIGHT: CONTENT AREA */}

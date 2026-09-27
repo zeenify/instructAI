@@ -61,7 +61,7 @@ class LessonIndexer
             return;
         }
 
-        $response = Http::timeout(30)->post(env('AI_SERVICE_URL') . '/ai/index-lesson', [
+        $response = Http::timeout(30)->withHeaders(\App\Services\AiService::authHeader())->post(env('AI_SERVICE_URL') . '/ai/index-lesson', [
             'class_id' => $course->class_id,
             'course_id' => $course->id,
             'lesson_id' => $lesson->id,
@@ -87,7 +87,7 @@ class LessonIndexer
             return;
         }
 
-        $response = Http::timeout(30)->post(env('AI_SERVICE_URL') . '/ai/index-lesson', [
+        $response = Http::timeout(30)->withHeaders(\App\Services\AiService::authHeader())->post(env('AI_SERVICE_URL') . '/ai/index-lesson', [
             'class_id' => $course->class_id,
             'course_id' => $course->id,
             'lesson_id' => $lesson->id,

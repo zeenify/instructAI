@@ -43,7 +43,7 @@ class AIClientPool:
             key = os.getenv(env_var)
             if key and key not in self.keys:
                 self.keys.append(key)
-                client = OpenAI(api_key=key, base_url=GEMINI_BASE_URL)
+                client = OpenAI(api_key=key, base_url=GEMINI_BASE_URL, timeout=120, max_retries=1)
                 self.clients.append(client)
                 self.key_states[len(self.clients)] = {
                     'backoff_until': 0,

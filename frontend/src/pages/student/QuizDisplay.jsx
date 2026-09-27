@@ -857,14 +857,7 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
                     quizId={quizId}
                     aiEnabled={aiEnabled}
                     contextItem={quizData}
-                    quizContent={questions[currentIdx] ? JSON.stringify({
-                        quizTitle: quizData?.title,
-                        questionNumber: currentIdx + 1,
-                        totalQuestions: questions.length,
-                        question: questions[currentIdx].question,
-                        type: questions[currentIdx].type,
-                        options: questions[currentIdx].options,
-                    }) : null}
+                    quizIndex={currentIdx}
                 />
             )}
         </div>

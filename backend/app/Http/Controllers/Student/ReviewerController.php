@@ -193,6 +193,7 @@ NOISE NOTICE: The lesson content may have been extracted from documents, slides,
             $aiServiceUrl = env('AI_SERVICE_URL', 'http://localhost:8001');
 
             $response = Http::timeout(60)
+                ->withHeaders(\App\Services\AiService::authHeader())
                 ->attach('file', file_get_contents($file->getPathname()), $file->getClientOriginalName())
                 ->post($aiServiceUrl.'/ai/extract-text');
 

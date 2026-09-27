@@ -3,6 +3,7 @@ from services.embedding_service import embedding_service
 from services.retrieval_service import retrieval_service
 from utils.ai_client_pool import AIClientPool, is_rate_limit_error
 from config.models import GEN_CONTENT_MODEL
+import json
 
 # Shared prompt blocks. Personality comes from config/characters.py; these
 # blocks carry the behavior contract that must survive regardless of persona.
@@ -69,6 +70,49 @@ FORMATTING = """FORMATTING:
   you refuse, redirect, or keep an answer short.
 """
 
+TOOLS_NOTE = """TOOL — search_course_materials:
+You have a tool that searches the student's class course library (their
+lessons, notes, and examples across the whole course). Call it with a focused
+search query whenever the student's question might relate to their coursework
+beyond the lesson currently on their screen. You may call it up to two times
+with different queries, then answer using what you found. Small-talk and
+questions about the on-screen lesson don't need it.
+"""
+
+# Context budgets (chars). Keep the assembled prompt a small fraction of the
+# model's per-minute budget even with many concurrent students.
+MAX_LESSON_CHARS = 12000
+MAX_QUIZ_CHARS = 4000
+MAX_CHUNK_CHARS = 1200
+HISTORY_TURNS = 8
+
+SEARCH_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "search_course_materials",
+        "description": (
+            "Search the student's class course library — their lessons, notes, "
+            "and examples across the whole course — for passages relevant to a "
+            "search query."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Focused search phrase, e.g. 'while loop exit condition' or 'array sorting example'.",
+                },
+            },
+            "required": ["query"],
+        },
+    },
+}
+
+
+def _clip(text, limit):
+    text = (text or "").strip()
+    return text if len(text) <= limit else text[:limit] + "\n…(truncated)"
+
 
 class RAGTutorService:
     def __init__(self):
@@ -101,12 +145,11 @@ class RAGTutorService:
                           character_name: str,
                           mode: str,
                           question: str,
-                          current_lesson_content: str,
-                          retrieved_context: list,
                           chat_history: list,
                           lesson_content: str = None,
                           quiz_content: str = None) -> list:
-        """Build the full message list: system prompt + history + question"""
+        """System prompt + history + question. Retrieval now happens through
+        the search_course_materials tool instead of pre-stuffed chunks."""
 
         character = get_character(character_name)
         question_depth = self.detect_question_depth(question)
@@ -114,7 +157,7 @@ class RAGTutorService:
         system_content = character['personality'] + "\n\n"
 
         system_content += RESTRICTED_RULES if mode == "restricted" else NORMAL_RULES
-        system_content += "\n" + TOPIC_SCOPE + "\n" + LANGUAGE_POLICY
+        system_content += "\n" + TOPIC_SCOPE + "\n" + LANGUAGE_POLICY + "\n" + TOOLS_NOTE
 
         if question_depth == 'casual':
             system_content += "\nRESPONSE LENGTH: Keep it SHORT and conversational — 1-3 sentences unless code is needed.\n"
@@ -123,42 +166,34 @@ class RAGTutorService:
 
         system_content += "\n" + FORMATTING
 
-        # PRIORITY 1: the exact lesson/quiz the student is viewing right now
+        # The lesson/quiz the student is viewing right now (server-extracted
+        # text from Laravel — the client never supplies this anymore)
         if lesson_content:
             system_content += f"""
 ═══════════════════════════════════════════════════════════════
-THIS IS THE EXACT LESSON THE STUDENT IS CURRENTLY VIEWING:
+THIS IS THE LESSON THE STUDENT IS CURRENTLY VIEWING:
 ═══════════════════════════════════════════════════════════════
-{lesson_content}
+{_clip(lesson_content, MAX_LESSON_CHARS)}
 ═══════════════════════════════════════════════════════════════
 
-When the student refers to "this", "this code", "this exercise", "the challenge", etc.,
-they are referring to something in the lesson above. Use this content to understand their exact context.
+When the student refers to "this", "this code", "the challenge", etc.,
+they mean something in the lesson above.
 """
 
         if quiz_content:
             system_content += f"""
 ═══════════════════════════════════════════════════════════════
-THIS IS THE EXACT QUIZ THE STUDENT IS CURRENTLY TAKING:
+THE QUIZ ITEM THE STUDENT IS CURRENTLY ON (no answers included):
 ═══════════════════════════════════════════════════════════════
-{quiz_content}
+{_clip(quiz_content, MAX_QUIZ_CHARS)}
 ═══════════════════════════════════════════════════════════════
 
-Use this quiz context for hints about the topics. You are in RESTRICTED mode — hints only, never answers.
+You are in RESTRICTED mode — concept hints only, never the answer.
 """
-
-        # PRIORITY 2: the containing lesson's extracted text (if different)
-        if current_lesson_content and current_lesson_content != lesson_content:
-            system_content += f"\nADDITIONAL LESSON CONTEXT:\n{current_lesson_content[:1500]}\n"
-
-        # PRIORITY 3: RAG chunks from elsewhere in the course
-        if retrieved_context:
-            context_text = "\n\n".join([f"[Source {i+1}]: {chunk['text']}" for i, chunk in enumerate(retrieved_context)])
-            system_content += f"\nRELATED COURSE MATERIALS (from other lessons):\n{context_text}\n"
 
         messages = [{"role": "system", "content": system_content}]
 
-        for msg in chat_history[-8:]:
+        for msg in chat_history[-HISTORY_TURNS:]:
             messages.append({
                 "role": "assistant" if msg['sender'] == 'ai' else "user",
                 "content": msg['message']
@@ -167,11 +202,20 @@ Use this quiz context for hints about the topics. You are in RESTRICTED mode —
         messages.append({"role": "user", "content": question})
         return messages
 
-    def _retrieve(self, class_id: int, course_id: int, question: str, lesson_id: int):
-        """Embed the question and pull course-scoped chunks"""
-        query_embedding = embedding_service.embed_text(question)
-        # Chunks are stored under course_id; class_id is a legacy fallback
-        return retrieval_service.search(course_id or class_id, query_embedding, top_k=2, lesson_id=lesson_id)
+    def _search(self, course_key: int, query: str, lesson_id: int = None) -> str:
+        """Embed a search query and format the top course-scoped chunks"""
+        try:
+            query_embedding = embedding_service.embed_text(query)
+            chunks = retrieval_service.search(course_key, query_embedding, top_k=2, lesson_id=lesson_id)
+        except Exception as e:
+            print(f"[TOOL SEARCH ERROR] {type(e).__name__}: {e}")
+            return json.dumps({"error": "search temporarily unavailable — answer from your own knowledge"})
+
+        if not chunks:
+            return json.dumps({"results": [], "note": "No matching course material found — answer from your own knowledge."})
+
+        results = [{"source": i + 1, "text": _clip(c['text'], MAX_CHUNK_CHARS)} for i, c in enumerate(chunks)]
+        return json.dumps({"results": results})
 
     def chat(self,
              class_id: int,
@@ -184,25 +228,19 @@ Use this quiz context for hints about the topics. You are in RESTRICTED mode —
              lesson_content: str = None,
              quiz_content: str = None,
              course_id: int = None) -> str:
-        """RAG-powered chat with current lesson/quiz context (non-streaming)"""
-
-        print(f"\n[RAG CHAT] class_id={class_id} course_id={course_id} character={character_name} mode={mode} depth={self.detect_question_depth(question)}")
-
-        retrieved_context = self._retrieve(class_id, course_id, question, lesson_id)
-        print(f"[RAG CHAT] Retrieved {len(retrieved_context)} chunks")
-
-        messages = self._prepare_messages(
+        """Non-streaming variant (legacy fallback) — same pipeline, joined"""
+        return "".join(self.chat_stream(
+            class_id=class_id,
+            question=question,
             character_name=character_name,
             mode=mode,
-            question=question,
             current_lesson_content=current_lesson_content,
-            retrieved_context=retrieved_context,
             chat_history=chat_history,
+            lesson_id=lesson_id,
             lesson_content=lesson_content,
-            quiz_content=quiz_content
-        )
-
-        return self._complete(messages)
+            quiz_content=quiz_content,
+            course_id=course_id,
+        ))
 
     def chat_stream(self,
                     class_id: int,
@@ -215,47 +253,64 @@ Use this quiz context for hints about the topics. You are in RESTRICTED mode —
                     lesson_content: str = None,
                     quiz_content: str = None,
                     course_id: int = None):
-        """Same as chat() but yields text chunks as they arrive"""
-        print(f"\n[RAG CHAT STREAM] class_id={class_id} course_id={course_id} character={character_name} mode={mode}")
+        """Yield the answer as text deltas.
 
-        retrieved_context = self._retrieve(class_id, course_id, question, lesson_id)
-        print(f"[RAG CHAT STREAM] Retrieved {len(retrieved_context)} chunks")
+        Retrieval is agentic: the planner pass decides whether to call the
+        search_course_materials tool (max 2 calls), then the final pass streams.
+        """
+        course_key = course_id or class_id
+        print(f"\n[RAG CHAT] course_key={course_key} character={character_name} mode={mode} depth={self.detect_question_depth(question)}")
 
         messages = self._prepare_messages(
             character_name=character_name,
             mode=mode,
             question=question,
-            current_lesson_content=current_lesson_content,
-            retrieved_context=retrieved_context,
             chat_history=chat_history,
             lesson_content=lesson_content,
-            quiz_content=quiz_content
+            quiz_content=quiz_content,
         )
 
-        yield from self._complete_stream(messages)
-
-    def _complete(self, messages) -> str:
-        """One-shot completion with key rotation and rate-limit backoff"""
         client, key_num = self.ai_pool.get_available_client()
         try:
-            response = client.chat.completions.create(
-                model=GEN_CONTENT_MODEL,
-                messages=messages,
-                temperature=0.7,
-                max_tokens=1200
-            )
-            self.ai_pool.mark_success(key_num)
-            return response.choices[0].message.content
-        except Exception as e:
-            print(f"[RAG CHAT ERROR] LLM call failed: {str(e)}")
-            if is_rate_limit_error(e):
-                self.ai_pool.mark_rate_limited(key_num, backoff_seconds=60)
-            raise
+            # Planner pass(es): may emit tool calls before the answer
+            for _round in range(2):
+                response = client.chat.completions.create(
+                    model=GEN_CONTENT_MODEL,
+                    messages=messages,
+                    tools=[SEARCH_TOOL],
+                    temperature=0.7,
+                    max_tokens=1200,
+                )
+                self.ai_pool.mark_success(key_num)
+                choice = response.choices[0].message
 
-    def _complete_stream(self, messages):
-        """Streaming completion; yields content deltas"""
-        client, key_num = self.ai_pool.get_available_client()
-        try:
+                if not choice.tool_calls:
+                    # Direct answer without retrieval — emit as-is
+                    if choice.content:
+                        yield choice.content
+                    return
+
+                # Feed tool results back as a plain user message. Echoing the
+                # assistant's tool_calls verbatim trips Gemini 3.5's
+                # thought_signature requirement on the compat endpoint.
+                for tc in choice.tool_calls:
+                    try:
+                        args = json.loads(tc.function.arguments or "{}")
+                    except json.JSONDecodeError:
+                        args = {}
+                    query = (args.get("query") or question).strip()
+                    print(f"[TOOL CALL] search_course_materials: {query!r}")
+                    result = self._search(course_key, query, lesson_id)
+                    messages.append({
+                        "role": "user",
+                        "content": (
+                            f"[Tool result — search_course_materials({query!r})]\n"
+                            f"{result}\n\n"
+                            "Use these findings (if relevant) to keep helping the student."
+                        ),
+                    })
+
+            # Final pass: tools removed so the answer must come now, streamed
             stream = client.chat.completions.create(
                 model=GEN_CONTENT_MODEL,
                 messages=messages,
@@ -278,7 +333,7 @@ Use this quiz context for hints about the topics. You are in RESTRICTED mode —
                 yield "Hmm, I'm drawing a blank on that one — could you rephrase it, or point me at a specific part of your lesson?"
             self.ai_pool.mark_success(key_num)
         except Exception as e:
-            print(f"[RAG CHAT STREAM ERROR] {str(e)}")
+            print(f"[RAG CHAT ERROR] {type(e).__name__}: {str(e)}")
             if is_rate_limit_error(e):
                 self.ai_pool.mark_rate_limited(key_num, backoff_seconds=60)
             raise

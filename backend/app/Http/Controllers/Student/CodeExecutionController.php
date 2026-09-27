@@ -58,7 +58,7 @@ class CodeExecutionController extends Controller
             $aiUrl = env('AI_SERVICE_URL', 'http://localhost:8001');
             \Log::info('CodeExecution: Verifying code challenge', ['url' => $aiUrl]);
 
-            $response = Http::timeout(20)->post("{$aiUrl}/ai/verify-code-challenge", [
+            $response = Http::timeout(20)->withHeaders(\App\Services\AiService::authHeader())->post("{$aiUrl}/ai/verify-code-challenge", [
                 'question_text' => $request->question_text,
                 'code' => $request->code,
                 'expected_output' => $request->expected_output,

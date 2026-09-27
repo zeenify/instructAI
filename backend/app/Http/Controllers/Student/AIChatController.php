@@ -8,8 +8,8 @@ use App\Models\AiChatLog;
 use App\Models\Lesson;
 use App\Models\Quiz;
 use App\Models\Enrollment;
+use App\Services\AiService;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 class AIChatController extends Controller
@@ -22,7 +22,7 @@ class AIChatController extends Controller
         }
 
         try {
-            $response = Http::timeout(60)->post(env('AI_SERVICE_URL') . '/ai/tutor-chat', $ctx['payload']);
+            $response = AiService::http(60)->post(AiService::url('/ai/tutor-chat'), $ctx['payload']);
 
             if (!$response->successful()) {
                 return response()->json(['error' => 'AI service error'], 500);
@@ -72,10 +72,17 @@ class AIChatController extends Controller
         $turnToken = Str::random(40);
         Cache::put("ai_turn_{$turnToken}", $ctx, 600);
 
+        // The browser streams the payload straight to the Python service;
+        // the HMAC signature (over the exact JSON + timestamp) is its ticket.
+        $payloadJson = json_encode($ctx['payload']);
+        $sign = AiService::signPayload($payloadJson);
+
         return response()->json([
             'turn_token' => $turnToken,
             'mode' => $ctx['mode'],
-            'payload' => $ctx['payload'],
+            'payload_json' => $payloadJson,
+            'auth_sig' => $sign['auth_sig'],
+            'auth_ts' => $sign['auth_ts'],
         ]);
     }
 
@@ -155,8 +162,7 @@ class AIChatController extends Controller
             'character_name' => 'required|string',
             'lesson_id' => 'nullable|exists:lessons,id',
             'quiz_id' => 'nullable|exists:quizzes,id',
-            'lesson_content' => 'nullable|string',
-            'quiz_content' => 'nullable|string',
+            'question_index' => 'nullable|integer|min:0',
         ]);
 
         $student = $request->user();
@@ -165,7 +171,6 @@ class AIChatController extends Controller
         $lessonId = $request->lesson_id;
         $quizId = $request->quiz_id;
         $message = $request->message;
-        $lessonContent = $request->input('lesson_content');
 
         $lesson = null;
         $quiz = null;
@@ -181,7 +186,6 @@ class AIChatController extends Controller
 
         // 2. Determine mode and check if AI is enabled
         $mode = 'normal';
-        $currentLessonContent = '';
         $contextMetadata = [];
 
         if ($lessonId) {
@@ -195,8 +199,6 @@ class AIChatController extends Controller
                 return [response()->json(['error' => 'AI assistance not available for this lesson'], 403), null];
             }
 
-            // Extract text content from lesson JSON blocks
-            $currentLessonContent = $this->extractLessonText($lesson->content);
             $contextMetadata = [
                 'lesson_title' => $lesson->title,
                 'module_name' => $lesson->module->title,
@@ -271,6 +273,11 @@ class AIChatController extends Controller
             $courseId = $quiz->module->course_id;
         }
 
+        // Lesson and quiz context is extracted SERVER-SIDE — the client only
+        // names what it's viewing (ids + question index), never supplies text
+        $lessonText = $lesson ? $this->extractLessonText($lesson->content) : '';
+        $quizText = $quiz ? $this->buildQuizItemText($quiz, (int) $request->input('question_index', 0)) : '';
+
         $ctx = [
             'student_id' => $student->id,
             'class_id' => $classId,
@@ -285,9 +292,9 @@ class AIChatController extends Controller
                 'question' => $message,
                 'character_name' => $characterName,
                 'mode' => $mode,
-                'current_lesson_content' => $currentLessonContent,
-                'lesson_content' => $lessonContent,
-                'quiz_content' => $request->quiz_content,
+                'current_lesson_content' => '',
+                'lesson_content' => $lessonText,
+                'quiz_content' => $quizText,
                 'chat_history' => $chatHistory,
                 'lesson_id' => $lessonId,
             ],
@@ -345,13 +352,52 @@ class AIChatController extends Controller
                     $text .= $block['data']['text'] . "\n\n";
                 } elseif (($block['type'] === 'paragraph' || $block['type'] === 'text') && isset($block['data']['text'])) {
                     $text .= $block['data']['text'] . "\n\n";
-                } elseif ($block['type'] === 'code' && isset($block['data']['description'])) {
-                    $text .= "Code example: " . $block['data']['description'] . "\n\n";
+                } elseif ($block['type'] === 'code' && isset($block['data']) && is_array($block['data'])) {
+                    // Include the actual code — descriptions alone lose the
+                    // details the tutor needs for coding lessons
+                    if (!empty($block['data']['description'])) {
+                        $text .= "Code example: " . $block['data']['description'] . "\n";
+                    }
+                    if (!empty($block['data']['code'])) {
+                        $lang = $block['data']['language'] ?? '';
+                        $text .= "```" . $lang . "\n" . $block['data']['code'] . "\n```\n\n";
+                    }
                 }
             }
         }
 
         return trim($text);
+    }
+
+    /**
+     * Server-built description of the quiz item the student is on — question
+     * text and choices only, never the correct answer.
+     */
+    private function buildQuizItemText($quiz, int $index): string
+    {
+        $questions = $quiz->questions->values();
+        $question = $questions->get($index) ?? $questions->first();
+
+        if (!$question) return '';
+
+        $lines = [
+            "Quiz: {$quiz->title}",
+            'Question ' . ($questions->search($question) + 1) . ' of ' . $questions->count(),
+            "Type: {$question->type}",
+            $question->question_text,
+        ];
+
+        $options = is_array($question->options)
+            ? $question->options
+            : (json_decode((string) $question->options, true) ?: []);
+
+        foreach ($options as $i => $option) {
+            $text = is_array($option) ? ($option['text'] ?? json_encode($option)) : (string) $option;
+            $label = is_int($i) ? strtoupper(chr(ord('A') + $i)) . '. ' : '';
+            $lines[] = $label . $text;
+        }
+
+        return implode("\n", $lines);
     }
 
     private function messageMatchesQuizQuestion($message, $questions): bool

@@ -89,10 +89,9 @@ export default function AITutor({
     classId,
     lessonId = null,
     quizId = null,
+    quizIndex = null,
     aiEnabled = true,
-    contextItem,
-    lessonContent = null,
-    quizContent = null
+    contextItem
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const [input, setInput] = useState("");
@@ -181,16 +180,15 @@ export default function AITutor({
     const STREAM_END = '<<<END_OF_TUTOR>>>';
 
     const sendStream = async (userMessage) => {
-        // 1. Laravel runs every check and hands us the payload + turn token.
-        //    The student's turn is already persisted by this call.
+        // 1. Laravel runs every check and hands us the signed payload + turn
+        //    token. The student's turn is already persisted by this call.
         const prep = await api.post('/student/ai/chat-prepare', {
             message: userMessage,
             class_id: classId,
             character_name: selectedCharacter,
             lesson_id: lessonId,
             quiz_id: quizId,
-            lesson_content: lessonContent,
-            quiz_content: quizContent,
+            question_index: quizId ? quizIndex : null,
         });
 
         setMode(prep.data.mode || 'normal');
@@ -201,13 +199,18 @@ export default function AITutor({
             return prep.data.answer;
         }
 
-        // 2. Stream the answer straight from the Python service
+        // 2. Stream the answer straight from the Python service. The payload
+        //    travels as an opaque signed string — its HMAC is the ticket.
         let full = '';
         try {
             const res = await fetch(`${AI_SERVICE_URL}/ai/tutor-chat-stream`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(prep.data.payload),
+                body: JSON.stringify({
+                    payload_json: prep.data.payload_json,
+                    auth_sig: prep.data.auth_sig,
+                    auth_ts: prep.data.auth_ts,
+                }),
             });
             if (!res.ok || !res.body) throw new Error('stream failed');
 
@@ -255,8 +258,7 @@ export default function AITutor({
             character_name: selectedCharacter,
             lesson_id: lessonId,
             quiz_id: quizId,
-            lesson_content: lessonContent,
-            quiz_content: quizContent,
+            question_index: quizId ? quizIndex : null,
         });
         setMode(res.data.mode || 'normal');
         updateLastAi(res.data.answer, true);

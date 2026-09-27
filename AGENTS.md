@@ -181,14 +181,28 @@ on student Modules tab already shipped.
   Marin, Shinobu, Horikita — images in `frontend/public/tutor/`, copied from
   cognify drawables). `/ai/characters` returns each with its selection `key`.
 - Streaming flow: Laravel `POST /student/ai/chat-prepare` (enrollment +
-  ai_enabled + quiz-question guard, saves student turn, returns payload +
-  single-use turn token cached 10 min) → browser streams Python
+  ai_enabled + quiz-question guard, saves student turn, returns a signed
+  payload + single-use turn token cached 10 min) → browser streams Python
   `/ai/tutor-chat-stream` DIRECTLY (artisan serve's single worker wedged
   when Laravel proxied chunked streams — don't reintroduce that proxy) →
   `POST /student/ai/chat-commit` persists the AI turn. Python ends the
   stream with a `<<<END_OF_TUTOR>>>` marker (HTTP keep-alive makes stream
   EOF unreliable); frontend strips it. Non-streaming `/student/ai/chat`
   stays as fallback.
+- Auth: shared `AI_SERVICE_SECRET` (backend/.env + instruct-ai-service/.env).
+  All `/ai/*` routes except `/ai/characters` require the `X-Internal-Auth`
+  header (set by `App\Services\AiService` on every Laravel call); the one
+  browser-facing route (`tutor-chat-stream`) instead verifies an HMAC over
+  the exact payload JSON + timestamp that prepare mints. The stream handler
+  and `tutor-chat` are sync def / sync generators — blocking Gemini calls in
+  async def froze uvicorn's event loop; don't regress that.
+- Retrieval is agentic: the model gets a `search_course_materials(query)`
+  tool (max 2 calls, planner pass non-streamed, final pass streamed) instead
+  of pre-stuffed RAG chunks. Tool results feed back as a plain user message
+  (echoing assistant tool_calls trips Gemini 3.5's thought_signature rule).
+  Lesson/quiz context is extracted SERVER-SIDE (client sends only ids +
+  question_index); quiz text never includes correct answers. Context blocks
+  are char-budgeted (lesson 12k, quiz 4k, chunks 1.2k).
 - Prompt contract (`rag_tutor_service.py`): persona + mode rules (normal =
   full help; restricted = quiz/challenge guardrails) + topic scope with
   in-character refusal + language policy (ENGLISH default; Taglish only when

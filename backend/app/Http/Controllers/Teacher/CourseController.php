@@ -84,7 +84,7 @@ class CourseController extends Controller
             if ($curriculumText) {
                 try {
                     $aiServiceUrl = env('AI_SERVICE_URL', 'http://localhost:8001');
-                    $response = Http::asJson()->post("{$aiServiceUrl}/ai/detect-programming-content", [
+                    $response = Http::asJson()->withHeaders(\App\Services\AiService::authHeader())->post("{$aiServiceUrl}/ai/detect-programming-content", [
                         'curriculum_text' => $curriculumText
                     ]);
 
@@ -310,6 +310,7 @@ class CourseController extends Controller
                 try {
                     $aiServiceUrl = env('AI_SERVICE_URL', 'http://localhost:8001');
                     $fallback = Http::timeout(120)
+                        ->withHeaders(\App\Services\AiService::authHeader())
                         ->attach('file', file_get_contents($file->getRealPath()), $file->getClientOriginalName())
                         ->post("{$aiServiceUrl}/ai/extract-text");
                     if ($fallback->successful()) {
@@ -331,7 +332,7 @@ class CourseController extends Controller
             if ($curriculumText) {
                 try {
                     $aiServiceUrl = env('AI_SERVICE_URL', 'http://localhost:8001');
-                    $response = Http::asJson()->post("{$aiServiceUrl}/ai/detect-programming-content", [
+                    $response = Http::asJson()->withHeaders(\App\Services\AiService::authHeader())->post("{$aiServiceUrl}/ai/detect-programming-content", [
                         'curriculum_text' => $curriculumText
                     ]);
 
@@ -496,6 +497,7 @@ class CourseController extends Controller
             $client = new \GuzzleHttp\Client();
             try {
                 $response = $client->post($aiUrl, [
+                'headers' => \App\Services\AiService::authHeader(),
                     'multipart' => $multipart,
                     'stream' => true,
                     'timeout' => 120,
@@ -707,6 +709,7 @@ class CourseController extends Controller
                 flush();
 
                 $response = $client->post($aiUrl, [
+                'headers' => \App\Services\AiService::authHeader(),
                     'multipart' => $multipart,
                     'stream' => true,
                     'timeout' => 600, // 10 minutes for 3-stage pipeline

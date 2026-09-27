@@ -491,7 +491,7 @@ class QuizController extends Controller
         try {
             $aiUrl = env('AI_SERVICE_URL', 'http://localhost:8001');
             Log::info('QuizController: Sending questions to AI', ['count' => count($questionsForAI)]);
-            $aiResponse = Http::timeout(10)->post("{$aiUrl}/ai/check-answers-batch", [
+            $aiResponse = Http::timeout(10)->withHeaders(\App\Services\AiService::authHeader())->post("{$aiUrl}/ai/check-answers-batch", [
                 'questions' => $questionsForAI,
             ]);
 

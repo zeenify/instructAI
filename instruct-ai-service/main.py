@@ -4,6 +4,9 @@ Refactored modular architecture with debug logging
 """
 import os
 import json
+import hmac
+import hashlib
+import time
 from dotenv import load_dotenv
 
 # Load environment variables FIRST, before any service imports
@@ -11,7 +14,7 @@ load_dotenv()
 
 from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
 
 # Import modular components
@@ -47,6 +50,41 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Internal auth: every /ai/* route (except the public roster) requires the
+# shared secret header on server-to-server calls. The one browser-facing
+# route (/ai/tutor-chat-stream) instead verifies an HMAC signature over the
+# exact payload, minted by Laravel during chat-prepare.
+INTERNAL_SECRET = os.getenv("AI_SERVICE_SECRET", "")
+PUBLIC_AI_ROUTES = {"/ai/characters"}
+
+
+@app.middleware("http")
+async def internal_auth_middleware(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/ai/") and path not in PUBLIC_AI_ROUTES:
+        # CORS preflight must pass through untouched
+        if request.method == "OPTIONS":
+            return await call_next(request)
+        if path == "/ai/tutor-chat-stream":
+            return await call_next(request)  # HMAC verified inside the handler
+        if not INTERNAL_SECRET or request.headers.get("X-Internal-Auth") != INTERNAL_SECRET:
+            return JSONResponse(status_code=401, content={"error": "unauthorized"})
+    return await call_next(request)
+
+
+def verify_stream_signature(payload_json: str, auth_sig: str, auth_ts: int) -> bool:
+    """HMAC over the exact payload string + timestamp, 10-minute window"""
+    if not INTERNAL_SECRET or not payload_json or not auth_sig:
+        return False
+    if abs(time.time() - int(auth_ts)) > 600:
+        return False
+    expected = hmac.new(
+        INTERNAL_SECRET.encode(),
+        f"{payload_json}{auth_ts}".encode(),
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(expected, auth_sig)
 
 # Initialize AI client pool (Gemini via OpenAI-compatible endpoint, round-robin + backoff)
 ai_pool = AIClientPool()
@@ -620,21 +658,11 @@ class TutorChatRequest(BaseModel):
 
 
 @app.post("/ai/tutor-chat")
-async def tutor_chat(request: Request):
-    """RAG-powered AI tutor chat"""
+def tutor_chat(data: TutorChatRequest):
+    """RAG-powered AI tutor chat (sync def — runs in the threadpool because
+    the pipeline blocks on embedding + Gemini)."""
     try:
-        body = await request.json()
-        print(f"[Tutor Chat] Received request body:")
-        print(f"  Keys: {list(body.keys())}")
-        print(f"  class_id: {body.get('class_id')} (type: {type(body.get('class_id'))})")
-        print(f"  question: {body.get('question', '')[:30]}...")
-        print(f"  character_name: {body.get('character_name')}")
-        print(f"  mode: {body.get('mode')}")
-        print(f"  lesson_id: {body.get('lesson_id')}")
-        print(f"  chat_history length: {len(body.get('chat_history', []))}")
-
-        # Manually parse since validation is failing
-        data = TutorChatRequest(**body)
+        print(f"[Tutor Chat] class_id={data.class_id} character={data.character_name} mode={data.mode}")
 
         answer = rag_tutor_service.chat(
             class_id=data.class_id,
@@ -656,23 +684,43 @@ async def tutor_chat(request: Request):
         return {"error": str(e), "answer": "I'm having trouble accessing the tutoring system right now. Please try again."}
 
 
+class TutorChatStreamEnvelope(BaseModel):
+    """The browser-facing stream is authenticated by an HMAC signature over
+    the exact payload JSON, minted by Laravel during chat-prepare."""
+    payload_json: str
+    auth_sig: str
+    auth_ts: int
+
+
 @app.post("/ai/tutor-chat-stream")
 async def tutor_chat_stream(request: Request):
     """RAG-powered AI tutor chat, streamed as plain text chunks.
 
-    The Laravel backend proxies this to the student frontend, so auth and
-    chat-history persistence stay server-side there.
+    Auth: HMAC signature over payload_json + timestamp (10-min window),
+    signed with AI_SERVICE_SECRET by the Laravel prepare endpoint.
     """
     try:
         body = await request.json()
-        data = TutorChatRequest(**body)
+        envelope = TutorChatStreamEnvelope(**body)
     except Exception as e:
         print(f"[Tutor Chat Stream Error] bad request: {str(e)}")
         return {"error": str(e)}
 
-    async def generate():
-        # The Laravel proxy reads until it sees the end marker (HTTP keep-alive
-        # makes stream EOF unreliable), then strips it before relaying.
+    if not verify_stream_signature(envelope.payload_json, envelope.auth_sig, envelope.auth_ts):
+        print("[Tutor Chat Stream Error] invalid or expired stream signature")
+        return JSONResponse(status_code=401, content={"error": "invalid or expired stream signature"})
+
+    try:
+        data = TutorChatRequest(**json.loads(envelope.payload_json))
+    except Exception as e:
+        print(f"[Tutor Chat Stream Error] bad payload: {str(e)}")
+        return {"error": str(e)}
+
+    # Sync generator: Starlette iterates it in a threadpool, so the blocking
+    # Gemini calls never freeze the event loop for every other request
+    def generate():
+        # The frontend reads until it sees the end marker (HTTP keep-alive
+        # makes stream EOF unreliable), then strips it.
         try:
             for chunk in rag_tutor_service.chat_stream(
                 class_id=data.class_id,

@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'ai' => [
+        'url' => env('AI_SERVICE_URL', 'http://127.0.0.1:8001'),
+        'secret' => env('AI_SERVICE_SECRET'),
+    ],
     'groq' => [
         'api_key_chat' => env('GROQ_API_KEY_CHAT'),
     ],

@@ -112,7 +112,6 @@ export default function LessonRenderer({ lessonId, onProgressUpdate, isCompleted
                     lessonId={lessonId}
                     aiEnabled={aiEnabled}
                     contextItem={lesson}
-                    lessonContent={JSON.stringify(lesson.content)}
                 />
             )}
         </div>
