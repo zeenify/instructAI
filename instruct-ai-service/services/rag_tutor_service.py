@@ -7,12 +7,16 @@ from config.models import GEN_CONTENT_MODEL
 # Shared prompt blocks. Personality comes from config/characters.py; these
 # blocks carry the behavior contract that must survive regardless of persona.
 
-LANGUAGE_POLICY = """LANGUAGE:
-- Reply in clear, simple ENGLISH by default.
-- Only when the student writes in Tagalog or heavy Taglish, reply in natural
-  Taglish (the casual Filipino-English mix Filipino students actually use) —
-  never stiff, formal Tagalog.
-- Technical terms, code, and identifiers always stay in English.
+LANGUAGE_POLICY = """LANGUAGE (MUST follow exactly):
+1. Choose the reply language from the STUDENT'S LAST MESSAGE ONLY.
+2. If it contains zero Tagalog/Filipino words, reply in FULL ENGLISH — no
+   Tagalog openers, connectors, or fillers (no "ay", "naman", "parang",
+   "po", "sige", "natin", "gusto mo", etc.), even if earlier chat history
+   or your persona suggests otherwise.
+3. If it uses ANY Tagalog or Taglish, reply in natural Taglish — the casual
+   Filipino-English mix students actually use, where the explanation itself
+   flows in Taglish. Never stiff, formal Tagalog.
+4. Technical terms, code, and identifiers always stay in English.
 """
 
 TOPIC_SCOPE = """TOPIC SCOPE:

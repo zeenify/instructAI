@@ -157,9 +157,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/student/execute', [CodeExecutionController::class, 'execute'])->middleware('throttle:code-execution');
     Route::post('/ai/verify-code-challenge', [CodeExecutionController::class, 'verifyCodeChallenge'])->middleware('throttle:code-execution');
 
-    // AI Chat (Student)
+    // AI Chat (Student) — streaming goes browser → Python directly;
+    // Laravel runs the checks (prepare) and persists the turn (commit)
     Route::post('/student/ai/chat', [AIChatController::class, 'chat']);
-    Route::post('/student/ai/chat-stream', [AIChatController::class, 'chatStream']);
+    Route::post('/student/ai/chat-prepare', [AIChatController::class, 'chatPrepare']);
+    Route::post('/student/ai/chat-commit', [AIChatController::class, 'chatCommit']);
     Route::post('/student/ai/history', [AIChatController::class, 'loadHistory']);
     Route::post('/student/ai/clear', [AIChatController::class, 'clearHistory']);
     Route::post('/student/generate-reviewer', [ReviewerController::class, 'generate']);

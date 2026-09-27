@@ -517,8 +517,8 @@ async def test_search(data: TestSearchRequest):
 # ===== CHARACTERS ENDPOINT =====
 @app.get("/ai/characters")
 def get_characters():
-    """Return available tutor characters"""
-    return {"characters": list(CHARACTERS.values())}
+    """Return available tutor characters (each with its selection key)"""
+    return {"characters": [{"key": key, **char} for key, char in CHARACTERS.items()]}
 
 
 class IndexLessonRequest(BaseModel):
@@ -671,6 +671,8 @@ async def tutor_chat_stream(request: Request):
         return {"error": str(e)}
 
     async def generate():
+        # The Laravel proxy reads until it sees the end marker (HTTP keep-alive
+        # makes stream EOF unreliable), then strips it before relaying.
         try:
             for chunk in rag_tutor_service.chat_stream(
                 class_id=data.class_id,
@@ -690,6 +692,8 @@ async def tutor_chat_stream(request: Request):
             import traceback
             traceback.print_exc()
             yield "\n\n(I lost my train of thought there — send that again?)"
+        finally:
+            yield "\n<<<END_OF_TUTOR>>>"
 
     return StreamingResponse(
         generate(),

@@ -8,7 +8,9 @@ use App\Models\AiChatLog;
 use App\Models\Lesson;
 use App\Models\Quiz;
 use App\Models\Enrollment;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 class AIChatController extends Controller
 {
@@ -41,56 +43,66 @@ class AIChatController extends Controller
     }
 
     /**
-     * Streaming variant: same checks as chat(), then the Python service's
-     * answer is piped through to the browser chunk by chunk. Chat history is
-     * persisted after the stream completes.
+     * Streaming, phase 1 of 2: run every check (enrollment, ai_enabled,
+     * quiz guards), save the student's turn, and hand back the exact payload
+     * the browser will POST straight to the Python service's stream endpoint.
+     * The AI turn is persisted later by chatCommit() using the turn token.
+     *
+     * (The browser streams from Python directly — proxying chunked streams
+     * through artisan serve's single worker wedged the whole dev backend.)
      */
-    public function chatStream(Request $request)
+    public function chatPrepare(Request $request)
     {
         [$error, $ctx] = $this->prepareChat($request);
         if ($error) {
             return $error;
         }
 
+        // Quiz-question guard fires before anything reaches the AI service;
+        // refused turns are not logged to history (matches chat() behavior)
+        if (!empty($ctx['guard_answer'])) {
+            return response()->json([
+                'mode' => $ctx['mode'],
+                'answer' => $ctx['guard_answer'],
+            ]);
+        }
+
         $this->saveStudentTurn($ctx);
 
-        return response()->stream(function () use ($ctx) {
-            try {
-                $response = Http::timeout(120)
-                    ->withOptions(['stream' => true])
-                    ->post(env('AI_SERVICE_URL') . '/ai/tutor-chat-stream', $ctx['payload']);
+        $turnToken = Str::random(40);
+        Cache::put("ai_turn_{$turnToken}", $ctx, 600);
 
-                if (!$response->successful()) {
-                    echo '(The tutoring service is not responding right now — please try again in a moment.)';
-                    return;
-                }
-
-                $body = $response->toPsrResponse()->getBody();
-                $full = '';
-                while (!$body->eof()) {
-                    $chunk = $body->read(1024);
-                    if ($chunk === '') {
-                        break;
-                    }
-                    $full .= $chunk;
-                    echo $chunk;
-                    while (ob_get_level() > 0) {
-                        @ob_flush();
-                    }
-                    flush();
-                }
-
-                $this->saveAiTurn($ctx, $full);
-            } catch (\Exception $e) {
-                \Log::error('AI tutor stream error: ' . $e->getMessage());
-                echo "\n\n(The connection dropped mid-answer — please send that again.)";
-            }
-        }, 200, [
-            'Content-Type' => 'text/plain; charset=utf-8',
-            'Cache-Control' => 'no-cache',
-            'X-Accel-Buffering' => 'no',
-            'X-Tutor-Mode' => $ctx['mode'],
+        return response()->json([
+            'turn_token' => $turnToken,
+            'mode' => $ctx['mode'],
+            'payload' => $ctx['payload'],
         ]);
+    }
+
+    /**
+     * Streaming, phase 2 of 2: after the browser consumed the Python stream,
+     * persist the AI turn. The token is single-use and expires in 10 minutes.
+     */
+    public function chatCommit(Request $request)
+    {
+        $request->validate([
+            'turn_token' => 'required|string|size:40',
+            'answer' => 'nullable|string',
+        ]);
+
+        $key = 'ai_turn_' . $request->turn_token;
+        $ctx = Cache::pull($key);
+
+        if (!$ctx) {
+            return response()->json(['error' => 'Unknown or expired turn token'], 404);
+        }
+
+        $answer = trim((string) $request->answer);
+        if ($answer !== '') {
+            $this->saveAiTurn($ctx, $answer);
+        }
+
+        return response()->json(['saved' => true, 'mode' => $ctx['mode']]);
     }
 
     public function loadHistory(Request $request)
@@ -223,10 +235,17 @@ class AIChatController extends Controller
             // Check if student is asking about a quiz question directly
             $isQuestionMatch = $this->messageMatchesQuizQuestion($message, $quiz->questions);
             if ($isQuestionMatch) {
-                return [response()->json([
-                    'answer' => "I can't answer that directly during a quiz. That's one of the questions you're working on! Try solving it yourself first, and I can help if you get stuck.",
+                return [[
+                    'guard_answer' => "I can't answer that directly during a quiz. That's one of the questions you're working on! Try solving it yourself first, and I can help if you get stuck.",
                     'mode' => 'restricted',
-                ]), null];
+                    'student_id' => $student->id,
+                    'class_id' => $classId,
+                    'character_name' => $characterName,
+                    'lesson_id' => $lessonId,
+                    'quiz_id' => $quizId,
+                    'context_metadata' => $contextMetadata,
+                    'payload' => ['question' => $message],
+                ], null];
             }
         }
 
