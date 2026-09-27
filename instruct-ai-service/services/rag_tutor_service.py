@@ -79,12 +79,15 @@ with different queries, then answer using what you found. Small-talk and
 questions about the on-screen lesson don't need it.
 """
 
-# Context budgets (chars). Keep the assembled prompt a small fraction of the
-# model's per-minute budget even with many concurrent students.
-MAX_LESSON_CHARS = 12000
-MAX_QUIZ_CHARS = 4000
-MAX_CHUNK_CHARS = 1200
-HISTORY_TURNS = 8
+# Context budgets (chars). The model's window is ~1M tokens, so these exist
+# only to keep worst-case prompts a sane share of the API's per-minute token
+# budget — sized so ordinary content NEVER clips (a big lesson extracts to
+# ~15-40k chars; 60k covers all but pathological cases).
+MAX_LESSON_CHARS = 60000
+MAX_QUIZ_CHARS = 12000
+MAX_CHUNK_CHARS = 4000
+HISTORY_TURNS = 12
+HISTORY_MSG_CHARS = 8000  # per-message; AI answers top out ~5-6k, only guards pasted walls of text
 
 SEARCH_TOOL = {
     "type": "function",
@@ -109,9 +112,13 @@ SEARCH_TOOL = {
 }
 
 
-def _clip(text, limit):
+def _clip(text, limit, label=None):
     text = (text or "").strip()
-    return text if len(text) <= limit else text[:limit] + "\n…(truncated)"
+    if len(text) <= limit:
+        return text
+    if label:
+        print(f"[CONTEXT] {label} clipped {len(text)} -> {limit} chars")
+    return text[:limit] + "\n…(truncated)"
 
 
 class RAGTutorService:
@@ -173,7 +180,7 @@ class RAGTutorService:
 ═══════════════════════════════════════════════════════════════
 THIS IS THE LESSON THE STUDENT IS CURRENTLY VIEWING:
 ═══════════════════════════════════════════════════════════════
-{_clip(lesson_content, MAX_LESSON_CHARS)}
+{_clip(lesson_content, MAX_LESSON_CHARS, "lesson")}
 ═══════════════════════════════════════════════════════════════
 
 When the student refers to "this", "this code", "the challenge", etc.,
@@ -185,7 +192,7 @@ they mean something in the lesson above.
 ═══════════════════════════════════════════════════════════════
 THE QUIZ ITEM THE STUDENT IS CURRENTLY ON (no answers included):
 ═══════════════════════════════════════════════════════════════
-{_clip(quiz_content, MAX_QUIZ_CHARS)}
+{_clip(quiz_content, MAX_QUIZ_CHARS, "quiz")}
 ═══════════════════════════════════════════════════════════════
 
 You are in RESTRICTED mode — concept hints only, never the answer.
@@ -196,7 +203,7 @@ You are in RESTRICTED mode — concept hints only, never the answer.
         for msg in chat_history[-HISTORY_TURNS:]:
             messages.append({
                 "role": "assistant" if msg['sender'] == 'ai' else "user",
-                "content": msg['message']
+                "content": _clip(msg['message'], HISTORY_MSG_CHARS, "history message"),
             })
 
         messages.append({"role": "user", "content": question})

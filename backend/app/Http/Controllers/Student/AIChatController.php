@@ -126,7 +126,7 @@ class AIChatController extends Controller
         // Load last 10 messages across all lessons/quizzes with this character
         $messages = AiChatLog::forContext($student->id, $classId, $characterName)
             ->orderBy('created_at', 'desc')
-            ->limit(10)
+            ->limit(16)
             ->get()
             ->reverse()
             ->values();
@@ -254,7 +254,7 @@ class AIChatController extends Controller
         // 3. Load chat history (last 10 messages for this student + class + character)
         $chatHistory = AiChatLog::forContext($student->id, $classId, $characterName)
             ->orderBy('created_at', 'desc')
-            ->limit(10)
+            ->limit(16)
             ->get()
             ->reverse()
             ->values()

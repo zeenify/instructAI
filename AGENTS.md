@@ -202,7 +202,9 @@ on student Modules tab already shipped.
   (echoing assistant tool_calls trips Gemini 3.5's thought_signature rule).
   Lesson/quiz context is extracted SERVER-SIDE (client sends only ids +
   question_index); quiz text never includes correct answers. Context blocks
-  are char-budgeted (lesson 12k, quiz 4k, chunks 1.2k).
+  are char-budgeted with clip logging (lesson 60k, quiz 12k, chunk 4k;
+  history 12 turns × 8k per message — sized so ordinary lessons never clip;
+  Laravel loads 16 rows to feed the 12-turn window).
 - Prompt contract (`rag_tutor_service.py`): persona + mode rules (normal =
   full help; restricted = quiz/challenge guardrails) + topic scope with
   in-character refusal + language policy (ENGLISH default; Taglish only when
