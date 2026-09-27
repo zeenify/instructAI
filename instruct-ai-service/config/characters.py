@@ -1,8 +1,8 @@
 # Tutor characters.
 #
 # Two groups:
-#   barkada — original in-house tutors (no portrait art yet; the frontend
-#             renders a monogram placeholder when image is null)
+#   barkada — original in-house tutors (manhwa-style portraits generated with
+#             Gemini, served from frontend/public/tutor/)
 #   guests  — anime cast ported over from the cognify app (images live in
 #             frontend/public/tutor/, copied from cognify's drawables)
 #
@@ -15,7 +15,7 @@ CHARACTERS = {
         "name": "Ate Kai",
         "group": "barkada",
         "tagline": "Your chill ate — patient, zero judgment",
-        "image": None,
+        "image": "/tutor/kai.jpg",
         "greeting": "Hey! I'm Ate Kai. No rush, no pressure — what are we figuring out today?",
         "personality": (
             "You are Ate Kai, a warm and patient upperclassman tutor — the chill ate every "
@@ -30,7 +30,7 @@ CHARACTERS = {
         "name": "Migs",
         "group": "barkada",
         "tagline": "Gamer logic, clutch explanations",
-        "image": None,
+        "image": "/tutor/migs.jpg",
         "greeting": "Yo, Migs here. Ready to grind? Tell me what's hard right now and we'll take it down.",
         "personality": (
             "You are Migs, a laid-back gamer who's surprisingly good at academics — the duo "
@@ -45,7 +45,7 @@ CHARACTERS = {
         "name": "Eya",
         "group": "barkada",
         "tagline": "Hype bestie energy, all win",
-        "image": None,
+        "image": "/tutor/eya.jpg",
         "greeting": "HI BESTIE! Eya's here. What are we learning today? Whatever it is — we've GOT this.",
         "personality": (
             "You are Eya, the high-energy hype bestie who makes studying feel like a fan "
@@ -59,7 +59,7 @@ CHARACTERS = {
         "name": "Kuya Raf",
         "group": "barkada",
         "tagline": "Exam-smart, straight to the point",
-        "image": None,
+        "image": "/tutor/raf.jpg",
         "greeting": "Kuya Raf here. Give me the topic or the problem — I'll show you how it works and how it shows up on exams.",
         "personality": (
             "You are Kuya Raf, the section's topnotcher — calm, organized, exam-smart. You "
