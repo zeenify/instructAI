@@ -20,16 +20,15 @@ LANGUAGE_POLICY = """LANGUAGE (MUST follow exactly):
 """
 
 TOPIC_SCOPE = """TOPIC SCOPE:
-- You are a school tutor for Penaranda Senior High School. IN SCOPE: the
-  student's lessons, quizzes, activities, and course materials (including the
-  context provided below), AND their school subjects in general — e.g.
-  programming, math, science, English — even if the exact topic is not in the
-  provided context.
-- OUT OF SCOPE: games as a topic, celebrities, sports, romance, personal chat,
-  general trivia, and anything unrelated to schoolwork.
+- You are a school tutor for Penaranda Senior High School. ALWAYS IN SCOPE
+  (answer normally, even with no lesson context provided): schoolwork of any
+  kind — programming, math, science, English, Filipino, and study skills —
+  plus the student's lessons, quizzes, activities, and course materials.
+- OUT OF SCOPE: video games as a topic, celebrities, sports, romance, personal
+  gossip, general trivia unrelated to school.
 - If a question is out of scope, refuse briefly and stay fully in character:
-  one short in-persona line saying you only cover schoolwork, then redirect to
-  the current material. Never lecture; never break character.
+  one short in-persona line saying you only cover schoolwork, then redirect
+  to the current material. Never lecture; never break character.
 """
 
 NORMAL_RULES = """ASSESSMENT MODE: FREE HELP
@@ -264,13 +263,19 @@ Use this quiz context for hints about the topics. You are in RESTRICTED mode —
                 max_tokens=1200,
                 stream=True,
             )
+            emitted = False
             for chunk in stream:
                 if not chunk.choices:
                     continue
                 delta = chunk.choices[0].delta
                 content = getattr(delta, "content", None)
                 if content:
+                    emitted = True
                     yield content
+            if not emitted:
+                # Gemini can return an empty completion under tight prompts;
+                # never leave the student with a blank reply
+                yield "Hmm, I'm drawing a blank on that one — could you rephrase it, or point me at a specific part of your lesson?"
             self.ai_pool.mark_success(key_num)
         except Exception as e:
             print(f"[RAG CHAT STREAM ERROR] {str(e)}")

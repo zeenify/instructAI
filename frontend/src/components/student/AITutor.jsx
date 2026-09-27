@@ -230,7 +230,9 @@ export default function AITutor({
         }
 
         const clean = full.replace(STREAM_END, '').trim();
-        updateLastAi(clean, true);
+        // Gemini occasionally returns zero content (heavily constrained
+        // prompts); never dead-end the conversation on it
+        updateLastAi(clean || '(I drew a blank there — mind rephrasing, or asking about a specific part of your lesson?)', true);
 
         // 3. Persist the AI turn (single-use token; empty answers are skipped
         //    server-side so connection-drop notices never enter history)
@@ -265,8 +267,11 @@ export default function AITutor({
         if (!userMessage || loading || !aiEnabled) return;
 
         // Invalidate any in-flight history load: the student's own message
-        // and the streamed answer now own the thread
+        // and the streamed answer now own the thread. Clear the flag too —
+        // a discarded load's stale-guard skips its own finally, and the
+        // skeleton/chips gate must not stay stuck on it.
         historyReqRef.current++;
+        setLoadingHistory(false);
 
         setInput("");
         setMessages(prev => [...prev, { sender: 'student', message: userMessage }, { sender: 'ai', message: '', streaming: true }]);
