@@ -33,6 +33,7 @@ from services.embedding_service import embedding_service
 from services.indexing_service import indexing_service
 from services.retrieval_service import retrieval_service
 from services.rag_tutor_service import rag_tutor_service
+from services.pilot_service import pilot_service
 
 from config.characters import CHARACTERS
 
@@ -66,7 +67,7 @@ async def internal_auth_middleware(request: Request, call_next):
         # CORS preflight must pass through untouched
         if request.method == "OPTIONS":
             return await call_next(request)
-        if path == "/ai/tutor-chat-stream":
+        if path in ("/ai/tutor-chat-stream", "/ai/pilot-stream"):
             return await call_next(request)  # HMAC verified inside the handler
         if not INTERNAL_SECRET or request.headers.get("X-Internal-Auth") != INTERNAL_SECRET:
             return JSONResponse(status_code=401, content={"error": "unauthorized"})
@@ -746,6 +747,75 @@ async def tutor_chat_stream(request: Request):
     return StreamingResponse(
         generate(),
         media_type="text/plain; charset=utf-8",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# ===== EUNA PILOT — teacher dashboard copilot (browser takeover) =====
+
+class PilotStreamEnvelope(BaseModel):
+    """HMAC-authenticated envelope, minted by Laravel's pilot-prepare."""
+    payload_json: str
+    auth_sig: str
+    auth_ts: int
+
+
+class PilotStreamPayload(BaseModel):
+    run_id: str
+    teacher_id: int
+    teacher_name: str | None = None
+    kind: str = "start"  # start | tool-result | lookup-result
+    route: str | None = None
+    task: str | None = None
+    classes: list = []
+    snapshot: str | None = None
+    history: list = []
+    consent: bool = False
+    data: dict = {}
+
+
+@app.post("/ai/pilot-stream")
+async def pilot_stream(request: Request):
+    """EUNA Pilot agent loop, streamed as SSE events.
+
+    Each call is ONE Gemini turn. Tool calls end the stream; the browser
+    executes them against the real dashboard (consent-gated, destructive
+    confirms refused client-side) and opens the next stream with results.
+    Auth mirrors tutor-chat-stream: HMAC over payload_json + timestamp.
+    """
+    try:
+        body = await request.json()
+        envelope = PilotStreamEnvelope(**body)
+    except Exception as e:
+        print(f"[Pilot Stream Error] bad request: {str(e)}")
+        return {"error": str(e)}
+
+    if not verify_stream_signature(envelope.payload_json, envelope.auth_sig, envelope.auth_ts):
+        print("[Pilot Stream Error] invalid or expired stream signature")
+        return JSONResponse(status_code=401, content={"error": "invalid or expired stream signature"})
+
+    try:
+        payload = PilotStreamPayload(**json.loads(envelope.payload_json))
+    except Exception as e:
+        print(f"[Pilot Stream Error] bad payload: {str(e)}")
+        return {"error": str(e)}
+
+    print(f"[Pilot Stream] run={payload.run_id} kind={payload.kind} route={payload.route} teacher={payload.teacher_id}")
+
+    def generate():
+        try:
+            for event in pilot_service.stream_turn(payload.model_dump()):
+                yield "data: " + json.dumps(event, ensure_ascii=False) + "\n\n"
+        except Exception as e:
+            print(f"[Pilot Stream Error] {type(e).__name__}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            yield "data: " + json.dumps({"type": "error", "message": "Something went wrong on my side."}) + "\n\n"
+            yield "data: " + json.dumps({"type": "finish", "reason": "error"}) + "\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream; charset=utf-8",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
