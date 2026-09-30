@@ -1,0 +1,174 @@
+/* ==========================================================================
+   EUNA Pilot — overlay layer (cursor, highlight, pulse) + panel
+   Scoped to #euna-pilot-overlay-root and .euna-panel; follows the dashboard's
+   db- tokens for light/dark.
+   ========================================================================== */
+
+#euna-pilot-overlay-root {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9998;
+}
+
+/* --- Virtual cursor ------------------------------------------------------ */
+
+.euna-cursor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    color: var(--db-accent, #0a84ff);
+    will-change: transform;
+    opacity: 0;
+}
+
+.euna-cursor--entering {
+    animation: euna-cursor-enter 0.3s ease-out forwards;
+}
+
+.euna-cursor--leaving {
+    animation: euna-cursor-leave 0.3s ease-out forwards;
+}
+
+.euna-cursor.is-shown,
+.euna-cursor--default,
+.euna-cursor--point,
+.euna-cursor--danger,
+.euna-cursor--acting {
+    opacity: 1;
+}
+
+.euna-cursor--point {
+    color: var(--db-accent, #0a84ff);
+}
+
+.euna-cursor--danger {
+    color: var(--db-danger, #ff3b30);
+}
+
+.euna-cursor__arrow {
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    display: block;
+    width: 40px;
+    height: 40px;
+}
+
+.euna-cursor__spark {
+    position: absolute;
+    top: -6px;
+    left: 24px;
+    color: #ffb340;
+    animation: euna-spark-twinkle 1.6s ease-in-out infinite;
+}
+
+.euna-cursor--acting .euna-cursor__arrow {
+    animation: euna-cursor-click 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.euna-cursor__label {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    max-width: 220px;
+    padding: 2px 9px 3px;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    border-radius: 8px;
+    background: linear-gradient(135deg, #3e8e7e, #2f6fed);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+    color: #fff;
+    font-family: var(--db-font-display, 'Inter', sans-serif);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+    opacity: 0;
+    transform: translateY(4px) scale(0.94);
+    transition: opacity 0.22s ease-out, transform 0.22s ease-out;
+}
+
+.euna-cursor--labelled .euna-cursor__label {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.euna-cursor--danger .euna-cursor__label {
+    background: linear-gradient(135deg, #c93030, #ff4b26);
+}
+
+@keyframes euna-cursor-enter {
+    from { opacity: 0; transform: translateY(40px) scale(0.92); }
+    to   { opacity: 1; }
+}
+
+@keyframes euna-cursor-leave {
+    from { opacity: 1; }
+    to   { opacity: 0; transform: translateY(40px) scale(0.92); }
+}
+
+@keyframes euna-cursor-click {
+    0%   { transform: translateZ(0) scale(1); }
+    18%  { transform: translate3d(1.4px, 1.6px, 0) scale(0.74); }
+    28%  { transform: translate3d(1.4px, 1.6px, 0) scale(0.74); }
+    64%  { transform: translate3d(-0.3px, -0.4px, 0) scale(1.05); }
+    100% { transform: translateZ(0) scale(1); }
+}
+
+@keyframes euna-spark-twinkle {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.55; transform: scale(0.8) rotate(18deg); }
+}
+
+/* --- Target highlight ---------------------------------------------------- */
+
+.euna-highlight {
+    position: fixed;
+    display: none;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.euna-highlight.is-visible {
+    display: block;
+    animation: euna-highlight-appear 0.3s ease-out forwards;
+}
+
+.euna-highlight__aura {
+    opacity: 0.35;
+    filter: blur(6px);
+}
+
+.euna-highlight__edge {
+    filter: drop-shadow(0 1px 6px rgba(47, 111, 237, 0.45));
+}
+
+@keyframes euna-highlight-appear {
+    from { opacity: 0; transform: scale(1.12); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+/* --- Click pulse ---------------------------------------------------------- */
+
+.euna-pulse {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 2.5px solid var(--db-accent, #0a84ff);
+    opacity: 0;
+    will-change: transform, opacity;
+}
+
+.euna-pulse.is-firing {
+    animation: euna-pulse-fire 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes euna-pulse-fire {
+    0%   { opacity: 0.9; scale: 0.35; }
+    100% { opacity: 0;   scale: 1; }
+}
