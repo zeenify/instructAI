@@ -26,6 +26,7 @@ use App\Http\Controllers\Teacher\LessonController;
 use App\Http\Controllers\Teacher\ModuleController;
 use App\Http\Controllers\Teacher\QuestionController;
 use App\Http\Controllers\Teacher\QuizController;
+use App\Http\Controllers\Teacher\PilotController;
 use App\Http\Controllers\Teacher\StudentMonitorController;
 use App\Models\Enrollment;
 use Illuminate\Http\Request;
@@ -164,6 +165,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/student/ai/chat-commit', [AIChatController::class, 'chatCommit']);
     Route::post('/student/ai/history', [AIChatController::class, 'loadHistory']);
     Route::post('/student/ai/clear', [AIChatController::class, 'clearHistory']);
+
+    // EUNA Pilot (teacher dashboard copilot) — prepare signs the payload the
+    // browser streams straight to Python; commit persists turn + audit rows;
+    // lookup is the allowlisted teacher-scoped read API
+    Route::post('/teacher/ai/pilot-prepare', [PilotController::class, 'prepare']);
+    Route::post('/teacher/ai/pilot-commit', [PilotController::class, 'commit']);
+    Route::post('/teacher/ai/pilot-lookup', [PilotController::class, 'lookup']);
     Route::post('/student/generate-reviewer', [ReviewerController::class, 'generate']);
     Route::post('/student/reviewer/transform-tts', [ReviewerController::class, 'transformTts']);
     Route::post('/student/extract-text', [ReviewerController::class, 'extractText']);
