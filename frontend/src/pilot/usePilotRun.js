@@ -331,7 +331,7 @@ export function usePilotRun() {
             setStatus('thinking');
             setStrip('Thinking…');
 
-            await runTurn('start', { task });
+            await runTurn('start', { task, data: { snapshot: snapshotRef.current.text } });
         },
         [input, push, runTurn, takeSnapshot, setStrip]
     );
