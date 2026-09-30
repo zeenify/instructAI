@@ -56,7 +56,7 @@ function ToolCard({ msg }) {
 
 export default function EunaPilot() {
     const pilot = usePilotRun();
-    const { open, setOpen, messages, status, statusText, consent, input, setInput, send, approveConsent, declineConsent, abort, clearThread, suggestions, busy } = pilot;
+    const { open, setOpen, messages, statusText, consent, input, setInput, send, approveConsent, declineConsent, abort, clearThread, suggestions, busy } = pilot;
     const scrollRef = useRef(null);
 
     useEffect(() => {

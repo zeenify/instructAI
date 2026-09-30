@@ -127,7 +127,7 @@ export function usePilotRun() {
                 }).catch(() => { /* history persistence is best-effort */ });
             }
         },
-        [currentAnswer, updateMessage]
+        [currentAnswer, updateMessage, setStrip]
     );
 
     /** One stream turn: Laravel signs → Python streams → we act on events. */
@@ -144,7 +144,7 @@ export function usePilotRun() {
                 });
                 envelope = resp.data;
                 turnTokenRef.current = envelope.turn_token;
-            } catch (err) {
+            } catch {
                 push({ kind: 'notice', text: "I couldn't reach my coordinator — is the backend up?" });
                 await finalize();
                 return;
@@ -240,7 +240,7 @@ export function usePilotRun() {
                 batchExplain: event.explain || '',
             };
             const { results } = await executeBatch(commands, ctx);
-            executedRef.current.push(...results);
+            executedRef.current.push(...results.map((r) => ({ ...r, explain: event.explain || '' })));
             updateMessage(toolsMsgId, { results });
 
             if (streamingRef.current) updateMessage(streamingRef.current, { streaming: false });
@@ -253,7 +253,7 @@ export function usePilotRun() {
                     consent: consentRef.current,
                     explain: event.explain,
                     commands,
-                    results: results.map(({ command, ...r }) => ({
+                    results: results.map((r) => ({
                         action: r.action,
                         ref: r.ref,
                         ok: r.ok,
@@ -333,7 +333,7 @@ export function usePilotRun() {
 
             await runTurn('start', { task });
         },
-        [input, push, runTurn, takeSnapshot]
+        [input, push, runTurn, takeSnapshot, setStrip]
     );
 
     const abort = useCallback(() => {
