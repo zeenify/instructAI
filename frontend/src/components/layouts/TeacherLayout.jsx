@@ -6,6 +6,8 @@ import { LayoutDashboard, ClipboardCheck, LogOut, Plus, ChevronRight, PanelLeftC
 import ThemeToggle from '../ui/ThemeToggle';
 import { useGradingQueue } from '../../queries/grading';
 import CreateClassModal, { OPEN_CREATE_CLASS } from '../teacher/CreateClassModal';
+import EunaPilot from '../../pilot/EunaPilot';
+import { setPilotNavigator } from '../../pilot/bridge';
 import '../../styles/dashboard.css';
 
 export default function TeacherLayout() {
@@ -34,6 +36,11 @@ export default function TeacherLayout() {
     useEffect(() => {
         setMobileOpen(false);
     }, [location.pathname]);
+
+    // EUNA Pilot's executor lives outside React; it navigates through here
+    useEffect(() => {
+        setPilotNavigator(navigate);
+    }, [navigate]);
 
     const handleLogout = () => {
         logout();
@@ -172,6 +179,8 @@ export default function TeacherLayout() {
             <main className={`db-main ${collapsed ? 'is-full' : ''}`}>
                 <Outlet />
             </main>
+
+            <EunaPilot />
 
             <CreateClassModal open={createOpen} onClose={() => setCreateOpen(false)} />
         </div>
