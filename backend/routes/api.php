@@ -168,10 +168,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // EUNA Pilot (teacher dashboard copilot) — prepare signs the payload the
     // browser streams straight to Python; commit persists turn + audit rows;
-    // lookup is the allowlisted teacher-scoped read API
-    Route::post('/teacher/ai/pilot-prepare', [PilotController::class, 'prepare']);
-    Route::post('/teacher/ai/pilot-commit', [PilotController::class, 'commit']);
-    Route::post('/teacher/ai/pilot-lookup', [PilotController::class, 'lookup']);
+    // lookup is the allowlisted teacher-scoped read API.
+    // Throttled: prepare mints Gemini-backed streams and message rows, and
+    // none of this had a limiter before.
+    Route::post('/teacher/ai/pilot-prepare', [PilotController::class, 'prepare'])->middleware('throttle:30,1');
+    Route::post('/teacher/ai/pilot-commit', [PilotController::class, 'commit'])->middleware('throttle:60,1');
+    Route::post('/teacher/ai/pilot-lookup', [PilotController::class, 'lookup'])->middleware('throttle:60,1');
     Route::post('/student/generate-reviewer', [ReviewerController::class, 'generate']);
     Route::post('/student/reviewer/transform-tts', [ReviewerController::class, 'transformTts']);
     Route::post('/student/extract-text', [ReviewerController::class, 'extractText']);

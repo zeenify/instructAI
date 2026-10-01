@@ -87,6 +87,22 @@ def verify_stream_signature(payload_json: str, auth_sig: str, auth_ts: int) -> b
     ).hexdigest()
     return hmac.compare_digest(expected, auth_sig)
 
+# HMAC envelopes are replayable for their 10-minute window by design (no
+# nonce); this remembers seen payloads slightly longer than that window so a
+# captured envelope can't be re-streamed for free Gemini calls
+_seen_stream_payloads = {}
+
+
+def payload_is_replay(payload_json: str) -> bool:
+    now = time.time()
+    for key in [k for k, exp in _seen_stream_payloads.items() if exp < now]:
+        _seen_stream_payloads.pop(key, None)
+    key = hashlib.sha256(payload_json.encode()).hexdigest()
+    if key in _seen_stream_payloads:
+        return True
+    _seen_stream_payloads[key] = now + 660
+    return False
+
 # Initialize AI client pool (Gemini via OpenAI-compatible endpoint, round-robin + backoff)
 ai_pool = AIClientPool()
 
@@ -788,17 +804,21 @@ async def pilot_stream(request: Request):
         envelope = PilotStreamEnvelope(**body)
     except Exception as e:
         print(f"[Pilot Stream Error] bad request: {str(e)}")
-        return {"error": str(e)}
+        return JSONResponse(status_code=400, content={"error": "bad request"})
 
     if not verify_stream_signature(envelope.payload_json, envelope.auth_sig, envelope.auth_ts):
         print("[Pilot Stream Error] invalid or expired stream signature")
         return JSONResponse(status_code=401, content={"error": "invalid or expired stream signature"})
 
+    if payload_is_replay(envelope.payload_json):
+        print("[Pilot Stream Error] replayed payload rejected")
+        return JSONResponse(status_code=409, content={"error": "duplicate stream payload"})
+
     try:
         payload = PilotStreamPayload(**json.loads(envelope.payload_json))
     except Exception as e:
         print(f"[Pilot Stream Error] bad payload: {str(e)}")
-        return {"error": str(e)}
+        return JSONResponse(status_code=400, content={"error": "bad payload"})
 
     print(f"[Pilot Stream] run={payload.run_id} kind={payload.kind} route={payload.route} teacher={payload.teacher_id}")
 

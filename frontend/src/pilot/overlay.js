@@ -101,14 +101,16 @@ function animateCursorTo(x, y, durationMs) {
     });
 }
 
-/** Show the cursor (enter animation) at a position. */
-export async function showCursor(x, y, mode = 'default') {
+/** Show the cursor at its current position (first appearance enters with a pop). */
+export function showCursor(mode = 'default') {
     ensureRoot();
-    cursorEl.className = `euna-cursor euna-cursor--${mode} euna-cursor--entering`;
-    cursorPos = { x, y };
-    cursorEl.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-    requestAnimationFrame(() => cursorEl.classList.remove('euna-cursor--entering'));
-    await animateCursorTo(x, y, 1);
+    if (mode) setCursorMode(mode);
+    if (!cursorEl.classList.contains('is-shown')) {
+        cursorEl.classList.add('is-shown');
+        const arrow = cursorEl.querySelector('.euna-cursor__arrow');
+        arrow.classList.add('is-entering');
+        setTimeout(() => arrow.classList.remove('is-entering'), 320);
+    }
 }
 
 export function setCursorMode(mode) {
@@ -119,8 +121,7 @@ export function setCursorMode(mode) {
 
 /** Glide the cursor to a viewport point; optional label rides along. */
 export async function moveCursorTo(x, y, { label, mode, durationMs } = {}) {
-    ensureRoot();
-    if (mode) setCursorMode(mode);
+    showCursor(mode);
     if (label) {
         cursorLabelEl.textContent = label;
         cursorEl.classList.add('euna-cursor--labelled');
@@ -132,10 +133,9 @@ export async function moveCursorTo(x, y, { label, mode, durationMs } = {}) {
 
 export async function hideCursor() {
     if (!cursorEl) return;
-    cursorEl.classList.add('euna-cursor--leaving');
-    await new Promise((r) => setTimeout(r, 300));
-    cursorEl.classList.remove('euna-cursor--leaving', 'euna-cursor--labelled');
+    cursorEl.classList.remove('is-shown', 'euna-cursor--labelled');
     cursorPos = { x: -100, y: -100 };
+    cursorEl.style.transform = 'translate3d(-100px, -100px, 0)';
 }
 
 /** Draw the rotating-gradient highlight around an element (or rect). */

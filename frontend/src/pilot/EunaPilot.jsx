@@ -207,6 +207,13 @@ export default function EunaPilot() {
                 </section>
             )}
 
+            {busy && !open && (
+                <button className="euna-driving-pill" onClick={() => setOpen(true)}>
+                    <span className="euna-strip__dot" />
+                    EUNA is driving — click to supervise
+                </button>
+            )}
+
             <button
                 className={`euna-fab ${open ? 'is-open' : ''}`}
                 title="Ask EUNA"

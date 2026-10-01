@@ -57,12 +57,22 @@ class PilotController extends Controller
             ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name])
             ->all();
 
+        // A dead run leaves its user turn persisted with no AI answer — a
+        // dangling request the model would happily "complete" later out of
+        // thin air. Trim trailing orphans so history always ends on a paired
+        // exchange.
         $history = PilotMessage::where('teacher_id', $teacher->id)
             ->orderByDesc('created_at')
-            ->limit(16)
+            ->limit(20)
             ->get()
             ->reverse()
-            ->values()
+            ->values();
+
+        while ($history->isNotEmpty() && $history->last()->sender === 'teacher') {
+            $history->pop();
+        }
+
+        $history = $history->slice(-16)->values()
             ->map(fn ($m) => ['sender' => $m->sender, 'message' => $m->message])
             ->all();
 
@@ -147,6 +157,12 @@ class PilotController extends Controller
             if (!is_array($cmd) || empty($cmd['action'])) {
                 continue;
             }
+            // Whitelist the stored command — never stash client-supplied
+            // blobs wholesale in the audit JSON column
+            $command = null;
+            if (is_array($cmd['command'] ?? null)) {
+                $command = collect($cmd['command'])->only(['action', 'ref', 'path', 'value', 'direction', 'risk'])->all();
+            }
             PilotAudit::create([
                 'teacher_id' => $teacher->id,
                 'run_id' => $ctx['run_id'],
@@ -157,7 +173,7 @@ class PilotController extends Controller
                 'ok' => array_key_exists('ok', $cmd) ? (bool) $cmd['ok'] : null,
                 'blocked' => array_key_exists('blocked', $cmd) ? (bool) $cmd['blocked'] : null,
                 'message' => isset($cmd['message']) ? mb_substr((string) $cmd['message'], 0, 500) : null,
-                'command' => $cmd['command'] ?? null,
+                'command' => $command,
             ]);
         }
 

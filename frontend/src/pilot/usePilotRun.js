@@ -78,6 +78,19 @@ export function usePilotRun() {
 
     useEffect(() => () => abortRef.current?.abort(), []);
 
+    // Reload mid-run leaves a persisted user message with no answer — say so
+    // instead of leaving a dangling question in the restored thread
+    useEffect(() => {
+        const msgs = messagesRef.current;
+        const last = msgs[msgs.length - 1];
+        if (last && last.kind === 'user') {
+            setMessages((prev) => [
+                ...prev,
+                { id: nextMsgId(), kind: 'notice', text: '(The page was reloaded mid-run, so that last request never finished — ask me again.)' },
+            ]);
+        }
+    }, []);
+
     const push = useCallback((msg) => {
         const withId = { id: nextMsgId(), ...msg };
         setMessages((prev) => [...prev, withId]);
@@ -138,7 +151,10 @@ export function usePilotRun() {
                     turn_token: token,
                     answer,
                     executed_commands: executedRef.current.slice(-50),
-                }).catch(() => { /* history persistence is best-effort */ });
+                }).catch(() => {
+                    // The audit trail is a selling point — never fail silent
+                    push({ kind: 'notice', text: "(Heads up: I couldn't save this run's history — the backend hiccuped.)" });
+                });
             }
         },
         [currentAnswer, updateMessage, setStrip]
@@ -163,7 +179,7 @@ export function usePilotRun() {
                         message: kind === 'start' ? task : undefined,
                         data: data || {},
                     },
-                    { signal: abortRef.current?.signal },
+                    { signal: abortRef.current?.signal, timeout: 20000 },
                 );
                 envelope = resp.data;
                 turnTokenRef.current = envelope.turn_token;
@@ -277,6 +293,7 @@ export function usePilotRun() {
                 snapshot: snapshotRef.current,
                 buildSnapshot: takeSnapshot,
                 batchExplain: event.explain || '',
+                signal: abortRef.current?.signal, // Stop cuts the batch at the next command
             };
             const { results } = await executeBatch(commands, ctx);
             executedRef.current.push(...results.map((r) => ({ ...r, explain: event.explain || '' })));
@@ -317,7 +334,7 @@ export function usePilotRun() {
                 const resp = await api.post(
                     '/teacher/ai/pilot-lookup',
                     { query: event.query, params: event.params || {} },
-                    { signal: abortRef.current?.signal },
+                    { signal: abortRef.current?.signal, timeout: 20000 },
                 );
                 result = resp.data;
             } catch (err) {
@@ -352,11 +369,19 @@ export function usePilotRun() {
     const approveConsent = useCallback(async () => {
         const held = pendingToolRef.current;
         if (!held) return;
+        // Stop wins over a late approve — never execute a batch the teacher
+        // tried to cancel while the card was up
+        if (abortedRef.current) {
+            pendingToolRef.current = null;
+            setConsent(null);
+            await finalize();
+            return;
+        }
         consentRef.current = true;
         setConsent(null);
         pendingToolRef.current = null;
         await handleTool(held);
-    }, [handleTool]);
+    }, [handleTool, finalize]);
 
     const declineConsent = useCallback(async () => {
         pendingToolRef.current = null;
@@ -392,6 +417,10 @@ export function usePilotRun() {
 
     const abort = useCallback(() => {
         abortedRef.current = true;
+        // A stop while the consent card is up means "cancel that" — the held
+        // batch must die with it, not wait for a late approve
+        pendingToolRef.current = null;
+        setConsent(null);
         abortRef.current?.abort();
     }, []);
 

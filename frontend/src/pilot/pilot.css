@@ -24,19 +24,7 @@
     opacity: 0;
 }
 
-.euna-cursor--entering {
-    animation: euna-cursor-enter 0.3s ease-out forwards;
-}
-
-.euna-cursor--leaving {
-    animation: euna-cursor-leave 0.3s ease-out forwards;
-}
-
-.euna-cursor.is-shown,
-.euna-cursor--default,
-.euna-cursor--point,
-.euna-cursor--danger,
-.euna-cursor--acting {
+.euna-cursor.is-shown {
     opacity: 1;
 }
 
@@ -55,6 +43,11 @@
     display: block;
     width: 40px;
     height: 40px;
+}
+
+/* The pop/glide animation rides the ARROW, never the positioning transform */
+.euna-cursor__arrow.is-entering {
+    animation: euna-cursor-enter 0.3s ease-out;
 }
 
 .euna-cursor__spark {
@@ -101,7 +94,7 @@
 
 @keyframes euna-cursor-enter {
     from { opacity: 0; transform: translateY(40px) scale(0.92); }
-    to   { opacity: 1; }
+    to   { opacity: 1; transform: none; }
 }
 
 @keyframes euna-cursor-leave {
@@ -332,7 +325,7 @@
     padding: 8px 12px;
     border-radius: 14px 14px 4px 14px;
     background: var(--db-accent, #0a84ff);
-    color: var(--db-accent-text, #fff);
+    color: #fff;
     white-space: pre-wrap;
 }
 
@@ -588,4 +581,24 @@
     border-radius: 5px;
     background: var(--db-card-2, rgba(0, 0, 0, 0.06));
     border: 1px solid var(--db-border, rgba(0, 0, 0, 0.08));
+}
+
+.euna-driving-pill {
+    position: fixed;
+    right: 20px;
+    bottom: 84px;
+    z-index: 9986;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--db-accent, #0a84ff);
+    border-radius: 999px;
+    background: var(--db-card, #fff);
+    color: var(--db-text, #111);
+    font-family: var(--db-font-display, 'Inter', sans-serif);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 8px 14px;
+    cursor: pointer;
+    box-shadow: var(--db-shadow, 0 8px 24px rgba(0, 0, 0, 0.18));
 }

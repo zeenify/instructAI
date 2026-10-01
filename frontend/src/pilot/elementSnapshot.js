@@ -33,16 +33,6 @@ const DESTRUCTIVE_WORDS = /\b(delete|remove|confirm|unpublish|archive|reset|revo
 
 const isDialogish = (el) => !!el.closest('[role="dialog"], [role="alertdialog"], .modal, [class*="modal"]');
 
-function accessibleName(el) {
-    return (
-        el.getAttribute('aria-label') ||
-        (typeof el.innerText === 'string' ? el.innerText : '') ||
-        el.getAttribute('placeholder') ||
-        el.getAttribute('value') ||
-        ''
-    ).trim().replace(/\s+/g, ' ');
-}
-
 function isVisible(el) {
     const rect = el.getBoundingClientRect();
     if (rect.width < 8 || rect.height < 8) return false;
@@ -58,7 +48,14 @@ function describeElement(el, ref) {
     const role =
         el.getAttribute('role') ||
         (el.tagName === 'A' ? 'link' : el.tagName === 'BUTTON' ? 'button' : el.tagName.toLowerCase());
-    const name = accessibleName(el).slice(0, NAME_LIMIT);
+    const name = (
+        el.getAttribute('aria-label') ||
+        (typeof el.innerText === 'string' ? el.innerText : '') ||
+        el.getAttribute('title') ||
+        el.getAttribute('placeholder') ||
+        el.getAttribute('value') ||
+        ''
+    ).trim().replace(/\s+/g, ' ').slice(0, NAME_LIMIT);
     const rect = el.getBoundingClientRect();
 
     const entry = {
@@ -66,6 +63,10 @@ function describeElement(el, ref) {
         tag: el.tagName.toLowerCase(),
         role,
         name,
+        // The element itself is captured with the entry — refs must NEVER be
+        // re-resolved by re-querying the DOM (attributes go stale the moment
+        // the page re-renders; executor resolves exclusively via this el)
+        el,
         rect: { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) },
     };
 
@@ -126,7 +127,6 @@ export function buildElementSnapshot() {
         }
         const entry = describeElement(el, entries.length + 1);
         if (!entry.name && !entry.input && !entry.href) continue; // unnamed, unactionable
-        el.dataset.eunaRef = String(entry.ref);
         entries.push(entry);
         lines.push(entryLine(entry));
     }

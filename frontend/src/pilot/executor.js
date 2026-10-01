@@ -18,26 +18,77 @@ import { pilotNavigate } from './bridge';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const DASHBOARD_PREFIX = '/dashboard';
-const ACTING_ACTIONS = new Set(['click', 'input', 'select']);
 
+/**
+ * Refs resolve ONLY through the snapshot's captured element — never by
+ * re-querying [data-euna-ref] (DOM re-renders reassign attributes; the QA
+ * repro clicked "Sign Out" when the model said "New Module" that way).
+ * A captured element that has since left the document is treated as stale.
+ */
 function resolveTarget(ref, ctx) {
     if (ref == null) return null;
     const entry = ctx.entries?.get?.(Number(ref));
-    const el = document.querySelector(`[data-euna-ref="${Number(ref)}"]`);
-    if (!entry || !el) return null;
-    return { entry, el };
+    if (!entry) return null;
+    if (!entry.el || !document.contains(entry.el)) return null;
+    return { entry, el: entry.el };
 }
 
 function reSnapshot(ctx) {
     const snap = ctx.buildSnapshot();
     ctx.snapshot = snap;
+    ctx.entries = snap.entries;
     return snap;
+}
+
+/**
+ * Wait for the route change to actually settle — SPA navigation kicks off
+ * data fetches that render for a while; a fixed sleep raced them and sent
+ * the model skeleton snapshots (it re-issued goto until the turn budget
+ * killed the run). Waits until the DOM stops mutating for ~350ms, capped
+ * at 4s, then snapshots whatever is on screen.
+ */
+async function gotoSettle(ctx) {
+    const deadline = Date.now() + 4000;
+    let lastMutation = Date.now();
+    const observer = new MutationObserver(() => {
+        lastMutation = Date.now();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    try {
+        while (Date.now() - lastMutation < 350 && Date.now() < deadline) {
+            await sleep(120);
+        }
+        await sleep(250); // let the final mutation's renders paint
+    } finally {
+        observer.disconnect();
+    }
+    return reSnapshot(ctx);
+}
+
+function throwIfAborted(signal) {
+    if (signal?.aborted) {
+        const err = new Error('aborted');
+        err.name = 'AbortError';
+        throw err;
+    }
+}
+
+function normalizeGotoPath(path) {
+    try {
+        const url = new URL(path, window.location.origin);
+        if (url.origin !== window.location.origin) return null;
+        // '/dashboard/../login' and '/dashboard-evil' must both fail this
+        return url.pathname.startsWith(`${DASHBOARD_PREFIX}/`) || url.pathname === DASHBOARD_PREFIX
+            ? url.pathname
+            : null;
+    } catch {
+        return null;
+    }
 }
 
 async function aimAt(target, { label, danger } = {}) {
     const { x, y } = overlay.centerOf(target.el);
     if (danger) overlay.setCursorMode('danger');
-    await overlay.showCursor(x, y, danger ? 'danger' : 'default');
     await overlay.moveCursorTo(x, y, { label, mode: danger ? 'danger' : 'default' });
     overlay.showHighlight(target.el);
     return { x, y };
@@ -47,16 +98,16 @@ async function runOne(cmd, ctx) {
     const action = String(cmd.action || '').toLowerCase();
     const ref = cmd.ref != null ? Number(cmd.ref) : null;
     const value = cmd.value != null ? String(cmd.value) : '';
+    throwIfAborted(ctx.signal);
 
     if (action === 'goto') {
-        const path = String(cmd.path || value || '').trim();
-        if (!path.startsWith('/') || !path.startsWith(DASHBOARD_PREFIX)) {
-            return { action, ok: false, message: 'goto only accepts paths inside /dashboard' };
+        const path = normalizeGotoPath(String(cmd.path || value || '').trim());
+        if (!path) {
+            return { action, ok: false, message: 'goto only accepts real paths inside /dashboard' };
         }
         overlay.hideHighlight();
         pilotNavigate(path);
-        await sleep(900); // route render + data settle
-        reSnapshot(ctx);
+        await gotoSettle(ctx);
         return { action, ok: true, message: `navigated to ${path}` };
     }
 
@@ -76,12 +127,13 @@ async function runOne(cmd, ctx) {
             window.scrollBy({ top: cmd.direction === 'up' ? -420 : 420, behavior: 'smooth' });
         }
         await sleep(450);
+        throwIfAborted(ctx.signal);
         return { action, ok: true, message: 'scrolled' };
     }
 
     const target = resolveTarget(ref, ctx);
     if (!target) {
-        return { action, ref, ok: false, message: `ref ${ref} not found — take a snapshot first` };
+        return { action, ref, ok: false, message: `ref ${ref} not found or stale — take a snapshot first` };
     }
 
     const danger = !!target.entry.dangerous || cmd.risk === 'dangerous';
@@ -106,8 +158,10 @@ async function runOne(cmd, ctx) {
         }
         target.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         await sleep(250);
+        throwIfAborted(ctx.signal);
         const { x, y } = await aimAt(target, { danger, label: ctx.batchExplain });
         await sleep(180);
+        throwIfAborted(ctx.signal);
         overlay.pulseAt(x, y);
         target.el.click();
         await sleep(650); // modal / route settle
@@ -124,6 +178,7 @@ async function runOne(cmd, ctx) {
         }
         target.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         await sleep(200);
+        throwIfAborted(ctx.signal);
         await aimAt(target, { label: ctx.batchExplain });
         target.el.focus();
 
@@ -159,6 +214,7 @@ async function runOne(cmd, ctx) {
         // model re-snapshots and clicks the option by ref
         target.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         await sleep(200);
+        throwIfAborted(ctx.signal);
         const { x, y } = await aimAt(target, { label: ctx.batchExplain });
         overlay.pulseAt(x, y);
         target.el.click();
@@ -172,32 +228,30 @@ async function runOne(cmd, ctx) {
 
 /**
  * Execute a batch. Mutating batches must be pre-approved by the caller
- * (the consent gate lives in usePilotRun, not here).
+ * (the consent gate lives in usePilotRun, not here). `signal` (optional)
+ * makes Stop cut the batch short at the next command boundary.
  */
 export async function executeBatch(commands, ctx) {
     const results = [];
-    const batchExplain = ctx.batchExplain || '';
-    let needsSnapshot = false;
+    const batchCtx = {
+        ...ctx,
+        entries: ctx.entries || ctx.buildSnapshot().entries,
+        batchExplain: ctx.batchExplain || '',
+    };
 
     for (const cmd of commands) {
-        const isActing = ACTING_ACTIONS.has(String(cmd.action || '').toLowerCase());
-        const result = await runOne(cmd, { ...ctx, batchExplain });
+        if (ctx.signal?.aborted) break;
+        let result;
+        try {
+            result = await runOne(cmd, batchCtx);
+        } catch (err) {
+            if (err?.name === 'AbortError') break;
+            result = { action: String(cmd.action || ''), ref: cmd.ref, ok: false, message: `executor error: ${err?.message || err}` };
+        }
         results.push({ ...result, command: cmd });
-        if (isActing) needsSnapshot = true;
         if (result.blocked) break; // destructive refusal ends the batch
         if (result.ok === false && ['click', 'goto'].includes(String(cmd.action))) break;
     }
 
-    const snap = needsSnapshot ? ctx.snapshot : null;
-    return { results, snapshot: snap };
-}
-
-/** Point the cursor at the first target of a batch (cursor intro). */
-export async function introCursor(commands, ctx) {
-    const first = commands.find((c) => c.ref != null);
-    if (!first) return;
-    const target = resolveTarget(first.ref, ctx);
-    if (!target) return;
-    const { x, y } = overlay.centerOf(target.el);
-    await overlay.showCursor(x, y, 'default');
+    return { results };
 }
