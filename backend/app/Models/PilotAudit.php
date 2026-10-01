@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class PilotAudit extends Model
 {
+    protected $table = 'pilot_audit';
+
     protected $fillable = [
         'teacher_id',
         'run_id',

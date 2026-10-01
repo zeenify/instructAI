@@ -21,6 +21,26 @@ const ACTION_LABEL = {
     input: 'Type in', select: 'Choose in', scroll: 'Scroll', snapshot: 'Read page',
 };
 
+// Tiny rich-text pass for EUNA's narration: **bold** and `inline code`.
+// Answers read as markdown from the model; without this the asterisks
+// leak straight into the teacher's face.
+function renderRich(text) {
+    const parts = [];
+    const re = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+    let last = 0;
+    let key = 0;
+    let m;
+    while ((m = re.exec(text))) {
+        if (m.index > last) parts.push(text.slice(last, m.index));
+        const tok = m[0];
+        if (tok.startsWith('**')) parts.push(<strong key={key++}>{tok.slice(2, -2)}</strong>);
+        else parts.push(<code key={key++} className="euna-inline-code">{tok.slice(1, -1)}</code>);
+        last = m.index + tok.length;
+    }
+    if (last < text.length) parts.push(text.slice(last));
+    return parts;
+}
+
 function describeCommand(c) {
     const label = ACTION_LABEL[c.action] || c.action;
     const target = c.value ? `"${c.value}"` : c.ref ? `element ${c.ref}` : '';
@@ -110,7 +130,7 @@ export default function EunaPilot() {
                                 return (
                                     <div key={m.id} className="euna-msg euna-msg--euna">
                                         <span className="euna-msg__avatar"><OwlMark size={15} /></span>
-                                        <span className={`euna-msg__text ${m.streaming ? 'is-streaming' : ''}`}>{m.text}</span>
+                                        <span className={`euna-msg__text ${m.streaming ? 'is-streaming' : ''}`}>{renderRich(m.text)}</span>
                                     </div>
                                 );
                             }

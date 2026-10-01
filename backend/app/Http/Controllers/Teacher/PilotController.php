@@ -211,10 +211,30 @@ class PilotController extends Controller
 
     private function listClasses(int $teacherId): array
     {
+        // Counts ride along so "summarize my classes" is answerable in ONE
+        // lookup instead of one class_summary round-trip per class
+        $ungradedByClass = ActivitySubmission::query()
+            ->join('class_activities', 'class_activities.id', '=', 'activity_submissions.activity_id')
+            ->where('class_activities.teacher_id', $teacherId)
+            ->where('activity_submissions.status', 'submitted')
+            ->whereNull('class_activities.deleted_at')
+            ->groupBy('class_activities.class_id')
+            ->selectRaw('class_activities.class_id, COUNT(*) as c')
+            ->pluck('c', 'class_activities.class_id');
+
         return Classroom::where('teacher_id', $teacherId)
             ->orderBy('name')
-            ->get(['id', 'name', 'class_code', 'description'])
-            ->map(fn ($c) => $c->only(['id', 'name', 'class_code', 'description']))
+            ->withCount(['students', 'activities'])
+            ->get()
+            ->map(fn ($c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'class_code' => $c->class_code,
+                'description' => $c->description,
+                'students_count' => $c->students_count,
+                'activities_count' => $c->activities_count,
+                'ungraded_submissions' => (int) ($ungradedByClass[$c->id] ?? 0),
+            ])
             ->all();
     }
 

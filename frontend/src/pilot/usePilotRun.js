@@ -25,6 +25,11 @@ const THREAD_LIMIT = 40;
 
 const ACTING_ACTIONS = new Set(['click', 'input', 'select']);
 
+// Hard cap on tool round-trips inside one run — the last line of defense
+// against a model stuck re-requesting data (the stop button remains the
+// teacher's override at any moment)
+const MAX_TOOL_TURNS = 8;
+
 export const PILOT_SUGGESTIONS = [
     'Summarize my classes',
     'How do I remove a student?',
@@ -51,7 +56,10 @@ export function usePilotRun() {
     const [input, setInput] = useState('');
 
     const busyRef = useRef(false);
-    const abortRef = useRef(null);
+    const abortRef = useRef(null); // one controller per RUN — stop must kill lookups too
+    const abortedRef = useRef(false);
+    const toolTurnsRef = useRef(0);
+    const stopNoticeShownRef = useRef(false);
     const runIdRef = useRef(null);
     const turnTokenRef = useRef(null);
     const consentRef = useRef(false);
@@ -106,6 +114,12 @@ export function usePilotRun() {
 
     const finalize = useCallback(
         async ({ answerNote = '' } = {}) => {
+            // The stop notice lives here so EVERY abort path (stream drop,
+            // lookup cancel, between-turns guard) lands in the same state
+            if (abortedRef.current && !stopNoticeShownRef.current) {
+                stopNoticeShownRef.current = true;
+                push({ kind: 'notice', text: 'Stopped — your call. Say the word when you want me again.' });
+            }
             const answer = (currentAnswer() + answerNote).trim();
             if (streamingRef.current) updateMessage(streamingRef.current, { streaming: false });
             streamingRef.current = null;
@@ -133,30 +147,41 @@ export function usePilotRun() {
     /** One stream turn: Laravel signs → Python streams → we act on events. */
     const runTurn = useCallback(
         async (kind, { task, data } = {}) => {
+            if (abortedRef.current) {
+                await finalize();
+                return;
+            }
+
             let envelope;
             try {
-                const resp = await api.post('/teacher/ai/pilot-prepare', {
-                    run_id: runIdRef.current,
-                    kind,
-                    route: window.location.pathname,
-                    message: kind === 'start' ? task : undefined,
-                    data: data || {},
-                });
+                const resp = await api.post(
+                    '/teacher/ai/pilot-prepare',
+                    {
+                        run_id: runIdRef.current,
+                        kind,
+                        route: window.location.pathname,
+                        message: kind === 'start' ? task : undefined,
+                        data: data || {},
+                    },
+                    { signal: abortRef.current?.signal },
+                );
                 envelope = resp.data;
                 turnTokenRef.current = envelope.turn_token;
-            } catch {
+            } catch (err) {
+                if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') {
+                    await finalize();
+                    return;
+                }
                 push({ kind: 'notice', text: "I couldn't reach my coordinator — is the backend up?" });
                 await finalize();
                 return;
             }
 
-            const controller = new AbortController();
-            abortRef.current = controller;
             let pendingTool = null;
             let pendingLookup = null;
 
             try {
-                const events = streamEvents(`${AI_SERVICE_URL}/ai/pilot-stream`, envelope, controller.signal);
+                const events = streamEvents(`${AI_SERVICE_URL}/ai/pilot-stream`, envelope, abortRef.current.signal);
                 for await (const ev of events) {
                     switch (ev.type) {
                         case 'status':
@@ -187,12 +212,25 @@ export function usePilotRun() {
                 }
             } catch (err) {
                 if (err?.name === 'AbortError') {
-                    push({ kind: 'notice', text: 'Stopped — your call. Say the word when you want me again.' });
+                    await finalize();
+                    return;
+                }
+                if (abortedRef.current) {
                     await finalize();
                     return;
                 }
                 push({ kind: 'notice', text: 'The AI service dropped mid-run — try again in a moment.' });
                 await finalize({ answerNote: '\n\n(Connection dropped mid-run.)' });
+                return;
+            }
+
+            if (abortedRef.current) {
+                await finalize();
+                return;
+            }
+            if (toolTurnsRef.current >= MAX_TOOL_TURNS) {
+                push({ kind: 'notice', text: "I've been going back and forth too long on this one — let's break it into smaller asks. What you have so far stands." });
+                await finalize();
                 return;
             }
 
@@ -226,6 +264,7 @@ export function usePilotRun() {
 
             setStatus('acting');
             setStrip('Operating…');
+            toolTurnsRef.current += 1;
             const toolsMsgId = push({
                 kind: 'tools',
                 explain: event.explain || '',
@@ -272,15 +311,26 @@ export function usePilotRun() {
         async (event) => {
             setStatus('acting');
             setStrip('Looking it up…');
+            toolTurnsRef.current += 1;
             let result;
             try {
-                const resp = await api.post('/teacher/ai/pilot-lookup', {
-                    query: event.query,
-                    params: event.params || {},
-                });
+                const resp = await api.post(
+                    '/teacher/ai/pilot-lookup',
+                    { query: event.query, params: event.params || {} },
+                    { signal: abortRef.current?.signal },
+                );
                 result = resp.data;
             } catch (err) {
+                if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || abortedRef.current) {
+                    await finalize();
+                    return;
+                }
                 result = { error: err?.response?.data?.error || 'lookup failed' };
+            }
+
+            if (abortedRef.current) {
+                await finalize();
+                return;
             }
 
             if (streamingRef.current) updateMessage(streamingRef.current, { streaming: false });
@@ -325,6 +375,10 @@ export function usePilotRun() {
             runIdRef.current = crypto.randomUUID();
             consentRef.current = false;
             executedRef.current = [];
+            toolTurnsRef.current = 0;
+            abortedRef.current = false;
+            stopNoticeShownRef.current = false;
+            abortRef.current = new AbortController();
             takeSnapshot();
 
             push({ kind: 'user', text: task });
@@ -337,11 +391,12 @@ export function usePilotRun() {
     );
 
     const abort = useCallback(() => {
+        abortedRef.current = true;
         abortRef.current?.abort();
     }, []);
 
     const clearThread = useCallback(() => {
-        abortRef.current?.abort();
+        abort();
         setMessages([]);
         setStatus('idle');
         setStatusText('');
