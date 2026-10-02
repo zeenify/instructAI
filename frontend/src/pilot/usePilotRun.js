@@ -60,6 +60,7 @@ export function usePilotRun() {
     const abortedRef = useRef(false);
     const toolTurnsRef = useRef(0);
     const stopNoticeShownRef = useRef(false);
+    const lastBatchKeyRef = useRef(null);
     const runIdRef = useRef(null);
     const turnTokenRef = useRef(null);
     const consentRef = useRef(false);
@@ -279,7 +280,7 @@ export function usePilotRun() {
             }
 
             setStatus('acting');
-            setStrip('Operating…');
+            setStrip(event.explain || 'Operating…');
             toolTurnsRef.current += 1;
             const toolsMsgId = push({
                 kind: 'tools',
@@ -298,6 +299,18 @@ export function usePilotRun() {
             const { results } = await executeBatch(commands, ctx);
             executedRef.current.push(...results.map((r) => ({ ...r, explain: event.explain || '' })));
             updateMessage(toolsMsgId, { results });
+
+            // Repeat detection: an identical batch that just failed entirely
+            // means the model is stuck — stop honestly instead of burning
+            // the turn budget on the same mistake
+            const batchKey = JSON.stringify(commands.map((c) => [c.action, c.ref ?? c.path ?? c.value ?? null]));
+            const allFailed = results.length > 0 && results.every((r) => !r.ok);
+            if (allFailed && batchKey === lastBatchKeyRef.current) {
+                push({ kind: 'notice', text: "The same steps keep failing — I'm stopping rather than spinning. Want to rephrase or try a different route?" });
+                await finalize();
+                return;
+            }
+            lastBatchKeyRef.current = batchKey;
 
             if (streamingRef.current) updateMessage(streamingRef.current, { streaming: false });
             streamingRef.current = null;
@@ -327,7 +340,7 @@ export function usePilotRun() {
     const handleLookup = useCallback(
         async (event) => {
             setStatus('acting');
-            setStrip('Looking it up…');
+            setStrip(`Looking up ${event.query}…`);
             toolTurnsRef.current += 1;
             let result;
             try {
@@ -403,6 +416,7 @@ export function usePilotRun() {
             toolTurnsRef.current = 0;
             abortedRef.current = false;
             stopNoticeShownRef.current = false;
+            lastBatchKeyRef.current = null;
             abortRef.current = new AbortController();
             takeSnapshot();
 

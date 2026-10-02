@@ -20,17 +20,53 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const DASHBOARD_PREFIX = '/dashboard';
 
 /**
- * Refs resolve ONLY through the snapshot's captured element — never by
+ * Refs resolve through the snapshot's captured element — never by
  * re-querying [data-euna-ref] (DOM re-renders reassign attributes; the QA
  * repro clicked "Sign Out" when the model said "New Module" that way).
- * A captured element that has since left the document is treated as stale.
+ *
+ * But React re-renders REPLACE nodes (polling refetches are everywhere on
+ * this dashboard), so a captured element can be detached while the SAME
+ * control is still on screen. Before declaring a ref stale, re-anchor by
+ * matching tag + accessible name against live elements. Nameless matches
+ * are never guessed.
  */
+function reAnchorToLive(entry) {
+    if (!entry.name) return null;
+    const selector = [
+        'a[href]', 'button', 'input', 'textarea', 'select',
+        '[role="button"]', '[role="tab"]', '[role="menuitem"]',
+        '[role="combobox"]', '[contenteditable="true"]',
+    ].join(',');
+    const wanted = entry.name.toLowerCase();
+    for (const el of document.querySelectorAll(selector)) {
+        if (el.closest('[data-euna-ignore]') || el.closest('[aria-hidden="true"]')) continue;
+        if (el.tagName.toLowerCase() !== entry.tag) continue;
+        const r = el.getBoundingClientRect();
+        if (r.width < 8 || r.height < 8) continue;
+        const elName = (
+            el.getAttribute('aria-label') ||
+            (typeof el.innerText === 'string' ? el.innerText : '') ||
+            el.getAttribute('title') ||
+            el.getAttribute('placeholder') ||
+            ''
+        ).trim().replace(/\s+/g, ' ').toLowerCase();
+        if (elName && elName === wanted) return el;
+    }
+    return null;
+}
+
 function resolveTarget(ref, ctx) {
     if (ref == null) return null;
     const entry = ctx.entries?.get?.(Number(ref));
     if (!entry) return null;
-    if (!entry.el || !document.contains(entry.el)) return null;
-    return { entry, el: entry.el };
+    if (entry.el && document.contains(entry.el)) return { entry, el: entry.el };
+    // Captured node was replaced by a re-render — re-anchor to the same control
+    const live = reAnchorToLive(entry);
+    if (live) {
+        entry.el = live;
+        return { entry, el: live, reanchored: true };
+    }
+    return null;
 }
 
 function reSnapshot(ctx) {
@@ -113,7 +149,7 @@ async function runOne(cmd, ctx) {
 
     if (action === 'snapshot') {
         const snap = reSnapshot(ctx);
-        return { action, ok: true, message: `snapshot taken — ${snap.entries.length} elements` };
+        return { action, ok: true, message: `snapshot taken — ${snap.entries.size} elements` };
     }
 
     if (action === 'scroll') {
@@ -133,7 +169,11 @@ async function runOne(cmd, ctx) {
 
     const target = resolveTarget(ref, ctx);
     if (!target) {
-        return { action, ref, ok: false, message: `ref ${ref} not found or stale — take a snapshot first` };
+        // Tell the model WHAT it lost — a bare ref number gives it nothing
+        // to recover with
+        const stale = ctx.entries?.get?.(Number(ref));
+        const was = stale?.name ? ` ("${stale.name}")` : '';
+        return { action, ref, ok: false, message: `ref ${ref}${was} no longer exists — take a snapshot and use a fresh ref` };
     }
 
     const danger = !!target.entry.dangerous || cmd.risk === 'dangerous';

@@ -16,14 +16,25 @@ function OwlMark({ size = 20 }) {
     );
 }
 
-const ACTION_LABEL = {
-    goto: 'Go to', click: 'Click', hover: 'Point at', point: 'Point at',
-    input: 'Type in', select: 'Choose in', scroll: 'Scroll', snapshot: 'Read page',
+const STATUS_LINE = {
+    idle: 'Ready',
+    thinking: 'Thinking…',
+    acting: 'Driving…',
+    'awaiting-consent': 'Waiting for your OK',
 };
 
+const ACTION_LABEL = {
+    goto: 'Go to', click: 'Click', hover: 'Point at', point: 'Point at',
+    input: 'Type into', select: 'Choose in', scroll: 'Scroll', snapshot: 'Read page',
+};
+
+function describeCommand(c) {
+    const label = ACTION_LABEL[c.action] || c.action;
+    const target = c.value ? `"${c.value}"` : c.ref != null ? `element ${c.ref}` : '';
+    return `${label} ${target}`.trim();
+}
+
 // Tiny rich-text pass for EUNA's narration: **bold** and `inline code`.
-// Answers read as markdown from the model; without this the asterisks
-// leak straight into the teacher's face.
 function renderRich(text) {
     const parts = [];
     const re = /(\*\*[^*]+\*\*|`[^`]+`)/g;
@@ -41,34 +52,34 @@ function renderRich(text) {
     return parts;
 }
 
-function describeCommand(c) {
-    const label = ACTION_LABEL[c.action] || c.action;
-    const target = c.value ? `"${c.value}"` : c.ref ? `element ${c.ref}` : '';
-    return `${label} ${target}`.trim();
+function StepRow({ c, result }) {
+    // Once executed, the row says what actually happened ("Clicked "Create
+    // Class"") — the raw command shape is only for the pending state.
+    const text = result?.message
+        ? result.message.replace(/^BLOCKED:\s*/, '')
+        : describeCommand(c);
+    return (
+        <li className={`euna-step ${result ? (result.ok ? 'is-ok' : 'is-fail') : 'is-pending'}`}>
+            {!result ? (
+                <Loader2 size={13} className="euna-spin" />
+            ) : result.blocked ? (
+                <Ban size={13} />
+            ) : result.ok ? (
+                <Check size={13} />
+            ) : (
+                <X size={13} />
+            )}
+            <span>{text}</span>
+        </li>
+    );
 }
 
-function ToolCard({ msg }) {
+function StepsCard({ msg }) {
     return (
-        <div className="euna-msg euna-tools">
-            {msg.explain && <p className="euna-tools__explain">{msg.explain}</p>}
-            <ul className="euna-tools__list">
-                {msg.commands.map((c, i) => {
-                    const r = msg.results?.[i];
-                    return (
-                        <li key={i} className={`euna-tools__item ${r ? (r.ok ? 'is-ok' : 'is-fail') : ''}`}>
-                            {!r ? (
-                                <Loader2 size={14} className="euna-spin" />
-                            ) : r.blocked ? (
-                                <Ban size={14} />
-                            ) : r.ok ? (
-                                <Check size={14} />
-                            ) : (
-                                <X size={14} />
-                            )}
-                            <span>{describeCommand(c)}</span>
-                        </li>
-                    );
-                })}
+        <div className="euna-steps">
+            {msg.explain && <p className="euna-steps__lead">{msg.explain}</p>}
+            <ul className="euna-steps__list">
+                {msg.commands.map((c, i) => <StepRow key={i} c={c} result={msg.results?.[i]} />)}
             </ul>
         </div>
     );
@@ -76,7 +87,7 @@ function ToolCard({ msg }) {
 
 export default function EunaPilot() {
     const pilot = usePilotRun();
-    const { open, setOpen, messages, statusText, consent, input, setInput, send, approveConsent, declineConsent, abort, clearThread, suggestions, busy } = pilot;
+    const { open, setOpen, messages, status, statusText, consent, input, setInput, send, approveConsent, declineConsent, abort, clearThread, suggestions, busy } = pilot;
     const scrollRef = useRef(null);
 
     useEffect(() => {
@@ -92,15 +103,43 @@ export default function EunaPilot() {
         }
     };
 
+    const statusLine = status === 'thinking' || status === 'acting'
+        ? (statusText || STATUS_LINE[status])
+        : STATUS_LINE[status] || 'Ready';
+
     return (
         <div className="euna-root" data-euna-ignore>
+            {busy && (
+                <div className="euna-drive-bar" role="status">
+                    <span className="euna-drive-bar__dot" />
+                    <button
+                        type="button"
+                        className="euna-drive-bar__main"
+                        title="Open EUNA Pilot"
+                        onClick={() => setOpen(true)}
+                    >
+                        <span className="euna-drive-bar__label">EUNA is driving</span>
+                        {statusText && statusText !== 'Thinking…' && (
+                            <span className="euna-drive-bar__step">{statusText}</span>
+                        )}
+                    </button>
+                    <button type="button" className="euna-drive-bar__stop" onClick={abort}>
+                        <Square size={11} />
+                        Stop
+                    </button>
+                </div>
+            )}
+
             {open && (
                 <section className="euna-panel" aria-label="EUNA Pilot">
                     <header className="euna-panel__head">
-                        <span className="euna-panel__avatar"><OwlMark /></span>
+                        <span className="euna-panel__owl"><OwlMark size={19} /></span>
                         <div className="euna-panel__titles">
                             <strong>EUNA Pilot</strong>
-                            <span>your dashboard copilot</span>
+                            <span className={`euna-panel__status ${status !== 'idle' ? 'is-live' : ''}`}>
+                                <span className="euna-panel__status-dot" />
+                                {statusLine}
+                            </span>
                         </div>
                         <button className="euna-iconbtn" title="New chat" onClick={clearThread} disabled={busy}>
                             <Sparkles size={15} />
@@ -113,11 +152,12 @@ export default function EunaPilot() {
                     <div className="euna-panel__body euna-scrollbar" ref={scrollRef}>
                         {messages.length === 0 && (
                             <div className="euna-empty">
+                                <span className="euna-empty__owl"><OwlMark size={30} /></span>
                                 <p className="euna-empty__hi">Hi, I'm EUNA ~</p>
                                 <p className="euna-empty__sub">
-                                    I can show you around your dashboard, answer questions about your
-                                    classes, and operate pages for you — with your OK. I never write
-                                    lesson content; that's the AI Studio's job.
+                                    I can show you around, answer questions about your
+                                    classes, and drive pages for you — with your OK.
+                                    Lesson content stays with the AI Studio.
                                 </p>
                             </div>
                         )}
@@ -129,16 +169,16 @@ export default function EunaPilot() {
                             if (m.kind === 'euna') {
                                 return (
                                     <div key={m.id} className="euna-msg euna-msg--euna">
-                                        <span className="euna-msg__avatar"><OwlMark size={15} /></span>
+                                        <span className="euna-msg__owl"><OwlMark size={14} /></span>
                                         <span className={`euna-msg__text ${m.streaming ? 'is-streaming' : ''}`}>{renderRich(m.text)}</span>
                                     </div>
                                 );
                             }
-                            if (m.kind === 'tools') return <ToolCard key={m.id} msg={m} />;
+                            if (m.kind === 'tools') return <StepsCard key={m.id} msg={m} />;
                             if (m.kind === 'notice') {
                                 return (
                                     <div key={m.id} className="euna-notice">
-                                        <TriangleAlert size={14} />
+                                        <TriangleAlert size={13} />
                                         <span>{m.text}</span>
                                     </div>
                                 );
@@ -146,7 +186,7 @@ export default function EunaPilot() {
                             return null;
                         })}
 
-                        {statusText && (
+                        {statusText && status !== 'awaiting-consent' && (
                             <div className="euna-strip">
                                 <span className="euna-strip__dot" />
                                 {statusText}
@@ -161,7 +201,7 @@ export default function EunaPilot() {
                                 </p>
                                 <p className="euna-consent__explain">{consent.explain || 'I\'m ready to operate the page for you.'}</p>
                                 <p className="euna-consent__note">
-                                    I'll narrate every step. Destructive confirmations stay yours to press.
+                                    Every step gets narrated. Destructive confirmations stay yours to press.
                                 </p>
                                 <div className="euna-consent__row">
                                     <button className="euna-btn euna-btn--primary" onClick={approveConsent}>
@@ -186,32 +226,27 @@ export default function EunaPilot() {
                     </div>
 
                     <footer className="euna-panel__input">
-                        <textarea
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={handleKey}
-                            placeholder={busy ? 'EUNA is driving…' : 'Ask me to show, tell, or do…'}
-                            disabled={busy}
-                            rows={1}
-                        />
-                        {busy ? (
-                            <button className="euna-send euna-send--stop" title="Stop" onClick={abort}>
-                                <Square size={14} />
-                            </button>
-                        ) : (
-                            <button className="euna-send" title="Send" onClick={() => send()} disabled={!input.trim()}>
-                                <Sparkles size={15} />
-                            </button>
-                        )}
+                        <div className="euna-composer">
+                            <textarea
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={handleKey}
+                                placeholder={busy ? 'EUNA is driving…' : 'Ask me to show, tell, or do…'}
+                                disabled={busy}
+                                rows={1}
+                            />
+                            {busy ? (
+                                <button className="euna-send euna-send--stop" title="Stop" onClick={abort}>
+                                    <Square size={13} />
+                                </button>
+                            ) : (
+                                <button className="euna-send" title="Send" onClick={() => send()} disabled={!input.trim()}>
+                                    <Sparkles size={14} />
+                                </button>
+                            )}
+                        </div>
                     </footer>
                 </section>
-            )}
-
-            {busy && !open && (
-                <button className="euna-driving-pill" onClick={() => setOpen(true)}>
-                    <span className="euna-strip__dot" />
-                    EUNA is driving — click to supervise
-                </button>
             )}
 
             <button
