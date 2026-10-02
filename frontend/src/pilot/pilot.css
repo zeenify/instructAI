@@ -48,6 +48,10 @@
     flex-shrink: 0;
 }
 
+.euna-drive-bar.is-waiting .euna-drive-bar__dot {
+    background: #ffd60a;
+}
+
 .euna-drive-bar__main {
     display: flex;
     align-items: baseline;
@@ -345,7 +349,7 @@
     align-items: center;
     gap: 5px;
     font-size: 11px;
-    color: var(--db-text-3, #888);
+    color: var(--db-text-2, #555);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -421,8 +425,8 @@
 }
 
 .euna-empty__hi {
-    font-family: 'Fraunces', Georgia, serif;
-    font-size: 19px;
+    font-size: 17px;
+    font-weight: 650;
     color: var(--db-text, #111);
     margin: 0 0 6px;
 }
@@ -576,14 +580,14 @@
     gap: 8px;
     padding: 9px 12px;
     border-radius: 11px;
-    background: var(--db-amber-soft, rgba(255, 179, 64, 0.14));
-    border: 1px solid var(--db-amber-border, rgba(255, 179, 64, 0.4));
+    background: var(--db-amber-soft);
+    border: 1px solid var(--db-amber-border);
     color: var(--db-text, #111);
     font-size: 12.5px;
     line-height: 1.55;
 }
 
-.euna-notice svg { flex-shrink: 0; margin-top: 2px; color: #b7791f; }
+.euna-notice svg { flex-shrink: 0; margin-top: 2px; color: var(--db-amber); }
 
 /* --- Consent --------------------------------------------------------------- */
 
@@ -621,7 +625,7 @@
     margin: 0 0 11px;
     font-size: 11.5px;
     line-height: 1.5;
-    color: var(--db-text-3, #888);
+    color: var(--db-text-2, #555);
 }
 
 .euna-consent__row {
@@ -659,7 +663,7 @@
 }
 
 .euna-chip {
-    border: none;
+    border: 1px solid var(--db-border, rgba(0, 0, 0, 0.1));
     background: var(--db-card-2, rgba(0, 0, 0, 0.05));
     color: var(--db-text-2, #555);
     border-radius: 999px;
@@ -667,11 +671,12 @@
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
-    transition: color 0.15s ease, background 0.15s ease;
+    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
 }
 
 .euna-chip:hover:not(:disabled) {
     color: var(--db-accent, #0a84ff);
+    border-color: var(--db-accent-border, rgba(10, 132, 255, 0.4));
     background: var(--db-accent-soft, rgba(10, 132, 255, 0.1));
 }
 
@@ -743,6 +748,23 @@
 
 .euna-send--stop {
     background: var(--db-danger, #e5484d);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .euna-drive-bar,
+    .euna-panel,
+    .euna-consent,
+    .euna-highlight.is-visible {
+        animation: none;
+    }
+    .euna-drive-bar__dot,
+    .euna-panel__status-dot,
+    .euna-panel__status.is-live .euna-panel__status-dot,
+    .euna-strip__dot,
+    .euna-cursor__spark,
+    .euna-spin {
+        animation: none;
+    }
 }
 
 @media (max-width: 600px) {

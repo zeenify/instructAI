@@ -30,7 +30,14 @@ const ACTION_LABEL = {
 
 function describeCommand(c) {
     const label = ACTION_LABEL[c.action] || c.action;
-    const target = c.value ? `"${c.value}"` : c.ref != null ? `element ${c.ref}` : '';
+    // Prefer the resolved element name — teachers can't act on ref numbers
+    const target = c.value
+        ? `"${c.value}"`
+        : c.label
+            ? `"${c.label}"`
+            : c.ref != null
+                ? `element ${c.ref}`
+                : '';
     return `${label} ${target}`.trim();
 }
 
@@ -89,12 +96,25 @@ export default function EunaPilot() {
     const pilot = usePilotRun();
     const { open, setOpen, messages, status, statusText, consent, input, setInput, send, approveConsent, declineConsent, abort, clearThread, suggestions, busy } = pilot;
     const scrollRef = useRef(null);
+    const inputRef = useRef(null);
 
+    // Stick to the bottom only while the teacher is already reading the
+    // latest — never yank them back while they scroll up mid-narration
     useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-    }, [messages, statusText, consent, open]);
+        const el = scrollRef.current;
+        if (!el) return;
+        const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 90;
+        if (nearBottom) el.scrollTop = el.scrollHeight;
+    }, [messages, statusText, consent]);
+
+    // Focus the composer when the panel opens; Escape closes it
+    useEffect(() => {
+        if (!open) return;
+        inputRef.current?.focus();
+        const onKey = (e) => e.key === 'Escape' && setOpen(false);
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [open, setOpen]);
 
     const handleKey = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -103,14 +123,18 @@ export default function EunaPilot() {
         }
     };
 
-    const statusLine = status === 'thinking' || status === 'acting'
-        ? (statusText || STATUS_LINE[status])
-        : STATUS_LINE[status] || 'Ready';
+    const waiting = status === 'awaiting-consent';
+    const statusLine = STATUS_LINE[status] || 'Ready';
+    const placeholder = !busy
+        ? 'Ask me to show, tell, or do…'
+        : waiting
+            ? 'Your call — take the wheel, or stop me…'
+            : 'EUNA is driving…';
 
     return (
         <div className="euna-root" data-euna-ignore>
             {busy && (
-                <div className="euna-drive-bar" role="status">
+                <div className={`euna-drive-bar ${waiting ? 'is-waiting' : ''}`} role="status">
                     <span className="euna-drive-bar__dot" />
                     <button
                         type="button"
@@ -118,8 +142,8 @@ export default function EunaPilot() {
                         title="Open EUNA Pilot"
                         onClick={() => setOpen(true)}
                     >
-                        <span className="euna-drive-bar__label">EUNA is driving</span>
-                        {statusText && statusText !== 'Thinking…' && (
+                        <span className="euna-drive-bar__label">{waiting ? 'Waiting for your OK' : 'EUNA is driving'}</span>
+                        {!waiting && statusText && statusText !== 'Thinking…' && (
                             <span className="euna-drive-bar__step">{statusText}</span>
                         )}
                     </button>
@@ -141,10 +165,10 @@ export default function EunaPilot() {
                                 {statusLine}
                             </span>
                         </div>
-                        <button className="euna-iconbtn" title="New chat" onClick={clearThread} disabled={busy}>
+                        <button className="euna-iconbtn" aria-label="New chat" title="New chat" onClick={clearThread} disabled={busy}>
                             <Sparkles size={15} />
                         </button>
-                        <button className="euna-iconbtn" title="Close" onClick={() => setOpen(false)}>
+                        <button className="euna-iconbtn" aria-label="Close" title="Close" onClick={() => setOpen(false)}>
                             <X size={16} />
                         </button>
                     </header>
@@ -186,13 +210,6 @@ export default function EunaPilot() {
                             return null;
                         })}
 
-                        {statusText && status !== 'awaiting-consent' && (
-                            <div className="euna-strip">
-                                <span className="euna-strip__dot" />
-                                {statusText}
-                            </div>
-                        )}
-
                         {consent && (
                             <div className="euna-consent">
                                 <p className="euna-consent__title">
@@ -228,10 +245,11 @@ export default function EunaPilot() {
                     <footer className="euna-panel__input">
                         <div className="euna-composer">
                             <textarea
+                                ref={inputRef}
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={handleKey}
-                                placeholder={busy ? 'EUNA is driving…' : 'Ask me to show, tell, or do…'}
+                                placeholder={placeholder}
                                 disabled={busy}
                                 rows={1}
                             />

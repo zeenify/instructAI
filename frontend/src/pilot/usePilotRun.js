@@ -285,7 +285,12 @@ export function usePilotRun() {
             const toolsMsgId = push({
                 kind: 'tools',
                 explain: event.explain || '',
-                commands: commands.map((c) => ({ action: c.action, ref: c.ref, value: c.value })),
+                // Resolve ref numbers to element names NOW — pending rows
+                // should read 'Click "Overview"', not 'Click element 8'
+                commands: commands.map((c) => ({
+                    ...c,
+                    label: c.ref != null ? snapshotRef.current.entries.get(Number(c.ref))?.name : undefined,
+                })),
                 results: null,
             });
 

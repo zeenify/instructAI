@@ -34,6 +34,8 @@
     --db-danger: #ff453a;
     --db-danger-soft: rgba(255, 69, 58, 0.1);
     --db-amber: #ffd60a;
+    --db-amber-soft: rgba(255, 214, 10, 0.12);
+    --db-amber-border: rgba(255, 214, 10, 0.35);
     --db-shimmer: rgba(255, 255, 255, 0.06);
 }
 
@@ -62,6 +64,8 @@
     --db-danger: #dc2626;
     --db-danger-soft: rgba(220, 38, 38, 0.07);
     --db-amber: #b45309;
+    --db-amber-soft: rgba(180, 83, 9, 0.1);
+    --db-amber-border: rgba(180, 83, 9, 0.35);
     --db-shimmer: rgba(23, 25, 35, 0.12);
 }
 
