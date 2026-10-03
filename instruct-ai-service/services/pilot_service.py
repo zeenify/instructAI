@@ -150,7 +150,8 @@ def _trail_block(data: dict) -> str:
         return ""
     lines = "\n".join(f"- {t}" for t in trail)
     return (
-        "\nRECENT ACTIONS THIS RUN (already done — do NOT repeat these):\n"
+        "\nRECENT ACTIONS & FINDINGS THIS RUN (the facts below are yours to "
+        "reuse — never repeat a lookup that's already listed):\n"
         f"{lines}\n"
     )
 
@@ -179,17 +180,28 @@ def _build_turn_content(payload: dict) -> str:
 
     if kind == "tool-result":
         data = payload.get("data") or {}
-        lines = ["RESULTS of your last command batch:"]
-        for r in data.get("results") or []:
+        results = data.get("results") or []
+        lines = ["RESULTS of your last command batch:"] if results else []
+        for r in results:
             status = "BLOCKED" if r.get("blocked") else ("ok" if r.get("ok") else "failed")
-            lines.append(f"- {r.get('action')}" + (f" ref {r.get('ref')}" if r.get("ref") is not None else "") + f" → {status}: {r.get('message', '')}")
+            lines.append(f"- {r.get('action')}" + (f" ref {r.get('ref')}" if r.get('ref') is not None else "") + f" → {status}: {r.get('message', '')}")
         # Restate the run's own task: server-side history can carry older
         # threads, and 'continue' must never mean 'finish an earlier ask'
         task = _clip(payload.get("task"), 500)
         task_line = f"\nCURRENT TASK: {task}\nWrap up THAT task — not anything earlier in history.\n" if task else ""
+        nudge_line = (
+            "NOTE: your last reply narrated an action but sent NO tool call. "
+            "Send the tool call NOW (goto/point/snapshot run freely, no "
+            "permission needed), or ask the teacher a question — never "
+            "describe an action without doing it.\n"
+            if data.get("nudge")
+            else ""
+        )
         return (
             "\n".join(lines)
-            + f"\n{task_line}"
+            + ("\n" if results else "")
+            + f"{task_line}"
+            + f"{nudge_line}"
             + _trail_block(data)
             + f"CURRENT PAGE: {data.get('route') or route}{classes_block}\n"
             f"CONSENT STATE: {consent_note}\n\n"
@@ -279,7 +291,7 @@ class PilotService:
                 model=GEN_CONTENT_MODEL,
                 messages=messages,
                 tools=PILOT_TOOLS,
-                temperature=0.4,
+                temperature=0.25,
                 max_tokens=1400,
                 stream=True,
             )

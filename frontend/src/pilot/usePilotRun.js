@@ -41,6 +41,41 @@ export const PILOT_SUGGESTIONS = [
 let msgSeq = 0;
 const nextMsgId = () => `m${++msgSeq}-${Date.now()}`;
 
+// Turns are stateless — without this the model forgets lookup data the
+// moment a goto happens and starts inventing numbers. Lookup results ride
+// in the trail as compact digests so every later turn still has the facts.
+function lookupDigest(query, result) {
+    try {
+        if (query === 'list_classes' && Array.isArray(result)) {
+            return result
+                .map((c) => `${c.name}: ${c.students_count ?? '?'} students, ${c.ungraded_submissions ?? '?'} ungraded`)
+                .join(' | ')
+                .slice(0, 300);
+        }
+        if (query === 'class_summary' && result && !result.error) {
+            return `${result.class?.name ?? 'class'}: ${result.students} students, ${result.ungraded_submissions} ungraded`;
+        }
+        if (query === 'search_students' && Array.isArray(result)) {
+            const names = result.map((s) => `${s.name} (id ${s.student_id})`).join(', ');
+            return names ? `found: ${names}`.slice(0, 300) : 'no matches';
+        }
+        if (query === 'get_student_grades' && result && !result.error) {
+            const acts = (result.activities || []).map((a) => `${a.activity}: ${a.score ?? '—'}/${a.max}`).join('; ');
+            const qz = (result.quizzes || []).map((q) => `${q.quiz}: ${q.score}/${q.max}`).join('; ');
+            return `${result.student?.name ?? 'student'} — activities: ${acts || 'none'} · quizzes: ${qz || 'none'}`.slice(0, 300);
+        }
+        const s = JSON.stringify(result ?? {});
+        return s.length > 200 ? `${s.slice(0, 200)}…` : s;
+    } catch {
+        return 'data received';
+    }
+}
+
+// The model sometimes narrates an action ("I'm opening the class page…")
+// and stops without sending any tool call. One deterministic continuation
+// per run closes that gap.
+const PROMISE_RE = /(?:\bi'?ll\b|\bi'?m\b|\blet'?s\b|let me)\s+(?:go|head|open|take|bring|show|pull|navigate|jump)/i;
+
 export function usePilotRun() {
     const [open, setOpen] = useState(false);
     const [messages, setMessages] = useState(() => {
@@ -76,6 +111,7 @@ export function usePilotRun() {
     // thrashing ids/params; the next one is served an error that tells it
     // to stop querying and ask the teacher instead
     const failedLookupStreakRef = useRef(0);
+    const nudgeUsedRef = useRef(false);
     const snapshotRef = useRef({ text: '', entries: new Map() });
     const messagesRef = useRef(messages);
     const streamingRef = useRef(null); // id of the euna message being streamed
@@ -207,6 +243,8 @@ export function usePilotRun() {
 
             let pendingTool = null;
             let pendingLookup = null;
+            let turnNarration = '';
+            let finishReason = null;
 
             try {
                 const events = streamEvents(`${AI_SERVICE_URL}/ai/pilot-stream`, envelope, abortRef.current.signal);
@@ -219,6 +257,7 @@ export function usePilotRun() {
                             if (!streamingRef.current) {
                                 streamingRef.current = push({ kind: 'euna', text: '', streaming: true });
                             }
+                            turnNarration += ev.delta;
                             streamDelta(ev.delta);
                             break;
                         case 'tool':
@@ -231,6 +270,7 @@ export function usePilotRun() {
                             push({ kind: 'notice', text: ev.message || 'Something went wrong on my side.' });
                             break;
                         case 'finish':
+                            finishReason = ev.reason;
                             if (ev.reason === 'error') setStrip('');
                             break;
                         default:
@@ -260,6 +300,38 @@ export function usePilotRun() {
                 push({ kind: 'notice', text: "I've been going back and forth too long on this one — let's break it into smaller asks. What you have so far stands." });
                 await finalize();
                 return;
+            }
+
+            // Dangling-promise backstop: the turn narrated an action ("I'm
+            // opening the class page…") but finished with no tool call.
+            // First offense → one continuation ordering act-or-ask. If it
+            // happens AGAIN, end with an honest visible handoff instead of
+            // leaving a false "done" on screen.
+            const narratedVoidAction =
+                finishReason === 'stop' &&
+                !pendingTool &&
+                !pendingLookup &&
+                PROMISE_RE.test(turnNarration) &&
+                !/\?\s*$/.test(turnNarration.trim());
+            if (narratedVoidAction && !nudgeUsedRef.current) {
+                nudgeUsedRef.current = true;
+                await runTurn('tool-result', {
+                    data: {
+                        route: window.location.pathname,
+                        task: taskRef.current,
+                        snapshot: snapshotRef.current.text,
+                        results: [],
+                        nudge: true,
+                        recent_calls: trailRef.current.slice(-10),
+                    },
+                });
+                return;
+            }
+            if (narratedVoidAction && nudgeUsedRef.current) {
+                push({
+                    kind: 'notice',
+                    text: "(I said I'd do that but couldn't complete it — say \"go on\" and I'll actually do it.)",
+                });
             }
 
             if (pendingLookup) {
@@ -393,7 +465,7 @@ export function usePilotRun() {
                     failedLookupStreakRef.current += 1;
                     lookupCacheRef.current.set(cacheKey, result);
                 }
-                trailRef.current.push(`lookup ${event.query}(${cacheKey.split('|')[1] || '{}'})`);
+                trailRef.current.push(`lookup ${event.query} — ${lookupDigest(event.query, result)}`);
             }
 
             if (abortedRef.current) {
@@ -462,6 +534,7 @@ export function usePilotRun() {
             trailRef.current = [];
             lookupCacheRef.current = new Map();
             failedLookupStreakRef.current = 0;
+            nudgeUsedRef.current = false;
             abortRef.current = new AbortController();
             takeSnapshot();
 

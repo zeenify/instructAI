@@ -7,10 +7,20 @@
  */
 
 export function scrubRefs(text = '') {
-    return String(text)
+    let out = String(text)
         .replace(/\s*\(\s*\[\s*\d+\s*\]\s*\)/g, '') // "([9])"
         .replace(/\s*\[\s*\d+\s*\]/g, '')            // "[9]"
         .replace(/\s*\(\s*ref\s*\d+\s*\)/gi, '')     // "(ref 9)"
         .replace(/\b(?:ref|element)\s+#?\d+\b/gi, '') // "ref 9" / "element 12"
-        .replace(/\s{2,}/g, ' ');
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+    // The model occasionally quotes its whole reply — one deterministic trim
+    if (
+        out.length > 1 &&
+        ((out.startsWith('"') && out.endsWith('"')) ||
+            (out.startsWith('\u201C') && out.endsWith('\u201D')))
+    ) {
+        out = out.slice(1, -1).trim();
+    }
+    return out;
 }
