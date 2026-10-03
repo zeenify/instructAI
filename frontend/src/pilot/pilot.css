@@ -496,6 +496,13 @@
     min-width: 0;
 }
 
+.euna-msg__link {
+    color: var(--db-accent, #0a84ff);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
 .euna-msg__text.is-streaming::after {
     content: '';
     display: inline-block;

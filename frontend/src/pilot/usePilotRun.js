@@ -17,6 +17,7 @@ import api from '../services/api';
 import { streamEvents } from './streamClient';
 import { executeBatch } from './executor';
 import { buildElementSnapshot } from './elementSnapshot';
+import { scrubRefs } from './textUtils';
 import * as overlay from './overlay';
 
 const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8001';
@@ -71,6 +72,10 @@ export function usePilotRun() {
     // already has (each stream turn is otherwise stateless)
     const trailRef = useRef([]);
     const lookupCacheRef = useRef(new Map());
+    // Consecutive failed lookups — three in a row means the model is
+    // thrashing ids/params; the next one is served an error that tells it
+    // to stop querying and ask the teacher instead
+    const failedLookupStreakRef = useRef(0);
     const snapshotRef = useRef({ text: '', entries: new Map() });
     const messagesRef = useRef(messages);
     const streamingRef = useRef(null); // id of the euna message being streamed
@@ -156,7 +161,7 @@ export function usePilotRun() {
                 turnTokenRef.current = null;
                 api.post('/teacher/ai/pilot-commit', {
                     turn_token: token,
-                    answer,
+                    answer: scrubRefs(answer),
                     executed_commands: executedRef.current.slice(-50),
                 }).catch(() => {
                     // The audit trail is a selling point — never fail silent
@@ -361,10 +366,14 @@ export function usePilotRun() {
 
             const cacheKey = `${event.query}|${JSON.stringify(event.params || {}, Object.keys(event.params || {}).sort())}`;
             const isRepeat = lookupCacheRef.current.has(cacheKey);
+            const streakBreached = failedLookupStreakRef.current >= 2;
             let result;
-            if (isRepeat) {
+            if (streakBreached) {
+                result = { error: 'repeated lookup failures — the model should stop querying' };
+                trailRef.current.push('lookup abandoned after repeated failures');
+            } else if (isRepeat) {
                 result = lookupCacheRef.current.get(cacheKey);
-                trailRef.current.push(`repeat lookup ${event.query} — served the SAME cached data`);
+                trailRef.current.push('repeat lookup — served the SAME cached data');
             } else {
                 try {
                     const resp = await api.post(
@@ -373,6 +382,7 @@ export function usePilotRun() {
                         { signal: abortRef.current?.signal, timeout: 20000 },
                     );
                     result = resp.data;
+                    failedLookupStreakRef.current = 0;
                     lookupCacheRef.current.set(cacheKey, result);
                 } catch (err) {
                     if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || abortedRef.current) {
@@ -380,6 +390,7 @@ export function usePilotRun() {
                         return;
                     }
                     result = { error: err?.response?.data?.error || 'lookup failed' };
+                    failedLookupStreakRef.current += 1;
                     lookupCacheRef.current.set(cacheKey, result);
                 }
                 trailRef.current.push(`lookup ${event.query}(${cacheKey.split('|')[1] || '{}'})`);
@@ -399,7 +410,8 @@ export function usePilotRun() {
                     query: event.query,
                     params: event.params || {},
                     result,
-                    repeated: isRepeat || undefined,
+                    repeated: isRepeat && !streakBreached ? true : undefined,
+                    failed_streak: streakBreached || undefined,
                     recent_calls: trailRef.current.slice(-10),
                 },
             });
@@ -449,6 +461,7 @@ export function usePilotRun() {
             lastBatchKeyRef.current = null;
             trailRef.current = [];
             lookupCacheRef.current = new Map();
+            failedLookupStreakRef.current = 0;
             abortRef.current = new AbortController();
             takeSnapshot();
 

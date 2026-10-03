@@ -209,11 +209,30 @@ def _build_turn_content(payload: dict) -> str:
             if data.get("repeated")
             else ""
         )
+        streak_line = (
+            "SEVERAL lookups in a row have failed. Do NOT call request_data "
+            "again this turn — ask the teacher a concrete clarifying question "
+            "(which class? which student?) or answer from data you already "
+            "have.\n"
+            if data.get("failed_streak")
+            else ""
+        )
+        raw_result = data.get("result")
+        error_line = (
+            "NOTE: this lookup FAILED (see the error above). It never ran — "
+            "never claim you searched or checked anything. Say what you "
+            "couldn't check and ask for the missing detail (e.g. which "
+            "class), or offer to check each class one by one.\n"
+            if isinstance(raw_result, dict) and "error" in raw_result
+            else ""
+        )
         return (
             f"DATA for {data.get('query')} (params: {json.dumps(data.get('params') or {})}) "
             f"returned:\n{result}\n\n"
             f"{task_line}"
             f"{repeat_line}"
+            f"{streak_line}"
+            f"{error_line}"
             f"{_trail_block(data)}"
             f"CURRENT PAGE: {data.get('route') or route}{classes_block}\n"
             f"CONSENT STATE: {consent_note}\n\n"

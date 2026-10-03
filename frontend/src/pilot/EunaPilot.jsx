@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { Check, Loader2, Sparkles, Square, X, Ban, TriangleAlert, MousePointerClick } from 'lucide-react';
 import { usePilotRun } from './usePilotRun';
+import { scrubRefs } from './textUtils';
+import { pilotNavigate } from './bridge';
 import './pilot.css';
 
 // EUNA's actual portrait — the same art the landing chatbot wears.
@@ -44,21 +46,39 @@ function describeCommand(c) {
     return `${label} ${target}`.trim();
 }
 
-// Tiny rich-text pass for EUNA's narration: **bold** and `inline code`.
+// Tiny rich-text pass for EUNA's narration: **bold**, `inline code`, and
+// dashboard links [label](/dashboard/…) which navigate the SPA in place.
+// Refs are scrubbed first so internal ids never reach the teacher's eyes.
 function renderRich(text) {
     const parts = [];
-    const re = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+    const re = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\(\/[^)]+\))/g;
     let last = 0;
     let key = 0;
     let m;
-    while ((m = re.exec(text))) {
-        if (m.index > last) parts.push(text.slice(last, m.index));
+    const clean = scrubRefs(text);
+    while ((m = re.exec(clean))) {
+        if (m.index > last) parts.push(clean.slice(last, m.index));
         const tok = m[0];
         if (tok.startsWith('**')) parts.push(<strong key={key++}>{tok.slice(2, -2)}</strong>);
-        else parts.push(<code key={key++} className="euna-inline-code">{tok.slice(1, -1)}</code>);
+        else if (tok.startsWith('`')) parts.push(<code key={key++} className="euna-inline-code">{tok.slice(1, -1)}</code>);
+        else {
+            const link = tok.match(/^\[([^\]]+)\]\((\/[^)]+)\)$/);
+            if (link) {
+                parts.push(
+                    <a
+                        key={key++}
+                        className="euna-msg__link"
+                        href={link[2]}
+                        onClick={(e) => { e.preventDefault(); pilotNavigate(link[2]); }}
+                    >
+                        {link[1]}
+                    </a>
+                );
+            } else parts.push(tok);
+        }
         last = m.index + tok.length;
     }
-    if (last < text.length) parts.push(text.slice(last));
+    if (last < clean.length) parts.push(clean.slice(last));
     return parts;
 }
 
