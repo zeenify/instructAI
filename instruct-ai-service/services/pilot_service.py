@@ -87,6 +87,42 @@ def _coerce_commands(raw):
     return commands
 
 
+KNOWN_TOOL_NAMES = ("invoke_client", "request_data")
+
+
+def _split_concat_json(raw):
+    """Split '{"a":1}{"b":2}' into [{'a':1},{'b':2}] — Gemini's OpenAI-compat
+    stream can merge parallel tool calls into one slot, concatenating args."""
+    decoder = json.JSONDecoder()
+    parts = []
+    idx = 0
+    raw = (raw or "").strip()
+    while idx < len(raw):
+        while idx < len(raw) and raw[idx] in " \n\r\t":
+            idx += 1
+        if idx >= len(raw):
+            break
+        try:
+            obj, end = decoder.raw_decode(raw, idx)
+        except json.JSONDecodeError:
+            return []
+        parts.append(obj)
+        idx = end
+    return parts
+
+
+def _salvage_merged_slot(name, raw_args):
+    """Detect a slot where N parallel calls were merged (name repeated, args
+    concatenated) and reduce it to the FIRST call so the run keeps moving."""
+    for tool in KNOWN_TOOL_NAMES:
+        if name.startswith(tool) and len(name) > len(tool):
+            parts = _split_concat_json(raw_args)
+            if parts and isinstance(parts[0], dict):
+                print(f"[PILOT] salvaged merged parallel tool calls ({len(parts)}x {tool}) — keeping the first")
+                return tool, json.dumps(parts[0], ensure_ascii=False)
+    return None
+
+
 def _parse_tool_args(name, raw_args):
     try:
         args = json.loads(raw_args or "{}")
@@ -106,6 +142,17 @@ def _parse_tool_args(name, raw_args):
             "params": params if isinstance(params, dict) else {},
         }
     return args
+
+
+def _trail_block(data: dict) -> str:
+    trail = (data.get("recent_calls") or [])[-10:]
+    if not trail:
+        return ""
+    lines = "\n".join(f"- {t}" for t in trail)
+    return (
+        "\nRECENT ACTIONS THIS RUN (already done — do NOT repeat these):\n"
+        f"{lines}\n"
+    )
 
 
 def _build_turn_content(payload: dict) -> str:
@@ -143,6 +190,7 @@ def _build_turn_content(payload: dict) -> str:
         return (
             "\n".join(lines)
             + f"\n{task_line}"
+            + _trail_block(data)
             + f"CURRENT PAGE: {data.get('route') or route}{classes_block}\n"
             f"CONSENT STATE: {consent_note}\n\n"
             f"PAGE ELEMENTS (address by [ref]):\n{snapshot}\n\n"
@@ -155,14 +203,25 @@ def _build_turn_content(payload: dict) -> str:
         result = json.dumps(data.get("result"), ensure_ascii=False)[:4000]
         task = _clip(payload.get("task"), 500)
         task_line = f"CURRENT TASK: {task}\n" if task else ""
+        repeat_line = (
+            "NOTE: you already ran this EXACT lookup earlier this run — what "
+            "follows is the same cached data. Do not call it again; use it.\n"
+            if data.get("repeated")
+            else ""
+        )
         return (
             f"DATA for {data.get('query')} (params: {json.dumps(data.get('params') or {})}) "
             f"returned:\n{result}\n\n"
             f"{task_line}"
+            f"{repeat_line}"
+            f"{_trail_block(data)}"
             f"CURRENT PAGE: {data.get('route') or route}{classes_block}\n"
             f"CONSENT STATE: {consent_note}\n\n"
-            "Answer the teacher's question from this data. Offer to navigate to "
-            "the relevant page if that's the natural next step."
+            "This is tool data, NOT a new teacher message. Respond to CURRENT TASK "
+            "with it: if the data answers the question, answer; if it only partly "
+            "answers or can't (e.g. it has no failing-student data), say what you "
+            "DO know, be honest about the gap, and offer the closest next step. "
+            "NEVER greet, never say the message was empty or didn't come through."
         )
 
     return f"CURRENT PAGE: {route}\n\n{json.dumps(payload.get('data') or {}, ensure_ascii=False)[:2000]}"
@@ -246,7 +305,18 @@ class PilotService:
             for idx in sorted(tool_calls):
                 slot = tool_calls[idx]
                 name = slot["name"]
-                parsed = _parse_tool_args(name, slot["args"])
+                raw_args = slot["args"]
+                # Parallel-call merges collapse into one mangled slot —
+                # reduce to a single well-formed call instead of failing
+                salvaged = _salvage_merged_slot(name, raw_args)
+                if salvaged:
+                    name, raw_args = salvaged
+                parsed = _parse_tool_args(name, raw_args)
+                if emitted:
+                    # One tool event per turn — the client acts on one batch;
+                    # the trail tells the model to continue with the rest
+                    print(f"[PILOT] dropped extra tool call in same turn: {name}")
+                    continue
                 if name == "invoke_client":
                     if not parsed["commands"]:
                         continue

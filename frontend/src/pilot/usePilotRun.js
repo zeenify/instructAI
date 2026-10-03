@@ -66,6 +66,11 @@ export function usePilotRun() {
     const turnTokenRef = useRef(null);
     const consentRef = useRef(false);
     const executedRef = useRef([]);
+    // Per-run memory of everything already done — lookups and batches ride
+    // back to the model as RECENT ACTIONS so it can't re-ask for data it
+    // already has (each stream turn is otherwise stateless)
+    const trailRef = useRef([]);
+    const lookupCacheRef = useRef(new Map());
     const snapshotRef = useRef({ text: '', entries: new Map() });
     const messagesRef = useRef(messages);
     const streamingRef = useRef(null); // id of the euna message being streamed
@@ -304,6 +309,7 @@ export function usePilotRun() {
             };
             const { results } = await executeBatch(commands, ctx);
             executedRef.current.push(...results.map((r) => ({ ...r, explain: event.explain || '' })));
+            trailRef.current.push(...results.map((r) => r.message).filter(Boolean));
             updateMessage(toolsMsgId, { results });
 
             // Repeat detection: an identical batch that just failed entirely
@@ -329,6 +335,7 @@ export function usePilotRun() {
                     consent: consentRef.current,
                     explain: event.explain,
                     commands,
+                    recent_calls: trailRef.current.slice(-10),
                     results: results.map((r) => ({
                         action: r.action,
                         ref: r.ref,
@@ -343,26 +350,39 @@ export function usePilotRun() {
         [push, updateMessage, runTurn, takeSnapshot]
     );
 
-    /** Read-only data request, answered by Laravel with teacher-scoped policies. */
+    /** Read-only data request, answered by Laravel with teacher-scoped policies.
+     *  An identical repeat inside one run is served from cache with a repeat
+     *  flag — the deterministic backstop for model lookup loops. */
     const handleLookup = useCallback(
         async (event) => {
             setStatus('acting');
             setStrip(`Looking up ${event.query}…`);
             toolTurnsRef.current += 1;
+
+            const cacheKey = `${event.query}|${JSON.stringify(event.params || {}, Object.keys(event.params || {}).sort())}`;
+            const isRepeat = lookupCacheRef.current.has(cacheKey);
             let result;
-            try {
-                const resp = await api.post(
-                    '/teacher/ai/pilot-lookup',
-                    { query: event.query, params: event.params || {} },
-                    { signal: abortRef.current?.signal, timeout: 20000 },
-                );
-                result = resp.data;
-            } catch (err) {
-                if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || abortedRef.current) {
-                    await finalize();
-                    return;
+            if (isRepeat) {
+                result = lookupCacheRef.current.get(cacheKey);
+                trailRef.current.push(`repeat lookup ${event.query} — served the SAME cached data`);
+            } else {
+                try {
+                    const resp = await api.post(
+                        '/teacher/ai/pilot-lookup',
+                        { query: event.query, params: event.params || {} },
+                        { signal: abortRef.current?.signal, timeout: 20000 },
+                    );
+                    result = resp.data;
+                    lookupCacheRef.current.set(cacheKey, result);
+                } catch (err) {
+                    if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || abortedRef.current) {
+                        await finalize();
+                        return;
+                    }
+                    result = { error: err?.response?.data?.error || 'lookup failed' };
+                    lookupCacheRef.current.set(cacheKey, result);
                 }
-                result = { error: err?.response?.data?.error || 'lookup failed' };
+                trailRef.current.push(`lookup ${event.query}(${cacheKey.split('|')[1] || '{}'})`);
             }
 
             if (abortedRef.current) {
@@ -379,6 +399,8 @@ export function usePilotRun() {
                     query: event.query,
                     params: event.params || {},
                     result,
+                    repeated: isRepeat || undefined,
+                    recent_calls: trailRef.current.slice(-10),
                 },
             });
         },
@@ -425,6 +447,8 @@ export function usePilotRun() {
             abortedRef.current = false;
             stopNoticeShownRef.current = false;
             lastBatchKeyRef.current = null;
+            trailRef.current = [];
+            lookupCacheRef.current = new Map();
             abortRef.current = new AbortController();
             takeSnapshot();
 
