@@ -153,9 +153,12 @@ def _build_turn_content(payload: dict) -> str:
     if kind == "lookup-result":
         data = payload.get("data") or {}
         result = json.dumps(data.get("result"), ensure_ascii=False)[:4000]
+        task = _clip(payload.get("task"), 500)
+        task_line = f"CURRENT TASK: {task}\n" if task else ""
         return (
             f"DATA for {data.get('query')} (params: {json.dumps(data.get('params') or {})}) "
             f"returned:\n{result}\n\n"
+            f"{task_line}"
             f"CURRENT PAGE: {data.get('route') or route}{classes_block}\n"
             f"CONSENT STATE: {consent_note}\n\n"
             "Answer the teacher's question from this data. Offer to navigate to "
