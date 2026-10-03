@@ -136,9 +136,14 @@ def _build_turn_content(payload: dict) -> str:
         for r in data.get("results") or []:
             status = "BLOCKED" if r.get("blocked") else ("ok" if r.get("ok") else "failed")
             lines.append(f"- {r.get('action')}" + (f" ref {r.get('ref')}" if r.get("ref") is not None else "") + f" → {status}: {r.get('message', '')}")
+        # Restate the run's own task: server-side history can carry older
+        # threads, and 'continue' must never mean 'finish an earlier ask'
+        task = _clip(payload.get("task"), 500)
+        task_line = f"\nCURRENT TASK: {task}\nWrap up THAT task — not anything earlier in history.\n" if task else ""
         return (
             "\n".join(lines)
-            + f"\n\nCURRENT PAGE: {data.get('route') or route}{classes_block}\n"
+            + f"\n{task_line}"
+            + f"CURRENT PAGE: {data.get('route') or route}{classes_block}\n"
             f"CONSENT STATE: {consent_note}\n\n"
             f"PAGE ELEMENTS (address by [ref]):\n{snapshot}\n\n"
             "Continue the task. If it's done, give a short wrap-up answering the "

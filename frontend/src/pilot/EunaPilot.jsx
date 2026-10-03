@@ -30,11 +30,13 @@ const ACTION_LABEL = {
 
 function describeCommand(c) {
     const label = ACTION_LABEL[c.action] || c.action;
-    // Prefer the resolved element name — teachers can't act on ref numbers
-    const target = c.value
-        ? `"${c.value}"`
-        : c.label
-            ? `"${c.label}"`
+    // Prefer the resolved element name — teachers can't act on ref numbers.
+    // For input/select the value rides parenthetically; the field is the news.
+    const isFill = c.action === 'input' || c.action === 'select';
+    const target = c.label
+        ? `"${c.label}"${isFill && c.value ? ` — "${c.value}"` : ''}`
+        : c.value
+            ? `"${c.value}"`
             : c.ref != null
                 ? `element ${c.ref}`
                 : '';

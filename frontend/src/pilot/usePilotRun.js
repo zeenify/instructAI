@@ -61,6 +61,7 @@ export function usePilotRun() {
     const toolTurnsRef = useRef(0);
     const stopNoticeShownRef = useRef(false);
     const lastBatchKeyRef = useRef(null);
+    const taskRef = useRef('');
     const runIdRef = useRef(null);
     const turnTokenRef = useRef(null);
     const consentRef = useRef(false);
@@ -323,6 +324,7 @@ export function usePilotRun() {
             await runTurn('tool-result', {
                 data: {
                     route: window.location.pathname,
+                    task: taskRef.current,
                     snapshot: snapshotRef.current.text,
                     consent: consentRef.current,
                     explain: event.explain,
@@ -416,6 +418,7 @@ export function usePilotRun() {
             setInput('');
 
             runIdRef.current = crypto.randomUUID();
+            taskRef.current = task;
             consentRef.current = false;
             executedRef.current = [];
             toolTurnsRef.current = 0;
@@ -434,14 +437,17 @@ export function usePilotRun() {
         [input, push, runTurn, takeSnapshot, setStrip]
     );
 
-    const abort = useCallback(() => {
+    const abort = useCallback(async () => {
         abortedRef.current = true;
-        // A stop while the consent card is up means "cancel that" — the held
-        // batch must die with it, not wait for a late approve
         pendingToolRef.current = null;
         setConsent(null);
         abortRef.current?.abort();
-    }, []);
+        // During the consent wait NOTHING is in flight to observe the abort —
+        // the stream loop already exited at the tool event and handleTool is
+        // parked. finalize() here is the only exit; it's idempotent for the
+        // in-flight case (the AbortError path lands in the same state).
+        await finalize();
+    }, [finalize]);
 
     const clearThread = useCallback(() => {
         abort();

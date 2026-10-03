@@ -82,7 +82,7 @@ class PilotController extends Controller
             'teacher_name' => $teacher->teacherProfile->first_name ?? null,
             'kind' => $kind,
             'route' => (string) $request->input('route'),
-            'task' => (string) $request->input('message'),
+            'task' => (string) ($request->input('message') ?: ($data['task'] ?? '')),
             'classes' => $classes,
             'snapshot' => (string) ($data['snapshot'] ?? ''),
             'history' => $history,

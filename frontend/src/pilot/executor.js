@@ -38,6 +38,8 @@ function reAnchorToLive(entry) {
         '[role="combobox"]', '[contenteditable="true"]',
     ].join(',');
     const wanted = entry.name.toLowerCase();
+    let best = null;
+    let bestDist = Infinity;
     for (const el of document.querySelectorAll(selector)) {
         if (el.closest('[data-euna-ignore]') || el.closest('[aria-hidden="true"]')) continue;
         if (el.tagName.toLowerCase() !== entry.tag) continue;
@@ -50,9 +52,24 @@ function reAnchorToLive(entry) {
             el.getAttribute('placeholder') ||
             ''
         ).trim().replace(/\s+/g, ' ').toLowerCase();
-        if (elName && elName === wanted) return el;
+        if (!elName || elName !== wanted) continue;
+        // Same-named twins exist (two "Edit" buttons) — take the candidate
+        // nearest where the captured element used to live
+        if (entry.rect) {
+            const dist = Math.hypot(
+                r.x + r.width / 2 - (entry.rect.x + entry.rect.w / 2),
+                r.y + r.height / 2 - (entry.rect.y + entry.rect.h / 2)
+            );
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = el;
+            }
+        } else {
+            best = el;
+            break;
+        }
     }
-    return null;
+    return best;
 }
 
 function resolveTarget(ref, ctx) {
