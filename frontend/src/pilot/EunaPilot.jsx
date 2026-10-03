@@ -3,16 +3,17 @@ import { Check, Loader2, Sparkles, Square, X, Ban, TriangleAlert, MousePointerCl
 import { usePilotRun } from './usePilotRun';
 import './pilot.css';
 
-function OwlMark({ size = 20 }) {
+// EUNA's actual portrait — the same art the landing chatbot wears.
+function EunaAvatar({ size = 24, className = '' }) {
     return (
-        <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
-            <circle cx="8.5" cy="11" r="3.2" fill="currentColor" />
-            <circle cx="15.5" cy="11" r="3.2" fill="currentColor" />
-            <circle cx="8.5" cy="11" r="1.2" fill="#fff" />
-            <circle cx="15.5" cy="11" r="1.2" fill="#fff" />
-            <path d="M10.5 15.6 L12 17.2 L13.5 15.6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-            <path d="M4 8 C5 5.4 8 4.6 12 4.6 C16 4.6 19 5.4 20 8" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-        </svg>
+        <img
+            className={`euna-avatar ${className}`.trim()}
+            src="/euna/euna_profile.png"
+            alt=""
+            width={size}
+            height={size}
+            draggable="false"
+        />
     );
 }
 
@@ -137,6 +138,7 @@ export default function EunaPilot() {
         <div className="euna-root" data-euna-ignore>
             {busy && (
                 <div className={`euna-drive-bar ${waiting ? 'is-waiting' : ''}`} role="status">
+                    <EunaAvatar size={24} className="euna-drive-bar__avatar" />
                     <span className="euna-drive-bar__dot" />
                     <button
                         type="button"
@@ -159,7 +161,7 @@ export default function EunaPilot() {
             {open && (
                 <section className="euna-panel" aria-label="EUNA Pilot">
                     <header className="euna-panel__head">
-                        <span className="euna-panel__owl"><OwlMark size={19} /></span>
+                        <EunaAvatar size={32} className="euna-panel__avatar" />
                         <div className="euna-panel__titles">
                             <strong>EUNA Pilot</strong>
                             <span className={`euna-panel__status ${status !== 'idle' ? 'is-live' : ''}`}>
@@ -178,7 +180,7 @@ export default function EunaPilot() {
                     <div className="euna-panel__body euna-scrollbar" ref={scrollRef}>
                         {messages.length === 0 && (
                             <div className="euna-empty">
-                                <span className="euna-empty__owl"><OwlMark size={30} /></span>
+                                <EunaAvatar size={56} className="euna-empty__avatar" />
                                 <p className="euna-empty__hi">Hi, I'm EUNA ~</p>
                                 <p className="euna-empty__sub">
                                     I can show you around, answer questions about your
@@ -195,7 +197,7 @@ export default function EunaPilot() {
                             if (m.kind === 'euna') {
                                 return (
                                     <div key={m.id} className="euna-msg euna-msg--euna">
-                                        <span className="euna-msg__owl"><OwlMark size={14} /></span>
+                                        <EunaAvatar size={24} className="euna-msg__avatar" />
                                         <span className={`euna-msg__text ${m.streaming ? 'is-streaming' : ''}`}>{renderRich(m.text)}</span>
                                     </div>
                                 );
@@ -275,7 +277,7 @@ export default function EunaPilot() {
                 aria-label="Ask EUNA"
                 onClick={() => setOpen(!open)}
             >
-                <OwlMark size={24} />
+                <EunaAvatar size={52} />
             </button>
         </div>
     );
