@@ -71,10 +71,13 @@ function lookupDigest(query, result) {
     }
 }
 
-// The model sometimes narrates an action ("I'm opening the class page…")
-// and stops without sending any tool call. One deterministic continuation
-// per run closes that gap.
-const PROMISE_RE = /(?:\bi'?ll\b|\bi'?m\b|\blet'?s\b|let me)\s+(?:go|head|open|take|bring|show|pull|navigate|jump)/i;
+// The model sometimes narrates an action ("I'm opening the class page…",
+// "I'll explain how removal works…") and stops without sending any tool
+// call or delivering the promised words. Claim-based detection, not a verb
+// whitelist — the net must not care WHICH action was claimed, and a
+// trailing question must not launder a false claim made mid-message.
+const ACTION_CLAIM_RE =
+    /\b(?:i'?ll|i\s+will|i'?m|i\s+am|let'?s|let\s+me|we'?ll|we\s+are\s+going\s+to|going\s+to)\s+(?:go|head|open|take|bring|show|pull|navigate|jump|click|check|explain|describe|walk|break|look|search|set\s+up|create|delete|remove|grade|start|run|find|get|give|list|summarize|pull\s+up|point|show\s+you)\b/i;
 
 export function usePilotRun() {
     const [open, setOpen] = useState(false);
@@ -302,8 +305,10 @@ export function usePilotRun() {
                 return;
             }
 
-            // Dangling-promise backstop: the turn narrated an action ("I'm
-            // opening the class page…") but finished with no tool call.
+            // Dangling-claim backstop: the turn claimed an action ("I'm
+            // opening the class page…", "I'll explain how removal works…")
+            // but finished with no tool call and didn't deliver the words.
+            // A trailing question does NOT launder a claim made mid-message.
             // First offense → one continuation ordering act-or-ask. If it
             // happens AGAIN, end with an honest visible handoff instead of
             // leaving a false "done" on screen.
@@ -311,8 +316,7 @@ export function usePilotRun() {
                 finishReason === 'stop' &&
                 !pendingTool &&
                 !pendingLookup &&
-                PROMISE_RE.test(turnNarration) &&
-                !/\?\s*$/.test(turnNarration.trim());
+                ACTION_CLAIM_RE.test(turnNarration);
             if (narratedVoidAction && !nudgeUsedRef.current) {
                 nudgeUsedRef.current = true;
                 await runTurn('tool-result', {

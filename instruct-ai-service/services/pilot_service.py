@@ -190,10 +190,14 @@ def _build_turn_content(payload: dict) -> str:
         task = _clip(payload.get("task"), 500)
         task_line = f"\nCURRENT TASK: {task}\nWrap up THAT task — not anything earlier in history.\n" if task else ""
         nudge_line = (
-            "NOTE: your last reply narrated an action but sent NO tool call. "
-            "Send the tool call NOW (goto/point/snapshot run freely, no "
-            "permission needed), or ask the teacher a question — never "
-            "describe an action without doing it.\n"
+            "NOTE: your last reply CLAIMED an action (\"I'm opening…\", "
+            "\"I'll explain…\") but sent NO tool call and didn't deliver the "
+            "words. Fix it NOW, in this reply: send the tool call (goto/"
+            "point/snapshot run freely, no permission needed), OR actually "
+            "deliver the explanation/answer you promised, OR ask a teacher "
+            "a question. Never claim without doing. If the teacher's request "
+            "already approved exactly this read-only action, send the tool "
+            "call — do not re-ask.\n"
             if data.get("nudge")
             else ""
         )
