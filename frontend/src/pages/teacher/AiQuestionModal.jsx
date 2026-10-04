@@ -127,6 +127,9 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
         headRef.current?.focus();
     }, [phase]);
 
+    // An in-flight generation must not outlive the modal
+    useEffect(() => () => abortRef.current?.abort(), []);
+
     const attemptClose = useCallback(() => {
         if (phase === 'generating' || committing) return;
         if (phase === 'review' && drafts.length > 0) {
@@ -256,21 +259,28 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                     if (event.type === 'status') {
                         setStatusLine(event.message || '');
                     } else if (event.type === 'questions') {
-                        const batch = (event.data?.questions ?? []).map((q) => ({
-                            localId: nextLocalId(),
-                            type: q.type,
-                            question_text: q.question_text,
-                            options: q.options ?? [],
+                        const batch = (event.data?.questions ?? []).map((q) => {
                             // MC correctness is tracked by INDEX (option texts
-                            // are editable; string-matching breaks on edits)
-                            correctIndex: q.type === 'multiple_choice'
-                                ? Math.max(0, (q.options ?? []).findIndex(
-                                    (o) => o && o.trim() === (q.expected_output ?? '').trim()
-                                ))
-                                : null,
-                            expected_output: q.expected_output ?? '',
-                            points,
-                        }));
+                            // are editable; string-matching breaks on edits).
+                            // No verbatim match → null → the card is flagged
+                            // and the teacher picks the key themselves; the
+                            // match is case-insensitive like the backend.
+                            let correctIndex = null;
+                            if (q.type === 'multiple_choice') {
+                                const answer = (q.expected_output ?? '').trim().toLowerCase();
+                                const idx = (q.options ?? []).findIndex((o) => o && o.trim().toLowerCase() === answer);
+                                correctIndex = idx === -1 ? null : idx;
+                            }
+                            return {
+                                localId: nextLocalId(),
+                                type: q.type,
+                                question_text: q.question_text,
+                                options: q.options ?? [],
+                                correctIndex,
+                                expected_output: q.expected_output ?? '',
+                                points,
+                            };
+                        });
                         if (batch.length) {
                             collected.push(...batch);
                             setDrafts((prev) => [...prev, ...batch]);
@@ -401,10 +411,16 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                         {contextError ? (
                             <div className="aiq-error-row">
                                 <TriangleAlert size={15} />
-                                <span>Couldn't load this class's material.</span>
-                                <button type="button" className="aiq-retry-btn" onClick={() => refetchContext()}>
-                                    <RefreshCw size={12} /> Retry
-                                </button>
+                                <span>
+                                    {contextError?.response?.status === 404
+                                        ? 'This activity no longer exists — close and reopen the editor.'
+                                        : "Couldn't load this class's material."}
+                                </span>
+                                {contextError?.response?.status !== 404 && (
+                                    <button type="button" className="aiq-retry-btn" onClick={() => refetchContext()}>
+                                        <RefreshCw size={12} /> Retry
+                                    </button>
+                                )}
                             </div>
                         ) : (
                             <>
@@ -801,7 +817,13 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                                         placeholder={`Item ${i + 1}`}
                                                         aria-label={`Correct item ${i + 1}`}
                                                     />
-                                                    <button type="button" className="aiq-option-remove" onClick={() => removeOption(d, i)}>
+                                                    <button
+                                                        type="button"
+                                                        className="aiq-option-remove"
+                                                        onClick={() => removeOption(d, i)}
+                                                        disabled={d.options.length <= 1}
+                                                        title={d.options.length <= 1 ? 'An enumeration needs at least one item' : undefined}
+                                                    >
                                                         <X size={11} />
                                                     </button>
                                                 </div>

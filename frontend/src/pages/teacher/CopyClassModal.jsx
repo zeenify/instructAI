@@ -138,7 +138,8 @@ export default function CopyClassModal({ classId, onClose }) {
                             </h3>
                             <p className="db-modal-sub">
                                 Pull content and classwork from one of your other classes into
-                                this one. Everything arrives as drafts you publish when ready.
+                                this one. Everything arrives as drafts — deadlines reset, you
+                                publish when ready.
                             </p>
                         </div>
 
@@ -253,8 +254,9 @@ export default function CopyClassModal({ classId, onClose }) {
                                                 {contentMode === 'replace' && (
                                                     <p className="cc-warning">
                                                         <TriangleAlert size={13} />
-                                                        This class's current modules, lessons and quizzes will be
-                                                        removed and replaced by the copies.
+                                                        This class's current modules, lessons and quizzes — and the
+                                                        grades attached to them — will be removed. Locked if students
+                                                        already have quiz attempts.
                                                     </p>
                                                 )}
                                             </>

@@ -293,8 +293,26 @@ class ClassroomController extends Controller
             ->orderBy('order_index', 'asc')
             ->get();
 
-        if ($validated['content_mode'] !== 'none' && $activitiesToCopy->isEmpty() && $activityIds->isNotEmpty()) {
+        // A stale/foreign selection must never masquerade as a successful
+        // no-op copy — fail loudly regardless of content_mode
+        if ($activityIds->isNotEmpty() && $activitiesToCopy->isEmpty()) {
             return response()->json(['message' => 'The selected activities no longer exist in that class'], 422);
+        }
+
+        // Replace wipes the target's module tree — a wipe that would cascade
+        // student quiz attempts is refused BEFORE the transaction opens
+        if ($validated['content_mode'] === 'replace') {
+            $targetQuizIds = \App\Models\Quiz::whereIn(
+                'module_id',
+                \App\Models\Module::whereIn('course_id', Course::where('class_id', $target->id)->pluck('id'))->pluck('id')
+            )->pluck('id');
+            $attemptCount = \App\Models\QuizAttempt::whereIn('quiz_id', $targetQuizIds)->count();
+            if ($attemptCount > 0) {
+                return response()->json([
+                    'message' => "Students already have {$attemptCount} quiz attempt" . ($attemptCount === 1 ? '' : 's')
+                        . ' in this class — replacing content would erase their grades. Copy with "Add to existing" instead.',
+                ], 422);
+            }
         }
 
         $result = DB::transaction(function () use ($target, $source, $sourceCourse, $validated, $activitiesToCopy) {
@@ -318,7 +336,8 @@ class ClassroomController extends Controller
                 }
 
                 // 'replace' wipes the target's existing module tree first
-                // (same semantics as the AI commit's replace mode)
+                // (same semantics as the AI commit's replace mode); student
+                // attempts were already guarded above the transaction
                 if ($validated['content_mode'] === 'replace') {
                     $moduleIds = $targetCourse->modules()->pluck('id');
                     $quizIds = \App\Models\Quiz::whereIn('module_id', $moduleIds)->pluck('id');
@@ -347,9 +366,13 @@ class ClassroomController extends Controller
                         $lessonCopy->module_id = $moduleCopy->id;
                         $lessonCopy->is_published = false;
                         // Blocks are keyed by uuid — regenerate so two lessons
-                        // never share block ids
+                        // never share block ids. Assignment (not array union:
+                        // union keeps the existing key) on the cast copy.
                         $blocks = collect($lessonCopy->content ?? [])
-                            ->map(fn ($block) => $block + ['id' => (string) Str::uuid()])
+                            ->map(function ($block) {
+                                $block['id'] = (string) Str::uuid();
+                                return $block;
+                            })
                             ->values()
                             ->all();
                         $lessonCopy->content = $blocks;
@@ -401,6 +424,9 @@ class ClassroomController extends Controller
                 $copy->live_question_revealed_at = null;
                 $copy->close_room_at = null;
                 $copy->order_index = ++$nextOrder;
+                // Copies arrive as drafts — a source's old deadline would make
+                // the clone instantly overdue the moment it's published
+                $copy->deadline_at = null;
                 // Instruction files live on Cloudinary under the original — a
                 // clone would dangle once the original is deleted
                 $copy->instruction_files = [];

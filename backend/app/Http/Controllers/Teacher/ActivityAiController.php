@@ -90,7 +90,7 @@ class ActivityAiController extends Controller
             'context' => 'required|string', // JSON: {lesson_ids: number[], use_curriculum: bool}
             'settings' => 'required|string', // JSON: {types, count, difficulty, focus}
             'files' => 'nullable|array|max:4',
-            'files.*' => 'file|max:10240', // 10 MB each
+            'files.*' => 'file|mimes:pdf,doc,docx,ppt,pptx,txt|max:10240', // 10 MB each
         ]);
 
         // Multipart form fields arrive as strings — decode then validate
@@ -166,6 +166,8 @@ class ActivityAiController extends Controller
 
         foreach ($request->file('files', []) as $file) {
             $payload[] = [
+                // PHP multi-upload semantics need the bracketed name; the
+                // Python endpoint binds this exact name via a File alias
                 'name' => 'files[]',
                 'contents' => fopen($file->getRealPath(), 'r'),
                 'filename' => $file->getClientOriginalName(),
@@ -246,7 +248,9 @@ class ActivityAiController extends Controller
         $mode = $validated['mode'];
         $incoming = $validated['questions'];
 
-        if ($mode === 'replace' && $activity->is_published && $activity->submissions()->exists()) {
+        // Published or not — once students have submitted, replacing the
+        // questions would cascade-delete their graded answers
+        if ($mode === 'replace' && $activity->submissions()->exists()) {
             return response()->json(['message' => 'Students have already submitted — replacing questions is locked.'], 422);
         }
 

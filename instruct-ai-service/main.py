@@ -281,7 +281,7 @@ async def content_stream_endpoint(
 async def qa_questions_stream_endpoint(
     context: str = Form(...),  # JSON list of {source, title, text} — pre-extracted by Laravel
     settings: str = Form(...),  # JSON {types, count, difficulty, focus}
-    files: list[UploadFile] = File([]),  # optional PDF/DOCX/PPTX/TXT sources
+    files: list[UploadFile] = File(None, alias="files[]"),  # PHP forwards the bracketed multi-upload name
 ):
     """
     Generate Q&A questions for a classwork activity, in batches, grounded in
