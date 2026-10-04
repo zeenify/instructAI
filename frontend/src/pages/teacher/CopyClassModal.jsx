@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     ArrowRight,
@@ -10,6 +10,7 @@ import {
     FileQuestion,
     Layers,
     Loader2,
+    RefreshCw,
     Replace,
     TriangleAlert,
     X,
@@ -34,6 +35,21 @@ export default function CopyClassModal({ classId, onClose }) {
     const [contentMode, setContentMode] = useState('append');
     const [selectedActivities, setSelectedActivities] = useState(new Set());
     const [copying, setCopying] = useState(false);
+    const headRef = useRef(null);
+
+    // Escape closes — never while a copy request is in flight
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.key === 'Escape' && !copying) onClose();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [copying, onClose]);
+
+    // Move focus into the modal, and keep it there across steps
+    useEffect(() => {
+        headRef.current?.focus();
+    }, [step]);
 
     const { data: classes, isLoading: classesLoading } = useQuery({
         queryKey: ['teacher-classes-for-copy'],
@@ -48,7 +64,12 @@ export default function CopyClassModal({ classId, onClose }) {
         [classes, classId]
     );
 
-    const { data: preview, isLoading: previewLoading } = useQuery({
+    const {
+        data: preview,
+        isLoading: previewLoading,
+        isError: previewError,
+        refetch: refetchPreview,
+    } = useQuery({
         queryKey: ['copy-preview', sourceId],
         enabled: step === 'configure' && Boolean(sourceId),
         queryFn: async () => {
@@ -110,7 +131,7 @@ export default function CopyClassModal({ classId, onClose }) {
 
                 {step === 'pick' && (
                     <>
-                        <div className="db-modal-head">
+                        <div className="db-modal-head" ref={headRef} tabIndex={-1}>
                             <h3 className="db-modal-title">
                                 <Copy size={18} style={{ verticalAlign: '-3px', marginRight: 8, color: 'var(--db-accent-bright)' }} />
                                 Copy from another class
@@ -147,7 +168,7 @@ export default function CopyClassModal({ classId, onClose }) {
 
                 {step === 'configure' && (
                     <>
-                        <div className="db-modal-head">
+                        <div className="db-modal-head" ref={headRef} tabIndex={-1}>
                             <button type="button" className="cc-back" onClick={() => setStep('pick')} disabled={copying}>
                                 <ChevronRight size={15} style={{ transform: 'rotate(180deg)' }} />
                                 Change class
@@ -161,7 +182,15 @@ export default function CopyClassModal({ classId, onClose }) {
                             </p>
                         </div>
 
-                        {previewLoading ? (
+                        {previewError ? (
+                            <div className="cc-error-row">
+                                <TriangleAlert size={15} />
+                                <span>Couldn't load what that class can offer.</span>
+                                <button type="button" className="cc-retry-btn" onClick={() => refetchPreview()}>
+                                    <RefreshCw size={12} /> Retry
+                                </button>
+                            </div>
+                        ) : previewLoading ? (
                             <div className="cc-loading"><Loader2 size={20} className="cc-spin" /></div>
                         ) : (
                             <div className="cc-body">
@@ -199,10 +228,11 @@ export default function CopyClassModal({ classId, onClose }) {
                                                     ))}
                                                 </ul>
 
-                                                <div className="cc-mode" role="radiogroup" aria-label="Destination">
+                                                <div className="cc-mode" role="group" aria-label="Destination">
                                                     <button
                                                         type="button"
                                                         className={`cc-mode-btn ${contentMode === 'append' ? 'is-active' : ''}`}
+                                                        aria-pressed={contentMode === 'append'}
                                                         onClick={() => setContentMode('append')}
                                                         disabled={copying}
                                                     >
@@ -212,6 +242,7 @@ export default function CopyClassModal({ classId, onClose }) {
                                                     <button
                                                         type="button"
                                                         className={`cc-mode-btn ${contentMode === 'replace' ? 'is-active is-danger' : ''}`}
+                                                        aria-pressed={contentMode === 'replace'}
                                                         onClick={() => setContentMode('replace')}
                                                         disabled={copying}
                                                     >
@@ -264,6 +295,8 @@ export default function CopyClassModal({ classId, onClose }) {
                                                     <li key={a.id}>
                                                         <button
                                                             type="button"
+                                                            role="checkbox"
+                                                            aria-checked={checked}
                                                             className={`cc-activity ${checked ? 'is-checked' : ''}`}
                                                             onClick={() => toggleActivity(a.id)}
                                                             disabled={copying}
@@ -297,12 +330,12 @@ export default function CopyClassModal({ classId, onClose }) {
                             </p>
                             <button
                                 type="button"
-                                className="db-btn-primary cc-copy-btn"
+                                className={`db-btn-primary cc-copy-btn ${contentMode === 'replace' && includeContent && hasContent ? 'cc-copy-btn--danger' : ''}`}
                                 onClick={copy}
                                 disabled={!canCopy || copying}
                             >
-                                {copying ? <Loader2 size={15} className="cc-spin" /> : <Copy size={15} />}
-                                {copying ? 'Copying…' : 'Copy'}
+                                {copying ? <Loader2 size={15} className="cc-spin" /> : contentMode === 'replace' && includeContent && hasContent ? <Replace size={15} /> : <Copy size={15} />}
+                                {copying ? 'Copying…' : contentMode === 'replace' && includeContent && hasContent ? 'Replace content' : 'Copy'}
                             </button>
                         </div>
                     </>

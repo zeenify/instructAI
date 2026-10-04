@@ -32,7 +32,29 @@
     margin: 0;
 }
 
-/* ========================= SETUP — two columns ============================ */
+/* ========================= SETUP — settings strip + two columns =========== */
+
+/* Run-shaping config lives in one full-width strip ABOVE the columns — it
+   applies to the whole run, so it must not hide below a scrolling rail */
+.aiq-settings-strip {
+    display: grid;
+    grid-template-columns: auto auto auto minmax(0, 1fr);
+    gap: 14px;
+    align-items: end;
+    padding: 10px 12px 12px;
+    border: 1px solid var(--db-border);
+    border-radius: 12px;
+    background: var(--db-card-2);
+    margin-bottom: 14px;
+}
+
+@media (max-width: 620px) {
+    .aiq-settings-strip {
+        grid-template-columns: 1fr 1fr;
+    }
+    .aiq-setting--types { grid-column: 1 / -1; }
+    .aiq-seg-btn { padding: 6px 8px; }
+}
 
 .aiq-setup {
     display: grid;
@@ -73,14 +95,24 @@
     width: 100%;
     padding: 8px 10px;
     border-radius: 9px;
-    background: var(--db-accent-soft);
-    border: 1px solid var(--db-accent-border);
+    border: 1px solid var(--db-border);
+    background: var(--db-card-2);
     cursor: pointer;
     font-size: 13px;
     font-weight: 700;
     color: var(--db-text);
     margin-bottom: 8px;
+    text-align: left;
 }
+
+.aiq-wholecourse.is-checked {
+    background: var(--db-accent-soft);
+    border-color: var(--db-accent-border);
+}
+
+.aiq-wholecourse:hover:not(:disabled) { border-color: var(--db-accent-border); }
+
+.aiq-wholecourse:disabled { opacity: 0.55; cursor: default; }
 
 .aiq-wholecourse-title { flex: 1; min-width: 0; }
 
@@ -130,7 +162,7 @@
 }
 
 .aiq-module-row.is-all { background: var(--db-accent-soft); }
-.aiq-module-row.is-some { background: var(--db-accent-soft); opacity: 0.85; }
+.aiq-module-row.is-some { border-color: var(--db-accent-border); }
 
 .aiq-lessons {
     list-style: none;
@@ -175,7 +207,7 @@
 }
 
 .aiq-tree-meta {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--db-text-3);
     flex-shrink: 0;
     font-family: 'JetBrains Mono', monospace;
@@ -366,7 +398,7 @@
     align-items: flex-start;
     gap: 6px;
     margin: 8px 0 0;
-    font-size: 11.5px;
+    font-size: 12px;
     line-height: 1.5;
     color: var(--db-text-3);
 }
@@ -374,13 +406,6 @@
 .aiq-hint svg { flex-shrink: 0; margin-top: 1px; }
 
 /* Settings row */
-
-.aiq-settings-row {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: 12px;
-    align-items: end;
-}
 
 .aiq-setting { min-width: 0; }
 
@@ -394,8 +419,8 @@
 }
 
 .aiq-stepper button {
-    width: 28px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     border: none;
     background: transparent;
     color: var(--db-text-2);
@@ -532,7 +557,7 @@
 
 .aiq-type-badge {
     flex-shrink: 0;
-    font-size: 10.5px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.03em;
     padding: 3px 8px;
@@ -601,12 +626,13 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
     margin-bottom: 8px;
 }
 
 .aiq-card-num {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--db-text-3);
     width: 20px;
     height: 20px;
@@ -620,7 +646,7 @@
 }
 
 .aiq-manual-chip {
-    font-size: 10.5px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--db-amber);
     background: var(--db-amber-soft);
@@ -641,12 +667,12 @@
 }
 
 .aiq-card-points button {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     border: none;
     background: transparent;
     color: var(--db-text-3);
-    font-size: 14px;
+    font-size: 15px;
     cursor: pointer;
     border-radius: 5px;
     line-height: 1;
@@ -770,7 +796,7 @@
 
 .aiq-enum-note, .aiq-essay-note {
     margin: 7px 0 0;
-    font-size: 11.5px;
+    font-size: 12px;
     color: var(--db-text-3);
     display: flex;
     align-items: center;
@@ -852,3 +878,110 @@
 }
 
 .aiq-generate-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ========================= REVIEW SAFETY & FEEDBACK ====================== */
+
+/* Load failure is never dressed up as an empty state */
+.aiq-error-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 12px 14px;
+    border-radius: 11px;
+    background: var(--db-danger-soft, rgba(229, 72, 77, 0.08));
+    border: 1px solid var(--db-danger, #e5484d);
+    color: var(--db-text);
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.aiq-error-row svg { color: var(--db-danger, #e5484d); flex-shrink: 0; }
+
+.aiq-error-row span { flex: 1; min-width: 0; }
+
+.aiq-retry-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card);
+    color: var(--db-text);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.aiq-retry-btn:hover { border-color: var(--db-accent); color: var(--db-accent-bright); }
+
+/* A multiple-choice question with no marked key cannot slip through */
+.aiq-missing-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--db-amber);
+    background: var(--db-amber-soft);
+    border: 1px solid var(--db-amber-border);
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+
+.aiq-commit--danger {
+    background: var(--db-danger, #e5484d);
+    border-color: var(--db-danger, #e5484d);
+}
+
+.aiq-commit--danger:hover { background: #d63c41; border-color: #d63c41; }
+
+/* Closing during review with uncommitted work asks first */
+.aiq-discard-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 10px 13px;
+    border-radius: 11px;
+    background: var(--db-amber-soft);
+    border: 1px solid var(--db-amber-border);
+    animation: aiq-card-in 0.22s ease-out;
+}
+
+.aiq-discard-bar svg { color: var(--db-amber); flex-shrink: 0; }
+
+.aiq-discard-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--db-text);
+}
+
+.aiq-discard-keep, .aiq-discard-yes {
+    border-radius: 8px;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 6px 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.aiq-discard-keep {
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card);
+    color: var(--db-text);
+}
+
+.aiq-discard-keep:hover { border-color: var(--db-accent); color: var(--db-accent-bright); }
+
+.aiq-discard-yes {
+    border: 1px solid var(--db-danger, #e5484d);
+    background: var(--db-danger, #e5484d);
+    color: #fff;
+}
+
+.aiq-discard-yes:hover { background: #d63c41; border-color: #d63c41; }
