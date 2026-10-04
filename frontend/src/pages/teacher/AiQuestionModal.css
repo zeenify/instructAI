@@ -1,0 +1,854 @@
+/* ==========================================================================
+   AiQuestionModal — AI question generation for classwork activities
+   (context tree + files → streamed batches → editable review → commit).
+   Scoped aiq- classes; rides on the shared db-modal primitives and db-
+   tokens from dashboard.css (loaded by TeacherLayout).
+   ========================================================================== */
+
+.aiq-modal {
+    width: min(100%, 780px);
+    max-height: min(88vh, 760px);
+    display: flex;
+    flex-direction: column;
+}
+
+.aiq-spin { animation: aiq-rotate 1s linear infinite; }
+
+@keyframes aiq-rotate { to { transform: rotate(360deg); } }
+
+.aiq-loading {
+    display: flex;
+    justify-content: center;
+    padding: 34px 0;
+    color: var(--db-text-3);
+}
+
+.aiq-empty {
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--db-text-3);
+    padding: 18px 8px;
+    text-align: center;
+    margin: 0;
+}
+
+/* ========================= SETUP — two columns ============================ */
+
+.aiq-setup {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 18px;
+    overflow-y: auto;
+    padding: 2px 2px 4px;
+    align-items: start;
+}
+
+@media (max-width: 700px) {
+    .aiq-setup { grid-template-columns: 1fr; }
+}
+
+.aiq-rail-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--db-text-3);
+    margin-bottom: 7px;
+}
+
+.aiq-optional {
+    font-weight: 500;
+    color: var(--db-text-3);
+    opacity: 0.75;
+}
+
+/* ---- Material tree -------------------------------------------------------- */
+
+.aiq-wholecourse {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 9px;
+    background: var(--db-accent-soft);
+    border: 1px solid var(--db-accent-border);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--db-text);
+    margin-bottom: 8px;
+}
+
+.aiq-wholecourse-title { flex: 1; min-width: 0; }
+
+.aiq-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.aiq-module {
+    border: 1px solid var(--db-border);
+    border-radius: 11px;
+    overflow: hidden;
+    background: var(--db-card-2);
+}
+
+.aiq-module-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    border: none;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    padding: 8px 10px;
+    cursor: pointer;
+    color: inherit;
+}
+
+.aiq-module-row:hover:not(:disabled) { background: var(--db-card); }
+
+.aiq-module-row:disabled { opacity: 0.55; cursor: default; }
+
+.aiq-module-row .aiq-module-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 650;
+    color: var(--db-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.aiq-module-row.is-all { background: var(--db-accent-soft); }
+.aiq-module-row.is-some { background: var(--db-accent-soft); opacity: 0.85; }
+
+.aiq-lessons {
+    list-style: none;
+    margin: 0;
+    padding: 2px 6px 7px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.aiq-lesson-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    border: none;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    padding: 5px 8px 5px 22px;
+    border-radius: 7px;
+    cursor: pointer;
+    color: inherit;
+}
+
+.aiq-lesson-row:hover:not(:disabled) { background: var(--db-card); }
+
+.aiq-lesson-row:disabled { cursor: default; opacity: 0.6; }
+
+.aiq-lesson-row.is-checked { background: var(--db-accent-soft); }
+
+.aiq-lesson-icon { color: var(--db-text-3); flex-shrink: 0; }
+
+.aiq-lesson-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 12.5px;
+    color: var(--db-text-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.aiq-tree-meta {
+    font-size: 11px;
+    color: var(--db-text-3);
+    flex-shrink: 0;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.aiq-curriculum-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 9px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    border: 1px dashed var(--db-border-strong);
+    cursor: pointer;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--db-text-2);
+}
+
+/* ---- Checkboxes ------------------------------------------------------------ */
+
+.aiq-checkbox {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--db-accent);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.aiq-checkbox--box {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    border: 1.5px solid var(--db-border-strong);
+    border-radius: 4.5px;
+    background: var(--db-card);
+    color: #fff;
+    padding: 0;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.aiq-checkbox--box.is-checked {
+    background: var(--db-accent);
+    border-color: var(--db-accent);
+}
+
+.aiq-checkbox--box.is-partial {
+    border-color: var(--db-accent);
+}
+
+.aiq-partial-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+    background: var(--db-accent);
+}
+
+/* ---- Right rail ------------------------------------------------------------- */
+
+.aiq-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.aiq-rail-block { min-width: 0; }
+
+.aiq-focus {
+    width: 100%;
+    resize: none;
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card-2);
+    color: var(--db-text);
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+    border-radius: 10px;
+    padding: 9px 11px;
+}
+
+.aiq-focus:focus { outline: none; border-color: var(--db-accent); }
+
+.aiq-focus::placeholder { color: var(--db-text-3); }
+
+.aiq-dropzone {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    border: 1.5px dashed var(--db-border-strong);
+    border-radius: 10px;
+    padding: 11px 12px;
+    color: var(--db-text-3);
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.aiq-dropzone:hover, .aiq-dropzone.has-files {
+    border-color: var(--db-accent-border);
+    color: var(--db-text-2);
+    background: var(--db-accent-soft);
+}
+
+.aiq-dropzone svg { flex-shrink: 0; }
+
+.aiq-files {
+    list-style: none;
+    margin: 7px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.aiq-file {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 8px;
+    border-radius: 7px;
+    background: var(--db-card-2);
+    font-size: 12px;
+    color: var(--db-text-2);
+}
+
+.aiq-file-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.aiq-file-size { color: var(--db-text-3); flex-shrink: 0; }
+
+.aiq-file-remove {
+    display: inline-flex;
+    border: none;
+    background: transparent;
+    color: var(--db-text-3);
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 5px;
+}
+
+.aiq-file-remove:hover { color: var(--db-danger); background: var(--db-card); }
+
+/* Type chips */
+
+.aiq-type-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.aiq-type-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card);
+    color: var(--db-text-2);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 6px 11px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: border-color 0.13s ease, background 0.13s ease, color 0.13s ease;
+}
+
+.aiq-type-chip:hover { border-color: var(--db-accent-border); color: var(--db-text); }
+
+.aiq-type-chip.is-active {
+    background: var(--db-accent);
+    border-color: var(--db-accent);
+    color: #fff;
+}
+
+.aiq-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 8px 0 0;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--db-text-3);
+}
+
+.aiq-hint svg { flex-shrink: 0; margin-top: 1px; }
+
+/* Settings row */
+
+.aiq-settings-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: end;
+}
+
+.aiq-setting { min-width: 0; }
+
+.aiq-stepper {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--db-border-strong);
+    border-radius: 9px;
+    overflow: hidden;
+    background: var(--db-card);
+}
+
+.aiq-stepper button {
+    width: 28px;
+    height: 30px;
+    border: none;
+    background: transparent;
+    color: var(--db-text-2);
+    font-size: 16px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.aiq-stepper button:hover:not(:disabled) { background: var(--db-card-2); color: var(--db-text); }
+
+.aiq-stepper button:disabled { opacity: 0.35; cursor: default; }
+
+.aiq-stepper span {
+    min-width: 34px;
+    text-align: center;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--db-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.aiq-seg {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 9px;
+    background: var(--db-card-2);
+    gap: 2px;
+}
+
+.aiq-seg-btn {
+    border: none;
+    background: transparent;
+    color: var(--db-text-2);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 7px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.aiq-seg-btn.is-active {
+    background: var(--db-card);
+    color: var(--db-text);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+/* ========================= GENERATING ==================================== */
+
+.aiq-generating {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+}
+
+.aiq-progress-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--db-text-2);
+}
+
+.aiq-status {
+    flex: 1;
+    min-width: 0;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--db-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.aiq-progress-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--db-text-3);
+}
+
+.aiq-progress-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--db-card-2);
+    margin-top: 10px;
+    overflow: hidden;
+}
+
+.aiq-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--db-accent), var(--db-accent-bright));
+    transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.aiq-preview-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 14px;
+    min-height: 200px;
+}
+
+.aiq-preview-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 9px 11px;
+    border-radius: 10px;
+    background: var(--db-card-2);
+    animation: aiq-card-in 0.3s cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+@keyframes aiq-card-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+}
+
+.aiq-preview-text {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--db-text);
+}
+
+.aiq-preview-empty {
+    text-align: center;
+    color: var(--db-text-3);
+    font-size: 12.5px;
+    padding: 30px 0;
+}
+
+.aiq-type-badge {
+    flex-shrink: 0;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--db-card-2);
+    color: var(--db-text-2);
+    border: 1px solid var(--db-border);
+    text-transform: uppercase;
+    margin-top: 1px;
+}
+
+.aiq-type-badge.is-essay { color: var(--db-accent-bright); border-color: var(--db-accent-border); }
+
+.aiq-generating-foot {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    padding-top: 13px;
+    border-top: 1px solid var(--db-border);
+}
+
+.aiq-generating-note {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: 12px;
+    color: var(--db-text-3);
+}
+
+.aiq-stop-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card);
+    color: var(--db-text-2);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 15px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.aiq-stop-btn:hover { border-color: var(--db-danger); color: var(--db-danger); }
+
+/* ========================= REVIEW ======================================== */
+
+.aiq-review-list {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 2px 2px 4px;
+}
+
+.aiq-card {
+    border: 1px solid var(--db-border);
+    border-radius: 12px;
+    padding: 11px 13px 12px;
+    background: var(--db-card-2);
+}
+
+.aiq-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.aiq-card-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--db-text-3);
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: var(--db-card);
+    border: 1px solid var(--db-border);
+    flex-shrink: 0;
+}
+
+.aiq-manual-chip {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--db-amber);
+    background: var(--db-amber-soft);
+    border: 1px solid var(--db-amber-border);
+    padding: 2px 7px;
+    border-radius: 999px;
+}
+
+.aiq-card-points {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--db-text-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.aiq-card-points button {
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: transparent;
+    color: var(--db-text-3);
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 5px;
+    line-height: 1;
+}
+
+.aiq-card-points button:hover { background: var(--db-card); color: var(--db-text); }
+
+.aiq-card-remove {
+    display: inline-flex;
+    border: none;
+    background: transparent;
+    color: var(--db-text-3);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+}
+
+.aiq-card-remove:hover { color: var(--db-danger); background: var(--db-card); }
+
+.aiq-qtext {
+    width: 100%;
+    resize: none;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--db-text);
+    font: inherit;
+    font-size: 13.5px;
+    line-height: 1.55;
+    border-radius: 8px;
+    padding: 6px 8px;
+}
+
+.aiq-qtext:hover { border-color: var(--db-border); }
+
+.aiq-qtext:focus { outline: none; border-color: var(--db-accent); background: var(--db-card); }
+
+/* Options / answers */
+
+.aiq-options {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 6px;
+}
+
+.aiq-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.aiq-option.is-correct .aiq-option-radio {
+    background: var(--db-green, #30a46c);
+    border-color: var(--db-green, #30a46c);
+}
+
+.aiq-option.is-correct input { border-color: var(--db-green, #30a46c); }
+
+.aiq-option-radio {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid var(--db-border-strong);
+    background: var(--db-card);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.aiq-option-radio:hover { border-color: var(--db-accent); }
+
+.aiq-option input, .aiq-answer input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--db-border);
+    background: var(--db-card);
+    color: var(--db-text);
+    font: inherit;
+    font-size: 13px;
+    border-radius: 8px;
+    padding: 6px 10px;
+}
+
+.aiq-option input:focus, .aiq-answer input:focus { outline: none; border-color: var(--db-accent); }
+
+.aiq-option-remove {
+    display: inline-flex;
+    border: none;
+    background: transparent;
+    color: var(--db-text-3);
+    cursor: pointer;
+    padding: 3px;
+    border-radius: 5px;
+    flex-shrink: 0;
+}
+
+.aiq-option-remove:hover { color: var(--db-danger); background: var(--db-card); }
+
+.aiq-option-add {
+    align-self: flex-start;
+    border: none;
+    background: transparent;
+    color: var(--db-accent);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 6px;
+}
+
+.aiq-option-add:hover { background: var(--db-accent-soft); }
+
+.aiq-answer { margin-top: 7px; display: flex; }
+
+.aiq-tf { margin-top: 8px; }
+
+.aiq-enum-note, .aiq-essay-note {
+    margin: 7px 0 0;
+    font-size: 11.5px;
+    color: var(--db-text-3);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.aiq-enum-num { font-size: 12px; color: var(--db-text-3); flex-shrink: 0; font-family: 'JetBrains Mono', monospace; }
+
+/* ========================= FOOTER ======================================== */
+
+.aiq-foot {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    padding-top: 13px;
+    border-top: 1px solid var(--db-border);
+    flex-wrap: wrap;
+}
+
+.aiq-foot-summary {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--db-text-3);
+}
+
+.aiq-mode {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 9px;
+    background: var(--db-card-2);
+    gap: 2px;
+}
+
+.aiq-mode-btn {
+    border: none;
+    background: transparent;
+    color: var(--db-text-2);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 6px 13px;
+    border-radius: 7px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.aiq-mode-btn.is-active {
+    background: var(--db-card);
+    color: var(--db-text);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.aiq-mode-btn.is-danger.is-active { color: var(--db-danger); }
+
+.aiq-warning {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 12px;
+    color: var(--db-text-2);
+    background: var(--db-amber-soft);
+    border: 1px solid var(--db-amber-border);
+    border-radius: 8px;
+    padding: 6px 10px;
+}
+
+.aiq-warning svg { color: var(--db-amber); flex-shrink: 0; }
+
+.aiq-generate-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.aiq-generate-btn:disabled { opacity: 0.5; cursor: default; }

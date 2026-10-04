@@ -1,14 +1,15 @@
 """
-File extraction utilities for PDF, DOCX, and text files
+File extraction utilities for PDF, DOCX, PPTX, and text files
 """
 import pdfplumber
 from docx import Document
 from fastapi import UploadFile
+from pptx import Presentation
 
 
 def extract_text(file: UploadFile) -> str:
     """
-    Extract text content from uploaded files (PDF, DOCX, TXT)
+    Extract text content from uploaded files (PDF, DOCX, PPTX, TXT)
 
     Args:
         file: FastAPI UploadFile object
@@ -24,11 +25,37 @@ def extract_text(file: UploadFile) -> str:
     elif file.filename.endswith('.docx'):
         doc = Document(file.file)
         content = "".join(p.text for p in doc.paragraphs)
+    elif file.filename.endswith('.pptx'):
+        content = _extract_pptx(file.file)
     else:
         # Assume plain text
         content = file.file.read().decode("utf-8")
 
     return content
+
+
+def _extract_pptx(stream) -> str:
+    """Slide text in reading order: title + body shapes per slide, joined
+    with blank lines so slide boundaries stay visible to the model."""
+    try:
+        presentation = Presentation(stream)
+    except Exception:
+        return ""
+    slides = []
+    for slide in presentation.slides:
+        parts = []
+        for shape in slide.shapes:
+            if not shape.has_text_frame:
+                continue
+            shape_text = "\n".join(
+                paragraph.text for paragraph in shape.text_frame.paragraphs
+                if paragraph.text and paragraph.text.strip()
+            )
+            if shape_text.strip():
+                parts.append(shape_text.strip())
+        if parts:
+            slides.append("\n".join(parts))
+    return "\n\n".join(slides)
 
 
 def detect_programming_content(text: str) -> bool:

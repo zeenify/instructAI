@@ -4,6 +4,7 @@ groq
 google-generativeai
 pdfplumber
 python-docx
+python-pptx
 pydantic
 python-dotenv
 requests

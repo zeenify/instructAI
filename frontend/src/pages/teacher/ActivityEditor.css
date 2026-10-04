@@ -916,3 +916,23 @@
         grid-template-columns: repeat(2, 1fr);
     }
 }
+
+/* AI question generation entry (Generate with AI) — sits beside Add question */
+.ae-col-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.ae-ai-btn {
+    color: var(--db-accent-bright);
+    border-color: var(--db-accent-border);
+}
+
+.ae-ai-btn:hover {
+    background: var(--db-accent-soft);
+    color: var(--db-accent-bright);
+    border-color: var(--db-accent);
+}

@@ -256,3 +256,40 @@ BATCH_CHECK_FORMAT = structured_format("batch_check", _obj({
         }, ["question_num", "is_correct"]),
     },
 }, ["results"]))
+
+
+# ===== Q&A QUESTION GENERATION (classwork activities) =====
+# One batch = one type = one schema, so strict mode stays honest about the
+# per-type field shape (options only where the type has them, answers only
+# where the type grades automatically).
+
+_SA_QUESTION = _question({
+    "question_text": {"type": "string"},
+    "type": {"type": "string"},
+    "points": {"type": "integer"},
+    "expected_output": {"type": "string"},
+}, ["question_text", "type", "points", "expected_output"])
+
+_ESSAY_QUESTION = _question({
+    "question_text": {"type": "string"},
+    "type": {"type": "string"},
+    "points": {"type": "integer"},
+}, ["question_text", "type", "points"])
+
+_QA_TYPE_SHAPES = {
+    "multiple_choice": _MC_QUESTION,
+    "true_false": _TF_QUESTION,
+    "identification": _ID_QUESTION,
+    "enumeration": _ENUM_QUESTION,
+    "short_answer": _SA_QUESTION,
+    "essay": _ESSAY_QUESTION,
+}
+
+
+def qa_questions_format(type_name: str) -> dict:
+    """response_format for one batch of one question type."""
+    shape = _QA_TYPE_SHAPES[type_name]
+    return structured_format(
+        f"qa_{type_name}",
+        _obj({"questions": {"type": "array", "items": shape, "maxItems": 6}}, ["questions"]),
+    )

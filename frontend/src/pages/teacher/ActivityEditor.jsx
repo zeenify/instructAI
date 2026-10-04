@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Reorder, useDragControls } from 'framer-motion';
 import {
     ChevronLeft, Plus, Trash2, Clock, Eye, EyeOff, Loader2, HelpCircle, Upload,
-    BookOpen, UserCheck, AlertTriangle, FileText, Timer, Shuffle, Radio, Edit3, Check, X,
+    BookOpen, UserCheck, AlertTriangle, FileText, Timer, Shuffle, Radio, Edit3, Check, X, Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -17,6 +17,7 @@ import CodeMirror from '@uiw/react-codemirror';
 import { CODE_LANGUAGES, cmExtension, languageOf } from '../../utils/codeLanguages';
 import TestCaseEditor from '../../components/teacher/TestCaseEditor';
 import HtmlChecksEditor from '../../components/teacher/HtmlChecksEditor';
+import AiQuestionModal from './AiQuestionModal';
 import './ActivityEditor.css';
 
 const QUESTION_TYPES = [
@@ -546,6 +547,7 @@ export default function ActivityEditor() {
     const savingRef = useRef(false);
     const pendingFlushRef = useRef(false);
     const [showAddQuestion, setShowAddQuestion] = useState(false);
+    const [showAiQuestions, setShowAiQuestions] = useState(false);
     const [editQuestion, setEditQuestion] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteFileTarget, setDeleteFileTarget] = useState(null);
@@ -1160,9 +1162,15 @@ export default function ActivityEditor() {
                             </p>
                         </div>
                         {(isQuiz || activity.submission_type === 'questions') && !questionsDisabled && (
-                            <button className="db-btn-primary" onClick={() => setShowAddQuestion(true)} type="button">
-                                <Plus size={16} /> Add question
-                            </button>
+                            <div className="ae-col-actions">
+                                <button className="db-btn-ghost ae-ai-btn" onClick={() => setShowAiQuestions(true)} type="button"
+                                    title="Write questions from your class material with AI">
+                                    <Sparkles size={15} /> Generate with AI
+                                </button>
+                                <button className="db-btn-primary" onClick={() => setShowAddQuestion(true)} type="button">
+                                    <Plus size={16} /> Add question
+                                </button>
+                            </div>
                         )}
                     </div>
 
@@ -1176,9 +1184,14 @@ export default function ActivityEditor() {
                                         <p className="ae-empty-sub">
                                             {isQuiz ? 'Multiple choice, coding, essays — mix any types.' : 'Add questions for students to answer.'}
                                         </p>
-                                        <button className="db-btn-primary" onClick={() => setShowAddQuestion(true)} type="button">
-                                            <Plus size={15} /> Add your first question
-                                        </button>
+                                        <div className="ae-col-actions" style={{ justifyContent: 'center' }}>
+                                            <button className="db-btn-ghost ae-ai-btn" onClick={() => setShowAiQuestions(true)} type="button">
+                                                <Sparkles size={15} /> Generate with AI
+                                            </button>
+                                            <button className="db-btn-primary" onClick={() => setShowAddQuestion(true)} type="button">
+                                                <Plus size={15} /> Add your first question
+                                            </button>
+                                        </div>
                                     </>
                                 ) : (
                                     <p className="ae-empty-sub">This activity is locked — questions can no longer change.</p>
@@ -1283,6 +1296,17 @@ export default function ActivityEditor() {
             </div>
 
             <CreateQuestionModal key={showAddQuestion} isOpen={showAddQuestion} onClose={() => setShowAddQuestion(false)} onCreated={handleAddQuestion} />
+            {showAiQuestions && (
+                <AiQuestionModal
+                    activityId={activityId}
+                    activityTitle={activity?.title || 'this activity'}
+                    onClose={() => setShowAiQuestions(false)}
+                    onCommitted={() => {
+                        fetchActivity();
+                        queryClient.invalidateQueries({ queryKey: classActivitiesKey(classId) });
+                    }}
+                />
+            )}
             <CreateQuestionModal key={'edit-' + (editQuestion?.id || 'null')} isOpen={!!editQuestion} onClose={() => setEditQuestion(null)} onEdited={handleEditQuestionSubmit} editQuestion={editQuestion} />
             <DeleteModal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)}
                 onConfirm={() => { if (deleteTarget) handleDeleteQuestion(deleteTarget); setDeleteTarget(null); }}
