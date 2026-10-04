@@ -56,6 +56,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/teacher/classes', [ClassroomController::class, 'index']);
     Route::post('/teacher/classes', [ClassroomController::class, 'store']);
     Route::get('/teacher/classes/{id}', [ClassroomController::class, 'show']);
+    Route::get('/teacher/classes/{id}/copy-preview', [ClassroomController::class, 'copyPreview']);
+    Route::post('/teacher/classes/{id}/copy-from', [ClassroomController::class, 'copyFrom']);
     Route::delete('/teacher/class/{id}', [ClassroomController::class, 'destroy']);
     Route::get('/teacher/overview', [ClassroomController::class, 'overview']);
     Route::put('/teacher/classes/{id}/color', [ClassroomController::class, 'updateColor']);

@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { useClassDetails } from '../../queries/classDetails';
 import Classwork from './Classwork';
 import CourseBuilder from './CourseBuilder';
+import CopyClassModal from './CopyClassModal';
 import { SkeletonBlock } from '../../components/ui/skeletons';
 import '../../styles/dashboard.css';
 
@@ -88,6 +89,7 @@ export default function ClassDetails() {
     const content = course ?? null;
 
     const [copied, setCopied] = useState(false);
+    const [copyModalOpen, setCopyModalOpen] = useState(false);
 
     useEffect(() => {
         if (isError) {
@@ -139,6 +141,15 @@ export default function ClassDetails() {
                         <span className="cd-code-chip-hint">Copy</span>
                         {classroom.class_code}
                         {copied ? <Check size={14} /> : <Copy size={14} />}
+                    </button>
+                    <button
+                        type="button"
+                        className="cc-hero-btn"
+                        onClick={() => setCopyModalOpen(true)}
+                        title="Copy content and classwork from one of your other classes"
+                    >
+                        <Copy size={14} />
+                        Copy from class
                     </button>
                 </div>
                 {/* One quiet line instead of four cards — "to grade" only
@@ -261,6 +272,11 @@ export default function ClassDetails() {
 
             {/* CLASSWORK TAB */}
             {activeTab === 'classwork' && <Classwork classId={id} />}
+
+            {/* COPY FROM ANOTHER CLASS */}
+            {copyModalOpen && (
+                <CopyClassModal classId={id} onClose={() => setCopyModalOpen(false)} />
+            )}
         </div>
     );
 }

@@ -1,0 +1,331 @@
+/* ==========================================================================
+   CopyClassModal — "Copy from another class" (content + classwork)
+   Scoped cc- classes; rides on the shared db-modal primitives and db- tokens.
+   ========================================================================== */
+
+.cc-modal {
+    width: min(100%, 560px);
+    max-height: min(86vh, 720px);
+    display: flex;
+    flex-direction: column;
+}
+
+.cc-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    align-self: flex-start;
+    border: none;
+    background: transparent;
+    color: var(--db-text-3, #888);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 2px 4px;
+    margin-left: -4px;
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+.cc-back:hover:not(:disabled) {
+    color: var(--db-text, #111);
+    background: var(--db-card-2, rgba(0, 0, 0, 0.04));
+}
+
+.cc-back:disabled { opacity: 0.45; cursor: default; }
+
+.cc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 4px 2px 2px;
+    overflow-y: auto;
+}
+
+.cc-loading {
+    display: flex;
+    justify-content: center;
+    padding: 30px 0;
+    color: var(--db-text-3, #888);
+}
+
+.cc-spin { animation: cc-rotate 1s linear infinite; }
+
+@keyframes cc-rotate { to { transform: rotate(360deg); } }
+
+.cc-empty {
+    text-align: center;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--db-text-3, #888);
+    padding: 20px 10px;
+    margin: 0;
+}
+
+/* --- Source class rows ----------------------------------------------------- */
+
+.cc-row {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    border: 1px solid var(--db-border, rgba(0, 0, 0, 0.1));
+    background: var(--db-card-2, rgba(0, 0, 0, 0.02));
+    border-radius: 12px;
+    padding: 11px 13px;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.cc-row:hover {
+    border-color: var(--db-accent, #0a84ff);
+    background: var(--db-accent-soft, rgba(10, 132, 255, 0.06));
+}
+
+.cc-row-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.cc-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+
+.cc-row-name { font-size: 14px; font-weight: 650; color: var(--db-text, #111); }
+
+.cc-row-sub { font-size: 12px; color: var(--db-text-3, #888); }
+
+.cc-row-chevron { color: var(--db-text-3, #888); flex-shrink: 0; }
+
+/* --- Configure step --------------------------------------------------------- */
+
+.cc-body {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 2px 2px 4px;
+}
+
+.cc-section {
+    border: 1px solid var(--db-border, rgba(0, 0, 0, 0.08));
+    border-radius: 13px;
+    padding: 12px 13px 13px;
+}
+
+.cc-section-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    color: var(--db-text-2, #555);
+    cursor: pointer;
+}
+
+.cc-section-title { font-size: 13.5px; font-weight: 700; color: var(--db-text, #111); }
+
+.cc-section-meta { font-size: 12px; color: var(--db-text-3, #888); margin-left: auto; }
+
+.cc-selectall {
+    margin-left: auto;
+    border: none;
+    background: transparent;
+    color: var(--db-accent, #0a84ff);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 6px;
+}
+
+.cc-selectall:hover { background: var(--db-accent-soft, rgba(10, 132, 255, 0.08)); }
+
+.cc-checkbox {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--db-accent, #0a84ff);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.cc-checkbox--box {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--db-border-strong, rgba(0, 0, 0, 0.25));
+    border-radius: 5px;
+    background: var(--db-card, #fff);
+    color: #fff;
+    padding: 0;
+    transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.cc-checkbox--box.is-checked {
+    background: var(--db-accent, #0a84ff);
+    border-color: var(--db-accent, #0a84ff);
+}
+
+/* Content tree preview */
+
+.cc-tree {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cc-tree-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 9px;
+    border-radius: 8px;
+    background: var(--db-card-2, rgba(0, 0, 0, 0.03));
+}
+
+.cc-tree-icon { color: var(--db-text-3, #888); flex-shrink: 0; }
+
+.cc-tree-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--db-text, #111);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cc-tree-meta { font-size: 11.5px; color: var(--db-text-3, #888); margin-left: auto; flex-shrink: 0; }
+
+/* Destination mode segmented control */
+
+.cc-mode {
+    display: flex;
+    gap: 6px;
+    margin-top: 11px;
+    padding: 3px;
+    border-radius: 10px;
+    background: var(--db-card-2, rgba(0, 0, 0, 0.04));
+}
+
+.cc-mode-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: none;
+    background: transparent;
+    color: var(--db-text-2, #555);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 7px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.cc-mode-btn:hover:not(:disabled) { color: var(--db-text, #111); }
+
+.cc-mode-btn.is-active {
+    background: var(--db-card, #fff);
+    color: var(--db-text, #111);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.cc-mode-btn.is-danger.is-active { color: var(--db-danger, #e5484d); }
+
+.cc-mode-btn:disabled { opacity: 0.55; cursor: default; }
+
+.cc-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    margin: 9px 0 0;
+    padding: 8px 11px;
+    border-radius: 9px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--db-text, #111);
+    background: var(--db-amber-soft, rgba(255, 214, 10, 0.1));
+    border: 1px solid var(--db-amber-border, rgba(255, 214, 10, 0.4));
+}
+
+.cc-warning svg { flex-shrink: 0; margin-top: 1.5px; color: var(--db-amber, #ffd60a); }
+
+/* Activity rows */
+
+.cc-activities {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cc-activity {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 9px;
+    padding: 7px 9px;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    color: inherit;
+}
+
+.cc-activity:hover:not(:disabled) { background: var(--db-card-2, rgba(0, 0, 0, 0.03)); }
+
+.cc-activity.is-checked {
+    background: var(--db-accent-soft, rgba(10, 132, 255, 0.07));
+    border-color: var(--db-accent-border, rgba(10, 132, 255, 0.35));
+}
+
+.cc-activity:disabled { opacity: 0.6; cursor: default; }
+
+.cc-activity-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--db-text, #111);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Footer */
+
+.cc-foot {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    padding-top: 13px;
+    border-top: 1px solid var(--db-border, rgba(0, 0, 0, 0.08));
+}
+
+.cc-foot-summary {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--db-text-3, #888);
+}
+
+.cc-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;
+}
+
+.cc-copy-btn:disabled { opacity: 0.5; cursor: default; }
