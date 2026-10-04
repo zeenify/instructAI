@@ -5,9 +5,7 @@ import {
     BookOpen,
     Check,
     ChevronRight,
-    ClipboardList,
     Copy,
-    FileQuestion,
     Layers,
     Loader2,
     RefreshCw,
@@ -17,23 +15,20 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
-import { classDetailsKey } from '../../queries/classDetails';
-import { invalidateClasswork } from '../../queries/classwork';
+import { classDetailsKey, courseContentKey } from '../../queries/classDetails';
 import './CopyClassModal.css';
 
 /**
- * "Copy from another class" — pull a class's content (modules, lessons,
- * quizzes) and/or classwork activities into THIS class as unpublished
- * drafts. Two steps: pick the source class, then choose exactly what to
- * copy (append vs replace for content, per-activity selection).
+ * "Copy from another class" — pull a class's entire content (modules,
+ * lessons, quizzes, questions) into THIS class as unpublished drafts.
+ * Classwork has its own per-card repost; this modal is content-only.
+ * Two steps: pick the source class, then Add-to-existing vs Replace.
  */
-export default function CopyClassModal({ classId, onClose }) {
+export default function CopyClassModal({ classId, courseId, onClose }) {
     const queryClient = useQueryClient();
     const [step, setStep] = useState('pick');
     const [sourceId, setSourceId] = useState(null);
-    const [includeContent, setIncludeContent] = useState(true);
     const [contentMode, setContentMode] = useState('append');
-    const [selectedActivities, setSelectedActivities] = useState(new Set());
     const [copying, setCopying] = useState(false);
     const headRef = useRef(null);
 
@@ -79,28 +74,11 @@ export default function CopyClassModal({ classId, onClose }) {
     });
 
     const hasContent = (preview?.modules?.length ?? 0) > 0;
-    const activities = preview?.activities ?? [];
-    const pickedCount = selectedActivities.size;
-    const contentLabel = hasContent && includeContent
-        ? `${preview.modules.length} module${preview.modules.length === 1 ? '' : 's'} (${preview.totals.lessons} lessons, ${preview.totals.quizzes} quizzes)`
-        : null;
-    const canCopy = (includeContent && hasContent) || pickedCount > 0;
 
     const pickClass = (c) => {
         setSourceId(c.id);
-        setSelectedActivities(new Set());
-        setIncludeContent(true);
         setContentMode('append');
         setStep('configure');
-    };
-
-    const toggleActivity = (id) => {
-        setSelectedActivities((prev) => {
-            const next = new Set(prev);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
-            return next;
-        });
     };
 
     const copy = async () => {
@@ -108,12 +86,13 @@ export default function CopyClassModal({ classId, onClose }) {
         try {
             const res = await api.post(`/teacher/classes/${classId}/copy-from`, {
                 source_class_id: sourceId,
-                content_mode: includeContent && hasContent ? contentMode : 'none',
-                activity_ids: [...selectedActivities],
+                content_mode: contentMode,
             });
             toast.success(res.data.message);
+            // The class payload (hero counts) and the builder's content
+            // query both hold module data — refresh both
             queryClient.invalidateQueries({ queryKey: classDetailsKey(classId) });
-            invalidateClasswork(queryClient, classId);
+            if (courseId) queryClient.invalidateQueries({ queryKey: courseContentKey(courseId) });
             onClose();
         } catch (err) {
             toast.error(err?.response?.data?.message || 'Could not copy — try again');
@@ -134,12 +113,12 @@ export default function CopyClassModal({ classId, onClose }) {
                         <div className="db-modal-head" ref={headRef} tabIndex={-1}>
                             <h3 className="db-modal-title">
                                 <Copy size={18} style={{ verticalAlign: '-3px', marginRight: 8, color: 'var(--db-accent-bright)' }} />
-                                Copy from another class
+                                Copy content from another class
                             </h3>
                             <p className="db-modal-sub">
-                                Pull content and classwork from one of your other classes into
-                                this one. Everything arrives as drafts — deadlines reset, you
-                                publish when ready.
+                                Bring the modules, lessons and quizzes of one of your other
+                                classes into this one. Everything arrives as drafts — you
+                                publish when ready. (Classwork has its own repost.)
                             </p>
                         </div>
 
@@ -153,7 +132,8 @@ export default function CopyClassModal({ classId, onClose }) {
                                 </p>
                             ) : (
                                 otherClasses.map((c) => (
-                                    <button key={c.id} type="button" className="cc-row" onClick={() => pickClass(c)}>
+                                    <button key={c.id} type="button" className="cc-row" onClick={() => pickClass(c)}
+                                        aria-label={`Copy content from ${c.name}`}>
                                         <span className="cc-row-dot" style={{ background: c.color || 'var(--db-accent)' }} />
                                         <span className="cc-row-main">
                                             <span className="cc-row-name">{c.name}</span>
@@ -176,10 +156,10 @@ export default function CopyClassModal({ classId, onClose }) {
                             </button>
                             <h3 className="db-modal-title">
                                 <Copy size={18} style={{ verticalAlign: '-3px', marginRight: 8, color: 'var(--db-accent-bright)' }} />
-                                Copy into this class
+                                Copy content into this class
                             </h3>
                             <p className="db-modal-sub">
-                                From <strong>{preview?.class?.name || '…'}</strong> — choose what to bring over.
+                                From <strong>{preview?.class?.name || '…'}</strong> — everything below comes over.
                             </p>
                         </div>
 
@@ -195,149 +175,77 @@ export default function CopyClassModal({ classId, onClose }) {
                             <div className="cc-loading"><Loader2 size={20} className="cc-spin" /></div>
                         ) : (
                             <div className="cc-body">
-                                {/* ---- Content section ---- */}
-                                {hasContent && (
-                                    <section className="cc-section">
-                                        <label className="cc-section-head">
-                                            <input
-                                                type="checkbox"
-                                                className="cc-checkbox"
-                                                checked={includeContent}
-                                                onChange={(e) => setIncludeContent(e.target.checked)}
-                                                disabled={copying}
-                                            />
-                                            <BookOpen size={15} />
-                                            <span className="cc-section-title">Class content</span>
-                                            <span className="cc-section-meta">
-                                                {preview.totals.lessons} lessons · {preview.totals.quizzes} quizzes
-                                            </span>
-                                        </label>
+                                {hasContent ? (
+                                    <>
+                                        <ul className="cc-tree">
+                                            {preview.modules.map((m) => (
+                                                <li key={m.id} className="cc-tree-row">
+                                                    <Layers size={14} className="cc-tree-icon" />
+                                                    <span className="cc-tree-title">{m.title}</span>
+                                                    <span className="cc-tree-meta">
+                                                        {m.lessons_count} lesson{m.lessons_count === 1 ? '' : 's'}
+                                                        {' · '}
+                                                        {m.quizzes_count} quiz{m.quizzes_count === 1 ? '' : 'zes'}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
 
-                                        {includeContent && (
-                                            <>
-                                                <ul className="cc-tree">
-                                                    {preview.modules.map((m) => (
-                                                        <li key={m.id} className="cc-tree-row">
-                                                            <Layers size={14} className="cc-tree-icon" />
-                                                            <span className="cc-tree-title">{m.title}</span>
-                                                            <span className="cc-tree-meta">
-                                                                {m.lessons_count} lesson{m.lessons_count === 1 ? '' : 's'}
-                                                                {' · '}
-                                                                {m.quizzes_count} quiz{m.quizzes_count === 1 ? '' : 'zes'}
-                                                            </span>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-
-                                                <div className="cc-mode" role="group" aria-label="Destination">
-                                                    <button
-                                                        type="button"
-                                                        className={`cc-mode-btn ${contentMode === 'append' ? 'is-active' : ''}`}
-                                                        aria-pressed={contentMode === 'append'}
-                                                        onClick={() => setContentMode('append')}
-                                                        disabled={copying}
-                                                    >
-                                                        <ArrowRight size={14} />
-                                                        Add to existing
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className={`cc-mode-btn ${contentMode === 'replace' ? 'is-active is-danger' : ''}`}
-                                                        aria-pressed={contentMode === 'replace'}
-                                                        onClick={() => setContentMode('replace')}
-                                                        disabled={copying}
-                                                    >
-                                                        <Replace size={14} />
-                                                        Replace current
-                                                    </button>
-                                                </div>
-                                                {contentMode === 'replace' && (
-                                                    <p className="cc-warning">
-                                                        <TriangleAlert size={13} />
-                                                        This class's current modules, lessons and quizzes — and the
-                                                        grades attached to them — will be removed. Locked if students
-                                                        already have quiz attempts.
-                                                    </p>
-                                                )}
-                                            </>
-                                        )}
-                                    </section>
-                                )}
-
-                                {/* ---- Classwork section ---- */}
-                                <section className="cc-section">
-                                    <div className="cc-section-head">
-                                        <ClipboardList size={15} />
-                                        <span className="cc-section-title">Classwork</span>
-                                        {activities.length > 0 && (
+                                        <div className="cc-mode" role="group" aria-label="Destination">
                                             <button
                                                 type="button"
-                                                className="cc-selectall"
-                                                onClick={() =>
-                                                    setSelectedActivities((prev) =>
-                                                        prev.size === activities.length
-                                                            ? new Set()
-                                                            : new Set(activities.map((a) => a.id))
-                                                    )
-                                                }
+                                                className={`cc-mode-btn ${contentMode === 'append' ? 'is-active' : ''}`}
+                                                aria-pressed={contentMode === 'append'}
+                                                onClick={() => setContentMode('append')}
                                                 disabled={copying}
                                             >
-                                                {pickedCount === activities.length ? 'Clear all' : 'Select all'}
+                                                <ArrowRight size={14} />
+                                                Add to existing
                                             </button>
+                                            <button
+                                                type="button"
+                                                className={`cc-mode-btn ${contentMode === 'replace' ? 'is-active is-danger' : ''}`}
+                                                aria-pressed={contentMode === 'replace'}
+                                                onClick={() => setContentMode('replace')}
+                                                disabled={copying}
+                                            >
+                                                <Replace size={14} />
+                                                Replace current
+                                            </button>
+                                        </div>
+                                        {contentMode === 'replace' && (
+                                            <p className="cc-warning">
+                                                <TriangleAlert size={13} />
+                                                This class's current modules, lessons and quizzes — and the
+                                                grades attached to them — will be removed. Locked if students
+                                                already have quiz attempts.
+                                            </p>
                                         )}
-                                    </div>
-
-                                    {activities.length === 0 ? (
-                                        <p className="cc-empty">No classwork in that class.</p>
-                                    ) : (
-                                        <ul className="cc-activities">
-                                            {activities.map((a) => {
-                                                const checked = selectedActivities.has(a.id);
-                                                return (
-                                                    <li key={a.id}>
-                                                        <button
-                                                            type="button"
-                                                            role="checkbox"
-                                                            aria-checked={checked}
-                                                            className={`cc-activity ${checked ? 'is-checked' : ''}`}
-                                                            onClick={() => toggleActivity(a.id)}
-                                                            disabled={copying}
-                                                        >
-                                                            <span className={`cc-checkbox cc-checkbox--box ${checked ? 'is-checked' : ''}`}>
-                                                                {checked && <Check size={11} strokeWidth={3.5} />}
-                                                            </span>
-                                                            <FileQuestion size={14} className="cc-tree-icon" />
-                                                            <span className="cc-activity-title">{a.title}</span>
-                                                            <span className="cc-tree-meta">
-                                                                {a.activity_type === 'quiz' ? 'Quiz' : 'Activity'}
-                                                                {a.questions_count > 0 && ` · ${a.questions_count} Q`}
-                                                            </span>
-                                                        </button>
-                                                    </li>
-                                                );
-                                            })}
-                                        </ul>
-                                    )}
-                                </section>
+                                    </>
+                                ) : (
+                                    <p className="cc-empty">
+                                        That class has no content to copy yet.
+                                    </p>
+                                )}
                             </div>
                         )}
 
                         <div className="cc-foot">
                             <p className="cc-foot-summary">
-                                {!canCopy
-                                    ? 'Pick content or classwork to copy'
-                                    : [contentLabel, pickedCount > 0 && `${pickedCount} classwork`]
-                                          .filter(Boolean)
-                                          .join(' · ')}
+                                {previewLoading
+                                    ? 'Checking what that class has…'
+                                    : hasContent
+                                        ? `${preview.modules.length} module${preview.modules.length === 1 ? '' : 's'} (${preview.totals.lessons} lessons, ${preview.totals.quizzes} quizzes)`
+                                        : 'Nothing to copy'}
                             </p>
                             <button
                                 type="button"
-                                className={`db-btn-primary cc-copy-btn ${contentMode === 'replace' && includeContent && hasContent ? 'cc-copy-btn--danger' : ''}`}
+                                className={`db-btn-primary cc-copy-btn ${contentMode === 'replace' && hasContent ? 'cc-copy-btn--danger' : ''}`}
                                 onClick={copy}
-                                disabled={!canCopy || copying}
+                                disabled={!hasContent || copying || previewLoading || previewError}
                             >
-                                {copying ? <Loader2 size={15} className="cc-spin" /> : contentMode === 'replace' && includeContent && hasContent ? <Replace size={15} /> : <Copy size={15} />}
-                                {copying ? 'Copying…' : contentMode === 'replace' && includeContent && hasContent ? 'Replace content' : 'Copy'}
+                                {copying ? <Loader2 size={15} className="cc-spin" /> : contentMode === 'replace' ? <Replace size={15} /> : <Copy size={15} />}
+                                {copying ? 'Copying…' : contentMode === 'replace' ? 'Replace content' : 'Copy content'}
                             </button>
                         </div>
                     </>

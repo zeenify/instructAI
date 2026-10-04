@@ -109,67 +109,6 @@
     padding: 2px 2px 4px;
 }
 
-.cc-section {
-    border: 1px solid var(--db-border, rgba(0, 0, 0, 0.08));
-    border-radius: 13px;
-    padding: 12px 13px 13px;
-}
-
-.cc-section-head {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
-    color: var(--db-text-2, #555);
-}
-
-label.cc-section-head { cursor: pointer; }
-
-.cc-section-title { font-size: 13.5px; font-weight: 700; color: var(--db-text, #111); }
-
-.cc-section-meta { font-size: 12px; color: var(--db-text-3, #888); margin-left: auto; }
-
-.cc-selectall {
-    margin-left: auto;
-    border: none;
-    background: transparent;
-    color: var(--db-accent, #0a84ff);
-    font: inherit;
-    font-size: 12.5px;
-    font-weight: 600;
-    cursor: pointer;
-    padding: 2px 4px;
-    border-radius: 6px;
-}
-
-.cc-selectall:hover { background: var(--db-accent-soft, rgba(10, 132, 255, 0.08)); }
-
-.cc-checkbox {
-    width: 16px;
-    height: 16px;
-    accent-color: var(--db-accent, #0a84ff);
-    cursor: pointer;
-    flex-shrink: 0;
-}
-
-.cc-checkbox--box {
-    appearance: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1.5px solid var(--db-border-strong, rgba(0, 0, 0, 0.25));
-    border-radius: 5px;
-    background: var(--db-card, #fff);
-    color: #fff;
-    padding: 0;
-    transition: background 0.12s ease, border-color 0.12s ease;
-}
-
-.cc-checkbox--box.is-checked {
-    background: var(--db-accent, #0a84ff);
-    border-color: var(--db-accent, #0a84ff);
-}
-
 /* Content tree preview */
 
 .cc-tree {
@@ -260,48 +199,6 @@ label.cc-section-head { cursor: pointer; }
 .cc-warning svg { flex-shrink: 0; margin-top: 1.5px; color: var(--db-amber, #ffd60a); }
 
 /* Activity rows */
-
-.cc-activities {
-    list-style: none;
-    margin: 8px 0 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.cc-activity {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    width: 100%;
-    border: 1px solid transparent;
-    background: transparent;
-    border-radius: 9px;
-    padding: 7px 9px;
-    cursor: pointer;
-    font: inherit;
-    text-align: left;
-    color: inherit;
-}
-
-.cc-activity:hover:not(:disabled) { background: var(--db-card-2, rgba(0, 0, 0, 0.03)); }
-
-.cc-activity.is-checked {
-    background: var(--db-accent-soft, rgba(10, 132, 255, 0.07));
-    border-color: var(--db-accent-border, rgba(10, 132, 255, 0.35));
-}
-
-.cc-activity:disabled { opacity: 0.6; cursor: default; }
-
-.cc-activity-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--db-text, #111);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
 
 /* Footer */
 

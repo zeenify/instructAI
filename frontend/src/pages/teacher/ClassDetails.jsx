@@ -146,10 +146,10 @@ export default function ClassDetails() {
                         type="button"
                         className="cc-hero-btn"
                         onClick={() => setCopyModalOpen(true)}
-                        title="Copy content and classwork from one of your other classes"
+                        title="Copy content (modules, lessons, quizzes) from one of your other classes"
                     >
                         <Copy size={14} />
-                        Copy from class
+                        Copy content
                     </button>
                 </div>
                 {/* One quiet line instead of four cards — "to grade" only
@@ -273,9 +273,9 @@ export default function ClassDetails() {
             {/* CLASSWORK TAB */}
             {activeTab === 'classwork' && <Classwork classId={id} />}
 
-            {/* COPY FROM ANOTHER CLASS */}
+            {/* COPY CONTENT FROM ANOTHER CLASS */}
             {copyModalOpen && (
-                <CopyClassModal classId={id} onClose={() => setCopyModalOpen(false)} />
+                <CopyClassModal classId={id} courseId={course?.id} onClose={() => setCopyModalOpen(false)} />
             )}
         </div>
     );
