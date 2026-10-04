@@ -90,6 +90,7 @@ export default function ClassDetails() {
 
     const [copied, setCopied] = useState(false);
     const [copyModalOpen, setCopyModalOpen] = useState(false);
+    const [copyVersion, setCopyVersion] = useState(0);
 
     useEffect(() => {
         if (isError) {
@@ -221,9 +222,12 @@ export default function ClassDetails() {
                         </div>
                     ) : (
                         /* key: builder state (modules, expanded module, modes) is
-                           per-course — never leak across class switches */
+                           per-course — never leak across class switches. The
+                           copy version remounts the builder after a content
+                           copy: the builder seeds its state once from
+                           initialCourse, so a refetch alone never reaches it. */
                         <CourseBuilder
-                            key={course.id}
+                            key={`${course.id}:${copyVersion}`}
                             courseId={course.id}
                             embedded
                             initialCourse={content}
@@ -275,7 +279,12 @@ export default function ClassDetails() {
 
             {/* COPY CONTENT FROM ANOTHER CLASS */}
             {copyModalOpen && (
-                <CopyClassModal classId={id} courseId={course?.id} onClose={() => setCopyModalOpen(false)} />
+                <CopyClassModal
+                    classId={id}
+                    courseId={course?.id}
+                    onCommitted={() => setCopyVersion((v) => v + 1)}
+                    onClose={() => setCopyModalOpen(false)}
+                />
             )}
         </div>
     );

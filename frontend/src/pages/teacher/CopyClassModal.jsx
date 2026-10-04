@@ -24,7 +24,7 @@ import './CopyClassModal.css';
  * Classwork has its own per-card repost; this modal is content-only.
  * Two steps: pick the source class, then Add-to-existing vs Replace.
  */
-export default function CopyClassModal({ classId, courseId, onClose }) {
+export default function CopyClassModal({ classId, courseId, onCommitted, onClose }) {
     const queryClient = useQueryClient();
     const [step, setStep] = useState('pick');
     const [sourceId, setSourceId] = useState(null);
@@ -90,9 +90,12 @@ export default function CopyClassModal({ classId, courseId, onClose }) {
             });
             toast.success(res.data.message);
             // The class payload (hero counts) and the builder's content
-            // query both hold module data — refresh both
+            // query both hold module data — refresh both. The builder itself
+            // seeds its state once at mount, so onCommitted remounts it with
+            // the fresh tree (cache invalidation alone can't reach it).
             queryClient.invalidateQueries({ queryKey: classDetailsKey(classId) });
             if (courseId) queryClient.invalidateQueries({ queryKey: courseContentKey(courseId) });
+            onCommitted?.();
             onClose();
         } catch (err) {
             toast.error(err?.response?.data?.message || 'Could not copy — try again');

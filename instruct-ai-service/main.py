@@ -305,7 +305,9 @@ async def qa_questions_stream_endpoint(
         print(f"[QA] bad settings: {e}")
         return JSONResponse(status_code=400, content={"error": "bad settings"})
 
-    for file in files[:4]:
+    # files is None (not []) when the form carries no uploads — e.g. the
+    # lessons-only run, the most common flow
+    for file in (files or [])[:4]:
         text = await asyncio.to_thread(_safe_extract, file)
         if text and text.strip():
             sources.append({"source": "file", "title": file.filename, "text": text[:20000]})
