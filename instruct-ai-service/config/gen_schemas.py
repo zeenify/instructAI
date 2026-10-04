@@ -276,6 +276,20 @@ _ESSAY_QUESTION = _question({
     "points": {"type": "integer"},
 }, ["question_text", "type", "points"])
 
+# Activities grade coding against a single expected output (no engine-verified
+# test cases here — that's the lesson-challenge pipeline), so the Q&A coding
+# shape is the studio's minus test_cases.
+_QA_CODING_QUESTION = _question({
+    "question_text": {"type": "string"},
+    "type": {"type": "string"},
+    "language": {"type": "string"},
+    "points": {"type": "integer"},
+    "boilerplate": {"type": "string"},
+    "reference_solution": {"type": "string"},
+    "expected_output": {"type": "string"},
+}, ["question_text", "type", "language", "points", "boilerplate",
+    "reference_solution", "expected_output"])
+
 _QA_TYPE_SHAPES = {
     "multiple_choice": _MC_QUESTION,
     "true_false": _TF_QUESTION,
@@ -283,6 +297,7 @@ _QA_TYPE_SHAPES = {
     "enumeration": _ENUM_QUESTION,
     "short_answer": _SA_QUESTION,
     "essay": _ESSAY_QUESTION,
+    "coding": _QA_CODING_QUESTION,
 }
 
 

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
     ArrowRight,
     BookOpen,
     Check,
+    ChevronDown,
     FileText,
     HelpCircle,
     Layers,
@@ -31,9 +32,13 @@ const AI_TYPES = [
     { id: 'enumeration', label: 'Enumeration' },
     { id: 'short_answer', label: 'Short answer' },
     { id: 'essay', label: 'Essay' },
+    { id: 'coding', label: 'Coding' },
 ];
 
-const AUTO_GRADED = new Set(['multiple_choice', 'true_false', 'identification', 'enumeration', 'short_answer']);
+// Every type at 0 = "automatic" — Laravel picks a sensible mix from the
+// material (coding only for coding material, essays only when there's room)
+const ZERO_COUNTS = Object.fromEntries(AI_TYPES.map((t) => [t.id, 0]));
+
 const MAX_FILES = 4;
 const MAX_FILE_MB = 10;
 const MODAL_Z = 1000;
@@ -60,16 +65,15 @@ const plural = (n, word, pluralWord) => `${n} ${n === 1 ? word : (pluralWord ?? 
  * with uncommitted questions asks first.
  */
 export default function AiQuestionModal({ activityId, activityTitle, onClose, onCommitted }) {
-    const queryClient = useQueryClient();
     const [phase, setPhase] = useState('setup');
     const [selectedLessons, setSelectedLessons] = useState(new Set());
     const [useCurriculum, setUseCurriculum] = useState(false);
     const [focus, setFocus] = useState('');
     const [files, setFiles] = useState([]);
-    const [types, setTypes] = useState(['multiple_choice']);
     const [count, setCount] = useState(10);
     const [difficulty, setDifficulty] = useState('medium');
-    const [points, setPoints] = useState(1);
+    const [counts, setCounts] = useState(ZERO_COUNTS);
+    const [advancedOpen, setAdvancedOpen] = useState(false);
 
     const [statusLine, setStatusLine] = useState('');
     const [progress, setProgress] = useState({ done: 0, total: 0 });
@@ -96,8 +100,23 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
         },
     });
 
-    const modules = context?.modules ?? [];
+    const modules = useMemo(() => context?.modules ?? [], [context]);
     const course = context?.course ?? null;
+    const codingMeta = context?.coding ?? null;
+
+    // Explicit per-type counts (Advanced) — any number above zero switches
+    // the run from automatic to exact mix
+    const countsActive = Object.values(counts).some((n) => n > 0);
+    const countsSum = Object.values(counts).reduce((a, b) => a + Number(b || 0), 0);
+    const totalCount = countsActive ? countsSum : count;
+    const advDirty = focus.trim() !== '' || files.length > 0 || countsActive || difficulty !== 'medium';
+    const codingBlocked =
+        codingMeta && (!codingMeta.language || !codingMeta.engine_ok)
+            ? (!codingMeta.language
+                ? 'Set the course language in the Curriculum modal first'
+                : `The execution engine doesn't have ${codingMeta.language} available`)
+            : null;
+
     const selectableLessonIds = useMemo(
         () => modules.flatMap((m) => m.lessons.filter((l) => l.text_chars >= 40).map((l) => l.id)),
         [modules]
@@ -107,7 +126,6 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
 
     const canGenerate =
         phase === 'setup' &&
-        types.length > 0 &&
         (selectedLessons.size > 0 || useCurriculum || files.length > 0);
 
     // Escape asks before discarding reviewed work; otherwise closes
@@ -163,7 +181,7 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
     };
 
     const toggleWholeCourse = () => {
-        setSelectedLessons((prev) => {
+        setSelectedLessons(() => {
             if (wholeCourseSelected) return new Set();
             return new Set(selectableLessonIds);
         });
@@ -200,7 +218,7 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
         setPhase('generating');
         setConfirmDiscard(false);
         setDrafts([]);
-        setProgress({ done: 0, total: count });
+        setProgress({ done: 0, total: totalCount });
         setStatusLine('Connecting to AI service…');
 
         const controller = new AbortController();
@@ -211,7 +229,13 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
             lesson_ids: [...selectedLessons],
             use_curriculum: useCurriculum,
         }));
-        form.append('settings', JSON.stringify({ types, count, difficulty, focus }));
+        form.append('settings', JSON.stringify({
+            count: totalCount,
+            difficulty,
+            focus,
+            // null = automatic — the backend reads the material and decides
+            counts: countsActive ? counts : null,
+        }));
         files.forEach((f) => form.append('files[]', f));
 
         let sawError = null;
@@ -278,7 +302,12 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                 options: q.options ?? [],
                                 correctIndex,
                                 expected_output: q.expected_output ?? '',
-                                points,
+                                // Points come per-type from the server's
+                                // defaults (1 pt objective, 5 pt essay/coding)
+                                points: Math.max(1, Math.round(Number(q.points) || 1)),
+                                boilerplate: q.boilerplate ?? '',
+                                reference_code: q.reference_code ?? '',
+                                language: q.language ?? codingMeta?.language ?? '',
                             };
                         });
                         if (batch.length) {
@@ -308,7 +337,7 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
             if (sawError) toast.message('Heads up', { description: `${sawError} — you can review what was written.` });
             setPhase('review');
         }
-    }, [activityId, selectedLessons, useCurriculum, types, count, difficulty, focus, files, points]);
+    }, [activityId, selectedLessons, useCurriculum, difficulty, focus, files, counts, countsActive, totalCount, codingMeta]);
 
     const stopGeneration = () => {
         abortRef.current?.abort();
@@ -340,23 +369,37 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
     };
 
     const invalidMc = drafts.filter((d) => d.type === 'multiple_choice' && (d.correctIndex == null || !d.options[d.correctIndex]?.trim()));
+    const invalidCoding = drafts.filter((d) => d.type === 'coding' && (!d.boilerplate?.trim() || !d.expected_output?.trim()));
+    const invalidDrafts = [...invalidMc, ...invalidCoding];
 
     const commit = async () => {
         if (invalidMc.length > 0) {
             toast.error(`${plural(invalidMc.length, 'multiple-choice question')} ha${invalidMc.length === 1 ? 's' : 've'} no correct answer marked — pick the right option first.`);
             return;
         }
+        if (invalidCoding.length > 0) {
+            toast.error(`${plural(invalidCoding.length, 'coding question')} need${invalidCoding.length === 1 ? 's' : ''} starter code and an expected output.`);
+            return;
+        }
         setCommitting(true);
         try {
-            const payload = drafts.map((d) => ({
-                type: d.type,
-                question_text: d.question_text,
-                options: d.options ?? [],
-                expected_output: d.type === 'multiple_choice'
-                    ? (d.options[d.correctIndex] ?? '')
-                    : (d.expected_output ?? ''),
-                points: Math.max(1, Math.round(Number(d.points) || 1)),
-            }));
+            const payload = drafts.map((d) => {
+                const base = {
+                    type: d.type,
+                    question_text: d.question_text,
+                    options: d.options ?? [],
+                    expected_output: d.type === 'multiple_choice'
+                        ? (d.options[d.correctIndex] ?? '')
+                        : (d.expected_output ?? ''),
+                    points: Math.max(1, Math.round(Number(d.points) || 1)),
+                };
+                if (d.type === 'coding') {
+                    base.boilerplate = d.boilerplate ?? '';
+                    base.reference_code = d.reference_code ?? '';
+                    base.language = d.language || undefined;
+                }
+                return base;
+            });
             const res = await api.post(`/teacher/activities/${activityId}/ai-commit-questions`, {
                 mode,
                 questions: payload,
@@ -424,66 +467,35 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                             </div>
                         ) : (
                             <>
-                                {/* Run-shaping settings sit ABOVE the columns — they
-                                    apply to the whole run, not one side */}
-                                <div className="aiq-settings-strip">
+                                {/* One control lives outside the scroll: how many.
+                                    Everything else is Advanced. */}
+                                <div className="aiq-topbar">
                                     <div className="aiq-setting">
                                         <div className="aiq-rail-label">How many</div>
                                         <div className="aiq-stepper">
-                                            <button type="button" aria-label="Fewer questions" onClick={() => setCount((c) => Math.max(1, c - 1))} disabled={count <= 1}>−</button>
-                                            <span>{count}</span>
-                                            <button type="button" aria-label="More questions" onClick={() => setCount((c) => Math.min(20, c + 1))} disabled={count >= 20}>+</button>
+                                            <button type="button" aria-label="Fewer questions" onClick={() => setCount((c) => Math.max(1, c - 1))} disabled={countsActive || totalCount <= 1}>−</button>
+                                            <span>{totalCount}</span>
+                                            <button type="button" aria-label="More questions" onClick={() => setCount((c) => Math.min(20, c + 1))} disabled={countsActive || totalCount >= 20}>+</button>
                                         </div>
                                     </div>
-                                    <div className="aiq-setting">
-                                        <div className="aiq-rail-label">Difficulty</div>
-                                        <div className="aiq-seg" role="group" aria-label="Difficulty">
-                                            {['easy', 'medium', 'hard'].map((d) => (
-                                                <button
-                                                    key={d}
-                                                    type="button"
-                                                    className={`aiq-seg-btn ${difficulty === d ? 'is-active' : ''}`}
-                                                    aria-pressed={difficulty === d}
-                                                    onClick={() => setDifficulty(d)}
-                                                >
-                                                    {d[0].toUpperCase() + d.slice(1)}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="aiq-setting">
-                                        <div className="aiq-rail-label">Points each</div>
-                                        <div className="aiq-stepper">
-                                            <button type="button" aria-label="Fewer points" onClick={() => setPoints((p) => Math.max(1, p - 1))} disabled={points <= 1}>−</button>
-                                            <span>{points}</span>
-                                            <button type="button" aria-label="More points" onClick={() => setPoints((p) => Math.min(100, p + 1))} disabled={points >= 100}>+</button>
-                                        </div>
-                                    </div>
-                                    <div className="aiq-setting aiq-setting--types">
-                                        <div className="aiq-rail-label">Question types</div>
-                                        <div className="aiq-type-chips">
-                                            {AI_TYPES.map((t) => {
-                                                const active = types.includes(t.id);
-                                                return (
-                                                    <button
-                                                        key={t.id}
-                                                        type="button"
-                                                        className={`aiq-type-chip ${active ? 'is-active' : ''}`}
-                                                        aria-pressed={active}
-                                                        onClick={() =>
-                                                            setTypes((prev) => (active ? prev.filter((x) => x !== t.id) : [...prev, t.id]))
-                                                        }
-                                                    >
-                                                        {active && <Check size={11} strokeWidth={3} />}
-                                                        {t.label}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
+                                    {countsActive && (
+                                        <p className="aiq-mix-note">Set by your exact mix in Advanced</p>
+                                    )}
+                                    <div className="aiq-advanced">
+                                        <button
+                                            type="button"
+                                            className="aiq-adv-toggle"
+                                            aria-expanded={advancedOpen}
+                                            onClick={() => setAdvancedOpen((o) => !o)}
+                                        >
+                                            <ChevronDown size={14} className={advancedOpen ? 'is-open' : ''} />
+                                            Advanced
+                                            {advDirty && <span className="aiq-adv-dot" aria-label="has custom settings" />}
+                                        </button>
                                     </div>
                                 </div>
 
-                                <div className="aiq-setup">
+                                <div className="aiq-setup aiq-setup--single">
                                     <div className="aiq-tree-col">
                                         <div className="aiq-rail-label">
                                             <Layers size={13} />
@@ -585,74 +597,125 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                             </>
                                         )}
                                     </div>
-
-                                    <div className="aiq-rail">
-                                        <div className="aiq-rail-block">
-                                            <div className="aiq-rail-label">Focus <span className="aiq-optional">optional</span></div>
-                                            <textarea
-                                                className="aiq-focus"
-                                                rows={2}
-                                                maxLength={500}
-                                                value={focus}
-                                                onChange={(e) => setFocus(e.target.value)}
-                                                placeholder="e.g. focus on recursion, avoid definitions, make it word-problem heavy…"
-                                            />
-                                        </div>
-
-                                        <div className="aiq-rail-block">
-                                            <div className="aiq-rail-label">Reference files <span className="aiq-optional">optional</span></div>
-                                            <div
-                                                className={`aiq-dropzone ${files.length > 0 ? 'has-files' : ''}`}
-                                                onDragOver={(e) => e.preventDefault()}
-                                                onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}
-                                                onClick={() => fileInputRef.current?.click()}
-                                                onKeyDown={dropzoneKeyDown}
-                                                role="button"
-                                                tabIndex={0}
-                                                aria-label="Upload reference files"
-                                            >
-                                                <Upload size={16} />
-                                                <span>Drop PDF, DOCX, PPTX or TXT — or click to browse</span>
-                                            </div>
-                                            <input
-                                                ref={fileInputRef}
-                                                type="file"
-                                                accept=".pdf,.doc,.docx,.ppt,.pptx,.txt"
-                                                multiple
-                                                hidden
-                                                onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }}
-                                            />
-                                            {files.length > 0 && (
-                                                <ul className="aiq-files">
-                                                    {files.map((f, i) => (
-                                                        <li key={`${f.name}-${i}`} className="aiq-file">
-                                                            <FileText size={12} />
-                                                            <span className="aiq-file-name">{f.name}</span>
-                                                            <span className="aiq-file-size">{(f.size / 1024 / 1024).toFixed(1)}MB</span>
-                                                            <button type="button" className="aiq-file-remove" onClick={(e) => { e.stopPropagation(); setFiles((prev) => prev.filter((_, j) => j !== i)); }}>
-                                                                <X size={12} />
-                                                            </button>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            )}
-                                        </div>
-
-                                        {types.some((t) => t === 'identification' || t === 'short_answer') && (
-                                            <p className="aiq-hint">
-                                                <TriangleAlert size={11} />
-                                                Identification and short answer are graded by exact match — the AI writes a canonical answer, but review them.
-                                            </p>
-                                        )}
-                                    </div>
                                 </div>
+
+                                {advancedOpen && (
+                                    <div className="aiq-adv-body">
+                                                <div className="aiq-adv-row">
+                                                    <div className="aiq-rail-label">Custom prompt <span className="aiq-optional">optional</span></div>
+                                                    <textarea
+                                                        className="aiq-focus"
+                                                        rows={2}
+                                                        maxLength={500}
+                                                        value={focus}
+                                                        onChange={(e) => setFocus(e.target.value)}
+                                                        placeholder="e.g. focus on recursion, avoid definitions, make it word-problem heavy…"
+                                                    />
+                                                </div>
+
+                                                <div className="aiq-adv-row">
+                                                    <div className="aiq-rail-label">Reference files <span className="aiq-optional">optional</span></div>
+                                                    <div
+                                                        className={`aiq-dropzone ${files.length > 0 ? 'has-files' : ''}`}
+                                                        onDragOver={(e) => e.preventDefault()}
+                                                        onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}
+                                                        onClick={() => fileInputRef.current?.click()}
+                                                        onKeyDown={dropzoneKeyDown}
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        aria-label="Upload reference files"
+                                                    >
+                                                        <Upload size={16} />
+                                                        <span>Drop PDF, DOCX, PPTX or TXT — or click to browse</span>
+                                                    </div>
+                                                    <input
+                                                        ref={fileInputRef}
+                                                        type="file"
+                                                        accept=".pdf,.doc,.docx,.ppt,.pptx,.txt"
+                                                        multiple
+                                                        hidden
+                                                        onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }}
+                                                    />
+                                                    {files.length > 0 && (
+                                                        <ul className="aiq-files">
+                                                            {files.map((f, i) => (
+                                                                <li key={`${f.name}-${i}`} className="aiq-file">
+                                                                    <FileText size={12} />
+                                                                    <span className="aiq-file-name">{f.name}</span>
+                                                                    <span className="aiq-file-size">{(f.size / 1024 / 1024).toFixed(1)}MB</span>
+                                                                    <button type="button" className="aiq-file-remove" onClick={(e) => { e.stopPropagation(); setFiles((prev) => prev.filter((_, j) => j !== i)); }}>
+                                                                        <X size={12} />
+                                                                    </button>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    )}
+                                                </div>
+
+                                                <div className="aiq-adv-row">
+                                                    <div className="aiq-rail-label">Question mix</div>
+                                                    <p className="aiq-mix-note">
+                                                        {countsActive
+                                                            ? <>Exact mix — the total above follows it. <button type="button" className="aiq-mix-reset" onClick={() => setCounts(ZERO_COUNTS)}>Back to automatic</button></>
+                                                            : 'Automatic — we pick a sensible mix from your material (coding only for coding material). Set a number to choose exactly.'}
+                                                    </p>
+                                                    <div className="aiq-mix-grid">
+                                                        {AI_TYPES.map((t) => {
+                                                            const locked = t.id === 'coding' && codingBlocked;
+                                                            return (
+                                                                <div key={t.id} className={`aiq-mix-row ${locked ? 'is-locked' : ''}`}>
+                                                                    <span className="aiq-mix-label" title={locked ? codingBlocked : undefined}>{t.label}</span>
+                                                                    <div className="aiq-stepper aiq-stepper--sm">
+                                                                        <button
+                                                                            type="button"
+                                                                            aria-label={`Fewer ${t.label}`}
+                                                                            onClick={() => setCounts((c) => ({ ...c, [t.id]: Math.max(0, Number(c[t.id]) - 1) }))}
+                                                                            disabled={locked || Number(counts[t.id]) <= 0}
+                                                                        >−</button>
+                                                                        <span>{counts[t.id]}</span>
+                                                                        <button
+                                                                            type="button"
+                                                                            aria-label={`More ${t.label}`}
+                                                                            onClick={() => setCounts((c) => ({ ...c, [t.id]: Math.min(20, Number(c[t.id]) + 1) }))}
+                                                                            disabled={locked || countsSum >= 20}
+                                                                            title={locked ? codingBlocked : undefined}
+                                                                        >+</button>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    <p className="aiq-hint">
+                                                        <TriangleAlert size={11} />
+                                                        Identification and short answer are graded by exact match — the AI writes a canonical answer, but review them.
+                                                    </p>
+                                                </div>
+
+                                                <div className="aiq-adv-row">
+                                                    <div className="aiq-rail-label">Difficulty</div>
+                                                    <div className="aiq-seg" role="group" aria-label="Difficulty">
+                                                        {['easy', 'medium', 'hard'].map((d) => (
+                                                            <button
+                                                                key={d}
+                                                                type="button"
+                                                                className={`aiq-seg-btn ${difficulty === d ? 'is-active' : ''}`}
+                                                                aria-pressed={difficulty === d}
+                                                                onClick={() => setDifficulty(d)}
+                                                            >
+                                                                {d[0].toUpperCase() + d.slice(1)}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                    </div>
+                                )}
                             </>
                         )}
 
                         <div className="aiq-foot">
                             <p className="aiq-foot-summary">
                                 {canGenerate
-                                    ? `${plural(count, 'question')} · ${difficulty} · from ${summaryParts.join(' + ')}`
+                                    ? `${plural(totalCount, 'question')} · ${countsActive ? 'your mix' : difficulty} · from ${summaryParts.join(' + ')}`
                                     : 'Pick lessons or add a file for the AI to read'}
                             </p>
                             <button type="button" className="db-btn-primary aiq-generate-btn" onClick={startGeneration} disabled={!canGenerate}>
@@ -714,13 +777,19 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                     <div className="aiq-card-head">
                                         <span className="aiq-card-num">{index + 1}</span>
                                         <span className={`aiq-type-badge is-${d.type}`}>{labelFor(d.type)}</span>
-                                        {!AUTO_GRADED.has(d.type) && d.type !== 'enumeration' && (
+                                        {d.type === 'essay' && (
                                             <span className="aiq-manual-chip">manual grading</span>
                                         )}
                                         {d.type === 'multiple_choice' && d.correctIndex == null && (
                                             <span className="aiq-missing-key">
                                                 <TriangleAlert size={11} />
                                                 pick the correct option
+                                            </span>
+                                        )}
+                                        {d.type === 'coding' && (!d.boilerplate?.trim() || !d.expected_output?.trim()) && (
+                                            <span className="aiq-missing-key">
+                                                <TriangleAlert size={11} />
+                                                needs starter code + expected output
                                             </span>
                                         )}
                                         <span className="aiq-card-points">
@@ -840,6 +909,47 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                         </div>
                                     )}
 
+                                    {d.type === 'coding' && (
+                                        <div className="aiq-coding">
+                                            <div className="aiq-coding-field">
+                                                <div className="aiq-rail-label">Starter code</div>
+                                                <textarea
+                                                    className="aiq-code"
+                                                    rows={4}
+                                                    value={d.boilerplate}
+                                                    onChange={(e) => patchDraft(d.localId, { boilerplate: e.target.value })}
+                                                    aria-label={`Question ${index + 1} starter code`}
+                                                    spellCheck={false}
+                                                />
+                                            </div>
+                                            <div className="aiq-coding-field">
+                                                <div className="aiq-rail-label">
+                                                    Reference solution <span className="aiq-optional">the answer key — students never see it</span>
+                                                </div>
+                                                <textarea
+                                                    className="aiq-code"
+                                                    rows={5}
+                                                    value={d.reference_code}
+                                                    onChange={(e) => patchDraft(d.localId, { reference_code: e.target.value })}
+                                                    aria-label={`Question ${index + 1} reference solution`}
+                                                    spellCheck={false}
+                                                />
+                                            </div>
+                                            <div className="aiq-coding-field">
+                                                <div className="aiq-rail-label">Expected output</div>
+                                                <textarea
+                                                    className="aiq-code aiq-code--short"
+                                                    rows={2}
+                                                    value={d.expected_output}
+                                                    onChange={(e) => patchDraft(d.localId, { expected_output: e.target.value })}
+                                                    aria-label={`Question ${index + 1} expected output`}
+                                                    spellCheck={false}
+                                                />
+                                            </div>
+                                            {d.language && <span className="aiq-lang-chip">{d.language}</span>}
+                                        </div>
+                                    )}
+
                                     {d.type === 'essay' && (
                                         <p className="aiq-essay-note">
                                             <HelpCircle size={12} />
@@ -881,7 +991,7 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                 type="button"
                                 className={`db-btn-primary aiq-generate-btn ${mode === 'replace' ? 'aiq-commit--danger' : ''}`}
                                 onClick={commit}
-                                disabled={committing || drafts.length === 0 || invalidMc.length > 0}
+                                disabled={committing || drafts.length === 0 || invalidDrafts.length > 0}
                             >
                                 {committing ? <Loader2 size={14} className="aiq-spin" /> : <ListChecks size={15} />}
                                 {mode === 'replace' ? 'Replace with' : 'Add'} {plural(drafts.length, 'question')}

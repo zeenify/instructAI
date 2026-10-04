@@ -34,6 +34,19 @@ TYPE_LABELS = {
     "enumeration": "enumeration",
     "short_answer": "short answer",
     "essay": "essay",
+    "coding": "coding",
+}
+
+# Per-type default points — the teacher edits them later in the editor, so
+# generation never asks. Heavier formats cost more by default.
+DEFAULT_POINTS = {
+    "multiple_choice": 1,
+    "true_false": 1,
+    "identification": 1,
+    "enumeration": 2,
+    "short_answer": 2,
+    "essay": 5,
+    "coding": 5,
 }
 
 DIFFICULTY_HINTS = {
@@ -57,6 +70,15 @@ Mix both across questions.
 Avoid answers that could reasonably vary.
 - enumeration: "How many / list the N …" style; "options" is the list of correct \
 items (2-5 items), each a short phrase.
+- coding: a small programming task grounded in the material, written in the \
+CODE LANGUAGE given in the task. "boilerplate" is starter code for the student — \
+signatures, comments and TODO placeholders only; it must NOT contain or reveal \
+the solution. "reference_solution" is a complete correct program that solves \
+the task and is substantially different from the boilerplate. "expected_output" \
+is the exact console output the reference solution prints when run — copy it \
+verbatim (a unittest run prints lines like "Ran 1 test in 0.001s" and "OK"); \
+it is NEVER empty and never a bare placeholder such as ".". Keep the task \
+small enough to finish in a few minutes and fully answerable from the material.
 - short_answer: a question answered in one brief sentence or phrase. \
 "expected_output" is a canonical phrasing a teacher would accept (auto-graded \
 by exact match, so keep it tight and unambiguous).
@@ -98,20 +120,36 @@ def _build_context_block(context_sources):
     return "\n\n".join(parts) if parts else ""
 
 
-def _build_batch_user_prompt(context_block, qtype, n, difficulty, focus):
+def _build_batch_user_prompt(context_block, qtype, n, difficulty, focus, language=None):
     focus_line = f"\nTEACHER'S FOCUS (honor it): {focus}" if focus else ""
+    # Coding tasks are written in the course's language — the same convention
+    # the studio uses so generated code never drifts
+    language_line = (
+        f"\nCODE LANGUAGE: write every line of code strictly in {language}." if qtype == "coding" and language else ""
+    )
     return (
         f"CLASS MATERIAL:\n{context_block}\n"
         f"\nTASK: Write {n} new {TYPE_LABELS.get(qtype, qtype)} questions grounded ONLY in the "
         f"material above. Difficulty: {difficulty} — {DIFFICULTY_HINTS.get(difficulty, DIFFICULTY_HINTS['medium'])}"
-        f"{focus_line}"
+        f"{language_line}{focus_line}"
     )
 
 
-def _plan_batches(types, count):
+def _plan_batches(types, count, counts=None):
     """Split `count` fairly across the chosen types, then chunk each type's
     share into batches of BATCH_SIZE — every batch stays single-type so the
-    strict schema holds, and every chosen type actually gets written."""
+    strict schema holds, and every chosen type actually gets written.
+
+    `counts` (type → n) is the teacher's explicit mix from Laravel — it wins
+    outright and `count` is ignored."""
+    if counts:
+        batches = []
+        for t, n in counts.items():
+            if t not in TYPE_LABELS or int(n) <= 0:
+                continue
+            for start in range(0, int(n), BATCH_SIZE):
+                batches.append((t, min(BATCH_SIZE, int(n) - start)))
+        return batches
     base = count // len(types)
     extra = count % len(types)
     batches = []
@@ -188,8 +226,10 @@ async def _run_batch(ai_pool: AIClientPool, **call_kwargs):
             task.cancel()
 
 
-def _parse_batch(content, qtype):
-    """Parse one structured batch; tolerate prose-wrapped JSON."""
+def _parse_batch(content, qtype, language=None):
+    """Parse one structured batch; tolerate prose-wrapped JSON. Points are
+    ALWAYS the server's per-type defaults — the model's guesses are ignored
+    (the teacher edits points in the editor, generation never asks)."""
     if not content:
         return []
     text = content.strip()
@@ -222,18 +262,34 @@ def _parse_batch(content, qtype):
         if not text_field:
             continue
         options_raw = q.get("options") if isinstance(q.get("options"), list) else []
-        out.append({
+        item = {
             "type": qtype,
             "question_text": text_field,
             "options": [str(o).strip() for o in options_raw if str(o).strip()],
             "expected_output": str(q.get("expected_output") or "").strip(),
-            "points": max(1, int(q.get("points") or 1)),
-        })
+            # Server-owned defaults (1 pt objective, 5 pt essay/coding, …)
+            "points": DEFAULT_POINTS.get(qtype, 1),
+        }
+        if qtype == "coding":
+            item["boilerplate"] = str(q.get("boilerplate") or "").strip()
+            # Laravel's ActivityQuestion column is reference_code
+            item["reference_code"] = str(q.get("reference_solution") or "").strip()
+            if language:
+                item["language"] = language
+            # A coding task without starter code or a runnable expectation is
+            # unsavable — skip it here so the teacher never reviews a broken card
+            if not item["boilerplate"] or not item["expected_output"]:
+                continue
+        out.append(item)
     return out
 
 
 async def generate_qa_questions_stream(ai_pool: AIClientPool, context_sources, settings):
-    """The full stream: plan batches → per-batch structured generation → events."""
+    """The full stream: plan batches → per-batch structured generation → events.
+
+    `settings.counts` (type → n) is the teacher's explicit mix — Laravel's
+    auto-mix also arrives in this shape, so this service only executes plans,
+    it never invents one."""
     types = [t for t in (settings.get("types") or []) if t in TYPE_LABELS] or ["multiple_choice"]
     try:
         count = max(1, min(int(settings.get("count", 10)), 20))
@@ -241,6 +297,8 @@ async def generate_qa_questions_stream(ai_pool: AIClientPool, context_sources, s
         count = 10
     difficulty = settings.get("difficulty", "medium")
     focus = _clip(str(settings.get("focus") or ""), 500)
+    language = str(settings.get("language") or "").strip() or None
+    counts = settings.get("counts") if isinstance(settings.get("counts"), dict) else None
 
     context_block = _build_context_block(context_sources)
     if not context_block:
@@ -249,7 +307,7 @@ async def generate_qa_questions_stream(ai_pool: AIClientPool, context_sources, s
 
     yield f"data: {json.dumps({'type': 'status', 'message': f'Reading {len(context_sources)} source(s)…'})}\n\n"
 
-    batches = _plan_batches(types, count)
+    batches = _plan_batches(types, count, counts=counts)
     total = sum(n for _, n in batches)
     written = []
 
@@ -259,7 +317,7 @@ async def generate_qa_questions_stream(ai_pool: AIClientPool, context_sources, s
         yield f"data: {json.dumps({'type': 'status', 'message': f'Writing {label} questions ({done + 1}–{done + n} of {total})…'})}\n\n"
 
         recent = "\n".join(f"- {q['question_text'][:140]}" for q in written[-10:])
-        user_prompt = _build_batch_user_prompt(context_block, qtype, n, difficulty, focus)
+        user_prompt = _build_batch_user_prompt(context_block, qtype, n, difficulty, focus, language=language)
         if recent:
             user_prompt += f"\n\nALREADY WRITTEN (do not repeat):\n{recent}"
 
@@ -287,7 +345,7 @@ async def generate_qa_questions_stream(ai_pool: AIClientPool, context_sources, s
             yield f"data: {json.dumps({'type': 'status', 'message': 'That batch hit a snag — trying the next one…'})}\n\n"
             continue
 
-        questions = _parse_batch(content, qtype)
+        questions = _parse_batch(content, qtype, language=language)
         if not questions:
             yield f"data: {json.dumps({'type': 'status', 'message': 'That batch came back empty — trying the next one…'})}\n\n"
             continue
