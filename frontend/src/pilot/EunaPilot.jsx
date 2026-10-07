@@ -117,7 +117,7 @@ function StepsCard({ msg }) {
 
 export default function EunaPilot() {
     const pilot = usePilotRun();
-    const { open, setOpen, messages, status, statusText, consent, input, setInput, send, approveConsent, declineConsent, abort, clearThread, suggestions, busy } = pilot;
+    const { open, setOpen, messages, status, statusText, driving, consent, input, setInput, send, approveConsent, declineConsent, abort, clearThread, suggestions, busy } = pilot;
     const scrollRef = useRef(null);
     const inputRef = useRef(null);
 
@@ -156,8 +156,16 @@ export default function EunaPilot() {
 
     return (
         <div className="euna-root" data-euna-ignore>
-            {busy && (
-                <div className={`euna-drive-bar ${waiting ? 'is-waiting' : ''}`} role="status">
+            {/* Driving is the ONLY state that owns the page: the bar, the blue
+                corner glow and the click lock all appear together, and chatting
+                or thinking never shows them. The lock blocks real pointers —
+                the executor drives through programmatic clicks and the panel's
+                Stop stays above it. */}
+            {driving && <div className="euna-driving-blocker" aria-hidden="true" />}
+            {driving && <div className="euna-driving-glow" aria-hidden="true" />}
+
+            {driving && (
+                <div className="euna-drive-bar" role="status">
                     <EunaAvatar size={24} className="euna-drive-bar__avatar" />
                     <span className="euna-drive-bar__dot" />
                     <button
@@ -166,10 +174,8 @@ export default function EunaPilot() {
                         title="Open EUNA Pilot"
                         onClick={() => setOpen(true)}
                     >
-                        <span className="euna-drive-bar__label">{waiting ? 'Waiting for your OK' : 'EUNA is driving'}</span>
-                        {!waiting && statusText && statusText !== 'Thinking…' && (
-                            <span className="euna-drive-bar__step">{statusText}</span>
-                        )}
+                        <span className="euna-drive-bar__label">EUNA is driving</span>
+                        {statusText && <span className="euna-drive-bar__step">{statusText}</span>}
                     </button>
                     <button type="button" className="euna-drive-bar__stop" onClick={abort}>
                         <Square size={11} />
@@ -177,6 +183,10 @@ export default function EunaPilot() {
                     </button>
                 </div>
             )}
+
+            {/* Consent with the panel closed still needs an answer — pulse the
+                FAB so the takeover request is never missed */}
+            {waiting && !open && <span className="euna-fab__badge" aria-hidden="true" />}
 
             {open && (
                 <section className="euna-panel" aria-label="EUNA Pilot">

@@ -91,6 +91,7 @@ export function usePilotRun() {
     });
     const [status, setStatus] = useState('idle'); // idle|thinking|awaiting-consent|acting
     const [statusText, setStatusText] = useState('');
+    const [driving, setDriving] = useState(false); // executing page actions — gates the drive bar + page lock
     const [consent, setConsent] = useState(null); // {explain, commands} while pending
     const [input, setInput] = useState('');
 
@@ -189,6 +190,7 @@ export function usePilotRun() {
             streamingRef.current = null;
             overlay.hideHighlight();
             overlay.hideCursor();
+            setDriving(false);
             setStatus('idle');
             setStrip('');
             setConsent(null);
@@ -219,30 +221,52 @@ export function usePilotRun() {
                 return;
             }
 
-            let envelope;
-            try {
-                const resp = await api.post(
-                    '/teacher/ai/pilot-prepare',
-                    {
-                        run_id: runIdRef.current,
-                        kind,
-                        route: window.location.pathname,
-                        message: kind === 'start' ? task : undefined,
-                        data: data || {},
-                    },
-                    { signal: abortRef.current?.signal, timeout: 20000 },
-                );
-                envelope = resp.data;
-                turnTokenRef.current = envelope.turn_token;
-            } catch (err) {
-                if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') {
+            let envelope = null;
+            const maxAttempts = 3;
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                try {
+                    const resp = await api.post(
+                        '/teacher/ai/pilot-prepare',
+                        {
+                            run_id: runIdRef.current,
+                            kind,
+                            route: window.location.pathname,
+                            message: kind === 'start' ? task : undefined,
+                            data: data || {},
+                        },
+                        { signal: abortRef.current?.signal, timeout: 20000 },
+                    );
+                    envelope = resp.data;
+                    break;
+                } catch (err) {
+                    if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') {
+                        await finalize();
+                        return;
+                    }
+                    // This box serves the dashboard AND the pilot from one PHP
+                    // worker — transient refusals right after an in-page action
+                    // (the page's own writes are still draining) are common.
+                    // A mid-run drop must not look like the task failed, so
+                    // retry with backoff before giving up.
+                    if (abortedRef.current) {
+                        await finalize();
+                        return;
+                    }
+                    if (attempt < maxAttempts) {
+                        await new Promise((r) => setTimeout(r, 1200 * attempt));
+                        continue;
+                    }
+                    push({
+                        kind: 'notice',
+                        text: kind === 'start'
+                            ? "I couldn't reach the dashboard backend — is it running?"
+                            : "The connection dropped on my side — every step you saw complete DID go through. Ask me to continue if the page doesn't look right.",
+                    });
                     await finalize();
                     return;
                 }
-                push({ kind: 'notice', text: "I couldn't reach my coordinator — is the backend up?" });
-                await finalize();
-                return;
             }
+            turnTokenRef.current = envelope.turn_token;
 
             let pendingTool = null;
             let pendingLookup = null;
@@ -368,6 +392,7 @@ export function usePilotRun() {
 
             setStatus('acting');
             setStrip(event.explain || 'Operating…');
+            setDriving(true); // the page is EUNA's while the batch runs
             toolTurnsRef.current += 1;
             const toolsMsgId = push({
                 kind: 'tools',
@@ -392,6 +417,11 @@ export function usePilotRun() {
             executedRef.current.push(...results.map((r) => ({ ...r, explain: event.explain || '' })));
             trailRef.current.push(...results.map((r) => r.message).filter(Boolean));
             updateMessage(toolsMsgId, { results });
+            // Batch done — the page is the teacher's again while the next
+            // turn streams (the drive bar + page lock are tied to `driving`)
+            setDriving(false);
+            setStatus('thinking');
+            setStrip('');
 
             // Repeat detection: an identical batch that just failed entirely
             // means the model is stuck — stop honestly instead of burning
@@ -580,6 +610,7 @@ export function usePilotRun() {
         messages,
         status,
         statusText,
+        driving,
         consent,
         input,
         setInput,

@@ -249,7 +249,9 @@ async function runOne(cmd, ctx) {
             target.el.dispatchEvent(new Event('input', { bubbles: true }));
         }
         await sleep(250);
-        return { action, ref, ok: true, message: `filled "${target.entry.name || ref}"` };
+        // Say BOTH the value and the field — the audit log reads like a
+        // natural sentence and can't be mistaken for "it typed the placeholder"
+        return { action, ref, ok: true, message: `filled "${value}" into ${target.entry.name ? `"${target.entry.name}"` : `field ${ref}`}` };
     }
 
     if (action === 'select') {

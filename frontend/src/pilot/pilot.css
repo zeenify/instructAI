@@ -52,9 +52,6 @@
     flex-shrink: 0;
 }
 
-.euna-drive-bar.is-waiting .euna-drive-bar__dot {
-    background: #ffd60a;
-}
 
 .euna-drive-bar__main {
     display: flex;
@@ -105,6 +102,54 @@
 .euna-drive-bar__stop:hover {
     background: #e5484d;
     border-color: #e5484d;
+}
+
+/* --- Driving state ---------------------------------------------------------- */
+
+/* Page lock while EUNA executes — blocks real pointers so a stray click can't
+   interrupt the run. The executor drives through programmatic element.click()
+   (unaffected by overlays), and the panel (9990) + drive bar (9987) + FAB
+   (9985) all sit above it, so Stop is always reachable. */
+.euna-driving-blocker {
+    position: fixed;
+    inset: 0;
+    z-index: 9983;
+    cursor: progress;
+}
+
+/* Blue corner glow — the ambient "an AI is holding the wheel" signal.
+   Gradients only, no elements: pointer-events stay untouched. */
+.euna-driving-glow {
+    position: fixed;
+    inset: 0;
+    z-index: 9984;
+    pointer-events: none;
+    background:
+        radial-gradient(340px 260px at 0% 0%, rgba(10, 132, 255, 0.28), transparent 70%),
+        radial-gradient(340px 260px at 100% 0%, rgba(10, 132, 255, 0.28), transparent 70%),
+        radial-gradient(340px 260px at 0% 100%, rgba(10, 132, 255, 0.28), transparent 70%),
+        radial-gradient(340px 260px at 100% 100%, rgba(10, 132, 255, 0.28), transparent 70%);
+    animation: euna-driving-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes euna-driving-breathe {
+    0%, 100% { opacity: 0.75; }
+    50% { opacity: 1; }
+}
+
+/* Consent waiting with the panel closed — pulse on the FAB corner */
+.euna-fab__badge {
+    position: fixed;
+    right: 24px;
+    bottom: 66px;
+    z-index: 9986;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #ffd60a;
+    border: 2px solid #1c1c1e;
+    pointer-events: none;
+    animation: euna-pulse-dot 1.1s ease-in-out infinite;
 }
 
 /* --- Virtual cursor ------------------------------------------------------ */
@@ -673,6 +718,15 @@
     font-size: 13.5px;
     font-weight: 600;
     cursor: pointer;
+    transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+/* Specificity matters here: a bare `.euna-btn:hover` would out-rank the
+   primary variant and paint white label text onto a near-white light-mode
+   hover background — the vanishing-label bug */
+.euna-btn:hover {
+    background: var(--db-card-2, rgba(0, 0, 0, 0.04));
+    border-color: var(--db-border-strong, rgba(0, 0, 0, 0.28));
 }
 
 .euna-btn--primary {
@@ -681,8 +735,11 @@
     color: #fff;
 }
 
-.euna-btn--primary:hover { background: var(--db-accent-bright, #3395ff); }
-.euna-btn:hover { background: var(--db-card-2, rgba(0, 0, 0, 0.04)); }
+.euna-btn.euna-btn--primary:hover {
+    background: var(--db-accent-bright, #3395ff);
+    border-color: var(--db-accent-bright, #3395ff);
+    color: #fff;
+}
 
 /* --- Chips ------------------------------------------------------------------ */
 
