@@ -1,14 +1,21 @@
-// The landing journey v2 — a continuous 3D world the camera travels through.
-// One paper-colored path, five stages along the Z axis, fog between them.
-// Scroll = camera dolly. Everything sits ON the ground; nothing floats.
+// The landing journey v3 — the typography lives INSIDE the world.
+// Headlines are Fraunces rendered as 3D text standing in the scene next to
+// the models, so scrolling reads as one continuous place instead of a page
+// with a parallax backdrop. The DOM only carries nav, small captions and
+// interactive bits. Scroll = camera dolly through five stages.
 import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
-import { useAnimations } from '@react-three/drei';
+import { Text, useAnimations } from '@react-three/drei';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as THREE from 'three';
-import { fittedClone, measureModel } from './fit.js';
+import { fittedClone } from './fit.js';
 
 const M = '/models/landing/';
+const F_ROMAN = '/fonts/Fraunces-SemiBold.ttf';
+const F_ITALIC = '/fonts/Fraunces-SemiBoldItalic.ttf';
+const INK = '#16130e';
+const VERM = '#ff4b26';
+const SAGE = '#3e8e7e';
 
 // ── easing helpers ─────────────────────────────────────────
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
@@ -40,16 +47,15 @@ function Rig({ url, size = 1.7, byHeight = false, geomOnly = false, robust = tru
   );
 }
 
-// ── code-driven rotation for props (trophies, caps, globes) ──
-function Spinner({ speed = 0.8, tumble = 0, children }) {
+// ── gentle life for props: a bob, a tilt, a slow turn. Never a
+//    showcase spin — the camera transit already provides motion. ──
+function Float({ amp = 0.06, speed = 1, tilt = 0, drift = 0, children }) {
   const ref = useRef();
   useFrame((state) => {
     const t = state.clock.elapsedTime;
-    ref.current.rotation.y = t * speed;
-    if (tumble) {
-      ref.current.rotation.x = Math.sin(t * tumble) * 0.35;
-      ref.current.rotation.z = Math.cos(t * tumble * 0.8) * 0.3;
-    }
+    ref.current.position.y = Math.sin(t * speed) * amp;
+    if (tilt) ref.current.rotation.z = Math.sin(t * speed * 0.7) * tilt;
+    if (drift) ref.current.rotation.y = Math.sin(t * drift) * 0.55;
   });
   return <group ref={ref}>{children}</group>;
 }
@@ -58,7 +64,7 @@ function Spinner({ speed = 0.8, tumble = 0, children }) {
 // where the animation itself poses the parts). Strategy: play the take
 // unmodified and measure its full bounds by CPU-skinning sampled poses, so
 // the whole performance fits the intended stage box.
-function PoseRig({ url, size = 1.5, window: win, retint, ...props }) {
+function PoseRig({ url, size = 1.5, ...props }) {
   const gltf = useLoader(GLTFLoader, url);
   const outer = useRef();
   const inner = useRef();
@@ -78,10 +84,8 @@ function PoseRig({ url, size = 1.5, window: win, retint, ...props }) {
     const zs = [];
     const v = new THREE.Vector3();
     const steps = 28;
-    const t0 = win ? win.start : 0;
-    const span = win ? win.dur : dur;
     for (let i = 0; i <= steps; i++) {
-      mixer.setTime(t0 + (i / steps) * span);
+      mixer.setTime((i / steps) * dur);
       inner.current.updateMatrixWorld(true);
       inner.current.traverse((o) => {
         if (o.isSkinnedMesh && o.skeleton) o.skeleton.update();
@@ -117,37 +121,85 @@ function PoseRig({ url, size = 1.5, window: win, retint, ...props }) {
       -minY * k,
       -((minZ + maxZ) / 2) * k,
     );
-    action.time = t0;
+    action.time = 0;
     fitted.current = true;
-    if (retint) {
-      const [to] = retint;
-      inner.current.traverse((o) => {
-        if (o.isMesh && o.material && o.material.color) {
-          const c = o.material.color;
-          // hue-ish match for the purple hat
-          if (c.b > 0.45 && c.r > 0.1 && c.r < 0.8 && c.g < 0.5 && c.b > c.g) {
-            o.material.color = new THREE.Color(to);
-          }
-        }
-      });
-    }
-  }, [actions, names, mixer, size, win, retint]);
-
-  useFrame((_, dt) => {
-    if (!fitted.current || !names.length) return;
-    const action = actions[names[0]];
-    if (!action) return;
-    if (win) {
-      action.time += dt;
-      if (action.time >= win.start + win.dur) action.time = win.start;
-    }
-  });
+  }, [actions, names, mixer, size]);
 
   return (
     <group ref={outer} {...props}>
       <group ref={inner}>
         <primitive object={gltf.scene} />
       </group>
+    </group>
+  );
+}
+
+// ── in-world typography ─────────────────────────────────────
+// Each headline is 1–2 Text nodes; wraps are pre-computed from an estimated
+// glyph width so mobile line breaks still stack correctly. Opacity follows
+// camera distance — troika's SDF shader ignores scene fog, so this fade IS
+// the fog for text (models fade via the real fog).
+function useStageFade(ref, worldZ) {
+  useFrame((state) => {
+    const g = ref.current;
+    if (!g) return;
+    const d = Math.abs(state.camera.position.z - (worldZ + 7));
+    const o = clamp01(1.25 - d * 0.13);
+    g.traverse((n) => {
+      const m = n.material;
+      if (m && 'opacity' in m) {
+        m.transparent = o < 0.999;
+        m.opacity = o;
+      }
+    });
+  });
+}
+
+function StageText({ lines, position, stageZ, size = 0.6, gap = 0.3 }) {
+  const group = useRef();
+  const { size: vp, camera } = useThree();
+  const aspect = vp.width / vp.height;
+  // shrink the whole block on narrow screens instead of letting it overflow
+  const scale = Math.min(1, Math.max(0.55, aspect / 1.55));
+  const visW = 2 * 7 * Math.tan(((camera.fov || 42) * Math.PI) / 360) * aspect;
+  const maxWidth = Math.min(8, (visW / scale) * 0.92);
+
+  const layout = useMemo(() => {
+    let y = 0;
+    return lines.map((l) => {
+      const fs = l.size || size;
+      const rows = Math.max(1, Math.ceil((l.text.length * fs * 0.5) / maxWidth));
+      const slot = { ...l, fs, y, rows };
+      y += rows * fs * 1.16 + gap * fs;
+      return slot;
+    });
+  }, [lines, size, gap, maxWidth]);
+
+  useStageFade(group, stageZ + position[2]);
+  useFrame((state) => {
+    const g = group.current;
+    if (!g) return;
+    // the type breathes very slightly so it feels part of the world
+    g.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.8 + stageZ) * 0.03;
+  });
+
+  return (
+    <group ref={group} position={position} scale={scale}>
+      {layout.map((l, i) => (
+        <Text
+          key={i}
+          font={l.em ? F_ITALIC : F_ROMAN}
+          fontSize={l.fs}
+          color={l.em ? VERM : INK}
+          anchorX="center"
+          anchorY="top"
+          maxWidth={maxWidth}
+          textAlign="center"
+          position={[0, -l.y, 0]}
+        >
+          {l.text}
+        </Text>
+      ))}
     </group>
   );
 }
@@ -188,60 +240,46 @@ function WorldPlane() {
   );
 }
 
-// ── stage 1 letters: toy blocks standing on the ground ─────
-function LettersStage() {
-  const gltf = useLoader(GLTFLoader, M + 'alphabet.glb');
+// ── stage 1 letters: real typeset Fraunces letters on the floor ──
+function TypeStage({ stageZ }) {
   const group = useRef();
-  const letters = useMemo(() => {
-    const meshes = [];
-    gltf.scene.traverse((o) => { if (o.isMesh) meshes.push(o); });
-    // an arc of blocks standing on the ground, left of the path
-    const layout = [
-      [-2.9, 0.02, -1.1, 0.4], [-2.1, 0.02, -0.4, -0.2], [-1.35, 0.02, -1.3, 0.7],
-      [-0.5, 0.02, -0.55, -0.5], [0.35, 0.02, -1.25, 0.3], [1.2, 0.02, -0.5, -0.35],
-      [2.0, 0.02, -1.35, 0.55], [2.75, 0.02, -0.7, -0.15],
-    ];
-    return layout.map(([x, y, z, rot], i) => {
-      const original = meshes[i % meshes.length];
-      const clone = original.clone();
-      // toy-block tints so the letters read against the paper fog
-      const palette = ['#ff4b26', '#3e8e7e', '#16130e', '#ffd43b'];
-      clone.material = clone.material.clone();
-      clone.material.color = new THREE.Color(palette[i % palette.length]);
-      // zero the local transform, then bake the original's world transform in
-      // (applyMatrix4 premultiplies: matrix = worldMatrix * identity)
-      clone.position.set(0, 0, 0);
-      clone.rotation.set(0, 0, 0);
-      original.updateWorldMatrix(true, false);
-      clone.applyMatrix4(original.matrixWorld);
-      // measure this letter and stand it on the ground
-      const probe = new THREE.Group();
-      probe.add(clone);
-      const { box, center } = measureModel(probe);
-      const h = box.max.y - box.min.y || 1;
-      const k = (1.5 + (i % 3) * 0.4) / h;
-      clone.scale.setScalar(k);
-      const g = new THREE.Group();
-      g.add(clone);
-      g.position.set(x, -box.min.y * k, z);
-      g.rotation.y = rot;
-      g.userData = { phase: i * 1.31, baseY: -box.min.y * k };
-      return g;
-    });
-  }, [gltf]);
+  const letters = useMemo(() => ([
+    { ch: 'A', x: -3.4, z: -1.2, s: 0.85, c: VERM, r: 0.42 },
+    { ch: 'a', x: -2.55, z: -0.5, s: 0.6, c: INK, r: -0.28 },
+    { ch: 'B', x: -1.75, z: -1.0, s: 0.78, c: SAGE, r: 0.3 },
+    { ch: 'b', x: -0.9, z: -0.45, s: 0.58, c: INK, r: -0.38 },
+    { ch: 'C', x: -0.1, z: -1.1, s: 0.8, c: VERM, r: 0.22 },
+    { ch: 'c', x: 0.7, z: -0.5, s: 0.5, c: INK, r: -0.2 },
+  ]), []);
 
+  useStageFade(group, stageZ);
   useFrame((state) => {
     const t = state.clock.elapsedTime;
     if (!group.current) return;
-    let i = 0;
-    group.current.children.forEach((g) => {
-      // a gentle wave runs through the blocks — schoolroom energy, not chaos
-      g.position.y = g.userData.baseY + Math.abs(Math.sin(t * 1.4 - i * 0.55)) * 0.16;
-      i += 1;
+    group.current.children.forEach((g, i) => {
+      // a gentle wave runs through the type — schoolroom energy, not chaos
+      g.position.y = Math.abs(Math.sin(t * 1.3 - i * 0.5)) * 0.12;
     });
   });
 
-  return <group ref={group}>{letters.map((l, i) => <primitive key={i} object={l} />)}</group>;
+  return (
+    <group ref={group}>
+      {letters.map((l, i) => (
+        <group key={i} position={[l.x, 0, l.z]} rotation={[0, l.r, 0]}>
+          <Text
+            font={F_ROMAN}
+            fontSize={l.s}
+            color={l.c}
+            anchorX="center"
+            anchorY="bottom"
+            position={[0, 0.02, 0]}
+          >
+            {l.ch}
+          </Text>
+        </group>
+      ))}
+    </group>
+  );
 }
 
 // ── the world ──────────────────────────────────────────────
@@ -293,7 +331,7 @@ function World({ containerRef, reducedMotion }) {
     const frac = smooth(f - k);
     const camZ = lerp(stages[k] + 7, stages[k + 1] + 7, frac);
     // lateral sway so the stage sits opposite the text panel
-    const swayA = [0, 1.35, -1.35, 1.35, 0];
+    const swayA = [0, 0, 1.35, 0, 0];
     const sway = lerp(swayA[k], swayA[k + 1], frac);
     const drift = reducedMotion ? 0 : 1;
     const targetX = sway + pointer.current.x * 0.3 * drift;
@@ -340,64 +378,105 @@ function World({ containerRef, reducedMotion }) {
         castShadow
         intensity={2.1}
         shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-11}
-        shadow-camera-right={11}
-        shadow-camera-top={11}
-        shadow-camera-bottom={-11}
+        shadow-camera-left={-13}
+        shadow-camera-right={13}
+        shadow-camera-top={13}
+        shadow-camera-bottom={-13}
         shadow-camera-near={0.5}
         shadow-camera-far={40}
       />
       <hemisphereLight intensity={0.85} groundColor="#cbb894" />
       <directionalLight position={[-6, 4, 2]} intensity={0.45} color="#e8ecff" />
 
-      {/* ── stage 0 · hero: the owl tutor on its perch ── */}
+      {/* ── stage 0 · hero: the wordmark in the world, owl below it ── */}
       <group position={[0, 0, stages[0]]}>
+        <StageText
+          position={[0, 2.98, -1.9]}
+          stageZ={stages[0]}
+          size={0.7}
+          lines={[
+            { text: 'Your classroom,' },
+            { text: 'supercharged by AI', em: true },
+          ]}
+        />
         <Rig url={M + 'books-stack.glb'} size={1.15} position={[0, 0, 0]} rotation={[0, 0.35, 0]} />
         <group ref={owl} position={[0, 0.78, -0.3]}>
-          <PoseRig
-            url={M + 'wizard-owl.glb'}
-            size={0.42}
-            retint={['#ff4b26']}
-          />
+          <PoseRig url={M + 'wizard-owl.glb'} size={0.42} />
         </group>
         <Rig url={M + 'pencil.glb'} size={0.6} position={[2.2, 0.02, 0.9]} rotation={[0, -0.7, 0]} />
       </group>
 
-      {/* ── stage 1 · letters: blocks on the classroom floor ── */}
+      {/* ── stage 1 · typography: headline + real Fraunces letters ── */}
       <group position={[0, 0, stages[1]]}>
-        <LettersStage />
+        <StageText
+          position={[0, 2.55, -0.2]}
+          stageZ={stages[1]}
+          size={0.52}
+          lines={[
+            { text: 'Teachers get a co-teacher.' },
+            { text: 'Students get an arcade.', em: true },
+          ]}
+        />
+        <TypeStage stageZ={stages[1]} />
       </group>
 
-      {/* ── stage 2 · the magic book — plays its own float+stars loop ── */}
+      {/* ── stage 2 · the magic book writes itself ── */}
       <group position={[0, 0, stages[2]]}>
+        <StageText
+          position={[-1.95, 2.2, -0.5]}
+          stageZ={stages[2]}
+          size={0.5}
+          lines={[
+            { text: 'AI writes the course.' },
+            { text: 'You make it yours.', em: true },
+          ]}
+        />
         <group ref={book}>
           <Rig
             url={M + 'magic-book.glb'}
-            size={1.35}
+            size={1.1}
             play
-            position={[0, 0.55, -0.15]}
+            position={[1.7, 0.55, -0.15]}
             rotation={[-0.1, -0.4, 0]}
           />
         </group>
-        <Rig url={M + 'books-stack.glb'} size={0.7} position={[0.1, 0, -0.15]} rotation={[0, -0.5, 0]} />
+        <Rig url={M + 'books-stack.glb'} size={0.6} position={[1.95, 0, -0.6]} rotation={[0, -0.5, 0]} />
       </group>
 
-      {/* ── stage 3 · arena: blackboard + spinning trophy ── */}
+      {/* ── stage 3 · arena: blackboard classroom, trophy earned ── */}
       <group position={[0, 0, stages[3]]}>
-        <Rig url={M + 'blackboard.glb'} size={2.6} position={[0, 0.02, -0.6]} rotation={[0, 0.15, 0]} />
-        <Spinner speed={0.9}>
-          <Rig url={M + 'trophy.glb'} size={0.62} position={[1.55, 0.02, 0.6]} />
-        </Spinner>
-        <Rig url={M + 'books-stack.glb'} size={0.55} position={[-1.9, 0.02, 0.7]} rotation={[0, 0.8, 0]} />
+        <StageText
+          position={[0, 2.7, -0.5]}
+          stageZ={stages[3]}
+          size={0.6}
+          lines={[
+            { text: 'The room becomes' },
+            { text: 'a game show.', em: true },
+          ]}
+        />
+        <Rig url={M + 'blackboard.glb'} size={1.9} position={[-2.4, 0.02, -2.2]} rotation={[0, 0.15, 0]} />
+        <Float amp={0.05} speed={1.2} tilt={0.02} drift={0.3}>
+          <Rig url={M + 'trophy.glb'} size={0.62} position={[1.75, 0.02, 0.4]} />
+        </Float>
+        <Rig url={M + 'books-stack.glb'} size={0.55} position={[0.1, 0, -1.5]} rotation={[0, 0.2, 0]} />
       </group>
 
-      {/* ── stage 4 · graduation — the cap tumbles forever ── */}
+      {/* ── stage 4 · graduation — the cap tossed high, forever ── */}
       <group position={[0, 0, stages[4]]}>
-        <Spinner speed={0.5} tumble={0.8}>
-          <Rig url={M + 'grad-cap.glb'} size={1.5} position={[-0.4, 1.15, 0.6]} />
-        </Spinner>
-        <Rig url={M + 'books-stack.glb'} size={1.0} position={[0.9, 0, 0.4]} rotation={[0, -0.3, 0]} />
-        <Rig url={M + 'blackboard.glb'} size={1.6} position={[-2.3, 0.02, -0.8]} rotation={[0, 0.5, 0]} />
+        <StageText
+          position={[0, 2.0, -0.3]}
+          stageZ={stages[4]}
+          size={0.66}
+          lines={[
+            { text: 'Ready to' },
+            { text: 'start?', em: true },
+          ]}
+        />
+        <Float amp={0.12} speed={0.9} tilt={0.08} drift={0.45}>
+          <Rig url={M + 'grad-cap.glb'} size={1.0} position={[1.6, 2.35, -0.6]} />
+        </Float>
+        <Rig url={M + 'books-stack.glb'} size={0.85} position={[1.8, 0, 0.2]} rotation={[0, -0.3, 0]} />
+        <Rig url={M + 'blackboard.glb'} size={1.6} position={[-2.35, 0.02, -0.9]} rotation={[0, 0.5, 0]} />
       </group>
 
       <PathMarkers />
@@ -420,7 +499,9 @@ export default function LandingScene({ containerRef }) {
         camera={{ fov: 42, position: [0, 1.55, 7.5] }}
         gl={{ antialias: true, alpha: true }}
         onCreated={({ scene }) => {
-          scene.fog = new THREE.Fog('#f3ecdd', 10, 24);
+          // fog swallows the NEXT stage during arrivals; text does its own
+          // distance fade because troika's SDF shader ignores scene fog
+          scene.fog = new THREE.Fog('#f3ecdd', 8, 18);
         }}
       >
         <Suspense fallback={null}>

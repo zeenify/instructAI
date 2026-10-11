@@ -24,9 +24,7 @@ import LandingScene from '../components/landing3d/LandingScene.jsx';
 import './LandingPage.css';
 import doodlePapersImg from '../assets/landing/doodle-papers.png';
 import doodleTerminalImg from '../assets/landing/doodle-terminal.png';
-import markerUnderlineImg from '../assets/landing/marker-underline.png';
 import coffeeStainImg from '../assets/landing/coffee-stain.png';
-import sparklesImg from '../assets/landing/sparkles.png';
 import cognifyImg from '../assets/landing/cognify.png';
 
 const ROLE_KEY = 'instructai-landing-role';
@@ -43,21 +41,6 @@ function readStoredRole() {
 // ─────────────────────────────────────────────────────────────
 // Hand-drawn SVG props
 // ─────────────────────────────────────────────────────────────
-
-function InkUnderline({ className = '' }) {
-  return (
-    <motion.img
-      src={markerUnderlineImg}
-      alt=""
-      aria-hidden="true"
-      className={`ink-underline ${className}`}
-      initial={{ clipPath: 'inset(0 100% 0 0)' }}
-      whileInView={{ clipPath: 'inset(0 0% 0 0)' }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.9, ease: 'easeInOut', delay: 0.3 }}
-    />
-  );
-}
 
 function DoodlePapers() {
   return (
@@ -254,8 +237,10 @@ function Journey({ role, onPick }) {
     <div className="journey" ref={containerRef} id="top">
       <LandingScene containerRef={containerRef} />
 
-      {/* Scene 0 — hero */}
+      {/* Scene 0 — hero: the headline itself lives IN the 3D world;
+          the DOM keeps only the kicker and the choice cards */}
       <section className="jsec jsec-hero">
+        <h1 className="sr-only">Your classroom, supercharged by AI — InstructAI</h1>
         <div className="jsec-inner jsec-center">
           <motion.p
             className="pik-kicker center"
@@ -264,45 +249,6 @@ function Journey({ role, onPick }) {
             transition={{ duration: 0.55 }}
           >
             InstructAI <span className="kicker-rule" /> an AI-powered LMS, made for Penaranda Senior High School
-          </motion.p>
-
-          <h1 className="pik-headline">
-            <motion.span
-              initial={{ opacity: 0, y: 26 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.65, delay: 0.08 }}
-            >
-              Your classroom,
-            </motion.span>
-            <span className="headline-line2">
-              <motion.span
-                initial={{ opacity: 0, y: 26 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.65, delay: 0.2 }}
-              >
-                <em>supercharged</em> by AI
-              </motion.span>
-              <InkUnderline />
-              <motion.img
-                src={sparklesImg}
-                alt=""
-                aria-hidden="true"
-                className="headline-sparkles"
-                initial={{ opacity: 0, scale: 0.4, rotate: -24 }}
-                animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                transition={{ type: 'spring', stiffness: 220, damping: 12, delay: 0.95 }}
-              />
-            </span>
-          </h1>
-
-          <motion.p
-            className="pik-sub"
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.34 }}
-          >
-            Upload a curriculum and watch AI assemble the course. Students code in the
-            browser — with a tutor that actually read the lessons.
           </motion.p>
         </div>
 
@@ -313,147 +259,100 @@ function Journey({ role, onPick }) {
         </div>
       </section>
 
-      {/* Scene 1 — letters */}
+      {/* Scene 1 — typography: the Fraunces headline + letters are in-world */}
       <section className="jsec jsec-letters">
-        <div className="jsec-inner jsec-right">
+        <div className="jsec-cap cap-center">
           <motion.p
             className="pik-kicker"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.45 }}
+            viewport={{ amount: 0.3 }}
             transition={{ duration: 0.5 }}
           >
             one product, two very different desks
           </motion.p>
-          <motion.h2
-            className="jsec-headline"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.45 }}
-            transition={{ duration: 0.6, delay: 0.08 }}
-          >
-            Teachers get a <em>co-teacher.</em><br />
-            Students get a <em>tutor &amp; arcade.</em>
-          </motion.h2>
           <motion.p
             className="jsec-body"
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.45 }}
+            viewport={{ amount: 0.3 }}
             transition={{ duration: 0.6, delay: 0.16 }}
           >
-            The page splits from here — pick a card and everything below
-            rewrites itself for your side of the classroom.
+            Pick a card and everything that follows rewrites itself for your
+            side of the classroom.
           </motion.p>
         </div>
       </section>
 
-      {/* Scene 2 — magic book */}
+      {/* Scene 2 — the magic book writes the course */}
       <section className="jsec jsec-book">
-        <div className="jsec-inner">
+        <div className="jsec-cap cap-left">
           <motion.p
             className="pik-kicker"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.45 }}
+            viewport={{ amount: 0.3 }}
             transition={{ duration: 0.5 }}
           >
             the teacher's desk
           </motion.p>
-          <motion.h2
-            className="jsec-headline"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.45 }}
-            transition={{ duration: 0.6, delay: 0.08 }}
-          >
-            An AI that writes the course,
-            <br /><em>not just the buzzwords</em>
-          </motion.h2>
           <motion.p
             className="jsec-body"
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.45 }}
+            viewport={{ amount: 0.3 }}
             transition={{ duration: 0.6, delay: 0.16 }}
           >
-            Upload your curriculum file. InstructAI drafts it in three passes — outline,
-            content, polish — into modules, lessons and quizzes you can edit line by line
-            before anything reaches your class.
+            Upload your curriculum file. InstructAI drafts it in three passes —
+            outline, content, polish — into modules, lessons and quizzes you can
+            edit line by line before anything reaches your class.
           </motion.p>
         </div>
       </section>
 
-      {/* Scene 3 — arena */}
+      {/* Scene 3 — the live quiz arena */}
       <section className="jsec jsec-arena">
-        <div className="jsec-inner jsec-right">
+        <div className="jsec-cap cap-center">
           <motion.p
             className="pik-kicker"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.45 }}
+            viewport={{ amount: 0.3 }}
             transition={{ duration: 0.5 }}
           >
             friday, last period
           </motion.p>
-          <motion.h2
-            className="jsec-headline"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.45 }}
-            transition={{ duration: 0.6, delay: 0.08 }}
-          >
-            The whole room becomes a <em>game show.</em>
-          </motion.h2>
           <motion.p
             className="jsec-body"
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.45 }}
+            viewport={{ amount: 0.3 }}
             transition={{ duration: 0.6, delay: 0.16 }}
           >
-            Teachers launch the quiz live and control the pace — question by question,
-            reveal on demand. Students race on the leaderboard while the similarity
-            scan keeps every score honest.
+            Teachers launch the quiz live and control the pace — question by
+            question, reveal on demand. Students race the leaderboard while the
+            similarity scan keeps every score honest.
           </motion.p>
         </div>
       </section>
 
-      {/* Scene 4 — graduation finale */}
+      {/* Scene 4 — graduation finale: "Ready to start?" is in-world */}
       <section className="jsec jsec-grad">
-        <div className="jsec-inner jsec-center">
+        <div className="jsec-cap cap-center">
           <motion.p
-            className="pik-kicker center"
+            className="pik-kicker"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.45 }}
+            viewport={{ amount: 0.3 }}
             transition={{ duration: 0.5 }}
           >
             the graduation
-          </motion.p>
-          <motion.h2
-            className="jsec-headline"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.45 }}
-            transition={{ duration: 0.6, delay: 0.08 }}
-          >
-            Ready to <em>start?</em>
-          </motion.h2>
-          <motion.p
-            className="jsec-body"
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.45 }}
-            transition={{ duration: 0.6, delay: 0.16 }}
-          >
-            Set up your first class in minutes — or join the one your teacher made.
           </motion.p>
           <motion.div
             className="jsec-cta"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.45 }}
+            viewport={{ amount: 0.3 }}
             transition={{ duration: 0.6, delay: 0.24 }}
           >
             <a className="btn-ink" href={role === 'student' ? '/register/student' : '/register/teacher'}>
