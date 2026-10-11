@@ -241,7 +241,7 @@ function Journey({ role, onPick, ready, onSceneReady }) {
       {/* Scene 0 — hero: the headline itself lives IN the 3D world;
           the DOM keeps only the kicker and the choice cards */}
       <section className="jsec jsec-hero">
-        <h1 className="sr-only">InstructAI, your classroom now with AI</h1>
+        <h1 className="sr-only">InstructAI, your classroom assisted with AI</h1>
         <div className="jsec-inner jsec-center">
           <motion.p
             className="pik-kicker center"
@@ -249,7 +249,9 @@ function Journey({ role, onPick, ready, onSceneReady }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55 }}
           >
-            InstructAI <span className="kicker-dot">·</span> an AI-powered LMS, made for Penaranda Senior High School
+            InstructAI <span className="kicker-dot">·</span>{' '}
+            <span className="kicker-long">an AI-powered LMS, made for Penaranda Senior High School</span>
+            <span className="kicker-short">an AI-powered LMS</span>
           </motion.p>
         </div>
 

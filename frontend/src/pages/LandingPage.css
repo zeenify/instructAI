@@ -2083,14 +2083,20 @@
   .jsec-cta-row { bottom: 9vh; }
 }
 
+/* the kicker carries a long and short variant; phones show the short one */
+.kicker-short { display: none; }
+
 @media (max-width: 700px) {
+  .kicker-long { display: none; }
+  .kicker-short { display: inline; }
+
   /* phones: dock both cards side-by-side at the bottom so the 3D world
      stays visible above them (stacked full-width cards covered it).
      Must come AFTER the 900px block — same specificity, later wins. */
   .jsec-hero { padding-top: 0; }
   .jsec-hero .jsec-inner {
     position: absolute;
-    top: 38vh;
+    top: 35.5vh;
     left: 0;
     right: 0;
   }

@@ -34,8 +34,9 @@ const BASE_DIST = 7;
 function useStageDist() {
   const { size: vp } = useThree();
   const aspect = vp.width / vp.height;
+  const isNarrow = aspect < 0.9;
   const spread = Math.min(1, Math.max(0.5, aspect / 1.55));
-  return { spread, dist: BASE_DIST + (1 - spread) * 4 };
+  return { isNarrow, spread, dist: BASE_DIST + (1 - spread) * 4 };
 }
 
 // ── a model with skeleton-aware fit, grounded on y=0 ─────────
@@ -192,21 +193,22 @@ function StageText({ lines, position, stageZ, size = 0.6, gap = 0.3 }) {
   const { size: vp, camera } = useThree();
   const aspect = vp.width / vp.height;
   // shrink the whole block on narrow screens instead of letting it overflow
-  const scale = Math.min(1, Math.max(0.55, aspect / 1.55));
+  const scale = Math.min(1, Math.max(0.7, aspect / 1.55));
   const { dist } = useStageDist();
   const visW = 2 * dist * Math.tan(((camera.fov || 42) * Math.PI) / 360) * aspect;
-  // Fraunces Black runs wide — estimate glyph advance at 0.56 of fontSize
+  // measured Fraunces advance varies ≈ 0.28–0.48 by string; bias the
+  // estimate high (0.45) so multi-row blocks never overlap each other
   const maxWidth = Math.min(8, (visW / scale) * 0.92);
-  // narrow screens: lift the block toward the top of the frame so the hero's
-  // docked cards don't cover it, and pull side panels back toward center
-  const yBase = position[1] + (aspect < 0.9 ? 0.6 : 0);
+  // narrow screens pull side panels back toward center; mobile stage
+  // layouts set their own explicit y positions
+  const yBase = position[1];
   const xBase = position[0] * scale;
 
   const layout = useMemo(() => {
     let y = 0;
     return lines.map((l) => {
       const fs = l.size || size;
-      const rows = Math.max(1, Math.ceil((l.text.length * fs * 0.56) / maxWidth));
+      const rows = Math.max(1, Math.ceil((l.text.length * fs * 0.45) / maxWidth));
       const slot = { ...l, fs, y, rows };
       y += rows * fs * 1.16 + gap * fs;
       return slot;
@@ -242,95 +244,44 @@ function StageText({ lines, position, stageZ, size = 0.6, gap = 0.3 }) {
   );
 }
 
-// ── the paper plane: the journey's transition beat ─────────
-// Entirely scroll-tied — it has no animation of its own. Parked at a stage
-// it waits just offscreen; the moment you scroll between stages it sweeps
-// across the frame and parks again. Every stage flies its own path:
-// direction, entry/exit heights and arc all vary so it never reads as a
-// back-and-forth shuttle.
-const FLIGHTS = [
-  { dir: 1, y0: 2.05, y1: 1.75, bulge: 0.25 },  // glide in low, drift down
-  { dir: -1, y0: 2.2, y1: 1.8, bulge: 0.12 },   // descend right to left
-  { dir: 1, y0: 1.7, y1: 2.1, bulge: 0.2 },     // climb left to right
-  { dir: -1, y0: 1.85, y1: 2.2, bulge: 0.18 },  // high exit right to left
-];
-
-function WorldPlane({ containerRef, reducedMotion }) {
-  const outer = useRef();
-  const bank = useRef();
-
-  useFrame((state) => {
-    // same section-anchored progress the camera uses
-    let f = 0;
-    const el = containerRef.current;
-    if (el) {
-      const sections = el.querySelectorAll('.jsec');
-      for (let i = 0; i < sections.length; i++) {
-        const r = sections[i].getBoundingClientRect();
-        if (r.top <= 0 && (i === sections.length - 1 || sections[i + 1].getBoundingClientRect().top > 0)) {
-          f = i + clamp01(-r.top / Math.max(r.height, 1));
-          break;
-        }
-      }
-    }
-    const k = Math.min(3, Math.floor(f));
-    const frac = f - k;
-    const flight = FLIGHTS[k];
-    const dir = flight.dir;
-    const cam = state.camera;
-
-    // crossing arc: offscreen at both ends of a stage pair, mid-frame in between
-    const sp = smooth(clamp01((frac - 0.06) / 0.88));
-    const lift = Math.sin(sp * Math.PI);
-    const x = reducedMotion ? 60 : lerp(-3.5 * dir, 3.5 * dir, sp);
-    const y = lerp(flight.y0, flight.y1, sp) + lift * flight.bulge;
-    const z = cam.position.z - 3.4;
-    const yaw = dir > 0 ? -Math.PI / 2 : Math.PI / 2;
-
-    outer.current.position.set(x, y, z);
-    outer.current.rotation.y = yaw - dir * 0.5; // angled toward the viewer so the wings read
-    bank.current.rotation.z = lift * 0.28 * dir;
-    // nose follows the descent/climb of the path
-    bank.current.rotation.x = -((flight.y1 - flight.y0) * 0.12 + lift * flight.bulge * 0.35);
-  });
-
-  return (
-    <group ref={outer}>
-      <group ref={bank}>
-        <Rig url={M + 'paper-plane.glb'} size={1.3} tint={VERM} rotation={[0.1, 0, 0]} />
-      </group>
-    </group>
-  );
-}
-
 // ── stage 1 letters: typeset Fraunces letters that SPELL something ──
-// Two words stand on the paper floor: TEACH (left, vermilion) and
-// LEARN (right, sage). Jittered sizes, depths and turns keep them
-// hand-set rather than typeset-perfect.
-function TypeStage({ stageZ }) {
+// Desktop: TEACH (left) and LEARN (right) stand on the paper floor.
+// Mobile: the words stack vertically, each under its own headline, and
+// float mid-air in centered rows. Jittered sizes, depths and turns keep
+// them hand-set rather than typeset-perfect.
+function TypeStage({ stageZ, narrow, rows }) {
   const group = useRef();
   const { size: vp } = useThree();
   const aspect = vp.width / vp.height;
-  const spread = Math.min(1, Math.max(0.5, aspect / 1.55));
+  const spread = Math.min(1, Math.max(0.7, aspect / 1.55));
   const { dist } = useStageDist();
 
   const letters = useMemo(() => {
-    const make = (word, x0, palette) =>
+    const palette = [VERM, INK, SAGE, INK];
+    const make = (word, x0, y0, s0, sp0) =>
       word.split('').map((ch, i) => ({
         ch,
-        x: x0 + i * 0.68,
+        x: x0 + i * sp0,
+        y: y0,
         z: [-0.95, -0.3, -0.85, -0.25, -0.9][i % 5],
-        s: [0.82, 0.68, 0.9, 0.7, 0.84][i % 5],
+        s: [s0, s0 * 0.83, s0 * 1.1, s0 * 0.85, s0 * 1.02][i % 5],
         c: palette[i % palette.length],
         r: [-0.24, 0.3, -0.18, 0.26, -0.3][i % 5],
       }));
+    if (narrow && rows) {
+      // stacked mobile rows, centered on x=0
+      const sp = 0.52;
+      return rows.flatMap(({ word, y }) =>
+        make(word, -((word.length - 1) * sp) / 2, y, 0.5, sp),
+      );
+    }
     return [
-      ...make('TEACH', -3.55, [VERM, INK, SAGE, INK]),
-      ...make('LEARN', 0.75, [SAGE, INK, VERM, INK]),
+      ...make('TEACH', -3.55, 0, 0.82, 0.68),
+      ...make('LEARN', 0.75, 0, 0.82, 0.68),
     ];
-  }, []);
+  }, [narrow, rows]);
 
-  // fade faster than the headlines: keep the row readable while the camera
+  // fade faster than the headlines: keep the rows readable while the camera
   // is still approaching the stage
   useStageFade(group, stageZ, dist, 0.2);
   useFrame((state) => {
@@ -338,14 +289,14 @@ function TypeStage({ stageZ }) {
     if (!group.current) return;
     group.current.children.forEach((g, i) => {
       // a gentle wave runs through the words — schoolroom energy, not chaos
-      g.position.y = Math.abs(Math.sin(t * 1.3 - i * 0.5)) * 0.12;
+      g.position.y = letters[i].y + Math.abs(Math.sin(t * 1.3 - i * 0.5)) * 0.12;
     });
   });
 
   return (
-    <group ref={group} scale={spread}>
+    <group ref={group} scale={narrow ? 1 : spread}>
       {letters.map((l, i) => (
-        <group key={i} position={[l.x, 0, l.z]} rotation={[0, l.r, 0]}>
+        <group key={i} position={[l.x, l.y, l.z]} rotation={[0, l.r, 0]}>
           <Text
             font={F_BLACK}
             fontSize={l.s}
@@ -367,7 +318,12 @@ function TypeStage({ stageZ }) {
 // sweeps left to right like a hand laying down strokes, holds, erases.
 // Placement uses the board's green-face bounds measured from the GLB
 // (face spans y 0.075..1.14 at size 1.9, z ≈ 0.008 — just in front of it).
-function BoardWriting({ lines, cy, z = 0.03 }) {
+function BoardWriting({ lines, boardSize, cy, z }) {
+  // placement ratios measured from the GLB green face (for size 1.9:
+  // face spans y 0.075..1.14, center 0.61, z ≈ 0.008)
+  const cyFinal = cy ?? 0.32 * boardSize;
+  const zFinal = z ?? 0.02 + 0.0043 * boardSize;
+  const k = boardSize / 1.9;
   const refs = useRef([]);
   const widths = useRef([]);
 
@@ -392,15 +348,15 @@ function BoardWriting({ lines, cy, z = 0.03 }) {
     });
   });
 
-  const step = Math.max(...lines.map((l) => l.size)) * 1.55;
+  const step = Math.max(...lines.map((l) => l.size)) * k * 1.55;
   return (
-    <group position={[0, cy, z]}>
+    <group position={[0, cyFinal, zFinal]}>
       {lines.map((l, i) => (
         <Text
           key={i}
           ref={(el) => { refs.current[i] = el; }}
           font={F_CHALK}
-          fontSize={l.size || 0.16}
+          fontSize={(l.size || 0.16) * k}
           color={CHALK}
           anchorX="center"
           anchorY="middle"
@@ -418,7 +374,7 @@ const STAGE_DZ = 14;
 
 function World({ containerRef, reducedMotion, onReady }) {
   const camera = useThree((s) => s.camera);
-  const { spread, dist } = useStageDist();
+  const { isNarrow, spread, dist } = useStageDist();
   const light = useRef();
   const lightTarget = useMemo(() => new THREE.Object3D(), []);
   const pointer = useRef({ x: 0, y: 0 });
@@ -473,16 +429,19 @@ function World({ containerRef, reducedMotion, onReady }) {
     const k = Math.min(3, Math.floor(f));
     const frac = smooth(f - k);
     const camZ = lerp(stages[k] + dist, stages[k + 1] + dist, frac);
-    // lateral sway so the stage sits opposite the text panel
+    // lateral sway so the stage sits opposite the text panel; on phones the
+    // view centers on each stage's vertical stack instead
     const swayA = [0, 0, 1.35, 0, 0];
+    const lookA = isNarrow ? [1.3, 2.3, 1.9, 1.5, 1.35] : [0.95, 0.95, 0.95, 0.95, 0.95];
     const sway = lerp(swayA[k], swayA[k + 1], frac);
+    const lookY = lerp(lookA[k], lookA[k + 1], frac);
     const drift = reducedMotion ? 0 : 1;
-    const targetX = sway * spread + pointer.current.x * 0.3 * drift;
+    const targetX = (isNarrow ? 0 : sway * spread) + pointer.current.x * 0.3 * drift;
     const targetY = 1.55 + pointer.current.y * 0.18 * drift + Math.sin(t * 0.4) * 0.04;
     camera.position.x = lerp(camera.position.x, targetX, 0.05);
     camera.position.y = lerp(camera.position.y, targetY, 0.05);
     camera.position.z = camZ;
-    camera.lookAt(sway * 0.55 * spread, 0.95, camZ - dist);
+    camera.lookAt((isNarrow ? 0 : sway * 0.55 * spread), lookY, camZ - dist);
 
     // key light follows the camera so every stage is lit
     if (light.current) {
@@ -500,7 +459,7 @@ function World({ containerRef, reducedMotion, onReady }) {
     // the owl breathes: gentle bob + attentive head-tilt sway (group transforms
     // only — safe for the scale-compensated rig)
     if (owl.current && !reducedMotion) {
-      owl.current.position.y = 0.95 + Math.sin(t * 1.1) * 0.04;
+      owl.current.position.y = (isNarrow ? 1.3 : 0.95) + Math.sin(t * 1.1) * 0.04;
       owl.current.rotation.z = Math.sin(t * 0.55) * 0.03;
       owl.current.rotation.y = Math.sin(t * 0.35) * 0.06;
     }
@@ -534,41 +493,81 @@ function World({ containerRef, reducedMotion, onReady }) {
       {/* ── stage 0 · hero: the wordmark in the world, owl below it ── */}
       <group position={[0, 0, stages[0]]}>
         <StageText
-          position={[0, 2.98, -1.9]}
+          position={[0, isNarrow ? 4.15 : 2.98, -1.9]}
           stageZ={stages[0]}
-          size={0.7}
+          size={isNarrow ? 0.62 : 0.7}
           lines={[
             { text: 'Your classroom,' },
-            { text: 'now with AI.', em: true },
+            { text: 'assisted with AI.', em: true },
           ]}
         />
-        <group scale={spread}>
-          <Rig url={M + 'books-stack.glb'} size={1.15} hideMaterials={['mat1', 'mat17']} position={[0, 0, 0]} rotation={[0, 0.35, 0]} />
-          <group ref={owl} position={[0, 0.95, -0.3]}>
-            <PoseRig url={M + 'wizard-owl.glb'} size={0.42} />
+        <group scale={isNarrow ? 1 : spread}>
+          <Rig
+            url={M + 'books-stack.glb'}
+            size={isNarrow ? 1.55 : 1.15}
+            hideMaterials={['mat1', 'mat17']}
+            position={[0, 0, isNarrow ? 0.2 : 0]}
+            rotation={[0, 0.35, 0]}
+          />
+          <group ref={owl} position={[0, isNarrow ? 1.3 : 0.95, isNarrow ? -0.1 : -0.3]}>
+            <PoseRig url={M + 'wizard-owl.glb'} size={isNarrow ? 0.62 : 0.42} />
           </group>
-          <Rig url={M + 'pencil.glb'} size={0.6} position={[2.2, 0.02, 0.9]} rotation={[0, -0.7, 0]} />
+          <Rig
+            url={M + 'pencil.glb'}
+            size={isNarrow ? 0.75 : 0.6}
+            position={isNarrow ? [1.35, 0.02, 0.9] : [2.2, 0.02, 0.9]}
+            rotation={[0, -0.7, 0]}
+          />
         </group>
       </group>
 
-      {/* ── stage 1 · two words set in type, spelling the two sides ── */}
+      {/* ── stage 1 · built for teachers / TEACH, built for students / LEARN ── */}
       <group position={[0, 0, stages[1]]}>
-        <StageText
-          position={[0, 2.6, -0.3]}
-          stageZ={stages[1]}
-          size={0.55}
-          lines={[
-            { text: 'Built for teachers.' },
-            { text: 'Built for students.', em: true },
-          ]}
-        />
-        <TypeStage stageZ={stages[1]} />
+        {isNarrow ? (
+          <>
+            <StageText
+              position={[0, 4.55, -0.3]}
+              stageZ={stages[1]}
+              size={0.5}
+              lines={[{ text: 'Built for teachers.' }]}
+            />
+            <TypeStage
+              stageZ={stages[1]}
+              narrow
+              rows={[{ word: 'TEACH', y: 3.15 }]}
+            />
+            <StageText
+              position={[0, 1.7, -0.3]}
+              stageZ={stages[1]}
+              size={0.5}
+              lines={[{ text: 'Built for students.', em: true }]}
+            />
+            <TypeStage
+              stageZ={stages[1]}
+              narrow
+              rows={[{ word: 'LEARN', y: 0.2 }]}
+            />
+          </>
+        ) : (
+          <>
+            <StageText
+              position={[0, 2.6, -0.3]}
+              stageZ={stages[1]}
+              size={0.55}
+              lines={[
+                { text: 'Built for teachers.' },
+                { text: 'Built for students.', em: true },
+              ]}
+            />
+            <TypeStage stageZ={stages[1]} />
+          </>
+        )}
       </group>
 
       {/* ── stage 2 · upload a curriculum, get lessons and quizzes ── */}
       <group position={[0, 0, stages[2]]}>
         <StageText
-          position={[-1.95, 2.2, -0.5]}
+          position={isNarrow ? [0, 3.7, -0.5] : [-1.95, 2.2, -0.5]}
           stageZ={stages[2]}
           size={0.5}
           lines={[
@@ -576,40 +575,49 @@ function World({ containerRef, reducedMotion, onReady }) {
             { text: 'Get lessons and quizzes.', em: true },
           ]}
         />
-        <group scale={spread}>
+        <group scale={isNarrow ? 1 : spread}>
           <group ref={book}>
             <Rig
               url={M + 'magic-book.glb'}
-              size={1.1}
+              size={isNarrow ? 1.2 : 1.1}
               play
-              position={[1.7, 0.55, -0.15]}
-              rotation={[-0.1, -0.4, 0]}
+              position={isNarrow ? [0, 0.08, -0.2] : [1.7, 0.55, -0.15]}
+              rotation={isNarrow ? [-0.08, 0.12, 0] : [-0.1, -0.4, 0]}
             />
           </group>
           <Float amp={0.07} speed={1.3} tilt={0.06} drift={0.35}>
-            <Rig url={M + 'pencil.glb'} size={0.55} position={[0.6, 1.5, 0.55]} rotation={[0.6, -1.2, 0.5]} />
+            <Rig
+              url={M + 'pencil.glb'}
+              size={isNarrow ? 0.7 : 0.55}
+              position={isNarrow ? [1.2, 0.8, 0.4] : [0.6, 1.5, 0.55]}
+              rotation={[0.6, isNarrow ? -0.9 : -1.2, 0.5]}
+            />
           </Float>
-          <Rig url={M + 'books-stack.glb'} size={0.6} hideMaterials={['mat1', 'mat17']} position={[1.95, 0, -0.6]} rotation={[0, -0.5, 0]} />
+          {!isNarrow && (
+            <Rig url={M + 'books-stack.glb'} size={0.6} hideMaterials={['mat1', 'mat17']} position={[1.95, 0, -0.6]} rotation={[0, -0.5, 0]} />
+          )}
         </group>
       </group>
 
       {/* ── stage 3 · live quizzes, the class on one leaderboard ── */}
       <group position={[0, 0, stages[3]]}>
         <StageText
-          position={[0, 2.7, -0.5]}
+          position={[0, isNarrow ? 3.9 : 2.7, -0.5]}
           stageZ={stages[3]}
-          size={0.6}
+          size={isNarrow ? 0.52 : 0.6}
           lines={[
             { text: 'Live quizzes, points,' },
             { text: 'and a leaderboard.', em: true },
           ]}
         />
-        <group scale={spread}>
-          <group position={[-2.4, 0.02, -2.2]} rotation={[0, 0.15, 0]}>
-            <Rig url={M + 'blackboard.glb'} size={1.9} />
+        <group scale={isNarrow ? 1 : spread}>
+          <group
+            position={isNarrow ? [0, 0.02, -0.9] : [-2.6, 0.02, -2.2]}
+            rotation={[0, isNarrow ? 0.05 : 0.15, 0]}
+          >
+            <Rig url={M + 'blackboard.glb'} size={isNarrow ? 2.6 : 2.3} />
             <BoardWriting
-              cy={0.62}
-              z={0.03}
+              boardSize={isNarrow ? 2.6 : 2.3}
               lines={[
                 { text: 'QUIZ DAY', size: 0.2 },
                 { text: 'friday, last period', size: 0.115 },
@@ -617,7 +625,11 @@ function World({ containerRef, reducedMotion, onReady }) {
             />
           </group>
           <Float amp={0.05} speed={1.2} tilt={0.02} drift={0.3}>
-            <Rig url={M + 'trophy.glb'} size={0.62} position={[1.75, 0.02, 0.4]} />
+            <Rig
+              url={M + 'trophy.glb'}
+              size={isNarrow ? 0.72 : 0.62}
+              position={isNarrow ? [1.35, 0.02, 0.55] : [1.75, 0.02, 0.4]}
+            />
           </Float>
         </group>
       </group>
@@ -625,7 +637,7 @@ function World({ containerRef, reducedMotion, onReady }) {
       {/* ── stage 4 · graduation — the cap tossed high, forever ── */}
       <group position={[0, 0, stages[4]]}>
         <StageText
-          position={[0, 2.0, -0.3]}
+          position={[0, isNarrow ? 2.75 : 2.0, -0.3]}
           stageZ={stages[4]}
           size={0.66}
           lines={[
@@ -633,26 +645,36 @@ function World({ containerRef, reducedMotion, onReady }) {
             { text: 'start?', em: true },
           ]}
         />
-        <group scale={spread}>
+        <group scale={isNarrow ? 1 : spread}>
           <Float amp={0.12} speed={0.9} tilt={0.08} drift={0.45}>
-            <Rig url={M + 'grad-cap.glb'} size={1.0} position={[2.05, 1.55, -0.6]} />
-          </Float>
-          <Rig url={M + 'books-stack.glb'} size={0.85} hideMaterials={['mat1', 'mat17']} position={[1.8, 0, 0.2]} rotation={[0, -0.3, 0]} />
-          <group position={[-2.35, 0.02, -0.9]} rotation={[0, 0.5, 0]}>
-            <Rig url={M + 'blackboard.glb'} size={1.6} />
-            <BoardWriting
-              cy={0.52}
-              z={0.026}
-              lines={[
-                { text: 'YOUR CLASS', size: 0.19 },
-                { text: 'is waiting.', size: 0.11 },
-              ]}
+            <Rig
+              url={M + 'grad-cap.glb'}
+              size={isNarrow ? 1.25 : 1.0}
+              position={isNarrow ? [0.62, 1.52, -0.5] : [2.05, 1.55, -0.6]}
             />
-          </group>
+          </Float>
+          <Rig
+            url={M + 'books-stack.glb'}
+            size={isNarrow ? 1.1 : 0.85}
+            hideMaterials={['mat1', 'mat17']}
+            position={isNarrow ? [-0.72, 0.14, 0.35] : [1.8, 0, 0.2]}
+            rotation={[0, isNarrow ? 0.4 : -0.3, 0]}
+          />
+          {!isNarrow && (
+            <group position={[-2.55, 0.02, -0.9]} rotation={[0, 0.5, 0]}>
+              <Rig url={M + 'blackboard.glb'} size={1.9} />
+              <BoardWriting
+                boardSize={1.9}
+                lines={[
+                  { text: 'YOUR CLASS', size: 0.19 },
+                  { text: 'is waiting.', size: 0.11 },
+                ]}
+              />
+            </group>
+          )}
         </group>
       </group>
 
-      <WorldPlane containerRef={containerRef} reducedMotion={reducedMotion} />
     </>
   );
 }
