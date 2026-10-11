@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  ArrowDown,
   ArrowRight,
   Menu,
   ArrowUpRight,
@@ -189,7 +190,7 @@ function ChoiceCard({ kind, role, onPick }) {
       {isTeacher ? <DoodlePapers /> : <DoodleTerminal />}
       <span className="choice-sub">
         {isTeacher ? (
-          <>Upload a curriculum — the AI drafts the whole course. You polish, publish, and run the room.</>
+          <>Upload a curriculum and the AI drafts the whole course. You polish, publish, and run the room.</>
         ) : (
           <>Read lessons, code in the browser, battle live quizzes, and ask a tutor that read your lessons.</>
         )}
@@ -206,7 +207,7 @@ function ChoiceCard({ kind, role, onPick }) {
 // The 3D scroll journey (5 scenes on one sticky canvas)
 // ─────────────────────────────────────────────────────────────
 
-function Journey({ role, onPick }) {
+function Journey({ role, onPick, ready, onSceneReady }) {
   const containerRef = useRef(null);
 
   // Lenis smooth scrolling — the glue that makes scroll feel choreographed
@@ -234,13 +235,13 @@ function Journey({ role, onPick }) {
   }, []);
 
   return (
-    <div className="journey" ref={containerRef} id="top">
-      <LandingScene containerRef={containerRef} />
+    <div className={`journey ${ready ? 'is-ready' : ''}`} ref={containerRef} id="top">
+      <LandingScene containerRef={containerRef} onReady={onSceneReady} />
 
       {/* Scene 0 — hero: the headline itself lives IN the 3D world;
           the DOM keeps only the kicker and the choice cards */}
       <section className="jsec jsec-hero">
-        <h1 className="sr-only">Your classroom, supercharged by AI — InstructAI</h1>
+        <h1 className="sr-only">InstructAI, your classroom supercharged by AI</h1>
         <div className="jsec-inner jsec-center">
           <motion.p
             className="pik-kicker center"
@@ -248,7 +249,7 @@ function Journey({ role, onPick }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55 }}
           >
-            InstructAI <span className="kicker-rule" /> an AI-powered LMS, made for Penaranda Senior High School
+            InstructAI <span className="kicker-dot">·</span> an AI-powered LMS, made for Penaranda Senior High School
           </motion.p>
         </div>
 
@@ -257,97 +258,25 @@ function Journey({ role, onPick }) {
           <div className="choice-or" aria-hidden="true">or</div>
           <ChoiceCard kind="student" role={role} onPick={onPick} />
         </div>
-      </section>
 
-      {/* Scene 1 — typography: the Fraunces headline + letters are in-world */}
-      <section className="jsec jsec-letters">
-        <div className="jsec-cap cap-center">
-          <motion.p
-            className="pik-kicker"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.3 }}
-            transition={{ duration: 0.5 }}
-          >
-            one product, two very different desks
-          </motion.p>
-          <motion.p
-            className="jsec-body"
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.3 }}
-            transition={{ duration: 0.6, delay: 0.16 }}
-          >
-            Pick a card and everything that follows rewrites itself for your
-            side of the classroom.
-          </motion.p>
+        <div className="scroll-hint" aria-hidden="true">
+          <span>scroll to explore</span>
+          <ArrowDown size={13} strokeWidth={2.6} />
         </div>
       </section>
 
-      {/* Scene 2 — the magic book writes the course */}
-      <section className="jsec jsec-book">
-        <div className="jsec-cap cap-left">
-          <motion.p
-            className="pik-kicker"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.3 }}
-            transition={{ duration: 0.5 }}
-          >
-            the teacher's desk
-          </motion.p>
-          <motion.p
-            className="jsec-body"
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.3 }}
-            transition={{ duration: 0.6, delay: 0.16 }}
-          >
-            Upload your curriculum file. InstructAI drafts it in three passes —
-            outline, content, polish — into modules, lessons and quizzes you can
-            edit line by line before anything reaches your class.
-          </motion.p>
-        </div>
-      </section>
+      {/* Scene 1 — TEACH / LEARN set in type, all in-world */}
+      <section className="jsec jsec-letters" aria-hidden="true" />
 
-      {/* Scene 3 — the live quiz arena */}
-      <section className="jsec jsec-arena">
-        <div className="jsec-cap cap-center">
-          <motion.p
-            className="pik-kicker"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.3 }}
-            transition={{ duration: 0.5 }}
-          >
-            friday, last period
-          </motion.p>
-          <motion.p
-            className="jsec-body"
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.3 }}
-            transition={{ duration: 0.6, delay: 0.16 }}
-          >
-            Teachers launch the quiz live and control the pace — question by
-            question, reveal on demand. Students race the leaderboard while the
-            similarity scan keeps every score honest.
-          </motion.p>
-        </div>
-      </section>
+      {/* Scene 2 — the magic book writes the course, all in-world */}
+      <section className="jsec jsec-book" aria-hidden="true" />
+
+      {/* Scene 3 — the live quiz room, all in-world */}
+      <section className="jsec jsec-arena" aria-hidden="true" />
 
       {/* Scene 4 — graduation finale: "Ready to start?" is in-world */}
       <section className="jsec jsec-grad">
-        <div className="jsec-cap cap-center">
-          <motion.p
-            className="pik-kicker"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ amount: 0.3 }}
-            transition={{ duration: 0.5 }}
-          >
-            the graduation
-          </motion.p>
+        <div className="jsec-cta-row">
           <motion.div
             className="jsec-cta"
             initial={{ opacity: 0, y: 20 }}
@@ -359,7 +288,7 @@ function Journey({ role, onPick }) {
               {role === 'student' ? 'Join your class' : 'Start teaching free'}
               <ArrowUpRight size={16} strokeWidth={2.8} />
             </a>
-            <a className="btn-ghost" href="/login">I have an account — log in</a>
+            <a className="btn-ghost" href="/login">I have an account, log in</a>
           </motion.div>
         </div>
       </section>
@@ -403,7 +332,7 @@ function PipelineVisual() {
           transition={{ duration: 1.6, ease: 'easeInOut', delay: 0.4 }}
         />
       </div>
-      <p className="pipe-log">curriculum.pdf → 6 modules · 18 lessons · 9 quizzes — drafted in 84s</p>
+      <p className="pipe-log">curriculum.pdf → 6 modules · 18 lessons · 9 quizzes. Drafted in 84s</p>
     </div>
   );
 }
@@ -414,7 +343,7 @@ function ExamVisual() {
       <Tape className="tape-tl" />
       <Tape className="tape-br" />
       <div className="exam-paper">
-        <p className="exam-title">Quiz 3 — Functions <span className="exam-pts">20 pts</span></p>
+        <p className="exam-title">Quiz 3: Functions <span className="exam-pts">20 pts</span></p>
         <pre className="exam-code"><span className="c-kw">def</span> <span className="c-fn">add</span>(a, b):{'\n'}{'    '}<span className="c-kw">return</span> a + b</pre>
         <div className="exam-case">
           <span className="case-io">add(2, 3) → <b>5</b></span>
@@ -424,7 +353,7 @@ function ExamVisual() {
           <span className="case-io">add(-1, 1) → <b>0</b></span>
           <svg viewBox="0 0 24 24" className="case-check" aria-hidden="true"><path d="M4 13 l5 5 L20 6" stroke="var(--pik-verm)" strokeWidth="3.4" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </div>
-        <p className="exam-note">every submission is run against your test cases — graded while you sip coffee</p>
+        <p className="exam-note">every submission is run against your test cases, graded while you sip coffee</p>
       </div>
     </div>
   );
@@ -452,7 +381,7 @@ function AnalyticsVisual() {
     <div className="prop prop-analytics">
       <Tape className="tape-tl" />
       <div className="ana-card">
-        <p className="ana-title">Lesson engagement — Module 3</p>
+        <p className="ana-title">Lesson engagement · Module 3</p>
         <div className="ana-bars">
           {bars.map((h, i) => (
             <motion.span
@@ -466,7 +395,7 @@ function AnalyticsVisual() {
             />
           ))}
         </div>
-        <p className="ana-note">lesson 3 was barely opened before the quiz — worth a re-teach</p>
+        <p className="ana-note">lesson 3 was barely opened before the quiz. Worth a re-teach.</p>
       </div>
     </div>
   );
@@ -535,7 +464,7 @@ function TutorVisual() {
       <div className="tutor-chat">
         <p className="tutor-q"><b>You:</b> How do I fix this loop? It crashes.</p>
         <p className="tutor-a">
-          <b>AI Tutor:</b> Look at line 3 — your condition is <code>i &lt;= arr.length</code>,
+          <b>AI Tutor:</b> Look at line 3: your condition is <code>i &lt;= arr.length</code>,
           so the last step steps out of bounds. Use <code>&lt;</code>. Want me to show a traced run?
         </p>
         <div className="tutor-stamps">
@@ -555,7 +484,7 @@ function ReviewerVisual() {
       <div className="rev-card">
         <p className="rev-title">Auto-reviewer · Arrays &amp; Loops</p>
         <p className="rev-line"><span className="rev-bullet">①</span> An array has fixed size; index from <b>0</b> to <b>length − 1</b>.</p>
-        <p className="rev-line"><span className="rev-bullet">②</span> Off-by-one means your loop bound is wrong — see IDE tip.</p>
+        <p className="rev-line"><span className="rev-bullet">②</span> Off-by-one means your loop bound is wrong. See the IDE tip.</p>
         <div className="rev-tts">
           <Volume2 size={16} strokeWidth={2.4} />
           <span className="rev-wave" aria-hidden="true">
@@ -586,7 +515,7 @@ const SPREADS = {
       icon: Brain,
       title: 'An AI that writes the course,',
       titleEm: 'not just the buzzwords',
-      body: 'Upload your curriculum file. InstructAI drafts it in three passes — outline, content, polish — into modules, lessons and quizzes you can edit line by line before anything reaches your class.',
+      body: 'Upload your curriculum file. InstructAI drafts it into modules, lessons and quizzes in three passes, and you can edit every line before anything reaches your class.',
       visual: <PipelineVisual />,
     },
     {
@@ -594,7 +523,7 @@ const SPREADS = {
       icon: ListChecks,
       title: 'Quizzes graded by',
       titleEm: 'real test cases',
-      body: 'Attach test cases once. Every submission is compiled, run, and checked against them — objective scores, zero nights of manual checking.',
+      body: 'Attach test cases once. Every submission is compiled, run, and checked against them. Objective scores, zero nights of manual checking.',
       visual: <ExamVisual />,
     },
     {
@@ -610,7 +539,7 @@ const SPREADS = {
       icon: ScanSearch,
       title: 'See what stuck,',
       titleEm: 'and what needs a re-teach',
-      body: 'Content engagement shows which lessons your class actually opened; results analysis shows which questions they missed. No guesswork — just the next topic to fix.',
+      body: 'Content engagement shows which lessons your class actually opened; results analysis shows which questions they missed. No guesswork, just the next topic to fix.',
       visual: <AnalyticsVisual />,
     },
   ],
@@ -620,7 +549,7 @@ const SPREADS = {
       icon: BookOpen,
       title: 'Lessons that read like',
       titleEm: 'someone made them for you',
-      body: 'Your teacher’s course, laid out clean — progress saved as you go, one tap to mark a lesson done, and everything waits exactly where you left it.',
+      body: 'Your teacher’s course, laid out clean. Progress saved as you go, one tap to mark a lesson done, and everything waits exactly where you left it.',
       visual: <LessonVisual />,
     },
     {
@@ -628,7 +557,7 @@ const SPREADS = {
       icon: Terminal,
       title: 'A real compiler',
       titleEm: 'in your browser tab',
-      body: 'No installs, no setup night. Write and run Java, Python, JavaScript, C++ or HTML right here — challenges are checked automatically against your teacher’s test cases.',
+      body: 'No installs, no setup night. Write and run Java, Python, JavaScript, C++ or HTML right here. Challenges are checked automatically against your teacher’s test cases.',
       visual: <IdeVisual />,
     },
     {
@@ -644,7 +573,7 @@ const SPREADS = {
       icon: Volume2,
       title: 'Reviewers you can',
       titleEm: 'just listen to',
-      body: 'One tap turns any lesson into a condensed AI reviewer — and it reads itself aloud, so exam week can happen anywhere.',
+      body: 'One tap turns any lesson into a condensed AI reviewer, and it reads itself aloud, so exam week can happen anywhere.',
       visual: <ReviewerVisual />,
     },
   ],
@@ -689,12 +618,12 @@ function Track({ role }) {
         >
           <div className="track-header">
             <img src={coffeeStainImg} alt="" aria-hidden="true" className="coffee-stain" />
-            <p className="pik-kicker">{isTeacher ? 'the teacher’s desk' : 'the student’s desk'}</p>
+            <p className="pik-kicker">{isTeacher ? 'for teachers' : 'for students'}</p>
             <h2 className="track-headline">
               {isTeacher ? (
                 <>It does the <em>boring half</em> of teaching.</>
               ) : (
-                <>Read, code, compete — <em>then actually get it.</em></>
+                <>Read, code, compete, <em>then actually get it.</em></>
               )}
             </h2>
           </div>
@@ -728,16 +657,16 @@ function CognifySection() {
             <img src={cognifyImg} alt="" className="cognify-mini-logo" /> study on the go
           </p>
           <h2 className="cognify-headline">
-            Meet <em>Cognify</em> — the review app that lives in your pocket.
+            Meet <em>Cognify</em>, the review app that lives in your pocket.
           </h2>
           <p className="cognify-body">
             InstructAI’s Android companion turns your lessons into spaced-repetition
-            flashcards and schedules each review for the day you’re about to forget —
+            flashcards and schedules each review for the day you’re about to forget,
             so exam week stops being cram week.
           </p>
           <ul className="cognify-points">
             <li><Brain size={15} strokeWidth={2.5} /> flashcards pulled straight from your course</li>
-            <li><Volume2 size={15} strokeWidth={2.5} /> reads cards aloud with on-device voices — works offline</li>
+            <li><Volume2 size={15} strokeWidth={2.5} /> reads cards aloud with on-device voices, even offline</li>
             <li><Sparkles size={15} strokeWidth={2.5} /> streaks and study stats that only count real reviews</li>
           </ul>
           <p className="cognify-note">free on Android · signs in with your InstructAI account</p>
@@ -789,19 +718,19 @@ function HowItWorks({ role }) {
   const steps = isTeacher
     ? [
         { n: '1', t: 'Post your curriculum', d: 'Any lesson plan or module file you already have.' },
-        { n: '2', t: 'Let the AI draft it', d: 'Outline, content, formatting — then you edit anything.' },
+        { n: '2', t: 'Let the AI draft it', d: 'Outline, content, formatting. Then you edit anything.' },
         { n: '3', t: 'Publish & run the room', d: 'Live quizzes, grading, analytics. You just teach.' },
       ]
     : [
         { n: '1', t: 'Join with a class code', d: 'One code from your teacher and the course appears.' },
         { n: '2', t: 'Read, code, compete', d: 'Lessons, the browser IDE, and live quiz Fridays.' },
-        { n: '3', t: 'Watch yourself improve', d: 'Completed lessons, quiz scores and returned activities — all in one place.' },
+        { n: '3', t: 'Watch yourself improve', d: 'Completed lessons, quiz scores and returned activities, all in one place.' },
       ];
   return (
     <section className="pik-how" id="how">
       <p className="pik-kicker center">{isTeacher ? 'the teacher path' : 'the student path'}</p>
       <h2 className="how-headline">
-        {isTeacher ? <>Three steps to <em>your</em> co-teacher.</> : <>Three steps to <em>your</em> unfair advantage.</>}
+        {isTeacher ? <>Three steps and <em>you're teaching.</em></> : <>Three steps and <em>you're in.</em></>}
       </h2>
       <div className="how-rail">
         {steps.map((s, i) => (
@@ -831,7 +760,7 @@ function Footer({ onPick }) {
         <div className="footer-brand">
           <span className="pik-logo-mark">I<span className="pik-logo-dot">.</span></span>
           <p className="footer-colophon">
-            InstructAI — an AI-powered learning management system, set in Fraunces and
+            InstructAI is an AI-powered learning management system, set in Fraunces and
             JetBrains Mono. Built as a capstone for <b>Penaranda Senior High School</b>.
           </p>
         </div>
@@ -867,6 +796,20 @@ function Footer({ onPick }) {
 
 export default function LandingPage() {
   const [role, setRole] = useState(() => readStoredRole());
+  // the journey DOM stays invisible until the 3D world has actually painted,
+  // so a refresh never flashes the flat, canvas-less page first
+  const [sceneReady, setSceneReady] = useState(false);
+  // a scroll journey always starts at the top — browser scroll restoration
+  // drops you mid-world after a refresh, which reads as broken
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
+    window.scrollTo(0, 0);
+  }, []);
+  // fail-safe: if WebGL never resolves, reveal the page anyway
+  useEffect(() => {
+    const t = setTimeout(() => setSceneReady(true), 7000);
+    return () => clearTimeout(t);
+  }, []);
 
   const pick = (next, scroll = false) => {
     setRole(next);
@@ -886,7 +829,7 @@ export default function LandingPage() {
     <div className="pik" data-role={role ?? 'none'}>
       <Nav role={role} onPick={pick} />
       <main>
-        <Journey role={role} onPick={pick} />
+        <Journey role={role} onPick={pick} ready={sceneReady} onSceneReady={() => setSceneReady(true)} />
         {role && <Track role={role} />}
         <CognifySection />
         <EunaChatSection />

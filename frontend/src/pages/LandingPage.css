@@ -69,11 +69,11 @@
 
 .pik-kicker.center { justify-content: center; }
 
-.kicker-rule {
-  display: inline-block;
-  width: 38px;
-  height: 2px;
-  background: var(--pik-ink);
+.kicker-dot {
+  font-size: 1.3em;
+  line-height: 0;
+  transform: translateY(-0.06em);
+  color: var(--pik-verm);
 }
 
 /* ── nav ─────────────────────────────────────────────────── */
@@ -1884,6 +1884,18 @@
 .journey {
   position: relative;
   height: 500vh;
+  /* held invisible until the 3D world has painted its first frame —
+     a refresh never shows the flat canvas-less page */
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.journey.is-ready {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .journey { transition: none; }
 }
 
 .journey-canvas {
@@ -1933,47 +1945,56 @@
 .jsec-arena { top: 300vh; }
 .jsec-grad { top: 400vh; }
 
-/* captions are the only DOM text left in the journey — headlines live in
-   the 3D world now, so these stay small and sit low in the frame */
-.jsec-cap {
+/* stage 4 keeps only its CTA pair, parked low like the hero's cards */
+.jsec-cta-row {
   position: absolute;
-  bottom: 11vh;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(620px, 88vw);
-  text-align: center;
+  left: 0;
+  right: 0;
+  bottom: 12vh;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
 }
 
-.jsec-cap .jsec-body {
-  margin: 10px auto 0;
-  max-width: 52ch;
-}
-
-.jsec-cap.cap-left {
-  left: clamp(24px, 7vw, 110px);
-  transform: none;
-  text-align: left;
-  width: min(480px, 84vw);
-}
-
-.jsec-cap.cap-left .jsec-body {
-  margin-left: 0;
-}
-
-.jsec-body {
-  font-size: clamp(1rem, 1.25vw, 1.16rem);
-  line-height: 1.65;
-  color: var(--pik-ink-soft);
-  max-width: 54ch;
+.jsec-cta-row .jsec-cta {
+  pointer-events: auto;
 }
 
 .jsec-cta {
   display: flex;
   gap: 14px;
   align-items: center;
-  margin-top: 18px;
   flex-wrap: wrap;
   justify-content: center;
+}
+
+/* the invitation: small, mono, patient — fades in with the world */
+.scroll-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 2.6vh;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(22, 19, 14, 0.44);
+}
+
+.scroll-hint svg {
+  animation: hint-drift 2.4s ease-in-out infinite;
+}
+
+@keyframes hint-drift {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-hint svg { animation: none; }
 }
 
 /* hero scenes need their content stacked toward the top so the owl
@@ -2001,7 +2022,6 @@
 @media (max-width: 900px) {
   .journey { height: 480vh; }
   .jsec-hero { padding-top: 13vh; }
-  .jsec-body { font-size: 1rem; }
   .choice-row { gap: 12px; }
 }
 
@@ -2039,20 +2059,28 @@
   border-bottom: 1px solid rgba(22, 19, 14, 0.08);
 }
 
-/* text panels get a whisper of scrim so they read over the world */
-.jsec-cap {
-  text-shadow: 0 1px 0 rgba(250, 246, 239, 0.65);
-}
-
 @media (max-width: 900px) {
+  /* the hero flex must stack on mobile — a static choice-row would otherwise
+     sit BESIDE the kicker instead of below it */
+  .jsec-hero {
+    flex-direction: column;
+    align-items: stretch;
+    padding-top: 11vh;
+  }
   .jsec-hero .choice-row {
     position: static;
-    margin-top: 24px;
+    margin-top: 22px;
     flex-direction: column;
     align-items: center;
   }
   .jsec-hero .choice-or { display: none; }
-  .jsec-cap { bottom: 7vh; width: min(560px, 90vw); }
+  /* column flex makes 44%-width cards collapse to skinny strips */
+  .jsec-hero .choice-card { width: min(340px, 86vw); padding: 18px 18px 16px; gap: 10px; }
+  .jsec-hero .card-doodle { display: none; }
+  /* flex-start parent shrink-wraps the kicker into a jagged column */
+  .jsec-hero .jsec-inner { width: 100%; }
+  .jsec-hero .scroll-hint { bottom: 5.5vh; }
+  .jsec-cta-row { bottom: 9vh; }
 }
 
 /* visually hidden (screen-reader-only) headings for the in-world type */

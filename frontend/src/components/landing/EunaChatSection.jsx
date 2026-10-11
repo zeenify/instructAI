@@ -25,9 +25,9 @@ function Tape({ className = '' }) {
 
 const roleGreeting = (role) =>
   role === 'teacher'
-    ? "Hey teach! I'm Euna — ask me anything about the teacher side: AI course generation, live quizzes, grading, the works."
+    ? "Hey teach! I'm Euna. Ask me anything about the teacher side: AI course generation, live quizzes, grading, the works."
     : role === 'student'
-      ? "Hey! I'm Euna — ask me about your classes, the browser IDE, the AI tutor, or Cognify. I know everything school-related."
+      ? "Hey! I'm Euna. Ask me about your classes, the browser IDE, the AI tutor, or Cognify. I know everything school-related."
       : "Hey there! I'm Euna. Got questions about InstructAI? Pick your side up top and ask away!";
 
 /* ── 3D EUNA — vanilla three.js, adapted from euna3d/viewer/public/main.js ── */
@@ -455,7 +455,7 @@ export default function EunaChatSection() {
       setMessages((prev) => [...prev, { type: 'bot', text: reply }]);
       speakText(reply);
     } catch {
-      setMessages((prev) => [...prev, { type: 'bot', text: "I can't reach my brain right now — try again in a sec!" }]);
+      setMessages((prev) => [...prev, { type: 'bot', text: "I can't reach my brain right now. Try again in a sec!" }]);
       setIsLoading(false);
     }
   };
@@ -492,7 +492,7 @@ export default function EunaChatSection() {
           </h2>
           <p className="euna-sub">
             She knows every feature of this platform and refuses to talk about
-            anything else. Turn the speaker on — she talks back.
+            anything else. Turn the speaker on and she talks back.
           </p>
         </motion.div>
 
@@ -519,7 +519,7 @@ export default function EunaChatSection() {
                 type="button"
                 className={`euna-speaker ${speakerOn ? 'on' : ''} ${voicePhase === 'warming' ? 'generating' : ''} ${isSpeaking ? 'speaking' : ''}`}
                 onClick={toggleSpeaker}
-                title={speakerOn ? 'Speaker is on — Euna will talk' : 'Turn on the speaker'}
+                title={speakerOn ? 'Speaker is on, Euna will talk' : 'Turn on the speaker'}
               >
                 {speakerOn ? <Volume2 size={17} strokeWidth={2.4} /> : <VolumeX size={17} strokeWidth={2.4} />}
                 {voicePhase === 'warming'

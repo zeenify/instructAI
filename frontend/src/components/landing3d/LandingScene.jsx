@@ -204,66 +204,65 @@ function StageText({ lines, position, stageZ, size = 0.6, gap = 0.3 }) {
   );
 }
 
-// ── stage signposts: coded paper markers so the path reads ──
-function PathMarkers() {
-  const group = useMemo(() => {
-    const g = new THREE.Group();
-    const geo = new THREE.CylinderGeometry(0.16, 0.16, 0.05, 24);
-    const mat = new THREE.MeshStandardMaterial({ color: '#e6d9bf', roughness: 1 });
-    for (let i = 0; i < 5; i++) {
-      const m = new THREE.Mesh(geo, mat);
-      m.position.set(0, 0.03, -i * 14);
-      g.add(m);
-    }
-    return g;
-  }, []);
-  return <primitive object={group} />;
-}
-
-// ── the paper plane circling the whole world overhead ──────
+// ── the paper plane threading the whole journey overhead ───
+// One continuous element that flies the corridor the camera travels,
+// tying the five stages together like a guide.
 function WorldPlane() {
   const ref = useRef();
+  const bank = useRef();
   useFrame((state) => {
-    const t = state.clock.elapsedTime * 0.13;
-    const z = ((-t * 6) % 80) - 10;
-    ref.current.position.set(Math.sin(state.clock.elapsedTime * 0.5) * 5.5, 4.6 + Math.sin(state.clock.elapsedTime * 0.9) * 0.4, -Math.abs(t * 6 % 80) + 8);
-    ref.current.position.z = z;
-    ref.current.rotation.y = Math.atan2(
-      Math.cos(state.clock.elapsedTime * 0.5),
-      -1.6,
-    );
+    const t = state.clock.elapsedTime;
+    const z = 8 - ((t * 1.35) % 88); // fly 8 → -80 and loop
+    ref.current.position.set(Math.sin(t * 0.33) * 3.1, 3.35 + Math.sin(t * 0.8) * 0.4, z);
+    bank.current.rotation.z = Math.sin(t * 0.5) * 0.16;
   });
   return (
     <group ref={ref}>
-      <Rig url={M + 'paper-plane.glb'} size={0.5} rotation={[0.1, Math.PI, 0]} />
+      <group ref={bank}>
+        <Rig url={M + 'paper-plane.glb'} size={0.7} rotation={[0.1, Math.PI, 0]} />
+      </group>
     </group>
   );
 }
 
-// ── stage 1 letters: real typeset Fraunces letters on the floor ──
+// ── stage 1 letters: typeset Fraunces letters that SPELL something ──
+// Two words stand on the paper floor: TEACH (left, vermilion) and
+// LEARN (right, sage). Jittered sizes, depths and turns keep them
+// hand-set rather than typeset-perfect.
 function TypeStage({ stageZ }) {
   const group = useRef();
-  const letters = useMemo(() => ([
-    { ch: 'A', x: -3.4, z: -1.2, s: 0.85, c: VERM, r: 0.42 },
-    { ch: 'a', x: -2.55, z: -0.5, s: 0.6, c: INK, r: -0.28 },
-    { ch: 'B', x: -1.75, z: -1.0, s: 0.78, c: SAGE, r: 0.3 },
-    { ch: 'b', x: -0.9, z: -0.45, s: 0.58, c: INK, r: -0.38 },
-    { ch: 'C', x: -0.1, z: -1.1, s: 0.8, c: VERM, r: 0.22 },
-    { ch: 'c', x: 0.7, z: -0.5, s: 0.5, c: INK, r: -0.2 },
-  ]), []);
+  const { size: vp } = useThree();
+  const aspect = vp.width / vp.height;
+  const spread = Math.min(1, Math.max(0.5, aspect / 1.55));
+
+  const letters = useMemo(() => {
+    const make = (word, x0, palette) =>
+      word.split('').map((ch, i) => ({
+        ch,
+        x: x0 + i * 0.68,
+        z: [-0.95, -0.3, -0.85, -0.25, -0.9][i % 5],
+        s: [0.82, 0.68, 0.9, 0.7, 0.84][i % 5],
+        c: palette[i % palette.length],
+        r: [-0.24, 0.3, -0.18, 0.26, -0.3][i % 5],
+      }));
+    return [
+      ...make('TEACH', -3.55, [VERM, INK, SAGE, INK]),
+      ...make('LEARN', 0.75, [SAGE, INK, VERM, INK]),
+    ];
+  }, []);
 
   useStageFade(group, stageZ);
   useFrame((state) => {
     const t = state.clock.elapsedTime;
     if (!group.current) return;
     group.current.children.forEach((g, i) => {
-      // a gentle wave runs through the type — schoolroom energy, not chaos
+      // a gentle wave runs through the words — schoolroom energy, not chaos
       g.position.y = Math.abs(Math.sin(t * 1.3 - i * 0.5)) * 0.12;
     });
   });
 
   return (
-    <group ref={group}>
+    <group ref={group} scale={spread}>
       {letters.map((l, i) => (
         <group key={i} position={[l.x, 0, l.z]} rotation={[0, l.r, 0]}>
           <Text
@@ -285,13 +284,24 @@ function TypeStage({ stageZ }) {
 // ── the world ──────────────────────────────────────────────
 const STAGE_DZ = 14;
 
-function World({ containerRef, reducedMotion }) {
+function World({ containerRef, reducedMotion, onReady }) {
   const camera = useThree((s) => s.camera);
   const light = useRef();
   const lightTarget = useMemo(() => new THREE.Object3D(), []);
   const pointer = useRef({ x: 0, y: 0 });
   const book = useRef();
   const owl = useRef();
+  const readySent = useRef(false);
+
+  // One frame after everything inside Suspense has mounted, tell the page
+  // to fade the journey in — this is what kills the flat-DOM flash on
+  // refresh (the DOM stays invisible until the world is actually there).
+  useFrame(() => {
+    if (readySent.current || !onReady) return;
+    readySent.current = true;
+    // troika rasterizes its SDF fonts async; give it a beat
+    setTimeout(onReady, 250);
+  });
 
   useEffect(() => {
     const onMove = (e) => {
@@ -406,21 +416,21 @@ function World({ containerRef, reducedMotion }) {
         <Rig url={M + 'pencil.glb'} size={0.6} position={[2.2, 0.02, 0.9]} rotation={[0, -0.7, 0]} />
       </group>
 
-      {/* ── stage 1 · typography: headline + real Fraunces letters ── */}
+      {/* ── stage 1 · two words set in type, spelling the two sides ── */}
       <group position={[0, 0, stages[1]]}>
         <StageText
-          position={[0, 2.55, -0.2]}
+          position={[0, 2.6, -0.3]}
           stageZ={stages[1]}
-          size={0.52}
+          size={0.55}
           lines={[
-            { text: 'Teachers get a co-teacher.' },
-            { text: 'Students get an arcade.', em: true },
+            { text: 'Built for teachers.' },
+            { text: 'Built for students.', em: true },
           ]}
         />
         <TypeStage stageZ={stages[1]} />
       </group>
 
-      {/* ── stage 2 · the magic book writes itself ── */}
+      {/* ── stage 2 · the magic book writes itself, pencil at the ready ── */}
       <group position={[0, 0, stages[2]]}>
         <StageText
           position={[-1.95, 2.2, -0.5]}
@@ -440,25 +450,27 @@ function World({ containerRef, reducedMotion }) {
             rotation={[-0.1, -0.4, 0]}
           />
         </group>
+        <Float amp={0.07} speed={1.3} tilt={0.06} drift={0.35}>
+          <Rig url={M + 'pencil.glb'} size={0.55} position={[0.6, 1.5, 0.55]} rotation={[0.6, -1.2, 0.5]} />
+        </Float>
         <Rig url={M + 'books-stack.glb'} size={0.6} position={[1.95, 0, -0.6]} rotation={[0, -0.5, 0]} />
       </group>
 
-      {/* ── stage 3 · arena: blackboard classroom, trophy earned ── */}
+      {/* ── stage 3 · blackboard classroom, trophy earned ── */}
       <group position={[0, 0, stages[3]]}>
         <StageText
           position={[0, 2.7, -0.5]}
           stageZ={stages[3]}
           size={0.6}
           lines={[
-            { text: 'The room becomes' },
-            { text: 'a game show.', em: true },
+            { text: 'Quiz time feels like' },
+            { text: 'game night.', em: true },
           ]}
         />
         <Rig url={M + 'blackboard.glb'} size={1.9} position={[-2.4, 0.02, -2.2]} rotation={[0, 0.15, 0]} />
         <Float amp={0.05} speed={1.2} tilt={0.02} drift={0.3}>
           <Rig url={M + 'trophy.glb'} size={0.62} position={[1.75, 0.02, 0.4]} />
         </Float>
-        <Rig url={M + 'books-stack.glb'} size={0.55} position={[0.1, 0, -1.5]} rotation={[0, 0.2, 0]} />
       </group>
 
       {/* ── stage 4 · graduation — the cap tossed high, forever ── */}
@@ -473,19 +485,18 @@ function World({ containerRef, reducedMotion }) {
           ]}
         />
         <Float amp={0.12} speed={0.9} tilt={0.08} drift={0.45}>
-          <Rig url={M + 'grad-cap.glb'} size={1.0} position={[1.6, 2.35, -0.6]} />
+          <Rig url={M + 'grad-cap.glb'} size={1.0} position={[2.05, 1.55, -0.6]} />
         </Float>
         <Rig url={M + 'books-stack.glb'} size={0.85} position={[1.8, 0, 0.2]} rotation={[0, -0.3, 0]} />
         <Rig url={M + 'blackboard.glb'} size={1.6} position={[-2.35, 0.02, -0.9]} rotation={[0, 0.5, 0]} />
       </group>
 
-      <PathMarkers />
       <WorldPlane />
     </>
   );
 }
 
-export default function LandingScene({ containerRef }) {
+export default function LandingScene({ containerRef, onReady }) {
   const reducedMotion =
     typeof window !== 'undefined' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -505,7 +516,7 @@ export default function LandingScene({ containerRef }) {
         }}
       >
         <Suspense fallback={null}>
-          <World containerRef={containerRef} reducedMotion={reducedMotion} />
+          <World containerRef={containerRef} reducedMotion={reducedMotion} onReady={onReady} />
         </Suspense>
       </Canvas>
     </div>
