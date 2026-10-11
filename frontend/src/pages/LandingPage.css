@@ -2097,18 +2097,24 @@
   .jsec-hero .pik-kicker { flex-wrap: wrap; justify-content: center; text-align: center; row-gap: 2px; }
   .jsec-hero .choice-row {
     position: absolute;
-    left: 4vw;
-    right: 4vw;
-    bottom: 3vh;
+    left: 3.5vw;
+    right: 3.5vw;
+    bottom: 2.5vh;
     margin-top: 0;
     flex-direction: row;
     flex-wrap: nowrap;
-    gap: 10px;
+    gap: 8px;
   }
-  .jsec-hero .choice-card { width: auto; flex: 1 1 0; padding: 13px 14px 11px; gap: 6px; }
-  .jsec-hero .choice-title { font-size: 1.28rem; }
+  /* compact chip-card: short, readable, no clutter */
+  .jsec-hero .choice-card { width: auto; flex: 1 1 0; padding: 11px 12px 9px; gap: 4px; }
+  .jsec-hero .choice-card .tape { display: none; }
+  .jsec-hero .choice-kicker { font-size: 0.52rem; }
+  .jsec-hero .choice-title { font-size: 1.12rem; }
   .jsec-hero .choice-sub { display: none; }
-  .jsec-hero .choice-cta { font-size: 0.62rem; }
+  .jsec-hero .choice-cta { font-size: 0.56rem; gap: 5px; }
+  .jsec-hero .choice-cta svg { width: 11px; height: 11px; }
+  .jsec-hero .card-doodle { display: none; }
+  .jsec-hero .seal-stamp { display: none; }
   .jsec-hero .scroll-hint { display: none; }
 }
 

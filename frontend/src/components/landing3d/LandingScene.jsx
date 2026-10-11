@@ -25,8 +25,21 @@ const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const smooth = (v) => v * v * (3 - 2 * v);
 const lerp = (a, b, t) => a + (b - a) * t;
 
+// ── responsive stage fit ───────────────────────────────────
+// One factor drives the whole mobile adaptation: props scale toward the
+// stage center, the camera backs off a little, text pulls inward — so
+// compositions stay fully on screen instead of being stripped at the edges.
+const BASE_DIST = 7;
+
+function useStageDist() {
+  const { size: vp } = useThree();
+  const aspect = vp.width / vp.height;
+  const spread = Math.min(1, Math.max(0.5, aspect / 1.55));
+  return { spread, dist: BASE_DIST + (1 - spread) * 4 };
+}
+
 // ── a model with skeleton-aware fit, grounded on y=0 ─────────
-function Rig({ url, size = 1.7, byHeight = false, geomOnly = false, robust = true, play = false, ...props }) {
+function Rig({ url, size = 1.7, byHeight = false, geomOnly = false, robust = true, play = false, hideMaterials, tint, ...props }) {
   const gltf = useLoader(GLTFLoader, url);
   const group = useRef();
   const { actions } = useAnimations(gltf.animations, group);
@@ -42,6 +55,22 @@ function Rig({ url, size = 1.7, byHeight = false, geomOnly = false, robust = tru
     });
     return () => list.forEach((a) => a?.stop());
   }, [actions, play]);
+
+  // some baked models carry stray props (bookmarks, decals) — hide by material
+  useEffect(() => {
+    if (!hideMaterials || !group.current) return;
+    group.current.traverse((o) => {
+      if (o.isMesh && o.material && hideMaterials.includes(o.material.name)) o.visible = false;
+    });
+  }, [model, hideMaterials]);
+
+  // recolor a model (e.g. the white paper plane on cream paper)
+  useEffect(() => {
+    if (!tint || !group.current) return;
+    group.current.traverse((o) => {
+      if (o.isMesh && o.material && 'color' in o.material) o.material.color.set(tint);
+    });
+  }, [model, tint]);
 
   return (
     <group ref={group} {...props}>
@@ -142,11 +171,11 @@ function PoseRig({ url, size = 1.5, ...props }) {
 // glyph width so mobile line breaks still stack correctly. Opacity follows
 // camera distance — troika's SDF shader ignores scene fog, so this fade IS
 // the fog for text (models fade via the real fog).
-function useStageFade(ref, worldZ, rate = 0.13) {
+function useStageFade(ref, worldZ, dist, rate = 0.13) {
   useFrame((state) => {
     const g = ref.current;
     if (!g) return;
-    const d = Math.abs(state.camera.position.z - (worldZ + 7));
+    const d = Math.abs(state.camera.position.z - (worldZ + dist));
     const o = clamp01(1.25 - d * rate);
     g.traverse((n) => {
       const m = n.material;
@@ -164,29 +193,32 @@ function StageText({ lines, position, stageZ, size = 0.6, gap = 0.3 }) {
   const aspect = vp.width / vp.height;
   // shrink the whole block on narrow screens instead of letting it overflow
   const scale = Math.min(1, Math.max(0.55, aspect / 1.55));
-  const visW = 2 * 7 * Math.tan(((camera.fov || 42) * Math.PI) / 360) * aspect;
+  const { dist } = useStageDist();
+  const visW = 2 * dist * Math.tan(((camera.fov || 42) * Math.PI) / 360) * aspect;
+  // Fraunces Black runs wide — estimate glyph advance at 0.56 of fontSize
   const maxWidth = Math.min(8, (visW / scale) * 0.92);
   // narrow screens: lift the block toward the top of the frame so the hero's
-  // stacked cards don't cover it
+  // docked cards don't cover it, and pull side panels back toward center
   const yBase = position[1] + (aspect < 0.9 ? 0.6 : 0);
+  const xBase = position[0] * scale;
 
   const layout = useMemo(() => {
     let y = 0;
     return lines.map((l) => {
       const fs = l.size || size;
-      const rows = Math.max(1, Math.ceil((l.text.length * fs * 0.5) / maxWidth));
+      const rows = Math.max(1, Math.ceil((l.text.length * fs * 0.56) / maxWidth));
       const slot = { ...l, fs, y, rows };
       y += rows * fs * 1.16 + gap * fs;
       return slot;
     });
   }, [lines, size, gap, maxWidth]);
 
-  useStageFade(group, stageZ + position[2]);
+  useStageFade(group, stageZ + position[2], dist);
   useFrame((state) => {
     const g = group.current;
     if (!g) return;
     // the type breathes very slightly so it feels part of the world
-    g.position.y = yBase + Math.sin(state.clock.elapsedTime * 0.8 + stageZ) * 0.03;
+    g.position.set(xBase, yBase + Math.sin(state.clock.elapsedTime * 0.8 + stageZ) * 0.03, position[2]);
   });
 
   return (
@@ -213,8 +245,16 @@ function StageText({ lines, position, stageZ, size = 0.6, gap = 0.3 }) {
 // ── the paper plane: the journey's transition beat ─────────
 // Entirely scroll-tied — it has no animation of its own. Parked at a stage
 // it waits just offscreen; the moment you scroll between stages it sweeps
-// across the frame (direction alternates per stage) and parks again.
-// Same scroll position = same plane pose, every time.
+// across the frame and parks again. Every stage flies its own path:
+// direction, entry/exit heights and arc all vary so it never reads as a
+// back-and-forth shuttle.
+const FLIGHTS = [
+  { dir: 1, y0: 2.05, y1: 1.75, bulge: 0.25 },  // glide in low, drift down
+  { dir: -1, y0: 2.2, y1: 1.8, bulge: 0.12 },   // descend right to left
+  { dir: 1, y0: 1.7, y1: 2.1, bulge: 0.2 },     // climb left to right
+  { dir: -1, y0: 1.85, y1: 2.2, bulge: 0.18 },  // high exit right to left
+];
+
 function WorldPlane({ containerRef, reducedMotion }) {
   const outer = useRef();
   const bank = useRef();
@@ -235,28 +275,29 @@ function WorldPlane({ containerRef, reducedMotion }) {
     }
     const k = Math.min(3, Math.floor(f));
     const frac = f - k;
-    const dir = k % 2 === 0 ? 1 : -1; // alternate fly direction per stage
+    const flight = FLIGHTS[k];
+    const dir = flight.dir;
     const cam = state.camera;
 
-    // crossing arc: offscreen at both ends of a stage pair, upper-middle of
-    // the frame in the middle (y kept under the frustum's top edge)
+    // crossing arc: offscreen at both ends of a stage pair, mid-frame in between
     const sp = smooth(clamp01((frac - 0.06) / 0.88));
-    const x = reducedMotion ? 60 : lerp(-6.5 * dir, 6.5 * dir, sp);
-    const y = 1.95 + Math.sin(sp * Math.PI) * 0.3;
+    const lift = Math.sin(sp * Math.PI);
+    const x = reducedMotion ? 60 : lerp(-3.5 * dir, 3.5 * dir, sp);
+    const y = lerp(flight.y0, flight.y1, sp) + lift * flight.bulge;
     const z = cam.position.z - 3.4;
     const yaw = dir > 0 ? -Math.PI / 2 : Math.PI / 2;
 
     outer.current.position.set(x, y, z);
-    outer.current.rotation.y = yaw;
-    const lift = Math.sin(sp * Math.PI);
+    outer.current.rotation.y = yaw - dir * 0.5; // angled toward the viewer so the wings read
     bank.current.rotation.z = lift * 0.28 * dir;
-    bank.current.rotation.x = -lift * 0.1;
+    // nose follows the descent/climb of the path
+    bank.current.rotation.x = -((flight.y1 - flight.y0) * 0.12 + lift * flight.bulge * 0.35);
   });
 
   return (
     <group ref={outer}>
       <group ref={bank}>
-        <Rig url={M + 'paper-plane.glb'} size={1.05} rotation={[0.1, 0, 0]} />
+        <Rig url={M + 'paper-plane.glb'} size={1.3} tint={VERM} rotation={[0.1, 0, 0]} />
       </group>
     </group>
   );
@@ -271,6 +312,7 @@ function TypeStage({ stageZ }) {
   const { size: vp } = useThree();
   const aspect = vp.width / vp.height;
   const spread = Math.min(1, Math.max(0.5, aspect / 1.55));
+  const { dist } = useStageDist();
 
   const letters = useMemo(() => {
     const make = (word, x0, palette) =>
@@ -288,9 +330,9 @@ function TypeStage({ stageZ }) {
     ];
   }, []);
 
-  // fade faster than the headlines: the camera flies right through this row,
-  // and un-faded letters clip giant fragments through the near plane
-  useStageFade(group, stageZ, 0.2);
+  // fade faster than the headlines: keep the row readable while the camera
+  // is still approaching the stage
+  useStageFade(group, stageZ, dist, 0.2);
   useFrame((state) => {
     const t = state.clock.elapsedTime;
     if (!group.current) return;
@@ -323,7 +365,9 @@ function TypeStage({ stageZ }) {
 // ── chalk writing for the blackboards ──────────────────────
 // Real chalk lines that WRITE THEMSELVES in a loop: a clip rectangle
 // sweeps left to right like a hand laying down strokes, holds, erases.
-function BoardWriting({ lines, width = 1.1, position = [0, 0, 0], rotation = [0, 0, 0] }) {
+// Placement uses the board's green-face bounds measured from the GLB
+// (face spans y 0.075..1.14 at size 1.9, z ≈ 0.008 — just in front of it).
+function BoardWriting({ lines, cy, z = 0.03 }) {
   const refs = useRef([]);
   const widths = useRef([]);
 
@@ -344,32 +388,27 @@ function BoardWriting({ lines, width = 1.1, position = [0, 0, 0], rotation = [0,
       if (cycleT > CYCLE - 0.5) p = 1 - clamp01((cycleT - (CYCLE - 0.5)) / 0.5) * 0.65;
       p = smooth(p);
       const h = text.textHeight || 0.2;
-      text.clipRect = [-0.02, -h - 0.02, w * p + 0.02, 0.02];
+      text.clipRect = [-w / 2 - 0.02, -h / 2 - 0.02, -w / 2 + w * p + 0.02, h / 2 + 0.02];
     });
   });
 
-  let y = 0;
+  const step = Math.max(...lines.map((l) => l.size)) * 1.55;
   return (
-    <group position={position} rotation={rotation}>
-      {lines.map((l, i) => {
-        const slot = y;
-        y += (l.size || 0.16) * 1.5;
-        return (
-          <Text
-            key={i}
-            ref={(el) => { refs.current[i] = el; }}
-            font={F_CHALK}
-            fontSize={l.size || 0.16}
-            color={CHALK}
-            anchorX="left"
-            anchorY="top"
-            maxWidth={width}
-            position={[0, -slot, 0.001]}
-          >
-            {l.text}
-          </Text>
-        );
-      })}
+    <group position={[0, cy, z]}>
+      {lines.map((l, i) => (
+        <Text
+          key={i}
+          ref={(el) => { refs.current[i] = el; }}
+          font={F_CHALK}
+          fontSize={l.size || 0.16}
+          color={CHALK}
+          anchorX="center"
+          anchorY="middle"
+          position={[0, -((i - (lines.length - 1) / 2) * step), 0.001]}
+        >
+          {l.text}
+        </Text>
+      ))}
     </group>
   );
 }
@@ -379,6 +418,7 @@ const STAGE_DZ = 14;
 
 function World({ containerRef, reducedMotion, onReady }) {
   const camera = useThree((s) => s.camera);
+  const { spread, dist } = useStageDist();
   const light = useRef();
   const lightTarget = useMemo(() => new THREE.Object3D(), []);
   const pointer = useRef({ x: 0, y: 0 });
@@ -432,17 +472,17 @@ function World({ containerRef, reducedMotion, onReady }) {
     // camera travels from stage k to stage k+1 as section k scrolls through
     const k = Math.min(3, Math.floor(f));
     const frac = smooth(f - k);
-    const camZ = lerp(stages[k] + 7, stages[k + 1] + 7, frac);
+    const camZ = lerp(stages[k] + dist, stages[k + 1] + dist, frac);
     // lateral sway so the stage sits opposite the text panel
     const swayA = [0, 0, 1.35, 0, 0];
     const sway = lerp(swayA[k], swayA[k + 1], frac);
     const drift = reducedMotion ? 0 : 1;
-    const targetX = sway + pointer.current.x * 0.3 * drift;
+    const targetX = sway * spread + pointer.current.x * 0.3 * drift;
     const targetY = 1.55 + pointer.current.y * 0.18 * drift + Math.sin(t * 0.4) * 0.04;
     camera.position.x = lerp(camera.position.x, targetX, 0.05);
     camera.position.y = lerp(camera.position.y, targetY, 0.05);
     camera.position.z = camZ;
-    camera.lookAt(sway * 0.55, 0.95, camZ - 7);
+    camera.lookAt(sway * 0.55 * spread, 0.95, camZ - dist);
 
     // key light follows the camera so every stage is lit
     if (light.current) {
@@ -460,7 +500,7 @@ function World({ containerRef, reducedMotion, onReady }) {
     // the owl breathes: gentle bob + attentive head-tilt sway (group transforms
     // only — safe for the scale-compensated rig)
     if (owl.current && !reducedMotion) {
-      owl.current.position.y = 0.55 + Math.sin(t * 1.1) * 0.04;
+      owl.current.position.y = 0.95 + Math.sin(t * 1.1) * 0.04;
       owl.current.rotation.z = Math.sin(t * 0.55) * 0.03;
       owl.current.rotation.y = Math.sin(t * 0.35) * 0.06;
     }
@@ -499,14 +539,16 @@ function World({ containerRef, reducedMotion, onReady }) {
           size={0.7}
           lines={[
             { text: 'Your classroom,' },
-            { text: 'supercharged by AI', em: true },
+            { text: 'now with AI.', em: true },
           ]}
         />
-        <Rig url={M + 'books-stack.glb'} size={1.15} position={[0, 0, 0]} rotation={[0, 0.35, 0]} />
-        <group ref={owl} position={[0, 0.78, -0.3]}>
-          <PoseRig url={M + 'wizard-owl.glb'} size={0.42} />
+        <group scale={spread}>
+          <Rig url={M + 'books-stack.glb'} size={1.15} hideMaterials={['mat1', 'mat17']} position={[0, 0, 0]} rotation={[0, 0.35, 0]} />
+          <group ref={owl} position={[0, 0.95, -0.3]}>
+            <PoseRig url={M + 'wizard-owl.glb'} size={0.42} />
+          </group>
+          <Rig url={M + 'pencil.glb'} size={0.6} position={[2.2, 0.02, 0.9]} rotation={[0, -0.7, 0]} />
         </group>
-        <Rig url={M + 'pencil.glb'} size={0.6} position={[2.2, 0.02, 0.9]} rotation={[0, -0.7, 0]} />
       </group>
 
       {/* ── stage 1 · two words set in type, spelling the two sides ── */}
@@ -523,58 +565,61 @@ function World({ containerRef, reducedMotion, onReady }) {
         <TypeStage stageZ={stages[1]} />
       </group>
 
-      {/* ── stage 2 · the magic book writes itself, pencil at the ready ── */}
+      {/* ── stage 2 · upload a curriculum, get lessons and quizzes ── */}
       <group position={[0, 0, stages[2]]}>
         <StageText
           position={[-1.95, 2.2, -0.5]}
           stageZ={stages[2]}
           size={0.5}
           lines={[
-            { text: 'AI writes the course.' },
-            { text: 'You make it yours.', em: true },
+            { text: 'Upload your curriculum.' },
+            { text: 'Get lessons and quizzes.', em: true },
           ]}
         />
-        <group ref={book}>
-          <Rig
-            url={M + 'magic-book.glb'}
-            size={1.1}
-            play
-            position={[1.7, 0.55, -0.15]}
-            rotation={[-0.1, -0.4, 0]}
-          />
+        <group scale={spread}>
+          <group ref={book}>
+            <Rig
+              url={M + 'magic-book.glb'}
+              size={1.1}
+              play
+              position={[1.7, 0.55, -0.15]}
+              rotation={[-0.1, -0.4, 0]}
+            />
+          </group>
+          <Float amp={0.07} speed={1.3} tilt={0.06} drift={0.35}>
+            <Rig url={M + 'pencil.glb'} size={0.55} position={[0.6, 1.5, 0.55]} rotation={[0.6, -1.2, 0.5]} />
+          </Float>
+          <Rig url={M + 'books-stack.glb'} size={0.6} hideMaterials={['mat1', 'mat17']} position={[1.95, 0, -0.6]} rotation={[0, -0.5, 0]} />
         </group>
-        <Float amp={0.07} speed={1.3} tilt={0.06} drift={0.35}>
-          <Rig url={M + 'pencil.glb'} size={0.55} position={[0.6, 1.5, 0.55]} rotation={[0.6, -1.2, 0.5]} />
-        </Float>
-        <Rig url={M + 'books-stack.glb'} size={0.6} position={[1.95, 0, -0.6]} rotation={[0, -0.5, 0]} />
       </group>
 
-      {/* ── stage 3 · blackboard classroom, trophy earned ── */}
+      {/* ── stage 3 · live quizzes, the class on one leaderboard ── */}
       <group position={[0, 0, stages[3]]}>
         <StageText
           position={[0, 2.7, -0.5]}
           stageZ={stages[3]}
           size={0.6}
           lines={[
-            { text: 'Quiz time feels like' },
-            { text: 'game night.', em: true },
+            { text: 'Live quizzes, points,' },
+            { text: 'and a leaderboard.', em: true },
           ]}
         />
-        <group position={[-2.4, 0.02, -2.2]} rotation={[0, 0.15, 0]}>
-          <Rig url={M + 'blackboard.glb'} size={1.9} />
-          <BoardWriting
-            position={[-0.58, 1.1, 0.055]}
-            rotation={[0, 0, 0.012]}
-            width={1.2}
-            lines={[
-              { text: 'GAME NIGHT', size: 0.2 },
-              { text: 'friday, last period', size: 0.115 },
-            ]}
-          />
+        <group scale={spread}>
+          <group position={[-2.4, 0.02, -2.2]} rotation={[0, 0.15, 0]}>
+            <Rig url={M + 'blackboard.glb'} size={1.9} />
+            <BoardWriting
+              cy={0.62}
+              z={0.03}
+              lines={[
+                { text: 'QUIZ DAY', size: 0.2 },
+                { text: 'friday, last period', size: 0.115 },
+              ]}
+            />
+          </group>
+          <Float amp={0.05} speed={1.2} tilt={0.02} drift={0.3}>
+            <Rig url={M + 'trophy.glb'} size={0.62} position={[1.75, 0.02, 0.4]} />
+          </Float>
         </group>
-        <Float amp={0.05} speed={1.2} tilt={0.02} drift={0.3}>
-          <Rig url={M + 'trophy.glb'} size={0.62} position={[1.75, 0.02, 0.4]} />
-        </Float>
       </group>
 
       {/* ── stage 4 · graduation — the cap tossed high, forever ── */}
@@ -588,21 +633,22 @@ function World({ containerRef, reducedMotion, onReady }) {
             { text: 'start?', em: true },
           ]}
         />
-        <Float amp={0.12} speed={0.9} tilt={0.08} drift={0.45}>
-          <Rig url={M + 'grad-cap.glb'} size={1.0} position={[2.05, 1.55, -0.6]} />
-        </Float>
-        <Rig url={M + 'books-stack.glb'} size={0.85} position={[1.8, 0, 0.2]} rotation={[0, -0.3, 0]} />
-        <group position={[-2.35, 0.02, -0.9]} rotation={[0, 0.5, 0]}>
-          <Rig url={M + 'blackboard.glb'} size={1.6} />
-          <BoardWriting
-            position={[-0.45, 0.92, 0.048]}
-            rotation={[0, 0, -0.015]}
-            width={0.95}
-            lines={[
-              { text: 'A+', size: 0.24 },
-              { text: 'congrats, graduates!', size: 0.1 },
-            ]}
-          />
+        <group scale={spread}>
+          <Float amp={0.12} speed={0.9} tilt={0.08} drift={0.45}>
+            <Rig url={M + 'grad-cap.glb'} size={1.0} position={[2.05, 1.55, -0.6]} />
+          </Float>
+          <Rig url={M + 'books-stack.glb'} size={0.85} hideMaterials={['mat1', 'mat17']} position={[1.8, 0, 0.2]} rotation={[0, -0.3, 0]} />
+          <group position={[-2.35, 0.02, -0.9]} rotation={[0, 0.5, 0]}>
+            <Rig url={M + 'blackboard.glb'} size={1.6} />
+            <BoardWriting
+              cy={0.52}
+              z={0.026}
+              lines={[
+                { text: 'YOUR CLASS', size: 0.19 },
+                { text: 'is waiting.', size: 0.11 },
+              ]}
+            />
+          </group>
         </group>
       </group>
 

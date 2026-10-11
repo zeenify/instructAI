@@ -190,7 +190,7 @@ function ChoiceCard({ kind, role, onPick }) {
       {isTeacher ? <DoodlePapers /> : <DoodleTerminal />}
       <span className="choice-sub">
         {isTeacher ? (
-          <>Upload a curriculum and the AI drafts the whole course. You polish, publish, and run the room.</>
+          <>Upload a curriculum and get lessons and quizzes ready to edit. You polish, publish, and run the room.</>
         ) : (
           <>Read lessons, code in the browser, battle live quizzes, and ask a tutor that read your lessons.</>
         )}
@@ -241,7 +241,7 @@ function Journey({ role, onPick, ready, onSceneReady }) {
       {/* Scene 0 — hero: the headline itself lives IN the 3D world;
           the DOM keeps only the kicker and the choice cards */}
       <section className="jsec jsec-hero">
-        <h1 className="sr-only">InstructAI, your classroom supercharged by AI</h1>
+        <h1 className="sr-only">InstructAI, your classroom now with AI</h1>
         <div className="jsec-inner jsec-center">
           <motion.p
             className="pik-kicker center"
@@ -268,7 +268,7 @@ function Journey({ role, onPick, ready, onSceneReady }) {
       {/* Scene 1 — TEACH / LEARN set in type, all in-world */}
       <section className="jsec jsec-letters" aria-hidden="true" />
 
-      {/* Scene 2 — the magic book writes the course, all in-world */}
+      {/* Scene 2 — upload a curriculum, get lessons and quizzes, all in-world */}
       <section className="jsec jsec-book" aria-hidden="true" />
 
       {/* Scene 3 — the live quiz room, all in-world */}
@@ -513,8 +513,8 @@ const SPREADS = {
     {
       num: '01',
       icon: Brain,
-      title: 'An AI that writes the course,',
-      titleEm: 'not just the buzzwords',
+      title: 'From your curriculum file to',
+      titleEm: 'lessons and quizzes',
       body: 'Upload your curriculum file. InstructAI drafts it into modules, lessons and quizzes in three passes, and you can edit every line before anything reaches your class.',
       visual: <PipelineVisual />,
     },
