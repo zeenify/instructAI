@@ -256,9 +256,9 @@ function Journey({ role, onPick }) {
 
       {/* Scene 0 — hero */}
       <section className="jsec jsec-hero">
-        <div className="jsec-inner">
+        <div className="jsec-inner jsec-center">
           <motion.p
-            className="pik-kicker"
+            className="pik-kicker center"
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55 }}
@@ -304,21 +304,12 @@ function Journey({ role, onPick }) {
             Upload a curriculum and watch AI assemble the course. Students code in the
             browser — with a tutor that actually read the lessons.
           </motion.p>
+        </div>
 
-          <div className="choice-row">
-            <ChoiceCard kind="teacher" role={role} onPick={onPick} />
-            <div className="choice-or" aria-hidden="true">or</div>
-            <ChoiceCard kind="student" role={role} onPick={onPick} />
-          </div>
-
-          <motion.p
-            className="pik-micronote"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8, duration: 0.6 }}
-          >
-            no installs · runs in the browser · google sign-in · free for the classroom
-          </motion.p>
+        <div className="choice-row">
+          <ChoiceCard kind="teacher" role={role} onPick={onPick} />
+          <div className="choice-or" aria-hidden="true">or</div>
+          <ChoiceCard kind="student" role={role} onPick={onPick} />
         </div>
       </section>
 
@@ -329,7 +320,7 @@ function Journey({ role, onPick }) {
             className="pik-kicker"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
+            viewport={{ amount: 0.45 }}
             transition={{ duration: 0.5 }}
           >
             one product, two very different desks
@@ -338,7 +329,7 @@ function Journey({ role, onPick }) {
             className="jsec-headline"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
+            viewport={{ amount: 0.45 }}
             transition={{ duration: 0.6, delay: 0.08 }}
           >
             Teachers get a <em>co-teacher.</em><br />
@@ -348,7 +339,7 @@ function Journey({ role, onPick }) {
             className="jsec-body"
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
+            viewport={{ amount: 0.45 }}
             transition={{ duration: 0.6, delay: 0.16 }}
           >
             The page splits from here — pick a card and everything below
@@ -364,7 +355,7 @@ function Journey({ role, onPick }) {
             className="pik-kicker"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
+            viewport={{ amount: 0.45 }}
             transition={{ duration: 0.5 }}
           >
             the teacher's desk
@@ -373,7 +364,7 @@ function Journey({ role, onPick }) {
             className="jsec-headline"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
+            viewport={{ amount: 0.45 }}
             transition={{ duration: 0.6, delay: 0.08 }}
           >
             An AI that writes the course,
@@ -383,7 +374,7 @@ function Journey({ role, onPick }) {
             className="jsec-body"
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
+            viewport={{ amount: 0.45 }}
             transition={{ duration: 0.6, delay: 0.16 }}
           >
             Upload your curriculum file. InstructAI drafts it in three passes — outline,
@@ -400,7 +391,7 @@ function Journey({ role, onPick }) {
             className="pik-kicker"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
+            viewport={{ amount: 0.45 }}
             transition={{ duration: 0.5 }}
           >
             friday, last period
@@ -409,7 +400,7 @@ function Journey({ role, onPick }) {
             className="jsec-headline"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
+            viewport={{ amount: 0.45 }}
             transition={{ duration: 0.6, delay: 0.08 }}
           >
             The whole room becomes a <em>game show.</em>
@@ -418,7 +409,7 @@ function Journey({ role, onPick }) {
             className="jsec-body"
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
+            viewport={{ amount: 0.45 }}
             transition={{ duration: 0.6, delay: 0.16 }}
           >
             Teachers launch the quiz live and control the pace — question by question,
@@ -435,7 +426,7 @@ function Journey({ role, onPick }) {
             className="pik-kicker center"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
+            viewport={{ amount: 0.45 }}
             transition={{ duration: 0.5 }}
           >
             the graduation
@@ -444,7 +435,7 @@ function Journey({ role, onPick }) {
             className="jsec-headline"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
+            viewport={{ amount: 0.45 }}
             transition={{ duration: 0.6, delay: 0.08 }}
           >
             Ready to <em>start?</em>
@@ -453,7 +444,7 @@ function Journey({ role, onPick }) {
             className="jsec-body"
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
+            viewport={{ amount: 0.45 }}
             transition={{ duration: 0.6, delay: 0.16 }}
           >
             Set up your first class in minutes — or join the one your teacher made.
@@ -462,7 +453,7 @@ function Journey({ role, onPick }) {
             className="jsec-cta"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
+            viewport={{ amount: 0.45 }}
             transition={{ duration: 0.6, delay: 0.24 }}
           >
             <a className="btn-ink" href={role === 'student' ? '/register/student' : '/register/teacher'}>

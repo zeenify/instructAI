@@ -2038,3 +2038,65 @@
   .jsec-body { font-size: 1rem; }
   .choice-row { gap: 12px; }
 }
+
+/* ── journey UI integration pass ── */
+
+/* hero: centered composition, the owl owns the middle of the frame */
+.jsec-hero .jsec-inner.jsec-center,
+.jsec-hero .jsec-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+  padding-top: 0;
+}
+
+.jsec-hero .pik-headline {
+  font-size: clamp(2.8rem, 5.8vw, 5.4rem);
+  line-height: 1.02;
+}
+
+.jsec-hero .pik-sub {
+  margin: 18px auto 0;
+  max-width: 56ch;
+}
+
+.jsec-hero .choice-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6vh;
+  justify-content: center;
+  gap: 22px;
+  padding: 0 4vw;
+}
+
+.jsec-hero .choice-or {
+  font-size: 1.3rem;
+}
+
+/* transparent nav over the world */
+.pik-nav {
+  background: linear-gradient(to bottom, rgba(250, 246, 239, 0.72), rgba(250, 246, 239, 0.45));
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(22, 19, 14, 0.08);
+}
+
+/* text panels get a whisper of scrim so they read over the world */
+.jsec-inner {
+  text-shadow: 0 1px 0 rgba(250, 246, 239, 0.65);
+}
+
+.jsec-headline {
+  text-shadow: 0 2px 12px rgba(250, 246, 239, 0.9), 0 1px 0 rgba(250, 246, 239, 0.8);
+}
+
+@media (max-width: 900px) {
+  .jsec-hero .choice-row {
+    position: static;
+    margin-top: 24px;
+    flex-direction: column;
+    align-items: center;
+  }
+  .jsec-hero .choice-or { display: none; }
+}

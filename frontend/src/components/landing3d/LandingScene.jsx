@@ -16,14 +16,42 @@ const smooth = (v) => v * v * (3 - 2 * v);
 const lerp = (a, b, t) => a + (b - a) * t;
 
 // ── a model with skeleton-aware fit, grounded on y=0 ─────────
-function Rig({ url, size = 1.7, byHeight = false, geomOnly = false, robust = true, ...props }) {
+function Rig({ url, size = 1.7, byHeight = false, geomOnly = false, robust = true, play = false, ...props }) {
   const gltf = useLoader(GLTFLoader, url);
+  const group = useRef();
+  const { actions } = useAnimations(gltf.animations, group);
   const model = useMemo(() => fittedClone(gltf.scene, size, byHeight, geomOnly, robust).wrap, [gltf, size, byHeight, geomOnly, robust]);
+
+  useEffect(() => {
+    if (!play) return;
+    const list = Object.values(actions).filter(Boolean);
+    list.forEach((a) => {
+      a.reset();
+      a.setLoop(THREE.LoopRepeat, Infinity);
+      a.play();
+    });
+    return () => list.forEach((a) => a?.stop());
+  }, [actions, play]);
+
   return (
-    <group {...props}>
+    <group ref={group} {...props}>
       <primitive object={model} />
     </group>
   );
+}
+
+// ── code-driven rotation for props (trophies, caps, globes) ──
+function Spinner({ speed = 0.8, tumble = 0, children }) {
+  const ref = useRef();
+  useFrame((state) => {
+    const t = state.clock.elapsedTime;
+    ref.current.rotation.y = t * speed;
+    if (tumble) {
+      ref.current.rotation.x = Math.sin(t * tumble) * 0.35;
+      ref.current.rotation.z = Math.cos(t * tumble * 0.8) * 0.3;
+    }
+  });
+  return <group ref={ref}>{children}</group>;
 }
 
 // ── skinned models whose bind pose is COLLAPSED (scale-compensated rigs
@@ -265,7 +293,7 @@ function World({ containerRef, reducedMotion }) {
     const frac = smooth(f - k);
     const camZ = lerp(stages[k] + 7, stages[k + 1] + 7, frac);
     // lateral sway so the stage sits opposite the text panel
-    const swayA = [-1.35, 1.35, -1.35, 1.35, 0];
+    const swayA = [0, 1.35, -1.35, 1.35, 0];
     const sway = lerp(swayA[k], swayA[k + 1], frac);
     const drift = reducedMotion ? 0 : 1;
     const targetX = sway + pointer.current.x * 0.3 * drift;
@@ -325,14 +353,14 @@ function World({ containerRef, reducedMotion }) {
       {/* ── stage 0 · hero: the owl tutor on its perch ── */}
       <group position={[0, 0, stages[0]]}>
         <Rig url={M + 'books-stack.glb'} size={1.15} position={[0, 0, 0]} rotation={[0, 0.35, 0]} />
-        <group ref={owl} position={[0.15, 0.78, -0.3]}>
+        <group ref={owl} position={[0, 0.78, -0.3]}>
           <PoseRig
             url={M + 'wizard-owl.glb'}
             size={0.42}
             retint={['#ff4b26']}
           />
         </group>
-        <Rig url={M + 'pencil.glb'} size={0.6} position={[1.5, 0.02, 0.9]} rotation={[0, -0.7, 0]} />
+        <Rig url={M + 'pencil.glb'} size={0.6} position={[2.2, 0.02, 0.9]} rotation={[0, -0.7, 0]} />
       </group>
 
       {/* ── stage 1 · letters: blocks on the classroom floor ── */}
@@ -340,12 +368,13 @@ function World({ containerRef, reducedMotion }) {
         <LettersStage />
       </group>
 
-      {/* ── stage 2 · the magic book ── */}
+      {/* ── stage 2 · the magic book — plays its own float+stars loop ── */}
       <group position={[0, 0, stages[2]]}>
         <group ref={book}>
           <Rig
             url={M + 'magic-book.glb'}
             size={1.35}
+            play
             position={[0, 0.55, -0.15]}
             rotation={[-0.1, -0.4, 0]}
           />
@@ -353,16 +382,20 @@ function World({ containerRef, reducedMotion }) {
         <Rig url={M + 'books-stack.glb'} size={0.7} position={[0.1, 0, -0.15]} rotation={[0, -0.5, 0]} />
       </group>
 
-      {/* ── stage 3 · arena: blackboard + trophy ── */}
+      {/* ── stage 3 · arena: blackboard + spinning trophy ── */}
       <group position={[0, 0, stages[3]]}>
         <Rig url={M + 'blackboard.glb'} size={2.6} position={[0, 0.02, -0.6]} rotation={[0, 0.15, 0]} />
-        <Rig url={M + 'trophy.glb'} size={0.62} position={[1.55, 0.02, 0.6]} rotation={[0, -0.5, 0]} />
+        <Spinner speed={0.9}>
+          <Rig url={M + 'trophy.glb'} size={0.62} position={[1.55, 0.02, 0.6]} />
+        </Spinner>
         <Rig url={M + 'books-stack.glb'} size={0.55} position={[-1.9, 0.02, 0.7]} rotation={[0, 0.8, 0]} />
       </group>
 
-      {/* ── stage 4 · graduation ── */}
+      {/* ── stage 4 · graduation — the cap tumbles forever ── */}
       <group position={[0, 0, stages[4]]}>
-        <Rig url={M + 'grad-cap.glb'} size={1.5} position={[-0.4, 1.15, 0.6]} rotation={[0.2, 0.4, 0.12]} />
+        <Spinner speed={0.5} tumble={0.8}>
+          <Rig url={M + 'grad-cap.glb'} size={1.5} position={[-0.4, 1.15, 0.6]} />
+        </Spinner>
         <Rig url={M + 'books-stack.glb'} size={1.0} position={[0.9, 0, 0.4]} rotation={[0, -0.3, 0]} />
         <Rig url={M + 'blackboard.glb'} size={1.6} position={[-2.3, 0.02, -0.8]} rotation={[0, 0.5, 0]} />
       </group>
