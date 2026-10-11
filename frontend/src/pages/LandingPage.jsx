@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowRight,
@@ -20,10 +20,10 @@ import {
   Volume2,
 } from 'lucide-react';
 import EunaChatSection from '../components/landing/EunaChatSection.jsx';
+import LandingScene from '../components/landing3d/LandingScene.jsx';
 import './LandingPage.css';
 import doodlePapersImg from '../assets/landing/doodle-papers.png';
 import doodleTerminalImg from '../assets/landing/doodle-terminal.png';
-import doodleArrowImg from '../assets/landing/doodle-arrow.png';
 import markerUnderlineImg from '../assets/landing/marker-underline.png';
 import coffeeStainImg from '../assets/landing/coffee-stain.png';
 import sparklesImg from '../assets/landing/sparkles.png';
@@ -56,22 +56,6 @@ function InkUnderline({ className = '' }) {
       viewport={{ once: true }}
       transition={{ duration: 0.9, ease: 'easeInOut', delay: 0.3 }}
     />
-  );
-}
-
-function CurlyArrow({ flip = false, className = '' }) {
-  return (
-    <span className={`curly-wrap ${flip ? 'flip' : ''} ${className}`} aria-hidden="true">
-      <motion.img
-        src={doodleArrowImg}
-        alt=""
-        className="curly-arrow"
-        initial={{ opacity: 0, x: -12 }}
-        whileInView={{ opacity: 1, x: 0 }}
-        viewport={{ once: true, margin: '-30px' }}
-        transition={{ duration: 0.5, ease: 'easeOut', delay: 0.3 }}
-      />
-    </span>
   );
 }
 
@@ -117,25 +101,6 @@ function SealStamp({ label }) {
   );
 }
 
-function SpinBadge() {
-  return (
-    <div className="spin-badge" aria-hidden="true">
-      <svg viewBox="0 0 120 120">
-        <defs>
-          <path id="badge-circle" d="M60,60 m-44,0 a44,44 0 1,1 88,0 a44,44 0 1,1 -88,0" />
-        </defs>
-        <circle cx="60" cy="60" r="58" fill="var(--pik-yellow)" stroke="var(--pik-ink)" strokeWidth="2.5" />
-        <text className="spin-badge-text">
-          <textPath href="#badge-circle">
-            ★ FOR PENARANDA SHS ★ BUILT BY STUDENTS, FOR CLASSROOMS
-          </textPath>
-        </text>
-        <path d="M60 46 l4.6 9.4 10.4 1.5 -7.5 7.3 1.8 10.3 -9.3 -4.9 -9.3 4.9 1.8 -10.3 -7.5 -7.3 10.4 -1.5 z" fill="var(--pik-ink)" />
-      </svg>
-    </div>
-  );
-}
-
 function Tape({ className = '' }) {
   return <span className={`tape ${className}`} aria-hidden="true" />;
 }
@@ -157,7 +122,6 @@ function Nav({ role, onPick }) {
 
         <nav className="pik-nav-links" aria-label="Page sections">
           <a href="#track">Features</a>
-          <a href="#arena">Live arena</a>
           <a href="#cognify">Cognify app</a>
           <a href="#euna">Ask Euna</a>
           <a href="#how">How it works</a>
@@ -198,7 +162,6 @@ function Nav({ role, onPick }) {
       {menuOpen && (
         <nav className="pik-mobile-menu" aria-label="Mobile">
           <a href="#track" onClick={close}>Features</a>
-          <a href="#arena" onClick={close}>Live arena</a>
           <a href="#cognify" onClick={close}>Cognify app</a>
           <a href="#euna" onClick={close}>Ask Euna</a>
           <a href="#how" onClick={close}>How it works</a>
@@ -213,7 +176,7 @@ function Nav({ role, onPick }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Hero — the persona choice
+// Hero choice cards (DOM layer of journey scene 0)
 // ─────────────────────────────────────────────────────────────
 
 function ChoiceCard({ kind, role, onPick }) {
@@ -256,77 +219,261 @@ function ChoiceCard({ kind, role, onPick }) {
   );
 }
 
-function Hero({ role, onPick }) {
+// ─────────────────────────────────────────────────────────────
+// The 3D scroll journey (5 scenes on one sticky canvas)
+// ─────────────────────────────────────────────────────────────
+
+function Journey({ role, onPick }) {
+  const containerRef = useRef(null);
+
+  // Lenis smooth scrolling — the glue that makes scroll feel choreographed
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+    let lenis;
+    let rafId;
+    let cancelled = false;
+    (async () => {
+      const Lenis = (await import('lenis')).default;
+      if (cancelled) return;
+      lenis = new Lenis({ lerp: 0.09, wheelMultiplier: 1 });
+      window.__lenis = lenis;
+      const raf = (time) => {
+        lenis.raf(time);
+        rafId = requestAnimationFrame(raf);
+      };
+      rafId = requestAnimationFrame(raf);
+    })();
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+      lenis?.destroy();
+    };
+  }, []);
+
   return (
-    <section className="pik-hero" id="top">
-      <SpinBadge />
-      <motion.p
-        className="pik-kicker"
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.55 }}
-      >
-        InstructAI <span className="kicker-rule" /> an AI-powered LMS, made for Penaranda Senior High School
-      </motion.p>
+    <div className="journey" ref={containerRef} id="top">
+      <LandingScene containerRef={containerRef} />
 
-      <h1 className="pik-headline">
-        <motion.span
-          initial={{ opacity: 0, y: 26 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65, delay: 0.08 }}
-        >
-          Your classroom,
-        </motion.span>
-        <span className="headline-line2">
-          <motion.span
-            initial={{ opacity: 0, y: 26 }}
+      {/* Scene 0 — hero */}
+      <section className="jsec jsec-hero">
+        <div className="jsec-inner">
+          <motion.p
+            className="pik-kicker"
+            initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.65, delay: 0.2 }}
+            transition={{ duration: 0.55 }}
           >
-            <em>supercharged</em> by AI
-          </motion.span>
-          <InkUnderline />
-          <motion.img
-            src={sparklesImg}
-            alt=""
-            aria-hidden="true"
-            className="headline-sparkles"
-            initial={{ opacity: 0, scale: 0.4, rotate: -24 }}
-            animate={{ opacity: 1, scale: 1, rotate: 0 }}
-            transition={{ type: 'spring', stiffness: 220, damping: 12, delay: 0.95 }}
-          />
-        </span>
-      </h1>
+            InstructAI <span className="kicker-rule" /> an AI-powered LMS, made for Penaranda Senior High School
+          </motion.p>
 
-      <motion.p
-        className="pik-sub"
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.34 }}
-      >
-        Upload a curriculum and watch AI assemble the course. Students code in the
-        browser — with a tutor that actually read the lessons. Pick your side;
-        everything below rewrites itself for you.
-      </motion.p>
+          <h1 className="pik-headline">
+            <motion.span
+              initial={{ opacity: 0, y: 26 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.65, delay: 0.08 }}
+            >
+              Your classroom,
+            </motion.span>
+            <span className="headline-line2">
+              <motion.span
+                initial={{ opacity: 0, y: 26 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.65, delay: 0.2 }}
+              >
+                <em>supercharged</em> by AI
+              </motion.span>
+              <InkUnderline />
+              <motion.img
+                src={sparklesImg}
+                alt=""
+                aria-hidden="true"
+                className="headline-sparkles"
+                initial={{ opacity: 0, scale: 0.4, rotate: -24 }}
+                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                transition={{ type: 'spring', stiffness: 220, damping: 12, delay: 0.95 }}
+              />
+            </span>
+          </h1>
 
-      <div className="choice-row">
-        <ChoiceCard kind="teacher" role={role} onPick={onPick} />
-        <div className="choice-spacer" aria-hidden="true">
-          <span className="choice-or">or</span>
-          <CurlyArrow className="choice-arrow" />
+          <motion.p
+            className="pik-sub"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.34 }}
+          >
+            Upload a curriculum and watch AI assemble the course. Students code in the
+            browser — with a tutor that actually read the lessons.
+          </motion.p>
+
+          <div className="choice-row">
+            <ChoiceCard kind="teacher" role={role} onPick={onPick} />
+            <div className="choice-or" aria-hidden="true">or</div>
+            <ChoiceCard kind="student" role={role} onPick={onPick} />
+          </div>
+
+          <motion.p
+            className="pik-micronote"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8, duration: 0.6 }}
+          >
+            no installs · runs in the browser · google sign-in · free for the classroom
+          </motion.p>
         </div>
-        <ChoiceCard kind="student" role={role} onPick={onPick} />
-      </div>
+      </section>
 
-      <motion.p
-        className="pik-micronote"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.8, duration: 0.6 }}
-      >
-        no installs · runs in the browser · google sign-in · free for the classroom
-      </motion.p>
-    </section>
+      {/* Scene 1 — letters */}
+      <section className="jsec jsec-letters">
+        <div className="jsec-inner jsec-right">
+          <motion.p
+            className="pik-kicker"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.5 }}
+          >
+            one product, two very different desks
+          </motion.p>
+          <motion.h2
+            className="jsec-headline"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.6, delay: 0.08 }}
+          >
+            Teachers get a <em>co-teacher.</em><br />
+            Students get a <em>tutor &amp; arcade.</em>
+          </motion.h2>
+          <motion.p
+            className="jsec-body"
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.6, delay: 0.16 }}
+          >
+            The page splits from here — pick a card and everything below
+            rewrites itself for your side of the classroom.
+          </motion.p>
+        </div>
+      </section>
+
+      {/* Scene 2 — magic book */}
+      <section className="jsec jsec-book">
+        <div className="jsec-inner">
+          <motion.p
+            className="pik-kicker"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.5 }}
+          >
+            the teacher's desk
+          </motion.p>
+          <motion.h2
+            className="jsec-headline"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.6, delay: 0.08 }}
+          >
+            An AI that writes the course,
+            <br /><em>not just the buzzwords</em>
+          </motion.h2>
+          <motion.p
+            className="jsec-body"
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.6, delay: 0.16 }}
+          >
+            Upload your curriculum file. InstructAI drafts it in three passes — outline,
+            content, polish — into modules, lessons and quizzes you can edit line by line
+            before anything reaches your class.
+          </motion.p>
+        </div>
+      </section>
+
+      {/* Scene 3 — arena */}
+      <section className="jsec jsec-arena">
+        <div className="jsec-inner jsec-right">
+          <motion.p
+            className="pik-kicker"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.5 }}
+          >
+            friday, last period
+          </motion.p>
+          <motion.h2
+            className="jsec-headline"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.6, delay: 0.08 }}
+          >
+            The whole room becomes a <em>game show.</em>
+          </motion.h2>
+          <motion.p
+            className="jsec-body"
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.6, delay: 0.16 }}
+          >
+            Teachers launch the quiz live and control the pace — question by question,
+            reveal on demand. Students race on the leaderboard while the similarity
+            scan keeps every score honest.
+          </motion.p>
+        </div>
+      </section>
+
+      {/* Scene 4 — graduation finale */}
+      <section className="jsec jsec-grad">
+        <div className="jsec-inner jsec-center">
+          <motion.p
+            className="pik-kicker center"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.5 }}
+          >
+            the graduation
+          </motion.p>
+          <motion.h2
+            className="jsec-headline"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.6, delay: 0.08 }}
+          >
+            Ready to <em>start?</em>
+          </motion.h2>
+          <motion.p
+            className="jsec-body"
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.6, delay: 0.16 }}
+          >
+            Set up your first class in minutes — or join the one your teacher made.
+          </motion.p>
+          <motion.div
+            className="jsec-cta"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.6, delay: 0.24 }}
+          >
+            <a className="btn-ink" href={role === 'student' ? '/register/student' : '/register/teacher'}>
+              {role === 'student' ? 'Join your class' : 'Start teaching free'}
+              <ArrowUpRight size={16} strokeWidth={2.8} />
+            </a>
+            <a className="btn-ghost" href="/login">I have an account — log in</a>
+          </motion.div>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -344,13 +491,13 @@ function PipelineVisual() {
           <FileUp size={17} strokeWidth={2.4} />
           <span>Upload<br />curriculum</span>
         </div>
-        <CurlyArrow className="pipe-arrow" />
+        <div className="pipe-arrow">→</div>
         <div className="pipe-step">
           <span className="pipe-num">2</span>
           <Brain size={17} strokeWidth={2.4} />
           <span>AI drafts<br />outline → content</span>
         </div>
-        <CurlyArrow flip className="pipe-arrow" />
+        <div className="pipe-arrow">→</div>
         <div className="pipe-step">
           <span className="pipe-num">3</span>
           <PenLine size={17} strokeWidth={2.4} />
@@ -672,89 +819,6 @@ function Track({ role }) {
   );
 }
 
-function TrackTeaser({ onPick }) {
-  return (
-    <section className="pik-track" id="track">
-      <div className="track-header">
-        <img src={coffeeStainImg} alt="" aria-hidden="true" className="coffee-stain" />
-        <p className="pik-kicker">one product, two very different desks</p>
-        <h2 className="track-headline">
-          Teachers get a <em>co-teacher.</em><br />
-          Students get a <em>tutor &amp; arcade.</em>
-        </h2>
-        <p className="track-teaser-note">
-          The page splits from here — pick a card above
-          <button type="button" className="inline-link" onClick={() => onPick('teacher', true)}>teach</button>
-          or
-          <button type="button" className="inline-link" onClick={() => onPick('student', true)}>learn</button>
-          to see your side.
-        </p>
-      </div>
-    </section>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-// Live quiz arena (shared)
-// ─────────────────────────────────────────────────────────────
-
-function Arena() {
-  const rows = [
-    { n: 'Mia S.', pts: 100, medal: '1' },
-    { n: 'Jorge L.', pts: 94, medal: '2' },
-    { n: 'Luna P.', pts: 88, medal: '3' },
-  ];
-  const confetti = Array.from({ length: 16 }, (_, i) => i);
-  return (
-    <section className="pik-arena" id="arena">
-      <div className="arena-inner">
-        <div className="arena-copy">
-          <p className="pik-kicker">friday, last period</p>
-          <h2 className="arena-headline">
-            The whole room becomes a <em>game show.</em>
-          </h2>
-          <p className="arena-body">
-            Teachers launch the quiz live and control the pace — question by question,
-            reveal on demand. Students race on the leaderboard, and the podium lands
-            with confetti. Drag your teacher here if you doubt it.
-          </p>
-          <ul className="arena-points">
-            <li><Trophy size={15} strokeWidth={2.5} /> live leaderboard, updated per question</li>
-            <li><Sparkles size={15} strokeWidth={2.5} /> pause, resume, reveal — the teacher owns the room</li>
-            <li><ShieldCheck size={15} strokeWidth={2.5} /> similarity scan keeps the scores honest</li>
-          </ul>
-        </div>
-
-        <motion.div
-          className="chalk-wrap"
-          initial={{ opacity: 0, rotate: 0, scale: 0.96 }}
-          whileInView={{ opacity: 1, rotate: -1.5, scale: 1 }}
-          viewport={{ once: true, margin: '-60px' }}
-          transition={{ type: 'spring', stiffness: 120, damping: 16 }}
-        >
-          {confetti.map((i) => (
-            <span key={i} className={`confetti c${i % 5}`} style={{ left: `${(i * 37) % 100}%`, animationDelay: `${(i % 8) * 0.45}s` }} />
-          ))}
-          <div className="chalkboard">
-            <p className="chalk-title">— LEADERBOARD · LIVE —</p>
-            {rows.map((r) => (
-              <p className="chalk-row" key={r.medal}>
-                <span className="chalk-medal">{r.medal}</span> {r.n} <span className="chalk-dots" /> {r.pts} pts
-              </p>
-            ))}
-            <p className="chalk-foot">Q7 of 10 · reveal in 3…</p>
-          </div>
-          <div className="podium">
-            <div className="podium-col p2"><span>2</span></div>
-            <div className="podium-col p1"><Trophy size={26} strokeWidth={2.2} /><span>1</span></div>
-            <div className="podium-col p3"><span>3</span></div>
-          </div>
-        </motion.div>
-      </div>
-    </section>
-  );
-}
-
 // ─────────────────────────────────────────────────────────────
 // Cognify — the mobile companion
 // ─────────────────────────────────────────────────────────────
@@ -827,7 +891,7 @@ function CognifySection() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// How it works + CTA + footer
+// How it works + footer
 // ─────────────────────────────────────────────────────────────
 
 function HowItWorks({ role }) {
@@ -862,44 +926,10 @@ function HowItWorks({ role }) {
             <span className="how-num">{s.n}</span>
             <h3>{s.t}</h3>
             <p>{s.d}</p>
-            {i < steps.length - 1 && <CurlyArrow flip className="how-arrow" />}
+            {i < steps.length - 1 && <span className="how-arrow" aria-hidden="true">→</span>}
           </motion.div>
         ))}
       </div>
-    </section>
-  );
-}
-
-function FinalCTA({ role }) {
-  const isTeacher = role === 'teacher';
-  return (
-    <section className="pik-cta">
-      <motion.div
-        className="cta-card"
-        initial={{ opacity: 0, y: 34, rotate: -1 }}
-        whileInView={{ opacity: 1, y: 0, rotate: -0.6 }}
-        viewport={{ once: true, margin: '-60px' }}
-        transition={{ type: 'spring', stiffness: 120, damping: 16 }}
-      >
-        <Tape className="tape-tl" />
-        <Tape className="tape-br" />
-        <img src={coffeeStainImg} alt="" aria-hidden="true" className="cta-stain" />
-        <h2>
-          {isTeacher ? (
-            <>Ready to <em>teach</em> with a co-teacher that never sleeps?</>
-          ) : (
-            <>Ready to <em>learn</em> with the whole arcade on your side?</>
-          )}
-        </h2>
-        <p>{isTeacher ? 'Set up your first class in minutes — your curriculum is the only textbook you need.' : 'Your teacher has a code. The rest is one click.'}</p>
-        <div className="cta-buttons">
-          <a className="btn-ink" href={isTeacher ? '/register/teacher' : '/register/student'}>
-            {isTeacher ? 'Start teaching free' : 'Join your class'}
-            <ArrowUpRight size={16} strokeWidth={2.8} />
-          </a>
-          <a className="btn-ghost" href="/login">I have an account — log in</a>
-        </div>
-      </motion.div>
     </section>
   );
 }
@@ -919,7 +949,7 @@ function Footer({ onPick }) {
           <div>
             <h4>Product</h4>
             <a href="#track">Features</a>
-            <a href="#arena">Live arena</a>
+            <a href="#cognify">Cognify app</a>
             <a href="#how">How it works</a>
           </div>
           <div>
@@ -956,7 +986,6 @@ export default function LandingPage() {
       /* private mode — fine */
     }
     if (scroll) {
-      // wait for the track section to swap in before scrolling to it
       requestAnimationFrame(() => {
         document.getElementById('track')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
@@ -967,15 +996,13 @@ export default function LandingPage() {
     <div className="pik" data-role={role ?? 'none'}>
       <Nav role={role} onPick={pick} />
       <main>
-        <Hero role={role} onPick={pick} />
-        {role ? <Track role={role} /> : <TrackTeaser onPick={pick} />}
-        <Arena />
+        <Journey role={role} onPick={pick} />
+        {role && <Track role={role} />}
         <CognifySection />
         <EunaChatSection />
-        {role && <HowItWorks role={role} />}
-        {role && <FinalCTA role={role} />}
+        <HowItWorks role={role} />
+        <Footer onPick={pick} />
       </main>
-      <Footer onPick={pick} />
     </div>
   );
 }

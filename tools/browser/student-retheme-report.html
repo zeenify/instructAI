@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InstructAI — Student Side Retheme Report</title>
+<style>
+    :root {
+        --bg: #faf6ef; --card: #fffdf7; --card2: #f3ecdd; --ink: #16130e; --ink-2: #57503f; --ink-3: #8a8171;
+        --border: rgba(22,19,14,0.1); --accent: #3e8e7e; --accent-soft: rgba(62,142,126,0.1);
+        --green: #1d8a4e; --red: #c03530; --amber: #b45309;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+        background: var(--bg); color: var(--ink); line-height: 1.6; font-size: 16px;
+        -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 48px 28px 80px; }
+    .kicker { font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; margin-bottom: 8px; }
+    h1 { font-family: 'Fraunces', Georgia, serif; font-size: 42px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.15; }
+    h1 em { font-style: italic; color: var(--accent); }
+    .sub { font-size: 17px; color: var(--ink-2); margin-top: 10px; max-width: 740px; }
+    h2 { font-family: 'Fraunces', Georgia, serif; font-size: 27px; font-weight: 600; letter-spacing: -0.01em; margin: 56px 0 18px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px 26px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-top: 28px; }
+    .stat { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; }
+    .stat b { display: block; font-size: 30px; font-weight: 700; letter-spacing: -0.02em; color: var(--accent); }
+    .stat span { font-size: 13.5px; color: var(--ink-2); }
+    table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+    th { text-align: left; font-weight: 600; color: var(--ink-2); padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; border: 1px solid; white-space: nowrap; }
+    .pill.ok { color: var(--green); border-color: rgba(29,138,78,0.3); background: rgba(29,138,78,0.07); }
+    .pill.skip { color: var(--amber); border-color: rgba(180,83,9,0.3); background: rgba(180,83,9,0.07); }
+    .pill.fix { color: var(--accent); border-color: rgba(62,142,126,0.35); background: var(--accent-soft); }
+    code { font-family: 'JetBrains Mono', Consolas, monospace; font-size: 13px; background: var(--card2); padding: 2px 6px; border-radius: 6px; }
+    .shot { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin: 18px 0; }
+    .shot img { display: block; width: 100%; height: auto; }
+    .shot .cap { padding: 14px 20px; font-size: 14px; color: var(--ink-2); border-top: 1px solid var(--border); }
+    .shot .cap b { color: var(--ink); font-weight: 600; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } h1 { font-size: 34px; } }
+    .swatches { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0 4px; }
+    .sw { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-2); }
+    .sw i { width: 18px; height: 18px; border-radius: 6px; border: 1px solid var(--border); display: inline-block; }
+    .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 12px 12px 0; padding: 16px 20px; margin: 16px 0; font-size: 15px; }
+    .callout.warn { border-left-color: var(--amber); background: rgba(180,83,9,0.06); }
+    .commits { font-size: 14px; }
+    .commits td:first-child { font-family: 'JetBrains Mono', Consolas, monospace; color: var(--ink-2); white-space: nowrap; }
+    .muted { color: var(--ink-3); font-size: 13.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <p class="kicker">InstructAI · Student side · September 26, 2026</p>
+    <h1>Student side, <em>rebuilt on Morning&nbsp;Paper</em></h1>
+    <p class="sub">The entire student app — sidebar shell, overview, class page, focus-mode lesson and quiz viewers, live-quiz room, activity viewer, code IDE chrome — now runs on the design direction you picked from three live samples: warm cream paper, ink text, sage accents, Fraunces serif headings, flat everything. Light and dark are both warm paper; the old slate-and-cyan look is fully retired. Six commits, every route screenshot-verified in both themes, two audit agents run against the complete inventory at the end.</p>
+
+    <div class="stats">
+        <div class="stat"><b>6</b><span>checkpoint commits</span></div>
+        <div class="stat"><b>5</b><span>routes + sidebar + modal covered</span></div>
+        <div class="stat"><b>2</b><span>warm themes (Morning + Night Paper)</span></div>
+        <div class="stat"><b>~45</b><span>AI-tell instances removed in the final sweep</span></div>
+        <div class="stat"><b>4</b><span>behavioral bugs found &amp; fixed</span></div>
+        <div class="stat"><b>0</b><span>overflow or page errors in final audit</span></div>
+    </div>
+
+    <h2>The palette you picked</h2>
+    <div class="card">
+        <p style="margin-bottom: 14px;"><b>Morning Paper</b> (light) — the sample you chose, now the student default:</p>
+        <div class="swatches">
+            <span class="sw"><i style="background:#faf6ef"></i> canvas #faf6ef</span>
+            <span class="sw"><i style="background:#fffdf7"></i> card #fffdf7</span>
+            <span class="sw"><i style="background:#f3ecdd"></i> raised #f3ecdd</span>
+            <span class="sw"><i style="background:#16130e"></i> ink #16130e</span>
+            <span class="sw"><i style="background:#3e8e7e"></i> sage #3e8e7e</span>
+        </div>
+        <p style="margin: 14px 0 10px;"><b>Night Paper</b> (dark) — warm brown, never navy, so the toggle keeps working:</p>
+        <div class="swatches">
+            <span class="sw"><i style="background:#17130d"></i> canvas #17130d</span>
+            <span class="sw"><i style="background:#201b13"></i> card #201b13</span>
+            <span class="sw"><i style="background:#f3ecdd"></i> cream text</span>
+            <span class="sw"><i style="background:#6cc5ad"></i> sage #6cc5ad</span>
+        </div>
+        <p class="muted" style="margin-bottom:0;">Fraunces serif carries greetings, class titles and lesson headings; Inter reads the body; JetBrains Mono only inside code panes. The theme vars are scoped to <code>.student-theme</code>, which also remaps the shared dashboard tokens to paper values — so ClassView's components match the sidebar instead of cool teacher grays.</p>
+    </div>
+
+    <h2>Gallery — Morning Paper (light)</h2>
+    <div class="shot"><img src="shots-skin/b1-overview-light.png" alt="Overview light" loading="lazy"><div class="cap"><b>Overview.</b> Fraunces greeting with sage italic name, flat stat tiles with round icon chips, class cards with sage Enter-room buttons.</div></div>
+    <div class="shot"><img src="shots-skin/b2-class-modules-light.png" alt="Class modules light" loading="lazy"><div class="cap"><b>Class page — Modules.</b> Serif class title, numbered modules, lesson rows with sage/amber icon chips, progress strip, teacher chip.</div></div>
+    <div class="shot"><img src="shots-skin/b2-class-classwork-light.png" alt="Classwork light" loading="lazy"><div class="cap"><b>Class page — Classwork.</b> Status-first groups (Live now / To do / Completed / Missed), sage Done chips, vermilion Missed chips, sentence-case headers.</div></div>
+    <div class="shot"><img src="shots-skin/b3-lesson-light.png" alt="Lesson viewer light" loading="lazy"><div class="cap"><b>Focus-mode lesson.</b> Fraunces title card, quiet timeline sidebar, readable prose (the old prose-invert stylesheet broke light mode — replaced with theme-neutral rules), floating sage AI-tutor button.</div></div>
+    <div class="shot"><img src="shots-skin/b4-quiz-light.png" alt="Quiz intro light" loading="lazy"><div class="cap"><b>Quiz intro.</b> Flat stat cards, human copy ("Ready when you are — good luck!"), sage Start Assessment. The gradient premium cards, pulse-glow animations and robotic labels are gone.</div></div>
+    <div class="shot"><img src="shots-skin/b5-activity-light.png" alt="Activity viewer light" loading="lazy"><div class="cap"><b>Activity viewer.</b> Paper chrome, sage accents, readable instruction labels.</div></div>
+    <div class="shot"><img src="shots-skin/b1-join-modal.png" alt="Join class modal" loading="lazy"><div class="cap"><b>Join a class modal.</b> Paper card, sentence case, sage submit.</div></div>
+
+    <h2>Gallery — Night Paper (dark)</h2>
+    <div class="shot"><img src="shots-skin/b1-overview-dark.png" alt="Overview dark" loading="lazy"><div class="cap"><b>Overview — Night Paper.</b> Warm brown canvas and cards, cream text, brighter sage. The toggle now switches between two warm palettes instead of warm→navy.</div></div>
+    <div class="shot"><img src="shots-skin/b2-class-modules-dark.png" alt="Class modules dark" loading="lazy"><div class="cap"><b>Class page — Modules, dark.</b></div></div>
+    <div class="shot"><img src="shots-skin/b3-lesson-dark.png" alt="Lesson viewer dark" loading="lazy"><div class="cap"><b>Focus-mode lesson, dark.</b> Code panes stay intentionally darker than the page.</div></div>
+    <div class="shot"><img src="shots-skin/final-quiz-night.png" alt="Quiz intro night" loading="lazy"><div class="cap"><b>Quiz intro — final audit shot.</b> Footer now reads "Pass this quiz to continue" instead of the contradictory "Content Locked".</div></div>
+    <div class="shot"><img src="shots-skin/final-quiz-taking-night.png" alt="Quiz taking night" loading="lazy"><div class="cap"><b>Quiz taking — final audit shot.</b> AI-tutor button raised clear of the navigation bar.</div></div>
+
+    <h2>The three samples you chose from</h2>
+    <div class="grid2">
+        <div class="shot" style="margin:0"><img src="shots-skin/sov-b.png" alt="Sample B — chosen" loading="lazy"><div class="cap"><b>B · Morning Paper — chosen.</b></div></div>
+        <div class="shot" style="margin:0"><img src="shots-skin/sov-a.png" alt="Sample A" loading="lazy"><div class="cap"><b>A · Apple twin</b> (blue, matched teacher side) — not picked.</div></div>
+    </div>
+    <div class="shot" style="max-width:49%"><img src="shots-skin/sov-c.png" alt="Sample C" loading="lazy"><div class="cap"><b>C · Chalkboard</b> (green-black, marker yellow) — not picked.</div></div>
+    <p class="muted">The two unpicked variants were deleted after your pick; B was promoted into the real theme.</p>
+
+    <h2>Bugs found &amp; fixed during the campaign</h2>
+    <div class="callout"><b>Lesson text was broken in light mode.</b> Lesson bodies rendered through Tailwind's <code>prose-invert</code>, which forces light text — unreadable on any light background. Replaced with theme-neutral <code>.lesson-prose</code> rules that inherit ink/cream correctly in both themes.</div>
+    <div class="callout"><b>AI-tutor button overlapped the quiz Continue control</b> (measured ~39×50 px collision). The floating button now lifts clear of the quiz navigation bar whenever a quiz is open.</div>
+    <div class="callout"><b>Contradictory footer during quizzes.</b> The focus-mode footer said "Content Locked" while a quiz was actively being taken. It now states the actual condition: "Pass this quiz to continue" / "Finish the lesson to continue".</div>
+    <div class="callout warn"><b>AI-tutor error-toast spam.</b> When the Python AI service is down, mounting a lesson fired stacked "Failed to load AI characters" toasts over the quiz header (twice — two tutor instances mount). Failure is now console-only; the tutor degrades silently. Also removed the pulsing glow halo behind the button — an AI-design tell.</div>
+
+    <h2>Final sweep — the AI-design hunt</h2>
+    <div class="card" style="padding: 8px 10px;">
+        <table>
+            <tr><th>What was hunted</th><th>Found</th><th>Result</th></tr>
+            <tr><td>Purple / indigo (hexes, rgba, tailwind classes)</td><td>Run-button purple in the code-answer panel, indigo card tints</td><td><span class="pill fix">all removed</span></td></tr>
+            <tr><td>Uppercase shouty labels (16 in the live-quiz room alone)</td><td>QuizRoomView, ActivityViewer, StudentActivityCard, AITutor chat</td><td><span class="pill fix">all sentence case</span></td></tr>
+            <tr><td>iOS-blue leftovers (wrong accent for students)</td><td>ActivityViewer submit buttons, question selection, quiz room radio + type chips, activity card colors</td><td><span class="pill fix">all sage now</span></td></tr>
+            <tr><td>Resting glows &amp; text-shadows on stat numbers/icons</td><td>QuizDisplay intro + results, AITutor FAB halo, terminal halo</td><td><span class="pill fix">removed</span></td></tr>
+            <tr><td>Gradient bars/cards/buttons</td><td>Progress bars (cyan gradient), stat chips, result pills</td><td><span class="pill fix">flat colors</span></td></tr>
+            <tr><td>Robotic copy ("Workspace", "Server status: Online", "Module Task", "Premium")</td><td>Overview + quiz surfaces</td><td><span class="pill fix">humanized</span></td></tr>
+            <tr><td>Tiny 9–10px fonts</td><td>~20 spots across student files</td><td><span class="pill fix">bumped to 11.5–13px</span></td></tr>
+            <tr><td>Slate hexes outside dark panes</td><td>Clocks, captions, unanswered states</td><td><span class="pill fix">warm tokens</span></td></tr>
+            <tr><td>Deliberately kept</td><td>Dark code-editor/terminal panes with tiny mono labels (dev-tool surfaces); Fraunces "overused font" lint (it's the picked identity); blockquote left-borders (editorial)</td><td><span class="pill skip">intentional</span></td></tr>
+        </table>
+    </div>
+
+    <h2>Layout pass — composition redesigned, not just colors</h2>
+    <div class="callout">
+        After the skin pass, a full review flagged that the <i>layouts</i> were still the old AI-dashboard compositions. Every student page was restructured to real Apple patterns: large serif titles directly on the canvas (no boxed hero cards), iOS segmented controls instead of underlined tabs, grouped lists (rows inside one rounded container with hairline separators), a narrower reading column for lesson content, and compact purpose-built rails.
+    </div>
+    <div class="shot"><img src="shots-skin/l1-class-modules-light.png" alt="ClassView layout" loading="lazy"><div class="cap"><b>Class page — restructured.</b> Large title on canvas, segmented control, grouped lesson lists with hairline rows — the boxed hero and floating per-lesson cards are gone.</div></div>
+    <div class="shot"><img src="shots-skin/l2-overview-light.png" alt="Overview layout" loading="lazy"><div class="cap"><b>Overview — restructured.</b> Vanity stat tiles removed; a single inline summary line ("2 classes · 5 courses") under the greeting; lighter class cards with chevrons.</div></div>
+    <div class="shot"><img src="shots-skin/l2-lesson-light.png" alt="Lesson layout" loading="lazy"><div class="cap"><b>Lesson — reading-optimized.</b> 820px reading column, unboxed serif title, quiet timeline.</div></div>
+    <div class="shot"><img src="shots-skin/l2-quiz-intro-light.png" alt="Quiz intro layout" loading="lazy"><div class="cap"><b>Quiz intro — restructured.</b> Three boxed stat cards consolidated into one hairline card with three columns.</div></div>
+    <div class="shot"><img src="shots-skin/l3-activity-light.png" alt="Activity rail" loading="lazy"><div class="cap"><b>Activity viewer.</b> The 300px rail no longer squeezes full classwork cards — compact rows with status dots and ellipsized titles now.</div></div>
+
+    <h2>Functional walkthrough — the flows, actually used</h2>
+    <div class="card">
+        <p style="margin-bottom: 14px;">A scripted student session drove the real flows with screenshots at every step (the <code>qa-*</code> shots):</p>
+        <table>
+            <tr><td><b>Quiz taking, all five question types</b></td><td>Multiple choice ×4 → true/false ×2 → identification ×2 → enumeration → coding (stdin program with sample tests). Answered, advanced, verified and submitted — <span class="pill ok">full walk, zero errors</span></td></tr>
+            <tr><td><b>Submission grading</b></td><td>Coding question engine-verified live during submit ("Processing your answers… 92%…")</td></tr>
+            <tr><td><b>Live room join</b></td><td>Teacher started a student-paced room → live banner + "Join now" appeared in classwork → room joined; already-submitted state renders the final score correctly</td></tr>
+            <tr><td><b>Activity viewer states</b></td><td>Graded coding lab (9/10 with per-question verdicts) and missed assignment both render in paper</td></tr>
+            <tr><td><b>Bug caught by the walkthrough</b></td><td>Focus-mode pages (course viewer, activity viewer, quiz room) were rendering on the legacy neutral palette — their routes now carry the <code>student-theme</code> scope. Also fixed: import casing <code>Classview → ClassView</code> that served a stale module and would break a case-sensitive production build</td></tr>
+        </table>
+    </div>
+
+    <h2>Full-width + mobile pass (post-review)</h2>
+    <div class="callout">
+        <b>Full width:</b> every student page now spans the whole screen — the legacy 1400px main-content cap and all per-page max-width columns were removed. Verified at 1920px: main content fills 1640px (overview/class) and 1600px (lesson, minus the timeline).
+    </div>
+    <div class="callout warn" style="border-left-color: var(--accent); background: var(--accent-soft);">
+        <b>Mobile (390px) — investigated and fixed.</b> The student shell had <i>no</i> mobile layout: the fixed sidebar covered the screen and the layout viewport blew out to 820–1126px (browser zoom-to-fit). Now: a compact sticky top bar (burger + brand) below 900px, the sidebar becomes an off-canvas drawer with a backdrop that closes on navigation, the shell stacks vertically, and the content renders full-width. Verified across all six routes at 390px — zero overflow, drawer open → navigate → auto-close tested.
+    </div>
+    <div class="shot"><img src="shots-skin/m4-overview.png" alt="Mobile overview" loading="lazy"><div class="cap"><b>Overview at 390px.</b> Top bar with burger, full-width content, stacked class cards.</div></div>
+    <div class="shot"><img src="shots-skin/m4-drawer-open.png" alt="Mobile drawer" loading="lazy"><div class="cap"><b>Navigation drawer.</b> The immortal sidebar slides over as a drawer; closes on backdrop tap or after navigating.</div></div>
+
+    <h2>Commit log</h2>
+    <div class="card commits" style="padding: 8px 10px;">
+        <table>
+            <tr><td>a029e00</td><td>feat: student side B1 — Morning Paper theme foundation</td></tr>
+            <tr><td>0c7b1bc</td><td>feat: student side B2 — ClassView in Morning Paper</td></tr>
+            <tr><td>bf80a40</td><td>feat: student side B3 — focus-mode course viewer + lesson renderer</td></tr>
+            <tr><td>e97986b</td><td>feat: student side B4/B5 — quiz surfaces, activity viewer, IDE labels</td></tr>
+            <tr><td>449a5bb</td><td>fix: student-side final audit pass</td></tr>
+            <tr><td>5550681</td><td>docs: student Morning Paper retheme recorded in AGENTS.md</td></tr>
+            <tr><td>442b8e9</td><td>feat: student ClassView layout redesign — Apple patterns</td></tr>
+            <tr><td>bf63eb4</td><td>feat: student layout pass — overview, quiz intro, lesson reading page</td></tr>
+            <tr><td>de13487</td><td>feat: student ActivityViewer layout — narrower paper column, Fraunces title</td></tr>
+            <tr><td>449a5bb→2cdb538</td><td>fix: final audit pass + focus-mode theme scope + compact activity rail</td></tr>
+            <tr><td>bf63eb4→ee1d25f</td><td>feat: layout pass + full-width + mobile drawer (post-review rounds)</td></tr>
+        </table>
+    </div>
+
+    <h2>What to check by hand</h2>
+    <div class="card">
+        <p><b>One live quiz together.</b> The live-quiz room (QuizRoomView) renders through the same restyled components and loads error-free, but a real teacher-paced session — join lobby, countdown, reveal — wasn't run end-to-end (it needs a live room started from the teacher side).</p>
+        <p><b>The AI tutor panel.</b> Its chat needs the Python service (localhost:8001) running; it was down during the pass, so the button and panel chrome are verified but a live chat isn't. Related: when the service is down the tutor now fails silently instead of toast-spamming.</p>
+        <p class="muted" style="margin-bottom:0;">Also fine to know: pages can take a few seconds to fill on this dev box (single-worker backend + remote Neon DB) — loading states are skeletons and look correct while they wait.</p>
+    </div>
+
+    <p class="muted" style="margin-top:40px">Generated September 26, 2026 · screenshots in <code>tools/browser/shots-skin/</code> · click any image to open it full-size.</p>
+</div>
+<script>
+    document.querySelectorAll('.shot img').forEach((img) => {
+        img.style.cursor = 'zoom-in';
+        img.addEventListener('click', () => window.open(img.src, '_blank'));
+    });
+</script>
+</body>
+</html>

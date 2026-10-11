@@ -1876,3 +1876,165 @@
   .rev-wave i { animation: none !important; }
   .pik * { scroll-behavior: auto; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   The 3D scroll journey — sticky canvas + 5 choreographed scenes
+   ═══════════════════════════════════════════════════════════ */
+
+.journey {
+  position: relative;
+  height: 500vh;
+}
+
+.journey-canvas {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.journey-canvas canvas {
+  display: block;
+}
+
+/* soft paper vignette so models feel placed on the desk, not floating in void */
+.journey-canvas::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 10%, transparent 55%, rgba(87, 80, 63, 0.10) 100%),
+    linear-gradient(to top, rgba(87, 80, 63, 0.07), transparent 22%);
+}
+
+/* DOM scenes scroll over the canvas */
+.jsec {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  z-index: 1;
+  padding: 0 4vw;
+}
+
+.jsec a,
+.jsec button {
+  pointer-events: auto;
+}
+
+.jsec-hero { top: 0; }
+.jsec-letters { top: 100vh; }
+.jsec-book { top: 200vh; }
+.jsec-arena { top: 300vh; }
+.jsec-grad { top: 400vh; }
+
+.jsec-inner {
+  width: min(1400px, 100%);
+  margin: 0 auto;
+}
+
+.jsec-inner.jsec-right {
+  margin-left: auto;
+  margin-right: 5vw;
+  max-width: 600px;
+}
+
+.jsec-inner:not(.jsec-right):not(.jsec-center) {
+  max-width: 640px;
+  margin-left: 5vw;
+}
+
+.jsec-inner.jsec-center {
+  max-width: 720px;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.jsec-headline {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(2.3rem, 4.6vw, 4.2rem);
+  font-weight: 700;
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  color: var(--pik-ink);
+  margin: 14px 0 18px;
+}
+
+.jsec-headline em {
+  font-style: italic;
+  font-weight: 600;
+  color: var(--pik-verm);
+}
+
+.jsec-body {
+  font-size: clamp(1rem, 1.25vw, 1.16rem);
+  line-height: 1.65;
+  color: var(--pik-ink-soft);
+  max-width: 54ch;
+}
+
+.jsec-right .jsec-body { margin-left: auto; }
+
+.jsec-cta {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-top: 26px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.jsec-center .jsec-cta { justify-content: center; }
+
+/* hero scenes need their content stacked toward the top so the owl
+   owns the middle of the frame */
+.jsec-hero {
+  align-items: flex-start;
+  padding-top: 16vh;
+}
+
+.jsec-hero .pik-headline {
+  font-size: clamp(2.6rem, 5.2vw, 4.9rem);
+}
+
+.jsec-hero .pik-sub {
+  max-width: 52ch;
+  margin-bottom: 30px;
+}
+
+.choice-row {
+  display: flex;
+  gap: 18px;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.choice-or {
+  align-self: center;
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 1.4rem;
+  color: var(--pik-ink-soft);
+}
+
+@media (max-width: 900px) {
+  .journey { height: 480vh; }
+  .jsec-hero { padding-top: 13vh; }
+  .jsec-inner.jsec-right {
+    margin-right: auto;
+    margin-left: 4vw;
+    max-width: 100%;
+  }
+  .jsec-inner:not(.jsec-right):not(.jsec-center) {
+    margin-left: 4vw;
+    max-width: 100%;
+  }
+  .jsec-headline { font-size: clamp(1.9rem, 7.4vw, 2.8rem); }
+  .jsec-body { font-size: 1rem; }
+  .choice-row { gap: 12px; }
+}
