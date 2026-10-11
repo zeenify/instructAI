@@ -142,12 +142,12 @@ function PoseRig({ url, size = 1.5, ...props }) {
 // glyph width so mobile line breaks still stack correctly. Opacity follows
 // camera distance — troika's SDF shader ignores scene fog, so this fade IS
 // the fog for text (models fade via the real fog).
-function useStageFade(ref, worldZ) {
+function useStageFade(ref, worldZ, rate = 0.13) {
   useFrame((state) => {
     const g = ref.current;
     if (!g) return;
     const d = Math.abs(state.camera.position.z - (worldZ + 7));
-    const o = clamp01(1.25 - d * 0.13);
+    const o = clamp01(1.25 - d * rate);
     g.traverse((n) => {
       const m = n.material;
       if (m && 'opacity' in m) {
@@ -211,18 +211,15 @@ function StageText({ lines, position, stageZ, size = 0.6, gap = 0.3 }) {
 }
 
 // ── the paper plane: the journey's transition beat ─────────
-// At rest it lazily circles overhead of the camera's stage. Mid-transit
-// (as you scroll between stages) it swoops ACROSS the screen, big and
-// close, then swings back out — a whoosh between moments.
+// Entirely scroll-tied — it has no animation of its own. Parked at a stage
+// it waits just offscreen; the moment you scroll between stages it sweeps
+// across the frame (direction alternates per stage) and parks again.
+// Same scroll position = same plane pose, every time.
 function WorldPlane({ containerRef, reducedMotion }) {
   const outer = useRef();
   const bank = useRef();
-  const progress = useRef(0);
 
   useFrame((state) => {
-    const t = state.clock.elapsedTime;
-    const cam = state.camera;
-
     // same section-anchored progress the camera uses
     let f = 0;
     const el = containerRef.current;
@@ -238,35 +235,22 @@ function WorldPlane({ containerRef, reducedMotion }) {
     }
     const k = Math.min(3, Math.floor(f));
     const frac = f - k;
-
-    // transit bell: 0 while parked, 1 at the heart of the transit
-    const span = clamp01((frac - 0.06) / 0.88);
-    const w = reducedMotion ? 0 : Math.pow(Math.sin(Math.PI * span), 1.4);
     const dir = k % 2 === 0 ? 1 : -1; // alternate fly direction per stage
+    const cam = state.camera;
 
-    // parked: a lazy circle high overhead — visible, but never parked in the
-    // sight-line between the camera and the stage (that washed everything out)
-    const parkX = Math.sin(t * 0.45) * 1.8;
-    const parkZ = cam.position.z - 8.8 + Math.cos(t * 0.45) * 1.2;
-    const parkY = 3.55 + Math.sin(t * 0.8) * 0.3;
-    const parkYaw = Math.atan2(Math.cos(t * 0.45), Math.sin(t * 0.45) * 0.5) + (dir > 0 ? Math.PI / 2 : -Math.PI / 2);
-
-    // swoop: cross the whole frame, 3.4 units ahead of the camera
-    const sp = smooth(span);
-    const swoopX = lerp(-6.5 * dir, 6.5 * dir, sp);
-    const swoopY = 2.15 + Math.sin(t * 3.1) * 0.07 + Math.sin(sp * Math.PI) * 0.3;
-    const swoopZ = cam.position.z - 3.4;
-    const swoopYaw = dir > 0 ? -Math.PI / 2 : Math.PI / 2;
-
-    const x = lerp(parkX, swoopX, w);
-    const y = lerp(parkY, swoopY, w);
-    const z = lerp(parkZ, swoopZ, w);
-    const yaw = lerp(parkYaw, swoopYaw, w);
+    // crossing arc: offscreen at both ends of a stage pair, upper-middle of
+    // the frame in the middle (y kept under the frustum's top edge)
+    const sp = smooth(clamp01((frac - 0.06) / 0.88));
+    const x = reducedMotion ? 60 : lerp(-6.5 * dir, 6.5 * dir, sp);
+    const y = 1.95 + Math.sin(sp * Math.PI) * 0.3;
+    const z = cam.position.z - 3.4;
+    const yaw = dir > 0 ? -Math.PI / 2 : Math.PI / 2;
 
     outer.current.position.set(x, y, z);
     outer.current.rotation.y = yaw;
-    bank.current.rotation.z = Math.sin(t * 0.7) * 0.14 + w * 0.22 * dir;
-    bank.current.rotation.x = -w * 0.08;
+    const lift = Math.sin(sp * Math.PI);
+    bank.current.rotation.z = lift * 0.28 * dir;
+    bank.current.rotation.x = -lift * 0.1;
   });
 
   return (
@@ -304,7 +288,9 @@ function TypeStage({ stageZ }) {
     ];
   }, []);
 
-  useStageFade(group, stageZ);
+  // fade faster than the headlines: the camera flies right through this row,
+  // and un-faded letters clip giant fragments through the near plane
+  useStageFade(group, stageZ, 0.2);
   useFrame((state) => {
     const t = state.clock.elapsedTime;
     if (!group.current) return;
