@@ -13,9 +13,12 @@ import { fittedClone } from './fit.js';
 const M = '/models/landing/';
 const F_ROMAN = '/fonts/Fraunces-SemiBold.ttf';
 const F_ITALIC = '/fonts/Fraunces-SemiBoldItalic.ttf';
+const F_BLACK = '/fonts/Fraunces-Black.ttf';
+const F_CHALK = '/fonts/WalterTurncoat-Regular.ttf';
 const INK = '#16130e';
 const VERM = '#ff4b26';
 const SAGE = '#3e8e7e';
+const CHALK = '#f6f1e6';
 
 // ── easing helpers ─────────────────────────────────────────
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
@@ -163,6 +166,9 @@ function StageText({ lines, position, stageZ, size = 0.6, gap = 0.3 }) {
   const scale = Math.min(1, Math.max(0.55, aspect / 1.55));
   const visW = 2 * 7 * Math.tan(((camera.fov || 42) * Math.PI) / 360) * aspect;
   const maxWidth = Math.min(8, (visW / scale) * 0.92);
+  // narrow screens: lift the block toward the top of the frame so the hero's
+  // stacked cards don't cover it
+  const yBase = position[1] + (aspect < 0.9 ? 0.6 : 0);
 
   const layout = useMemo(() => {
     let y = 0;
@@ -180,7 +186,7 @@ function StageText({ lines, position, stageZ, size = 0.6, gap = 0.3 }) {
     const g = group.current;
     if (!g) return;
     // the type breathes very slightly so it feels part of the world
-    g.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.8 + stageZ) * 0.03;
+    g.position.y = yBase + Math.sin(state.clock.elapsedTime * 0.8 + stageZ) * 0.03;
   });
 
   return (
@@ -204,22 +210,69 @@ function StageText({ lines, position, stageZ, size = 0.6, gap = 0.3 }) {
   );
 }
 
-// ── the paper plane threading the whole journey overhead ───
-// One continuous element that flies the corridor the camera travels,
-// tying the five stages together like a guide.
-function WorldPlane() {
-  const ref = useRef();
+// ── the paper plane: the journey's transition beat ─────────
+// At rest it lazily circles overhead of the camera's stage. Mid-transit
+// (as you scroll between stages) it swoops ACROSS the screen, big and
+// close, then swings back out — a whoosh between moments.
+function WorldPlane({ containerRef, reducedMotion }) {
+  const outer = useRef();
   const bank = useRef();
+  const progress = useRef(0);
+
   useFrame((state) => {
     const t = state.clock.elapsedTime;
-    const z = 8 - ((t * 1.35) % 88); // fly 8 → -80 and loop
-    ref.current.position.set(Math.sin(t * 0.33) * 3.1, 3.35 + Math.sin(t * 0.8) * 0.4, z);
-    bank.current.rotation.z = Math.sin(t * 0.5) * 0.16;
+    const cam = state.camera;
+
+    // same section-anchored progress the camera uses
+    let f = 0;
+    const el = containerRef.current;
+    if (el) {
+      const sections = el.querySelectorAll('.jsec');
+      for (let i = 0; i < sections.length; i++) {
+        const r = sections[i].getBoundingClientRect();
+        if (r.top <= 0 && (i === sections.length - 1 || sections[i + 1].getBoundingClientRect().top > 0)) {
+          f = i + clamp01(-r.top / Math.max(r.height, 1));
+          break;
+        }
+      }
+    }
+    const k = Math.min(3, Math.floor(f));
+    const frac = f - k;
+
+    // transit bell: 0 while parked, 1 at the heart of the transit
+    const span = clamp01((frac - 0.06) / 0.88);
+    const w = reducedMotion ? 0 : Math.pow(Math.sin(Math.PI * span), 1.4);
+    const dir = k % 2 === 0 ? 1 : -1; // alternate fly direction per stage
+
+    // parked: a lazy circle high overhead — visible, but never parked in the
+    // sight-line between the camera and the stage (that washed everything out)
+    const parkX = Math.sin(t * 0.45) * 1.8;
+    const parkZ = cam.position.z - 8.8 + Math.cos(t * 0.45) * 1.2;
+    const parkY = 3.55 + Math.sin(t * 0.8) * 0.3;
+    const parkYaw = Math.atan2(Math.cos(t * 0.45), Math.sin(t * 0.45) * 0.5) + (dir > 0 ? Math.PI / 2 : -Math.PI / 2);
+
+    // swoop: cross the whole frame, 3.4 units ahead of the camera
+    const sp = smooth(span);
+    const swoopX = lerp(-6.5 * dir, 6.5 * dir, sp);
+    const swoopY = 2.15 + Math.sin(t * 3.1) * 0.07 + Math.sin(sp * Math.PI) * 0.3;
+    const swoopZ = cam.position.z - 3.4;
+    const swoopYaw = dir > 0 ? -Math.PI / 2 : Math.PI / 2;
+
+    const x = lerp(parkX, swoopX, w);
+    const y = lerp(parkY, swoopY, w);
+    const z = lerp(parkZ, swoopZ, w);
+    const yaw = lerp(parkYaw, swoopYaw, w);
+
+    outer.current.position.set(x, y, z);
+    outer.current.rotation.y = yaw;
+    bank.current.rotation.z = Math.sin(t * 0.7) * 0.14 + w * 0.22 * dir;
+    bank.current.rotation.x = -w * 0.08;
   });
+
   return (
-    <group ref={ref}>
+    <group ref={outer}>
       <group ref={bank}>
-        <Rig url={M + 'paper-plane.glb'} size={0.7} rotation={[0.1, Math.PI, 0]} />
+        <Rig url={M + 'paper-plane.glb'} size={1.05} rotation={[0.1, 0, 0]} />
       </group>
     </group>
   );
@@ -266,7 +319,7 @@ function TypeStage({ stageZ }) {
       {letters.map((l, i) => (
         <group key={i} position={[l.x, 0, l.z]} rotation={[0, l.r, 0]}>
           <Text
-            font={F_ROMAN}
+            font={F_BLACK}
             fontSize={l.s}
             color={l.c}
             anchorX="center"
@@ -277,6 +330,60 @@ function TypeStage({ stageZ }) {
           </Text>
         </group>
       ))}
+    </group>
+  );
+}
+
+// ── chalk writing for the blackboards ──────────────────────
+// Real chalk lines that WRITE THEMSELVES in a loop: a clip rectangle
+// sweeps left to right like a hand laying down strokes, holds, erases.
+function BoardWriting({ lines, width = 1.1, position = [0, 0, 0], rotation = [0, 0, 0] }) {
+  const refs = useRef([]);
+  const widths = useRef([]);
+
+  useFrame((state) => {
+    const t = state.clock.elapsedTime;
+    const CYCLE = 7;
+    const WRITE = 1.5;
+    const STAGGER = 1.1;
+    refs.current.forEach((text, i) => {
+      if (!text) return;
+      const w = widths.current[i] ?? 0;
+      if (!w && text.textWidth) widths.current[i] = text.textWidth;
+      if (!w) return;
+      const start = i * STAGGER;
+      const cycleT = t % CYCLE;
+      let p = clamp01((cycleT - start) / WRITE);
+      // hold the full line for most of the cycle, then a quick erase beat
+      if (cycleT > CYCLE - 0.5) p = 1 - clamp01((cycleT - (CYCLE - 0.5)) / 0.5) * 0.65;
+      p = smooth(p);
+      const h = text.textHeight || 0.2;
+      text.clipRect = [-0.02, -h - 0.02, w * p + 0.02, 0.02];
+    });
+  });
+
+  let y = 0;
+  return (
+    <group position={position} rotation={rotation}>
+      {lines.map((l, i) => {
+        const slot = y;
+        y += (l.size || 0.16) * 1.5;
+        return (
+          <Text
+            key={i}
+            ref={(el) => { refs.current[i] = el; }}
+            font={F_CHALK}
+            fontSize={l.size || 0.16}
+            color={CHALK}
+            anchorX="left"
+            anchorY="top"
+            maxWidth={width}
+            position={[0, -slot, 0.001]}
+          >
+            {l.text}
+          </Text>
+        );
+      })}
     </group>
   );
 }
@@ -467,7 +574,18 @@ function World({ containerRef, reducedMotion, onReady }) {
             { text: 'game night.', em: true },
           ]}
         />
-        <Rig url={M + 'blackboard.glb'} size={1.9} position={[-2.4, 0.02, -2.2]} rotation={[0, 0.15, 0]} />
+        <group position={[-2.4, 0.02, -2.2]} rotation={[0, 0.15, 0]}>
+          <Rig url={M + 'blackboard.glb'} size={1.9} />
+          <BoardWriting
+            position={[-0.58, 1.1, 0.055]}
+            rotation={[0, 0, 0.012]}
+            width={1.2}
+            lines={[
+              { text: 'GAME NIGHT', size: 0.2 },
+              { text: 'friday, last period', size: 0.115 },
+            ]}
+          />
+        </group>
         <Float amp={0.05} speed={1.2} tilt={0.02} drift={0.3}>
           <Rig url={M + 'trophy.glb'} size={0.62} position={[1.75, 0.02, 0.4]} />
         </Float>
@@ -488,10 +606,21 @@ function World({ containerRef, reducedMotion, onReady }) {
           <Rig url={M + 'grad-cap.glb'} size={1.0} position={[2.05, 1.55, -0.6]} />
         </Float>
         <Rig url={M + 'books-stack.glb'} size={0.85} position={[1.8, 0, 0.2]} rotation={[0, -0.3, 0]} />
-        <Rig url={M + 'blackboard.glb'} size={1.6} position={[-2.35, 0.02, -0.9]} rotation={[0, 0.5, 0]} />
+        <group position={[-2.35, 0.02, -0.9]} rotation={[0, 0.5, 0]}>
+          <Rig url={M + 'blackboard.glb'} size={1.6} />
+          <BoardWriting
+            position={[-0.45, 0.92, 0.048]}
+            rotation={[0, 0, -0.015]}
+            width={0.95}
+            lines={[
+              { text: 'A+', size: 0.24 },
+              { text: 'congrats, graduates!', size: 0.1 },
+            ]}
+          />
+        </group>
       </group>
 
-      <WorldPlane />
+      <WorldPlane containerRef={containerRef} reducedMotion={reducedMotion} />
     </>
   );
 }

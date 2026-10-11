@@ -17,9 +17,13 @@ this file fulfills it. Do not remove.
 
 Fonts used by the in-world 3D typography (troika SDF text):
 
-- `public/fonts/Fraunces-SemiBold.ttf`, `Fraunces-SemiBoldItalic.ttf` —
-  Fraunces by Undercase Type (Phaedra Charles, Flavia Zimbardi), used under
-  the SIL Open Font License 1.1. Source: github.com/undercasetype/Fraunces
+- `public/fonts/Fraunces-SemiBold.ttf`, `Fraunces-SemiBoldItalic.ttf`,
+  `Fraunces-Black.ttf` — Fraunces by Undercase Type (Phaedra Charles,
+  Flavia Zimbardi), used under the SIL Open Font License 1.1.
+  Source: github.com/undercasetype/Fraunces
+- `public/fonts/WalterTurncoat-Regular.ttf` — chalk handwriting for the
+  blackboard writing, by Cyreal (Lari Egorova), under the Apache License 2.0.
+  Source: github.com/google/fonts (apache/walterturncoat)
 
 All models were downloaded from their respective platforms under the licenses
 above and optimized (mesh quantization, WebP textures) for web use. The

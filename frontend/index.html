@@ -6,9 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>InstructAI · AI-Powered LMS for Penaranda Senior High School</title>
     <script>
-      // landing refresh: paint paper immediately so the reload never flashes white
+      // landing refresh: paint paper immediately and never restore a stale
+      // scroll position — the journey always starts at the top
       if (location.pathname === '/') {
         document.documentElement.style.background = '#faf6ef';
+        history.scrollRestoration = 'manual';
       }
     </script>
   </head>

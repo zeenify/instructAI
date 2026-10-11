@@ -2083,6 +2083,35 @@
   .jsec-cta-row { bottom: 9vh; }
 }
 
+@media (max-width: 700px) {
+  /* phones: dock both cards side-by-side at the bottom so the 3D world
+     stays visible above them (stacked full-width cards covered it).
+     Must come AFTER the 900px block — same specificity, later wins. */
+  .jsec-hero { padding-top: 0; }
+  .jsec-hero .jsec-inner {
+    position: absolute;
+    top: 38vh;
+    left: 0;
+    right: 0;
+  }
+  .jsec-hero .pik-kicker { flex-wrap: wrap; justify-content: center; text-align: center; row-gap: 2px; }
+  .jsec-hero .choice-row {
+    position: absolute;
+    left: 4vw;
+    right: 4vw;
+    bottom: 3vh;
+    margin-top: 0;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 10px;
+  }
+  .jsec-hero .choice-card { width: auto; flex: 1 1 0; padding: 13px 14px 11px; gap: 6px; }
+  .jsec-hero .choice-title { font-size: 1.28rem; }
+  .jsec-hero .choice-sub { display: none; }
+  .jsec-hero .choice-cta { font-size: 0.62rem; }
+  .jsec-hero .scroll-hint { display: none; }
+}
+
 /* visually hidden (screen-reader-only) headings for the in-world type */
 .sr-only {
   position: absolute;
