@@ -192,12 +192,13 @@ def _build_turn_content(payload: dict) -> str:
         nudge_line = (
             "NOTE: your last reply CLAIMED an action (\"I'm opening…\", "
             "\"I'll explain…\") but sent NO tool call and didn't deliver the "
-            "words. Fix it NOW, in this reply: send the tool call (goto/"
-            "point/snapshot run freely, no permission needed), OR actually "
-            "deliver the explanation/answer you promised, OR ask a teacher "
-            "a question. Never claim without doing. If the teacher's request "
-            "already approved exactly this read-only action, send the tool "
-            "call — do not re-ask.\n"
+            "words. Fix it NOW, in this reply: send the tool call (point/"
+            "scroll/snapshot run freely; a goto or click lands at the "
+            "teacher's approval gate — the gate asks, so don't ask in words "
+            "too), OR actually deliver the explanation/answer you promised, "
+            "OR ask the teacher a question. Never claim without doing. If "
+            "the teacher's request already approved exactly this read-only "
+            "action, send the tool call — do not re-ask.\n"
             if data.get("nudge")
             else ""
         )

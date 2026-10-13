@@ -6,10 +6,11 @@
  * UI → continue the stream with tool results → … → commit (Laravel persists
  * the turn + audit rows).
  *
- * The consent gate is structural, not prompt-hoped: any batch containing
- * click/input/select is held at an explicit "Take the wheel" CTA until the
- * teacher approves. The executor independently refuses destructive confirm
- * controls regardless of this flag.
+ * The consent gate is structural, not prompt-hoped: any batch that moves or
+ * changes the page — navigation (goto) included — is held at an explicit
+ * "Take the wheel" CTA until the teacher approves. The executor
+ * independently refuses destructive confirm controls regardless of this
+ * flag.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -24,7 +25,23 @@ const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:
 const THREAD_KEY = 'euna-pilot-thread';
 const THREAD_LIMIT = 40;
 
-const ACTING_ACTIONS = new Set(['click', 'input', 'select']);
+// Actions that move or change the page — the teacher's "take the wheel" set.
+// goto is in deliberately: navigating the teacher somewhere uninvited IS
+// driving, even if nothing is clicked (the section-B report). Point/hover/
+// snapshot/scroll stay free — they guide and read without moving anyone.
+const ACTING_ACTIONS = new Set(['click', 'input', 'select', 'goto']);
+// Batches made ONLY of these are invisible reads — they run without the
+// takeover UI (no bar/glow/lock); a "Read page" row still lands in the thread.
+const SILENT_ACTIONS = new Set(['snapshot', 'hover', 'point']);
+
+// Teacher-facing words for the status strip while a lookup runs — the raw
+// query names ("get_student_grades") are plumbing, not speech.
+const LOOKUP_LABELS = {
+    list_classes: 'your classes',
+    class_summary: 'the class summary',
+    search_students: 'your student roster',
+    get_student_grades: 'scores',
+};
 
 // Hard cap on tool round-trips inside one run — the last line of defense
 // against a model stuck re-requesting data (the stop button remains the
@@ -392,7 +409,10 @@ export function usePilotRun() {
 
             setStatus('acting');
             setStrip(event.explain || 'Operating…');
-            setDriving(true); // the page is EUNA's while the batch runs
+            // Takeover UI only when the batch actually moves the page — a
+            // point-at-controls guide or a snapshot never locks the teacher out
+            const takesOver = commands.some((c) => !SILENT_ACTIONS.has(String(c.action)));
+            if (takesOver) setDriving(true);
             toolTurnsRef.current += 1;
             const toolsMsgId = push({
                 kind: 'tools',
@@ -419,7 +439,7 @@ export function usePilotRun() {
             updateMessage(toolsMsgId, { results });
             // Batch done — the page is the teacher's again while the next
             // turn streams (the drive bar + page lock are tied to `driving`)
-            setDriving(false);
+            if (takesOver) setDriving(false);
             setStatus('thinking');
             setStrip('');
 
@@ -467,7 +487,7 @@ export function usePilotRun() {
     const handleLookup = useCallback(
         async (event) => {
             setStatus('acting');
-            setStrip(`Looking up ${event.query}…`);
+            setStrip(`Checking ${LOOKUP_LABELS[event.query] || 'your data'}…`);
             toolTurnsRef.current += 1;
 
             const cacheKey = `${event.query}|${JSON.stringify(event.params || {}, Object.keys(event.params || {}).sort())}`;

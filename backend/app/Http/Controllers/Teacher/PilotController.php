@@ -218,11 +218,47 @@ class PilotController extends Controller
     private function ownedClass(int $teacherId, array $params): Classroom
     {
         $classId = (int) ($params['class_id'] ?? 0);
-        $class = Classroom::where('teacher_id', $teacherId)->find($classId);
-        if (!$class) {
-            throw new \InvalidArgumentException('class not found for this teacher');
+        if ($classId > 0) {
+            $class = Classroom::where('teacher_id', $teacherId)->find($classId);
+            if (!$class) {
+                throw new \InvalidArgumentException($this->classesHint(
+                    $teacherId,
+                    "no class with id {$classId} belongs to this teacher — re-check the id from the classes list"
+                ));
+            }
+            return $class;
         }
-        return $class;
+
+        // Name-based resolution — a stale or guessed numeric id produced the
+        // "class ID didn't match" flail; the model usually HAS the name.
+        $name = trim((string) ($params['class_name'] ?? ''));
+        if ($name !== '') {
+            $classes = Classroom::where('teacher_id', $teacherId)->orderBy('name')->get(['id', 'name']);
+            $exact = $classes->first(fn ($c) => strcasecmp($c->name, $name) === 0);
+            if ($exact) {
+                return $exact;
+            }
+            $like = $classes->filter(fn ($c) => str_contains(mb_strtolower($c->name), mb_strtolower($name)))->values();
+            if ($like->count() === 1) {
+                return $like->first();
+            }
+            if ($like->count() > 1) {
+                throw new \InvalidArgumentException(
+                    "several classes match \"{$name}\" — ask the teacher which one: " . $like->pluck('name')->implode(', ')
+                );
+            }
+            throw new \InvalidArgumentException($this->classesHint($teacherId, "no class resembling \"{$name}\""));
+        }
+
+        throw new \InvalidArgumentException($this->classesHint($teacherId, 'no class was given — ask which class'));
+    }
+
+    /** Error messages teach the model what IS true (the real class names) so
+     *  it can recover in one turn instead of flailing about ids. */
+    private function classesHint(int $teacherId, string $prefix): string
+    {
+        $names = Classroom::where('teacher_id', $teacherId)->orderBy('name')->pluck('name')->implode(', ');
+        return $prefix . ". This teacher's classes: " . ($names !== '' ? $names : '(none yet)');
     }
 
     private function listClasses(int $teacherId): array
@@ -274,10 +310,17 @@ class PilotController extends Controller
         $class = $this->ownedClass($teacherId, $params);
         $name = trim((string) ($params['name'] ?? ''));
         if ($name === '') {
-            throw new \InvalidArgumentException('name is required');
+            throw new \InvalidArgumentException('no student name was given — ask who to search for');
         }
 
-        $studentIds = Enrollment::where('class_id', $class->id)->pluck('student_id');
+        return $this->rosterMatches($class->id, $name);
+    }
+
+    /** Case-insensitive name search inside one class's roster — shared by
+     *  search_students and get_student_grades' name resolution. */
+    private function rosterMatches(int $classId, string $name): array
+    {
+        $studentIds = Enrollment::where('class_id', $classId)->pluck('student_id');
 
         return StudentProfile::whereIn('user_id', $studentIds)
             ->whereRaw("CONCAT(COALESCE(first_name,''),' ',COALESCE(last_name,'')) LIKE ?", ['%' . $name . '%'])
@@ -292,20 +335,55 @@ class PilotController extends Controller
             ->all();
     }
 
+    /** A few real roster names for error hints — enough for the model to
+     *  recover ("did you mean one of these?") without dumping the class. */
+    private function rosterSample(int $classId): string
+    {
+        $names = collect($this->rosterMatches($classId, ''))
+            ->pluck('name')
+            ->filter()
+            ->take(4)
+            ->implode(', ');
+        return $names !== '' ? $names : '(roster names unavailable)';
+    }
+
     private function studentGrades(int $teacherId, array $params): array
     {
         $class = $this->ownedClass($teacherId, $params);
-        $studentId = (int) ($params['student_id'] ?? 0);
 
-        $enrolled = Enrollment::where('class_id', $class->id)
+        // Resolve the student: an id when the model has one, else a name
+        // search inside this class's roster — "which student" should never
+        // require the model to already hold a numeric key. Several matches
+        // come back as a choice list (not an error) so the model can ask.
+        $studentId = (int) ($params['student_id'] ?? 0);
+        $studentName = trim((string) ($params['student_name'] ?? $params['name'] ?? ''));
+        if ($studentId <= 0 && $studentName !== '') {
+            $matches = $this->rosterMatches($class->id, $studentName);
+            if (count($matches) > 1) {
+                return [
+                    'note' => "Several students in {$class->name} match \"{$studentName}\" — ask the teacher which one before pulling grades.",
+                    'class' => $class->name,
+                    'matches' => array_map(fn ($m) => ['name' => $m['name']], $matches),
+                ];
+            }
+            if (count($matches) === 1) {
+                $studentId = (int) $matches[0]['student_id'];
+            }
+        }
+
+        $enrolled = $studentId > 0 && Enrollment::where('class_id', $class->id)
             ->where('student_id', $studentId)
             ->exists();
         if (!$enrolled) {
-            throw new \InvalidArgumentException('student not enrolled in this class');
+            $rosterCount = Enrollment::where('class_id', $class->id)->count();
+            $sample = $rosterCount > 0
+                ? ' The roster includes: ' . $this->rosterSample($class->id) . '.'
+                : ' That roster is empty — no students have joined this class yet.';
+            throw new \InvalidArgumentException("that student isn't in {$class->name}.{$sample}");
         }
 
         $profile = StudentProfile::where('user_id', $studentId)->first();
-        $name = $profile ? trim($profile->first_name . ' ' . $profile->last_name) : "student {$studentId}";
+        $name = $profile ? trim($profile->first_name . ' ' . $profile->last_name) : 'Unknown student';
 
         $activities = ClassActivity::where('class_id', $class->id)
             ->orderBy('order_index')
@@ -327,7 +405,9 @@ class PilotController extends Controller
             ];
         })->values()->all();
 
-        // Quiz attempts: quizzes live in modules → courses → this class
+        // Quiz attempts: quizzes live in modules → courses → this class.
+        // Chronological order + a timestamp so "the latest" is resolvable
+        // from data instead of guessed.
         $quizIds = Quiz::whereIn(
             'module_id',
             Module::whereIn('course_id', Course::where('class_id', $class->id)->pluck('id'))->pluck('id')
@@ -336,15 +416,49 @@ class PilotController extends Controller
         $quizTitles = Quiz::whereIn('id', $quizIds)->pluck('title', 'id');
         $quizRows = QuizAttempt::where('student_id', $studentId)
             ->whereIn('quiz_id', $quizIds)
+            ->orderBy('created_at')
             ->get()
             ->map(fn ($q) => [
-                'quiz' => $quizTitles[$q->quiz_id] ?? ("quiz {$q->quiz_id}"),
+                'quiz' => $quizTitles[$q->quiz_id] ?? 'an untitled quiz',
                 'score' => $q->total_score,
                 'max' => $q->max_score,
                 'status' => $q->status,
+                'attempted_at' => $q->created_at?->toISOString(),
             ])
             ->values()
             ->all();
+
+        // "the latest" resolves server-side — one unambiguous most-recent
+        // attempt instead of the model guessing from timestamps
+        $latest = !empty($params['latest']) || mb_strtolower(trim((string) ($params['quiz'] ?? ''))) === 'latest';
+        if ($latest) {
+            if ($quizRows === []) {
+                return [
+                    'student' => ['name' => $name, 'class' => $class->name],
+                    'note' => "No quiz attempts yet for this student in {$class->name}.",
+                    'quizzes' => [],
+                ];
+            }
+            $quizRows = [$quizRows[count($quizRows) - 1]];
+        } else {
+            // A named quiz filters the rows; a miss teaches the model the
+            // real titles so it can correct itself in one turn
+            $quizName = trim((string) ($params['quiz'] ?? ''));
+            if ($quizName !== '') {
+                $filtered = array_values(array_filter(
+                    $quizRows,
+                    fn ($r) => str_contains(mb_strtolower($r['quiz']), mb_strtolower($quizName))
+                ));
+                if ($filtered === []) {
+                    $titles = collect($quizRows)->pluck('quiz')->implode(', ');
+                    throw new \InvalidArgumentException(
+                        "no quiz resembling \"{$quizName}\" has an attempt in {$class->name}" .
+                        ($titles !== '' ? " — attempted quizzes: {$titles}" : ' — this student has no quiz attempts yet')
+                    );
+                }
+                $quizRows = $filtered;
+            }
+        }
 
         return [
             'student' => ['student_id' => $studentId, 'name' => $name, 'class' => $class->name],

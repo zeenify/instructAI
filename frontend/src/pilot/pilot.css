@@ -104,6 +104,22 @@
     border-color: #e5484d;
 }
 
+/* Waiting-for-consent variant — same floating bubble, amber signal: EUNA is
+   paused at the gate and the teacher's Stop is reachable without opening
+   anything (the section-B report: an uninvited drive with no visible stop) */
+.euna-drive-bar.is-waiting {
+    border-color: rgba(255, 214, 10, 0.35);
+}
+
+.euna-drive-bar.is-waiting .euna-drive-bar__dot {
+    background: #ffd60a;
+}
+
+.euna-drive-bar.is-waiting .euna-drive-bar__stop:hover {
+    background: #e5484d;
+    border-color: #e5484d;
+}
+
 /* --- Driving state ---------------------------------------------------------- */
 
 /* Page lock while EUNA executes — blocks real pointers so a stray click can't
@@ -572,6 +588,38 @@
     border: 1px solid var(--db-border, rgba(0, 0, 0, 0.08));
 }
 
+/* --- "Someone is typing" bubble — three jumping dots ---------------------- */
+
+.euna-typing {
+    color: var(--db-text-2, #555);
+    display: inline-flex;
+    align-items: baseline;
+    gap: 7px;
+}
+
+.euna-typing__dots {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 3.5px;
+}
+
+.euna-typing__dots i {
+    width: 5.5px;
+    height: 5.5px;
+    border-radius: 50%;
+    background: var(--db-accent, #0a84ff);
+    display: inline-block;
+    animation: euna-typing-jump 1.15s ease-in-out infinite;
+}
+
+.euna-typing__dots i:nth-child(2) { animation-delay: 0.14s; }
+.euna-typing__dots i:nth-child(3) { animation-delay: 0.28s; }
+
+@keyframes euna-typing-jump {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+    30%           { transform: translateY(-4px); opacity: 1; }
+}
+
 /* --- Steps (tool calls) — borderless, hierarchy via surface --------------- */
 
 .euna-steps {
@@ -850,6 +898,7 @@
     .euna-panel__status.is-live .euna-panel__status-dot,
     .euna-strip__dot,
     .euna-cursor__spark,
+    .euna-typing__dots i,
     .euna-spin {
         animation: none;
     }

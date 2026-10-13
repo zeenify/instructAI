@@ -120,29 +120,49 @@ export default function EunaPilot() {
     const { open, setOpen, messages, status, statusText, driving, consent, input, setInput, send, approveConsent, declineConsent, abort, clearThread, suggestions, busy } = pilot;
     const scrollRef = useRef(null);
     const inputRef = useRef(null);
+    const stickRef = useRef(true);
 
-    // Stick to the bottom only while the teacher is already reading the
-    // latest — never yank them back while they scroll up mid-narration
-    useEffect(() => {
+    // Chat-rule scrolling: follow the latest message while the teacher is at
+    // (or near) the bottom; never yank them back while they've scrolled up to
+    // read. The stick decision is made by the teacher's OWN scroll events —
+    // the old approach re-checked "nearBottom" after the new content had
+    // already rendered, so any appended message taller than the tolerance
+    // silently broke the follow.
+    const handleBodyScroll = () => {
         const el = scrollRef.current;
         if (!el) return;
-        const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 90;
-        if (nearBottom) el.scrollTop = el.scrollHeight;
-    }, [messages, statusText, consent]);
+        stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    };
 
-    // Focus the composer when the panel opens; Escape closes it
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (el && stickRef.current) el.scrollTop = el.scrollHeight;
+    }, [messages, statusText, status, consent]);
+
+    // Focus the composer when the panel opens; Escape closes it. Opening
+    // mid-run also re-arms the follow so the teacher lands on the latest.
     useEffect(() => {
         if (!open) return;
         inputRef.current?.focus();
+        stickRef.current = true;
+        const el = scrollRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
         const onKey = (e) => e.key === 'Escape' && setOpen(false);
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
     }, [open, setOpen]);
 
+    // Sending is the teacher speaking from the bottom of the thread — always
+    // re-arm the follow so their own message and the reply stay in view
+    const sendAndFollow = (text) => {
+        stickRef.current = true;
+        send(text);
+    };
+
     const handleKey = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            send();
+            sendAndFollow();
         }
     };
 
@@ -153,19 +173,25 @@ export default function EunaPilot() {
         : waiting
             ? 'Your call — take the wheel, or stop me…'
             : 'EUNA is driving…';
+    const typingLabel =
+        status === 'thinking'
+            ? 'Thinking'
+            : (statusText || 'Checking the page').replace(/…+$/, '');
 
     return (
         <div className="euna-root" data-euna-ignore>
-            {/* Driving is the ONLY state that owns the page: the bar, the blue
-                corner glow and the click lock all appear together, and chatting
-                or thinking never shows them. The lock blocks real pointers —
-                the executor drives through programmatic clicks and the panel's
-                Stop stays above it. */}
+            {/* Driving owns the page: the bar, the blue corner glow and the
+                click lock all appear together, and chatting or thinking never
+                shows them. Waiting for consent shows the bar (with Stop) but
+                NOT the lock — the teacher's page stays theirs until they
+                approve. The lock blocks real pointers — the executor drives
+                through programmatic clicks and the panel (9990) + bar (9987)
+                + FAB (9985) all sit above it. */}
             {driving && <div className="euna-driving-blocker" aria-hidden="true" />}
             {driving && <div className="euna-driving-glow" aria-hidden="true" />}
 
-            {driving && (
-                <div className="euna-drive-bar" role="status">
+            {(driving || waiting) && (
+                <div className={`euna-drive-bar ${waiting && !driving ? 'is-waiting' : ''}`} role="status">
                     <EunaAvatar size={24} className="euna-drive-bar__avatar" />
                     <span className="euna-drive-bar__dot" />
                     <button
@@ -174,8 +200,14 @@ export default function EunaPilot() {
                         title="Open EUNA Pilot"
                         onClick={() => setOpen(true)}
                     >
-                        <span className="euna-drive-bar__label">EUNA is driving</span>
-                        {statusText && <span className="euna-drive-bar__step">{statusText}</span>}
+                        <span className="euna-drive-bar__label">
+                            {driving ? 'EUNA is driving' : 'Waiting for your OK'}
+                        </span>
+                        {statusText && (
+                            <span className="euna-drive-bar__step">
+                                {driving ? statusText : consent?.explain}
+                            </span>
+                        )}
                     </button>
                     <button type="button" className="euna-drive-bar__stop" onClick={abort}>
                         <Square size={11} />
@@ -244,6 +276,22 @@ export default function EunaPilot() {
                             return null;
                         })}
 
+                        {/* The "someone is typing" bubble — while EUNA thinks
+                            or checks, and NOT while narration is already
+                            streaming (the live caret covers that) */}
+                        {(status === 'thinking' || status === 'acting') &&
+                         !messages.some((m) => m.streaming) && (
+                            <div className="euna-msg euna-msg--euna">
+                                <EunaAvatar size={24} className="euna-msg__avatar" />
+                                <span className="euna-msg__text euna-typing">
+                                    {typingLabel}
+                                    <span className="euna-typing__dots" aria-hidden="true">
+                                        <i /><i /><i />
+                                    </span>
+                                </span>
+                            </div>
+                        )}
+
                         {consent && (
                             <div className="euna-consent">
                                 <p className="euna-consent__title">
@@ -268,7 +316,7 @@ export default function EunaPilot() {
                         {messages.length === 0 && (
                             <div className="euna-chips">
                                 {suggestions.map((s) => (
-                                    <button key={s} className="euna-chip" onClick={() => send(s)} disabled={busy}>
+                                    <button key={s} className="euna-chip" onClick={() => sendAndFollow(s)} disabled={busy}>
                                         {s}
                                     </button>
                                 ))}
@@ -292,7 +340,7 @@ export default function EunaPilot() {
                                     <Square size={13} />
                                 </button>
                             ) : (
-                                <button className="euna-send" title="Send" onClick={() => send()} disabled={!input.trim()}>
+                                <button className="euna-send" title="Send" onClick={() => sendAndFollow()} disabled={!input.trim()}>
                                     <Sparkles size={14} />
                                 </button>
                             )}
