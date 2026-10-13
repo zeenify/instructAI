@@ -28,8 +28,11 @@ const INTERACTIVE_SELECTOR = [
 ].join(',');
 
 // A destructive confirmation control. The executor refuses to click these —
-// the teacher's own hand always finishes destructive actions.
-const DESTRUCTIVE_WORDS = /\b(delete|remove|confirm|unpublish|archive|reset|revoke|kick|sign out|logout)\b/i;
+// the teacher's own hand always finishes destructive actions. "replace" is
+// here deliberately: the AI Studio's "Replace them / Replace all" commit
+// wipes a class's existing modules and questions, and an agent must never
+// make that choice under a general wheel consent.
+const DESTRUCTIVE_WORDS = /\b(delete|remove|confirm|unpublish|archive|reset|revoke|kick|sign out|logout|replace)\b/i;
 
 const isDialogish = (el) => !!el.closest('[role="dialog"], [role="alertdialog"], .modal, [class*="modal"]');
 
