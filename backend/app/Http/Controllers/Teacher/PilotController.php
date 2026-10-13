@@ -30,7 +30,7 @@ use Illuminate\Support\Str;
  */
 class PilotController extends Controller
 {
-    private const LOOKUPS = ['search_students', 'get_student_grades', 'list_classes', 'class_summary'];
+    private const LOOKUPS = ['search_students', 'get_student_grades', 'list_classes', 'class_summary', 'class_performance'];
 
     public function prepare(Request $request): JsonResponse
     {
@@ -204,6 +204,7 @@ class PilotController extends Controller
             $result = match ($query) {
                 'list_classes' => $this->listClasses($teacher->id),
                 'class_summary' => $this->classSummary($teacher->id, $params),
+                'class_performance' => $this->classPerformance($teacher->id, $params),
                 'search_students' => $this->searchStudents($teacher->id, $params),
                 'get_student_grades' => $this->studentGrades($teacher->id, $params),
                 default => ['error' => 'unknown query'],
@@ -234,9 +235,14 @@ class PilotController extends Controller
         $name = trim((string) ($params['class_name'] ?? ''));
         if ($name !== '') {
             $classes = Classroom::where('teacher_id', $teacherId)->orderBy('name')->get(['id', 'name']);
-            $exact = $classes->first(fn ($c) => strcasecmp($c->name, $name) === 0);
-            if ($exact) {
-                return $exact;
+            $exact = $classes->filter(fn ($c) => strcasecmp($c->name, $name) === 0)->values();
+            if ($exact->count() === 1) {
+                return $exact->first();
+            }
+            if ($exact->count() > 1) {
+                throw new \InvalidArgumentException(
+                    "several classes are named \"{$name}\" — ask the teacher which one (their ids: " . $exact->pluck('id')->implode(', ') . ")"
+                );
             }
             $like = $classes->filter(fn ($c) => str_contains(mb_strtolower($c->name), mb_strtolower($name)))->values();
             if ($like->count() === 1) {
@@ -303,6 +309,94 @@ class PilotController extends Controller
                 ->where('status', 'submitted')
                 ->count(),
         ];
+    }
+
+    /** Ranked student performance per class — the answer to "who's my best
+     *  performing student". Averages each student's percentage across every
+     *  graded item (activity submissions + quiz attempts). Scoped to one
+     *  class when params name it, else every class in one call. The Progress
+     *  page's charts are canvas — snapshots can't read them, so THIS is the
+     *  only way the agent can answer ranking questions. */
+    private function classPerformance(int $teacherId, array $params): array
+    {
+        if (!empty($params['class_id']) || !empty($params['class_name'])) {
+            $classes = collect([$this->ownedClass($teacherId, $params)]);
+        } else {
+            $classes = Classroom::where('teacher_id', $teacherId)->orderBy('name')->get(['id', 'name']);
+        }
+
+        $results = $classes->map(function ($class) {
+            $studentIds = Enrollment::where('class_id', $class->id)->pluck('student_id');
+            if ($studentIds->isEmpty()) {
+                return ['class' => $class->name, 'enrolled' => 0, 'note' => 'no students enrolled yet', 'ranked' => []];
+            }
+
+            // Every graded item becomes one (student, pct) row
+            $scores = collect();
+
+            $maxByActivity = ClassActivity::where('class_id', $class->id)->pluck('max_points', 'id');
+            if ($maxByActivity->isNotEmpty()) {
+                ActivitySubmission::whereIn('activity_id', $maxByActivity->keys())
+                    ->whereIn('student_id', $studentIds)
+                    ->whereNotNull('score')
+                    ->get(['student_id', 'score', 'activity_id'])
+                    ->each(function ($s) use ($scores, $maxByActivity) {
+                        $max = (float) $maxByActivity[$s->activity_id];
+                        if ($max > 0) {
+                            $scores->push(['student_id' => $s->student_id, 'pct' => $s->score / $max]);
+                        }
+                    });
+            }
+
+            $quizIds = Quiz::whereIn(
+                'module_id',
+                Module::whereIn('course_id', Course::where('class_id', $class->id)->pluck('id'))->pluck('id')
+            )->pluck('id');
+            if ($quizIds->isNotEmpty()) {
+                // Each attempt stamps the max it was scored out of — no
+                // separate quiz-level column exists
+                QuizAttempt::whereIn('quiz_id', $quizIds)
+                    ->whereIn('student_id', $studentIds)
+                    ->where('status', 'completed')
+                    ->get(['student_id', 'total_score', 'max_score'])
+                    ->each(function ($q) use ($scores) {
+                        $max = (float) $q->max_score;
+                        if ($max > 0) {
+                            $scores->push(['student_id' => $q->student_id, 'pct' => $q->total_score / $max]);
+                        }
+                    });
+            }
+
+            if ($scores->isEmpty()) {
+                return ['class' => $class->name, 'enrolled' => $studentIds->count(), 'note' => 'no graded work yet — nothing to rank', 'ranked' => []];
+            }
+
+            $byStudent = $scores->groupBy('student_id')->map(fn ($rows) => [
+                'avg_pct' => round($rows->avg('pct') * 100, 1),
+                'graded_items' => $rows->count(),
+            ]);
+
+            $profiles = StudentProfile::whereIn('user_id', $byStudent->keys())
+                ->get()
+                ->map(fn ($p) => ['student_id' => $p->user_id, 'name' => trim($p->first_name . ' ' . $p->last_name)])
+                ->keyBy('student_id');
+
+            return [
+                'class' => $class->name,
+                'enrolled' => $studentIds->count(),
+                'ranked' => $byStudent
+                    ->map(fn ($agg, $sid) => [
+                        'name' => $profiles[$sid]['name'] ?? 'a student',
+                        'avg_pct' => $agg['avg_pct'],
+                        'graded_items' => $agg['graded_items'],
+                    ])
+                    ->sortByDesc('avg_pct')
+                    ->values()
+                    ->all(),
+            ];
+        })->values()->all();
+
+        return ['classes' => $results];
     }
 
     private function searchStudents(int $teacherId, array $params): array

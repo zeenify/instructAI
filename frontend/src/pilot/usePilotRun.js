@@ -39,6 +39,7 @@ const SILENT_ACTIONS = new Set(['snapshot', 'hover', 'point']);
 const LOOKUP_LABELS = {
     list_classes: 'your classes',
     class_summary: 'the class summary',
+    class_performance: 'student rankings',
     search_students: 'your student roster',
     get_student_grades: 'scores',
 };
@@ -71,6 +72,13 @@ function lookupDigest(query, result) {
         }
         if (query === 'class_summary' && result && !result.error) {
             return `${result.class?.name ?? 'class'}: ${result.students} students, ${result.ungraded_submissions} ungraded`;
+        }
+        if (query === 'class_performance' && result && !result.error) {
+            const rows = (result.classes || []).map((c) => {
+                const top = (c.ranked || []).slice(0, 3).map((r) => `${r.name} ${r.avg_pct}%`).join(', ');
+                return `${c.class}: ${top || c.note || 'no graded work'}`;
+            });
+            return rows.join(' | ').slice(0, 300);
         }
         if (query === 'search_students' && Array.isArray(result)) {
             const names = result.map((s) => `${s.name} (id ${s.student_id})`).join(', ');
