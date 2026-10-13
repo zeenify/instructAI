@@ -541,6 +541,7 @@ export function usePilotRun() {
             await runTurn('lookup-result', {
                 data: {
                     route: window.location.pathname,
+                    task: taskRef.current,
                     query: event.query,
                     params: event.params || {},
                     result,

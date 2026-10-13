@@ -226,7 +226,17 @@ def _build_turn_content(payload: dict) -> str:
         data = payload.get("data") or {}
         result = json.dumps(data.get("result"), ensure_ascii=False)[:4000]
         task = _clip(payload.get("task"), 500)
+        # The task goes BEFORE the data and is echoed at the end: with the
+        # fresh lookup sitting next to the previous answer in context, the
+        # model re-renders its last reply's subject instead of answering
+        # the new ask (the 'lowest one?' → 'best student' anchor bug).
         task_line = f"CURRENT TASK: {task}\n" if task else ""
+        task_echo = (
+            f"\nThe teacher's live question is: «{task}» — open your reply by "
+            "answering exactly that, in your first sentence.\n"
+            if task
+            else ""
+        )
         repeat_line = (
             "NOTE: you already ran this EXACT lookup earlier this run — what "
             "follows is the same cached data. Do not call it again; use it.\n"
@@ -259,14 +269,24 @@ def _build_turn_content(payload: dict) -> str:
             if data.get("query") in ("list_classes", "class_summary")
             else ""
         )
+        perf_note = (
+            "NOTE: ranked[] is ordered best→worst — a class's FIRST entry is "
+            "its top student, its LAST entry is its lowest. So the answer to "
+            "a lowest/worst/struggling question is the LAST entry of the "
+            "class that has students, NOT the headline student of your "
+            "previous reply. Lead with that student.\n"
+            if data.get("query") == "class_performance"
+            else ""
+        )
         return (
+            f"{task_line}"
             f"DATA for {data.get('query')} (params: {json.dumps(data.get('params') or {})}) "
             f"returned:\n{result}\n\n"
-            f"{task_line}"
             f"{repeat_line}"
             f"{streak_line}"
             f"{error_line}"
             f"{counts_note}"
+            f"{perf_note}"
             f"{_trail_block(data)}"
             f"CURRENT PAGE: {data.get('route') or route}{classes_block}\n"
             f"CONSENT STATE: {consent_note}\n\n"
@@ -275,6 +295,7 @@ def _build_turn_content(payload: dict) -> str:
             "answers or can't (e.g. it has no failing-student data), say what you "
             "DO know, be honest about the gap, and offer the closest next step. "
             "NEVER greet, never say the message was empty or didn't come through."
+            f"{task_echo}"
         )
 
     return f"CURRENT PAGE: {route}\n\n{json.dumps(payload.get('data') or {}, ensure_ascii=False)[:2000]}"

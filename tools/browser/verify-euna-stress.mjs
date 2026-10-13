@@ -122,7 +122,9 @@ const SCENARIOS = [
         expect: (r) => ({
             namedAllFive: /smoke test class/i.test(r.replies?.[0] || '') && /asd|section/i.test(r.replies?.[0] || '') && /test/i.test(r.replies?.[0] || ''),
             bestAnswered: /ana cruz|92\.9/i.test(r.replies?.[1] || ''),
-            lowestAnswered: /smoke student one|64\.3|ben diaz|67\.5/i.test(r.replies?.[2] || ''),
+            // the actual lowest is Smoke Student One (64.3%) — Ben Diaz
+            // (67.5%) is second-lowest, so naming him alone must not pass
+            lowestAnswered: /smoke student one|64\.3/i.test(r.replies?.[2] || ''),
             noParrot: r.replies?.[1] ? !/five classes right now/i.test(r.replies[1]) : false,
             noIdLeak: !/class\s*(?:ID|id)\s*\d+|\(id\s*\d+\)/.test(r.allMsgs || ''),
         }),
