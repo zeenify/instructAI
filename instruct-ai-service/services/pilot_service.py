@@ -250,6 +250,15 @@ def _build_turn_content(payload: dict) -> str:
             if isinstance(raw_result, dict) and "error" in raw_result
             else ""
         )
+        counts_note = (
+            "NOTE: this result contains only per-class COUNTS — no student "
+            "names, no scores. A student-level question (who's best, who's "
+            "struggling, someone's scores) is not answerable from counts: "
+            "follow it with class_performance for the class(es) that have "
+            "students, or get_student_grades for a named student.\n"
+            if data.get("query") in ("list_classes", "class_summary")
+            else ""
+        )
         return (
             f"DATA for {data.get('query')} (params: {json.dumps(data.get('params') or {})}) "
             f"returned:\n{result}\n\n"
@@ -257,6 +266,7 @@ def _build_turn_content(payload: dict) -> str:
             f"{repeat_line}"
             f"{streak_line}"
             f"{error_line}"
+            f"{counts_note}"
             f"{_trail_block(data)}"
             f"CURRENT PAGE: {data.get('route') or route}{classes_block}\n"
             f"CONSENT STATE: {consent_note}\n\n"

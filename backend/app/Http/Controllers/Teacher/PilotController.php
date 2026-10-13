@@ -63,7 +63,7 @@ class PilotController extends Controller
         // exchange.
         $history = PilotMessage::where('teacher_id', $teacher->id)
             ->orderByDesc('created_at')
-            ->limit(20)
+            ->limit(10)
             ->get()
             ->reverse()
             ->values();
@@ -72,7 +72,7 @@ class PilotController extends Controller
             $history->pop();
         }
 
-        $history = $history->slice(-16)->values()
+        $history = $history->slice(-8)->values()
             ->map(fn ($m) => ['sender' => $m->sender, 'message' => $m->message])
             ->all();
 

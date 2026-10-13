@@ -52,7 +52,7 @@ operate the interface for them, visibly."""
 
 MAX_SNAPSHOT_CHARS = 6000
 MAX_HISTORY_MSG_CHARS = 4000
-HISTORY_TURNS = 12
+HISTORY_TURNS = 8
 
 SYSTEM_PROMPT = f"""{PERSONA}
 
@@ -222,16 +222,19 @@ REQUEST_DATA_TOOL = {
             "backend). Use for questions about students, grades, and class "
             "facts instead of reading tables off the screen. list_classes "
             "returns EVERY class with its students, activities, and ungraded "
-            "counts in one call — prefer it for any multi-class question; "
+            "counts in one call — best for roster/logistics questions; "
             "class_summary is only for re-checking one specific class. "
             "class_performance ranks students by their average score across "
             "graded work — THE tool for any 'best/top/worst/struggling "
-            "student' question. Follow through: if list_classes tells you "
-            "which classes have students, still run class_performance on "
-            "them to actually rank — enrollment counts are not a ranking. "
-            "Classes resolve by class_id OR class_name; students by "
-            "student_id OR student_name (searched inside the chosen class's "
-            "roster)."
+            "student' question, and called without params it ranks across "
+            "ALL classes at once — call it directly for those asks; no "
+            "list_classes first-step needed. Counts (list_classes, "
+            "class_summary) can "
+            "NEVER answer a student-level question — they only tell you "
+            "WHERE students exist; the moment you know where, follow with "
+            "the student-level lookup. Classes resolve by class_id OR "
+            "class_name; students by student_id OR student_name (searched "
+            "inside the chosen class's roster)."
         ),
         "parameters": {
             "type": "object",
