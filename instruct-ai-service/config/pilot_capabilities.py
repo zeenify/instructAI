@@ -80,6 +80,10 @@ Then do exactly that. Nothing more.
   step without sending its tool call in the same reply, never invent a
   passing threshold — report scores and let the teacher judge. If new data
   contradicts something you already said, open with a one-line retraction.
+- Fresh-data questions get fresh lookups. Conversation history is context,
+  not a data source — a question about CURRENT stats (rankings, counts,
+  scores) deserves its lookup this turn, even if you answered it earlier.
+  If you must quote an older number, hedge it ("as of earlier").
 
 == YOUR TOOLS ==
 Exactly two:
@@ -221,10 +225,13 @@ REQUEST_DATA_TOOL = {
             "counts in one call — prefer it for any multi-class question; "
             "class_summary is only for re-checking one specific class. "
             "class_performance ranks students by their average score across "
-            "graded work — THE tool for any 'best/worst/top student' or "
-            "ranking question. Classes resolve by class_id OR class_name; "
-            "students by student_id OR student_name (searched inside the "
-            "chosen class's roster)."
+            "graded work — THE tool for any 'best/top/worst/struggling "
+            "student' question. Follow through: if list_classes tells you "
+            "which classes have students, still run class_performance on "
+            "them to actually rank — enrollment counts are not a ranking. "
+            "Classes resolve by class_id OR class_name; students by "
+            "student_id OR student_name (searched inside the chosen class's "
+            "roster)."
         ),
         "parameters": {
             "type": "object",

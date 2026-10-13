@@ -21,8 +21,11 @@ Events yielded (SSE-framed by main.py):
 """
 
 import json
+import os
 
-from config.models import GEN_CONTENT_MODEL
+from openai import OpenAI
+
+from config.models import GEN_CONTENT_MODEL, PILOT_MODEL, RIVER_BASE_URL
 from config.pilot_capabilities import (
     HISTORY_TURNS,
     MAX_HISTORY_MSG_CHARS,
@@ -175,7 +178,11 @@ def _build_turn_content(payload: dict) -> str:
             f"CURRENT PAGE: {route}{classes_block}\n"
             f"CONSENT STATE: {consent_note}\n\n"
             f"PAGE ELEMENTS (address by [ref]):\n{snapshot}\n\n"
-            f"TEACHER REQUEST: {task}"
+            f"TEACHER REQUEST: {task}\n"
+            "(The earlier conversation is background context only. THIS "
+            "request is the live question — ground your answer in data you "
+            "fetch this turn, especially for stats that change: rankings, "
+            "counts, scores, submissions.)"
         )
 
     if kind == "tool-result":
@@ -267,6 +274,40 @@ class PilotService:
     def __init__(self):
         self.ai_pool = AIClientPool()
         self._system_prompt = build_system_prompt()
+        # The pilot is a conversational agent, not a content pump — it gets
+        # its own model (DeepSeek via River) and its own bill. The Gemini
+        # pool stays as the fallback when River is unavailable.
+        river_key = os.getenv("RIVER_API_KEY")
+        self._river = (
+            OpenAI(api_key=river_key, base_url=RIVER_BASE_URL, timeout=120, max_retries=1)
+            if river_key else None
+        )
+
+    def _open_stream(self, messages):
+        """River first; on any pre-stream failure fall back to the Gemini
+        pool. Fallback only happens before the first chunk — a stream that
+        dies mid-run surfaces its error to the teacher like normal."""
+        if self._river is not None:
+            try:
+                return self._river.chat.completions.create(
+                    model=PILOT_MODEL,
+                    messages=messages,
+                    tools=PILOT_TOOLS,
+                    temperature=0.25,
+                    max_tokens=1400,
+                    stream=True,
+                ), None
+            except Exception as e:
+                print(f"[Pilot] River unavailable ({type(e).__name__}: {str(e)[:160]}) — Gemini pool fallback")
+        client, key_num = self.ai_pool.get_available_client()
+        return client.chat.completions.create(
+            model=GEN_CONTENT_MODEL,
+            messages=messages,
+            tools=PILOT_TOOLS,
+            temperature=0.25,
+            max_tokens=1400,
+            stream=True,
+        ), key_num
 
     def _build_messages(self, payload: dict) -> list:
         messages = [{"role": "system", "content": self._system_prompt}]
@@ -283,23 +324,16 @@ class PilotService:
         return messages
 
     def stream_turn(self, payload: dict):
-        """One Gemini streaming turn → generator of event dicts."""
+        """One agent turn → generator of event dicts."""
         messages = self._build_messages(payload)
-        client, key_num = self.ai_pool.get_available_client()
 
         tool_calls = {}
         finish_reason = None
         produced = False
+        pool_key = None
 
         try:
-            stream = client.chat.completions.create(
-                model=GEN_CONTENT_MODEL,
-                messages=messages,
-                tools=PILOT_TOOLS,
-                temperature=0.25,
-                max_tokens=1400,
-                stream=True,
-            )
+            stream, pool_key = self._open_stream(messages)
 
             for chunk in stream:
                 if not getattr(chunk, "choices", None):
@@ -328,9 +362,11 @@ class PilotService:
                 if choice.finish_reason:
                     finish_reason = choice.finish_reason
 
-            self.ai_pool.mark_success(key_num)
+            if pool_key is not None:
+                self.ai_pool.mark_success(pool_key)
         except Exception as e:
-            self.ai_pool.mark_rate_limited(key_num, backoff_seconds=30)
+            if pool_key is not None:
+                self.ai_pool.mark_rate_limited(pool_key, backoff_seconds=30)
             print(f"[Pilot Stream Error] {type(e).__name__}: {e}")
             yield {"type": "error", "message": "I hit a snag talking to my brain — try again in a moment."}
             yield {"type": "finish", "reason": "error"}

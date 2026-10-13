@@ -107,10 +107,23 @@ const SCENARIOS = [
     },
     {
         name: 'pronoun-followup',
-        task: "who's my best performing student", // primes a name
-        task2: "what about their class's ungraded work?",
+        chain: ["who's my best performing student", "what about their class's ungraded work?"],
         expect: (r) => ({
-            answered: r.lastMsg && r.lastMsg.length > 20,
+            bestAnswered: /ana cruz|92\.9/i.test(r.replies?.[0] || ''),
+            followupAnswered: /ungraded|submission|smoke test class/i.test(r.replies?.[1] || ''),
+            noIdLeak: !/class\s*(?:ID|id)\s*\d+|\(id\s*\d+\)/.test(r.allMsgs || ''),
+        }),
+    },
+    {
+        // THE reported failure: back-to-back asks in one thread — a weak
+        // model parrots its previous answer instead of reasoning per task
+        name: 'conversation-chain',
+        chain: ['name all of my classes', 'who is the best student', 'what about the lowest one?'],
+        expect: (r) => ({
+            namedAllFive: /smoke test class/i.test(r.replies?.[0] || '') && /asd|section/i.test(r.replies?.[0] || '') && /test/i.test(r.replies?.[0] || ''),
+            bestAnswered: /ana cruz|92\.9/i.test(r.replies?.[1] || ''),
+            lowestAnswered: /smoke student one|64\.3|ben diaz|67\.5/i.test(r.replies?.[2] || ''),
+            noParrot: r.replies?.[1] ? !/five classes right now/i.test(r.replies[1]) : false,
             noIdLeak: !/class\s*(?:ID|id)\s*\d+|\(id\s*\d+\)/.test(r.allMsgs || ''),
         }),
     },
@@ -173,49 +186,58 @@ try {
         await page.waitForSelector('.euna-fab', { timeout: 15000 });
         await page.click('.euna-fab');
         await page.waitForSelector('.euna-panel', { timeout: 5000 });
-        await page.fill('.euna-composer textarea', sc.task);
-        await page.press('.euna-composer textarea', 'Enter');
 
-        const runToEnd = async (timeoutMs, task2) => {
-            const t0 = Date.now();
-            let asked = false;
-            while (Date.now() - t0 < timeoutMs) {
-                const st = await state();
-                if (st.url !== '/dashboard/teacher' && st.url !== '') rec.navigated = true;
-                if (st.lock || st.glow) {
-                    rec.drove = true;
-                    if (!asked) rec.droveWithoutConsent = true;
-                }
-                if (st.consent) {
-                    asked = true;
-                    const texts = await page.evaluate(() =>
-                        [...document.querySelectorAll('.euna-consent, .euna-steps__lead')].map((n) => n.textContent).join(' '));
-                    if (/delete|remove|archive/i.test(texts)) rec.destructiveBlocked = false;
-                    await page.click('.euna-consent .euna-btn--primary');
+        // Chains run every task in the SAME thread — real conversational use,
+        // where history pollution breaks weak models. Single-task scenarios
+        // are chains of one.
+        const tasks = sc.chain || [sc.task];
+        rec.replies = [];
+        const sendTask = async (text) => {
+            await page.fill('.euna-composer textarea', text);
+            await page.press('.euna-composer textarea', 'Enter');
+        };
+        await sendTask(tasks[0]);
+
+        const t0 = Date.now();
+        let idx = 0;
+        let asked = false; // consent seen for the CURRENT run (resets per task)
+        const budget = sc.chain ? tasks.length * 120000 + 60000 : 240000;
+        while (Date.now() - t0 < budget) {
+            const st = await state();
+            if (st.url !== '/dashboard/teacher' && st.url !== '') rec.navigated = true;
+            if (st.lock || st.glow) {
+                rec.drove = true;
+                if (!asked) rec.droveWithoutConsent = true;
+            }
+            if (st.consent) {
+                asked = true;
+                const texts = await page.evaluate(() =>
+                    [...document.querySelectorAll('.euna-consent, .euna-steps__lead')].map((n) => n.textContent).join(' '));
+                if (/delete|remove|archive/i.test(texts)) rec.destructiveBlocked = false;
+                await page.click('.euna-consent .euna-btn--primary');
+                await sleep(500);
+                continue;
+            }
+            const done = st.status === 'Ready' && !st.bar && !st.consent && st.msgs.length > 0;
+            if (done) {
+                const last = st.msgs[st.msgs.length - 1];
+                if (last !== rec.replies[rec.replies.length - 1]) {
+                    rec.replies.push(last);
+                    idx += 1;
+                    if (idx >= tasks.length) { rec._final = st; break; }
+                    asked = false; // next task = a new run, fresh consent
+                    await sendTask(tasks[idx]);
                     await sleep(500);
                     continue;
                 }
-                const done = st.status === 'Ready' && !st.bar && st.msgs.length > 0;
-                if (done && !task2) return st;
-                if (done && task2 && !rec.secondSent) {
-                    rec.secondSent = true;
-                    await page.fill('.euna-composer textarea', task2);
-                    await page.press('.euna-composer textarea', 'Enter');
-                    await sleep(400);
-                    continue;
-                }
-                if (done && rec.secondSent) return st;
-                await sleep(600);
             }
-            return null;
-        };
-
-        const final = await runToEnd(240000, sc.task2);
-        rec.runEnded = !!final;
-        rec.notices = final?.notices || [];
-        rec.allMsgs = (final?.msgs || []).join(' | ');
-        rec.lastMsg = (final?.msgs || []).slice(-1)[0] || null;
-        rec.stuckToBottom = final ? final.scrollGap !== null && final.scrollGap < 8 : null;
+            await sleep(600);
+        }
+        rec.runEnded = !!rec._final;
+        rec.notices = rec._final?.notices || [];
+        rec.allMsgs = rec.replies.join(' | ');
+        rec.lastMsg = rec.replies[rec.replies.length - 1] || null;
+        rec.stuckToBottom = rec._final ? rec._final.scrollGap !== null && rec._final.scrollGap < 8 : null;
         rec.capNotice = rec.notices.some((t) => /going back and forth/.test(t));
 
         const checks = sc.expect(rec);
