@@ -21,7 +21,7 @@ let highlightSync = null;
 let labelTimer = null;
 
 const CURSOR_STEP_MS = 16;
-const GLIDE_DEFAULT_MS = 550;
+const GLIDE_DEFAULT_MS = 720;
 
 function ensureRoot() {
     if (root && document.body.contains(root)) return root;
@@ -81,7 +81,9 @@ function animateCursorTo(x, y, durationMs) {
     return new Promise((resolve) => {
         const from = { ...cursorPos };
         const dist = Math.hypot(x - from.x, y - from.y);
-        const dur = durationMs ?? Math.min(750, Math.max(220, dist * 1.6));
+        // A slower, more deliberate glide — the old 1.6px/ms read as a
+        // teleport; a teacher watching should see WHERE it went.
+        const dur = durationMs ?? Math.min(1150, Math.max(460, dist * 2.4));
         const start = performance.now();
 
         if (rafId) cancelAnimationFrame(rafId);

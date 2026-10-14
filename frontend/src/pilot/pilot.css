@@ -31,12 +31,25 @@
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
     color: rgba(255, 255, 255, 0.92);
     font-family: var(--db-font-display, 'Inter', sans-serif);
-    animation: euna-drive-bar-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    animation: euna-drive-bar-in 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Leaving: a deliberate rise-and-fade instead of the bar vanishing mid-frame
+   (the "it just disappears" report was a hard unmount). */
+.euna-drive-bar.is-leaving {
+    animation: euna-drive-bar-out 0.24s ease-in forwards;
+    pointer-events: none;
+}
+
+@keyframes euna-drive-bar-out {
+    from { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    to   { opacity: 0; transform: translate(-50%, -14px) scale(0.97); }
 }
 
 @keyframes euna-drive-bar-in {
-    from { opacity: 0; transform: translate(-50%, -16px); }
-    to   { opacity: 1; transform: translate(-50%, 0); }
+    0%   { opacity: 0; transform: translate(-50%, -18px) scale(0.96); }
+    62%  { opacity: 1; transform: translate(-50%, 2px) scale(1.01); }
+    100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
 }
 
 .euna-drive-bar__avatar {
@@ -589,12 +602,32 @@
 }
 
 /* Markdown pipe tables — the model compares data in them; raw pipes in a
-   bubble read like a bug to every teacher who saw one. */
+   bubble read like a bug to every teacher who saw one. Wide tables scroll
+   INSIDE this wrapper so the chat width never blows out. */
+.euna-msg__tablewrap {
+    overflow-x: auto;
+    max-width: 100%;
+    margin: 6px 0 2px;
+    border-radius: 8px;
+    /* thin scrollbar so it reads as intentional */
+    scrollbar-width: thin;
+}
+
+.euna-msg__tablewrap::-webkit-scrollbar {
+    height: 8px;
+}
+
+.euna-msg__tablewrap::-webkit-scrollbar-thumb {
+    background: var(--db-border, rgba(0, 0, 0, 0.18));
+    border-radius: 999px;
+}
+
 .euna-msg__table {
     border-collapse: collapse;
-    margin: 6px 0 2px;
     font-size: 0.92em;
     white-space: normal;
+    width: max-content;
+    min-width: 100%;
 }
 
 .euna-msg__table th,
@@ -603,6 +636,7 @@
     padding: 3px 8px;
     text-align: left;
     vertical-align: top;
+    white-space: nowrap;
 }
 
 .euna-msg__table th {
@@ -623,6 +657,52 @@
 
 .euna-msg__list li::marker {
     color: var(--db-text-3, #888);
+}
+
+/* --- Ask cards — a clarifying question as tappable options ---------------- */
+
+.euna-ask {
+    margin: 6px 0 4px;
+}
+
+.euna-ask__q {
+    margin: 0 0 7px;
+    font-weight: 600;
+}
+
+.euna-ask__options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+}
+
+.euna-ask__option {
+    font-family: inherit;
+    font-size: 13.5px;
+    text-align: left;
+    color: var(--db-text, #111);
+    background: var(--db-card, #fff);
+    border: 1px solid var(--db-border, rgba(0, 0, 0, 0.14));
+    border-radius: 10px;
+    padding: 7px 12px;
+    cursor: pointer;
+    max-width: 100%;
+    transition: border-color 0.13s ease, background 0.13s ease, transform 0.08s ease;
+}
+
+.euna-ask__option:hover {
+    border-color: var(--db-accent, #0a84ff);
+    background: var(--db-accent-soft, rgba(10, 132, 255, 0.08));
+}
+
+.euna-ask__option:active {
+    transform: scale(0.985);
+}
+
+.euna-ask__option:disabled {
+    opacity: 0.5;
+    cursor: default;
 }
 
 /* --- "Someone is typing" bubble — three jumping dots ---------------------- */
