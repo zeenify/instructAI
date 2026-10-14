@@ -140,6 +140,17 @@ const SCENARIOS = [
             noIdLeak: !/class\s*(?:ID|id)\s*\d+|\(id\s*\d+\)/.test(r.allMsgs || ''),
         }),
     },
+    {
+        // TWO quiz systems exist — module/course quizzes and classwork
+        // quizzes. "Make a quiz" must not be answered as studio-only
+        // (Edrick's live-report: the pilot offered only the AI studio).
+        name: 'quiz-type-clarity',
+        task: 'make a quiz for my students about loops',
+        expect: (r) => ({
+            distinguishes: /classwork/i.test(r.lastMsg || '') && /(module|course|lesson|content)/i.test(r.lastMsg || ''),
+            noIdLeak: !/class\s*(?:ID|id)\s*\d+|\(id\s*\d+\)/.test(r.allMsgs || ''),
+        }),
+    },
 ];
 
 const only = process.argv.slice(2);

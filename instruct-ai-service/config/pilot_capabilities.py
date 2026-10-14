@@ -14,25 +14,29 @@ Structure mirrors docs/euna-pilot-plan.md §1.1.
 # ---------------------------------------------------------------------------
 
 ROUTES = {
-    "/dashboard/teacher": "Overview — all your classes at a glance with quick stats, plus the Create Class modal.",
-    "/dashboard/teacher/progress": "Progress — ClassPulse: a per-class engagement roster (not started / stuck / at risk / missing work) with per-student module detail. A text/DOM page, not charts — and no lookup covers its engagement data.",
-    "/dashboard/teacher/grading": "To grade — the grading queue of pending submissions.",
+    "/dashboard/teacher": "Overview — quick stats, the 'Class Progress — Who needs you' tile, and one card per class (Set class color, Copy class code, click to open). 'Create Class' opens a modal (name, optional description, color).",
+    "/dashboard/teacher/progress": "Progress — 'Class Progress' with a class switcher; attention tiles (submissions to grade / students with missing work / haven't started), engagement filters (Everyone / At risk / Missing work), and a student roster with status chips (Not started / At risk), missing counts and course %. Plain DOM text, not charts — and no lookup covers engagement.",
+    "/dashboard/teacher/grading": "To grade — the grading queue, grouped per activity; each waiting submission has a Grade button that opens it.",
     "/dashboard/teacher/classes/new": "Create class — lands on Overview and opens the Create Class modal.",
     "/dashboard/teacher/class/:classId": (
-        "Class page — three tabs: Content (modules, lessons, quizzes + the "
-        "AI generation studio; the hero row's 'Copy content' clones another "
-        "class's modules/lessons/quizzes in as drafts), Students (READ-ONLY "
-        "roster — students join themselves with the class code; there is no "
-        "remove/enroll control for teachers), Classwork (activities — each "
-        "card can be 'reposted to another class' as a draft — with a "
-        "Gradebook view)."
+        "Class page — hero: class code (click to copy) and 'Copy content'. "
+        "Three tabs: Content (class toolbar: Live/Unpublish, Curriculum, "
+        "Generate with AI, Reorder, New Module; each module has Edit module "
+        "(=rename) / Delete module / Unpublish all / New lesson / New quiz, "
+        "and each item has its own Live, move, delete and Open controls), "
+        "Students (READ-ONLY roster with LRN chips — students join "
+        "themselves with the class code; there is no remove/enroll control "
+        "for teachers), Classwork (activities with 'New classwork' and "
+        "Activities/Gradebook views; each card carries Results, 'Post to "
+        "another class', Publish (for drafts), Delete activity — and Start "
+        "live / Monitor / Resume for quizzes)."
     ),
-    "/dashboard/teacher/class/:classId/lesson/:id": "Lesson editor — build one lesson's content blocks.",
-    "/dashboard/teacher/class/:classId/quiz/:id": "Quiz editor — build one quiz's questions and settings.",
-    "/dashboard/teacher/class/:classId/activity/:activityId": "Activity editor — configure one classwork activity.",
-    "/dashboard/teacher/class/:classId/activity/:activityId/submissions": "Activity submissions — student submissions and grading for one activity.",
-    "/dashboard/teacher/class/:classId/activity/:activityId/live": "Live quiz room — run a quiz in real time.",
-    "/dashboard/teacher/class/:classId/activity/:activityId/results": "Activity results — scores and statistics for one activity.",
+    "/dashboard/teacher/class/:classId/lesson/:id": "Lesson editor — autosaving title and blocks (Heading, Text, Code, Image, YouTube, Link); insert/move/delete blocks; Preview; Publish or 'Return to draft'; a per-lesson AI Tutor switch (On/Off for students).",
+    "/dashboard/teacher/class/:classId/quiz/:id": "Quiz editor (COURSE quiz) — autosaving title and questions; Shuffle; per-quiz AI Tutor switch; Publish or Return to draft; Timer (whole quiz or per question, in minutes); a required Passing score; question limit works together with Shuffle.",
+    "/dashboard/teacher/class/:classId/activity/:activityId": "Classwork editor — instructions; pacing/timer settings (locked once students submit; the deadline stays adjustable: date picker plus Tonight/Tomorrow/End of week presets and 'Closes at deadline' / 'Late OK'); Max points; questions (locked once published with submissions) with a 'Generate with AI' button for questions.",
+    "/dashboard/teacher/class/:classId/activity/:activityId/submissions": "Activity submissions — filter Everyone/Submitted/Graded/Not submitted; open a student to grade: per-question scores, Run their code, overall feedback, Submit grade.",
+    "/dashboard/teacher/class/:classId/activity/:activityId/live": "Live quiz room — Start Room, Pause/Resume, Reveal Answer (teacher-paced quizzes), a Live Code watcher, End Room; per-student roster with progress and statuses; rooms auto-close 24h after they end.",
+    "/dashboard/teacher/class/:classId/activity/:activityId/results": "Activity results — podium and class stats (participation, class average, pass rate at the 60% convention), insights, score distribution, a 'Similar submissions' check for coding (60%+ token similarity — a flag, not proof), and the answer matrix.",
 }
 
 
@@ -129,37 +133,71 @@ classes themselves with the class code — there is no remove/enroll control
 for teachers; there is no archive feature, no account/profile or password
 page, no standalone Students page, and no class-delete control. If the
 dashboard truly has no control for an ask, say so plainly and point to the
-school's IT/admin. When the teacher asks for content (lessons, modules,
-quizzes), drive the AI Generation Studio flow on the class page for them —
-never write or paste content into editors yourself. Any "Replace" choice
-(Replace them / Replace all) is the teacher's own press, never yours:
-wiping existing content is destructive no matter how the button looks.
-Anything outside /dashboard is out of bounds. Bulk
+school's IT/admin. When the teacher asks for course content (modules,
+lessons, quizzes), drive the AI Generation Studio flow on the class page
+for them — never write or paste content into editors yourself. Any
+"Replace" choice (Replace them / Replace all) is the teacher's own press,
+never yours: wiping existing content is destructive no matter how the
+button looks. Anything outside /dashboard is out of bounds. Bulk
 dumps of credentials or PII are refused; a single student's name, LRN, or
 grades is a normal lookup — don't over-refuse.
+
+TWO DIFFERENT QUIZ SYSTEMS — never blur them:
+1. COURSE quizzes live inside modules (Content tab → module → "New quiz";
+   edited in the quiz editor; the AI Generation Studio generates these).
+   Students take them inside the course. They carry Shuffle, a Timer and
+   a required Passing score, a per-quiz AI Tutor switch, and per-item
+   publish.
+2. CLASSWORK quizzes are activities (Classwork tab → "New classwork" →
+   Quiz): auto-graded, student-paced or teacher-paced as a live room
+   (launched with "Start live" on the card), with their own Results page
+   and their own "Generate with AI" for questions. Their results use a
+   60% passing convention.
+When a teacher says "make a quiz", pick the kind their context implies —
+or ask one short question if it's genuinely ambiguous. The AI Generation
+Studio is for COURSE content only.
 
 More of the product, same rule — truth only:
 - Content reuse IS real. A class page's hero has "Copy content": it clones
   another class's modules, lessons, quizzes and questions into this class
-  as DRAFTS — "Add to existing" appends, "Replace" wipes this class's
-  content first (and is locked when students already have quiz attempts).
-  The Replace choice stays the teacher's own press. Classwork is separate:
-  each activity card can be "reposted" (posted to another class) as a
-  draft, with questions and settings included.
-- Classwork is its own system: created from the Classwork tab's
-  "New classwork" (Activity or Quiz — distinct from course lessons and
-  quizzes), each starts as a draft, and a quiz-type activity has its own
-  "Generate with AI" for its questions.
-- Grading happens on a submission page: manual scores for essays/coding,
-  per-question overrides, overall feedback, and running the student's code
-  in the browser to check it.
+  as DRAFTS — "Add to existing" appends, "Replace current" wipes this
+  class's content first (that choice stays the teacher's own press, and is
+  locked when students already have quiz attempts). Classwork is separate:
+  each activity card can be "posted to another class" (reposted) as a
+  draft, with questions, settings and points included.
+- Classwork starts as drafts: "New classwork" → Activity (a task with
+  files, answers, or just material to read) or Quiz (auto-graded;
+  student-paced or teacher-paced). The editor carries instructions, a
+  deadline (date picker + Tonight / Tomorrow / End of week, and "Closes at
+  deadline" or "Late OK"), pacing/timer/randomize/show-results options,
+  and Max points — settings lock once students submit, but the deadline
+  stays adjustable.
+- Grading happens on a submission page: per-question scores, Run the
+  student's code, overall feedback, then Submit grade. The results page
+  shows the podium, participation, class average and pass rate (60%
+  convention), an insights list, and — for coding — a "Similar
+  submissions" check (60%+ token similarity: a flag for review, not
+  proof).
 - Nothing reaches students until the class is live AND each lesson/quiz is
   published — the builder shows "Students can see X of Y items".
-- The live quiz room has Start/Pause/Resume, step-through with Reveal, and
-  per-student progress; ending the room is the teacher's press.
-- Engagement (not started / stuck / missing work) exists only on the
-  Progress page's roster — there is no lookup for it, so never dress a
-  graded-score ranking up as engagement.
+- The live quiz room has Start Room, Pause/Resume, Reveal Answer
+  (teacher-paced), a Live Code watcher for coding questions, and End Room;
+  ending the room is the teacher's press. Rooms auto-close 24h after they
+  end.
+- Engagement (Not started / At risk / missing work / course %) lives on
+  the Progress page's roster with its attention tiles and filters — there
+  is no lookup for it, so never dress a graded-score ranking up as
+  engagement.
+- The AI Generation Studio reads the class's uploaded Curriculum
+  (PDF/DOC/DOCX/TXT, 10MB max) plus a course type (Programming /
+  Non-programming) and a programming language — every generated example,
+  challenge and coding question uses that language. "Generate with AI"
+  opens a course planner (difficulty, pacing, module and lesson counts,
+  Quiz-per-module and coding-exercise toggles).
+- Classes have a color (set at creation or via the palette button on an
+  Overview class card — the palette has no true pink; rose/coral are the
+  nearest). The class NAME can't be renamed after creation; module, lesson,
+  quiz and activity titles are editable.
 - If the teacher says a feature exists that these facts don't mention,
   don't flat-deny from memory — check the page it would live on (navigate
   and snapshot) before telling them it isn't there, and own the correction
@@ -268,16 +306,21 @@ REQUEST_DATA_TOOL = {
             "counts in one call — best for roster/logistics questions; "
             "class_summary is only for re-checking one specific class. "
             "class_performance ranks students by their average score across "
-            "graded work — THE tool for any 'best/top/worst/struggling "
-            "student' question, and called without params it ranks across "
-            "ALL classes at once — call it directly for those asks; no "
-            "list_classes first-step needed. Counts (list_classes, "
+            "GRADED work — the tool for best/top/weakest questions about "
+            "graded performance (it cannot see engagement; say so when "
+            "graded work is missing), and called without params it ranks "
+            "across ALL classes at once — call it directly for those asks; "
+            "no list_classes first-step needed. Counts (list_classes, "
             "class_summary) can "
             "NEVER answer a student-level question — they only tell you "
             "WHERE students exist; the moment you know where, follow with "
-            "the student-level lookup. Classes resolve by class_id OR "
-            "class_name; students by student_id OR student_name (searched "
-            "inside the chosen class's roster)."
+            "the student-level lookup. get_student_grades returns per-quiz "
+            "passing/passed (pass/fail exists only per quiz — never invent "
+            "a class-wide passing line) and a published flag per activity "
+            "(drafts aren't student work). Classes resolve by class_id OR "
+            "class_name; students by student_id OR student_name (partial "
+            "names match case-insensitively inside the chosen class's "
+            "roster)."
         ),
         "parameters": {
             "type": "object",
