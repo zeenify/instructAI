@@ -97,18 +97,32 @@ function reSnapshot(ctx) {
  * Wait for the route change to actually settle — SPA navigation kicks off
  * data fetches that render for a while; a fixed sleep raced them and sent
  * the model skeleton snapshots (it re-issued goto until the turn budget
- * killed the run). Waits until the DOM stops mutating for ~350ms, capped
- * at 4s, then snapshots whatever is on screen.
+ * killed the run). Waits until the DOM stops mutating AND the page has real
+ * content, capped at 6.5s, then snapshots whatever is on screen.
  */
 async function gotoSettle(ctx) {
-    const deadline = Date.now() + 4000;
+    const deadline = Date.now() + 6500;
     let lastMutation = Date.now();
     const observer = new MutationObserver(() => {
         lastMutation = Date.now();
     });
     observer.observe(document.body, { childList: true, subtree: true });
+    // A quiet DOM is not a loaded page: routes render their shell and
+    // skeletons first, then sit perfectly still while TanStack queries are
+    // in flight. The old 350ms-quiescence check snapshotted exactly that
+    // state — the pilot "saw" only the sidebar on a fully working class
+    // page and told the teacher the page hadn't rendered.
+    const contentReady = () => {
+        const main = document.querySelector('main');
+        if (!main) return true;
+        const skeletons = main.querySelectorAll('.db-skeleton').length;
+        const text = (main.innerText || '').trim();
+        return skeletons === 0 && text.length > 40;
+    };
     try {
-        while (Date.now() - lastMutation < 350 && Date.now() < deadline) {
+        while (Date.now() < deadline) {
+            const quiescent = Date.now() - lastMutation >= 350;
+            if (quiescent && contentReady()) break;
             await sleep(120);
         }
         await sleep(250); // let the final mutation's renders paint

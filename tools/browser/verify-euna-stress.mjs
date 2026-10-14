@@ -135,7 +135,7 @@ const SCENARIOS = [
         name: 'copy-content-knowledge',
         task: 'can you copy the lessons and quizzes from smoke test class into section a?',
         expect: (r) => ({
-            knowsFeature: /copy content/i.test(r.lastMsg || ''),
+            knowsFeature: /copy (content|dialog)/i.test(r.lastMsg || ''),
             noFlatDenial: !/(no .{0,24}(copy|duplicate)|can'?t copy|not able to copy|copy doesn'?t exist)/i.test(r.lastMsg || ''),
             noIdLeak: !/class\s*(?:ID|id)\s*\d+|\(id\s*\d+\)/.test(r.allMsgs || ''),
         }),
@@ -148,7 +148,20 @@ const SCENARIOS = [
         task: 'make a quiz for my students about loops',
         expect: (r) => ({
             distinguishes: /classwork/i.test(r.lastMsg || '') && /(module|course|lesson|content)/i.test(r.lastMsg || ''),
+            concise: (r.lastMsg || '').length < 900,
             noIdLeak: !/class\s*(?:ID|id)\s*\d+|\(id\s*\d+\)/.test(r.allMsgs || ''),
+        }),
+    },
+    {
+        // The snapshot must wait for a page's data render — a skeleton-only
+        // snapshot once made the pilot tell the teacher the class page
+        // "hadn't rendered" and refuse to continue (Edrick's live-report).
+        name: 'class-page-renders',
+        task: 'open smoke test class and tell me what tabs and sections the page has',
+        expect: (r) => ({
+            sawTabs: /students/i.test(r.lastMsg || '') && /classwork/i.test(r.lastMsg || ''),
+            noFalseWall: !/(hasn'?t rendered|only shows the sidebar|hit a wall|not rendered|didn'?t render)/i.test(r.lastMsg || ''),
+            concise: (r.lastMsg || '').length < 1300,
         }),
     },
 ];
@@ -182,7 +195,11 @@ try {
         consent: !!document.querySelector('.euna-consent'),
         typing: !!document.querySelector('.euna-typing'),
         notices: [...document.querySelectorAll('.euna-notice span')].map((n) => n.textContent),
-        msgs: [...document.querySelectorAll('.euna-msg--euna .euna-msg__text')].map((n) => n.textContent.slice(0, 400)),
+        // innerText, not textContent: rich replies render bullets/tables as
+        // real DOM blocks, and textContent concatenates those without any
+        // separators ("graded"+"asd" → "gradedasd") — captures must read
+        // the way the teacher SEES the bubble.
+        msgs: [...document.querySelectorAll('.euna-msg--euna .euna-msg__text')].map((n) => (n.innerText || n.textContent).slice(0, 1400)),
         scrollGap: (() => { const el = document.querySelector('.euna-panel__body'); return el ? el.scrollHeight - el.scrollTop - el.clientHeight : null; })(),
     }));
 

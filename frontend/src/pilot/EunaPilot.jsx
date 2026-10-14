@@ -88,6 +88,8 @@ function renderRich(text) {
     const lines = clean.split('\n');
     const isTableRow = (l) => /^\s*\|.*\|\s*$/.test(l);
     const isSeparator = (l) => /^\s*\|[\s:|-]+\|\s*$/.test(l);
+    const isBullet = (l) => /^\s*[-*•]\s+/.test(l);
+    const isNumbered = (l) => /^\s*\d+[.)]\s+/.test(l);
     const out = [];
     let key = 0;
     let plain = [];
@@ -98,10 +100,44 @@ function renderRich(text) {
         plain = [];
     };
     for (let i = 0; i < lines.length; i++) {
+        // The model glues the table's header to the intro sentence ("…the
+        // rundown: | Class | … |") and the following prose to the last row
+        // ("| test | 0 | 0 | So, …"). Split those grafts so a real table
+        // renders instead of raw pipes.
+        if (
+            !isTableRow(lines[i]) &&
+            lines[i].includes('|') &&
+            i + 1 < lines.length &&
+            isSeparator(lines[i + 1])
+        ) {
+            const cut = lines[i].indexOf('|');
+            plain.push(lines[i].slice(0, cut).trimEnd());
+            lines[i] = lines[i].slice(cut);
+        }
         if (isTableRow(lines[i])) {
             const block = [];
-            while (i < lines.length && isTableRow(lines[i])) block.push(lines[i++]);
-            i--;
+            let j = i;
+            while (j < lines.length) {
+                const l = lines[j];
+                if (isTableRow(l)) {
+                    block.push(l);
+                    j += 1;
+                    continue;
+                }
+                if (l.trim().startsWith('|')) {
+                    // "| row… | trailing prose" — cut at the last pipe; the
+                    // tail rejoins the prose stream on the next pass
+                    const lastPipe = l.lastIndexOf('|');
+                    const head = l.slice(0, lastPipe + 1);
+                    if (isTableRow(head)) {
+                        block.push(head);
+                        lines[j] = l.slice(lastPipe + 1).trim();
+                        if (!lines[j]) j += 1;
+                    }
+                }
+                break;
+            }
+            i = j - 1;
             const rows = block
                 .filter((l) => !isSeparator(l))
                 .map((l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim()));
@@ -126,6 +162,27 @@ function renderRich(text) {
             } else {
                 plain.push(...block);
             }
+        } else if (isBullet(lines[i]) || isNumbered(lines[i])) {
+            // Consecutive "- item" / "1. item" lines become REAL list
+            // elements — raw dashes with pre-wrap read as a wall of text.
+            const ordered = isNumbered(lines[i]);
+            const items = [];
+            while (
+                i < lines.length &&
+                (ordered ? isNumbered(lines[i]) : isBullet(lines[i]))
+            ) {
+                items.push(lines[i++].replace(/^\s*(?:[-*•]|\d+[.)])\s+/, ''));
+            }
+            i--;
+            flushPlain();
+            const ListTag = ordered ? 'ol' : 'ul';
+            out.push(
+                <ListTag className={`euna-msg__list ${ordered ? 'euna-msg__list--num' : ''}`} key={`l${key++}`}>
+                    {items.map((item, ii) => (
+                        <li key={ii}>{renderInline(item, 30000 + key * 40 + ii)}</li>
+                    ))}
+                </ListTag>
+            );
         } else {
             plain.push(lines[i]);
         }
@@ -314,7 +371,7 @@ export default function EunaPilot() {
                                 return (
                                     <div key={m.id} className="euna-msg euna-msg--euna">
                                         <EunaAvatar size={24} className="euna-msg__avatar" />
-                                        <span className={`euna-msg__text ${m.streaming ? 'is-streaming' : ''}`}>{renderRich(m.text)}</span>
+                                        <div className={`euna-msg__text ${m.streaming ? 'is-streaming' : ''}`}>{renderRich(m.text)}</div>
                                     </div>
                                 );
                             }

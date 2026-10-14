@@ -610,6 +610,21 @@
     background: var(--db-card-2, rgba(0, 0, 0, 0.04));
 }
 
+/* Real bullet / numbered lists — chat replies scan, they don't read */
+.euna-msg__list {
+    margin: 4px 0 6px;
+    padding-left: 18px;
+    white-space: normal;
+}
+
+.euna-msg__list li {
+    margin: 2px 0;
+}
+
+.euna-msg__list li::marker {
+    color: var(--db-text-3, #888);
+}
+
 /* --- "Someone is typing" bubble — three jumping dots ---------------------- */
 
 .euna-typing {

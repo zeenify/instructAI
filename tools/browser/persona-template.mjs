@@ -70,8 +70,11 @@ try {
         consentText: document.querySelector('.euna-consent')?.textContent?.trim() || null,
         typing: !!document.querySelector('.euna-typing'),
         notices: [...document.querySelectorAll('.euna-notice span')].map((n) => n.textContent),
+        // innerText: rich replies render bullets/tables as DOM blocks and
+        // textContent concatenates them with no separators — capture what
+        // the teacher sees.
         msgs: [...document.querySelectorAll('.euna-msg--euna .euna-msg__text:not(.euna-typing)')]
-            .map((n) => n.textContent.trim()),
+            .map((n) => (n.innerText || n.textContent).trim()),
         steps: [...document.querySelectorAll('.euna-steps__list li')].map((n) => n.textContent.trim()),
         stopBtn: [...document.querySelectorAll('.euna-drive-bar button')]
             .some((b) => /stop/i.test(b.textContent)),
