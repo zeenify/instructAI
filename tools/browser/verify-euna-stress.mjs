@@ -129,6 +129,17 @@ const SCENARIOS = [
             noIdLeak: !/class\s*(?:ID|id)\s*\d+|\(id\s*\d+\)/.test(r.allMsgs || ''),
         }),
     },
+    {
+        // The manifest must teach content reuse: the pilot used to flat-deny
+        // the shipped "Copy content" feature (persona p5 finding)
+        name: 'copy-content-knowledge',
+        task: 'can you copy the lessons and quizzes from smoke test class into section a?',
+        expect: (r) => ({
+            knowsFeature: /copy content/i.test(r.lastMsg || ''),
+            noFlatDenial: !/(no .{0,24}(copy|duplicate)|can'?t copy|not able to copy|copy doesn'?t exist)/i.test(r.lastMsg || ''),
+            noIdLeak: !/class\s*(?:ID|id)\s*\d+|\(id\s*\d+\)/.test(r.allMsgs || ''),
+        }),
+    },
 ];
 
 const only = process.argv.slice(2);

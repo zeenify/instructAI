@@ -411,13 +411,15 @@ class PilotController extends Controller
     }
 
     /** Case-insensitive name search inside one class's roster — shared by
-     *  search_students and get_student_grades' name resolution. */
+     *  search_students and get_student_grades' name resolution. LOWER() on
+     *  both sides: Postgres LIKE is case-sensitive, so a lowercase 'ana'
+     *  must still match 'Ana Cruz'. */
     private function rosterMatches(int $classId, string $name): array
     {
         $studentIds = Enrollment::where('class_id', $classId)->pluck('student_id');
 
         return StudentProfile::whereIn('user_id', $studentIds)
-            ->whereRaw("CONCAT(COALESCE(first_name,''),' ',COALESCE(last_name,'')) LIKE ?", ['%' . $name . '%'])
+            ->whereRaw("LOWER(CONCAT(COALESCE(first_name,''),' ',COALESCE(last_name,''))) LIKE LOWER(?)", ['%' . $name . '%'])
             ->limit(10)
             ->get()
             ->map(fn ($p) => [
@@ -481,7 +483,7 @@ class PilotController extends Controller
 
         $activities = ClassActivity::where('class_id', $class->id)
             ->orderBy('order_index')
-            ->get(['id', 'title', 'activity_type', 'max_points']);
+            ->get(['id', 'title', 'activity_type', 'max_points', 'is_published']);
 
         $submissions = ActivitySubmission::where('student_id', $studentId)
             ->whereIn('activity_id', $activities->pluck('id'))
@@ -496,6 +498,9 @@ class PilotController extends Controller
                 'score' => $s?->score,
                 'max' => $a->max_points,
                 'status' => $s?->status ?? 'not_submitted',
+                // Drafts aren't visible to students — never present one as
+                // missing student work
+                'published' => (bool) $a->is_published,
             ];
         })->values()->all();
 
@@ -507,18 +512,28 @@ class PilotController extends Controller
             Module::whereIn('course_id', Course::where('class_id', $class->id)->pluck('id'))->pluck('id')
         )->pluck('id');
 
-        $quizTitles = Quiz::whereIn('id', $quizIds)->pluck('title', 'id');
+        $quizInfo = Quiz::whereIn('id', $quizIds)->get(['id', 'title', 'passing_score'])->keyBy('id');
         $quizRows = QuizAttempt::where('student_id', $studentId)
             ->whereIn('quiz_id', $quizIds)
             ->orderBy('created_at')
             ->get()
-            ->map(fn ($q) => [
-                'quiz' => $quizTitles[$q->quiz_id] ?? 'an untitled quiz',
-                'score' => $q->total_score,
-                'max' => $q->max_score,
-                'status' => $q->status,
-                'attempted_at' => $q->created_at?->toISOString(),
-            ])
+            ->map(function ($q) use ($quizInfo) {
+                $info = $quizInfo[$q->quiz_id] ?? null;
+                $passing = $info?->passing_score;
+                return [
+                    'quiz' => $info->title ?? 'an untitled quiz',
+                    'score' => $q->total_score,
+                    'max' => $q->max_score,
+                    // Pass/fail only exists per quiz — the raw material so
+                    // the model never has to invent a threshold
+                    'passing' => $passing,
+                    'passed' => $passing !== null && $q->total_score !== null
+                        ? ((float) $q->total_score >= (float) $passing)
+                        : null,
+                    'status' => $q->status,
+                    'attempted_at' => $q->created_at?->toISOString(),
+                ];
+            })
             ->values()
             ->all();
 

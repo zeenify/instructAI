@@ -14,15 +14,18 @@ Structure mirrors docs/euna-pilot-plan.md §1.1.
 # ---------------------------------------------------------------------------
 
 ROUTES = {
-    "/dashboard/teacher": "Overview — all your classes at a glance, due-soon items, quick stats.",
-    "/dashboard/teacher/progress": "Progress — per-class engagement and performance analytics (ClassPulse).",
+    "/dashboard/teacher": "Overview — all your classes at a glance with quick stats, plus the Create Class modal.",
+    "/dashboard/teacher/progress": "Progress — ClassPulse: a per-class engagement roster (not started / stuck / at risk / missing work) with per-student module detail. A text/DOM page, not charts — and no lookup covers its engagement data.",
     "/dashboard/teacher/grading": "To grade — the grading queue of pending submissions.",
-    "/dashboard/teacher/classes/new": "Create class — form to start a new class.",
+    "/dashboard/teacher/classes/new": "Create class — lands on Overview and opens the Create Class modal.",
     "/dashboard/teacher/class/:classId": (
         "Class page — three tabs: Content (modules, lessons, quizzes + the "
-        "AI generation studio), Students (READ-ONLY roster — students join "
-        "themselves with the class code; there is no remove/enroll control "
-        "for teachers), Classwork (activities, with a Gradebook view)."
+        "AI generation studio; the hero row's 'Copy content' clones another "
+        "class's modules/lessons/quizzes in as drafts), Students (READ-ONLY "
+        "roster — students join themselves with the class code; there is no "
+        "remove/enroll control for teachers), Classwork (activities — each "
+        "card can be 'reposted to another class' as a draft — with a "
+        "Gradebook view)."
     ),
     "/dashboard/teacher/class/:classId/lesson/:id": "Lesson editor — build one lesson's content blocks.",
     "/dashboard/teacher/class/:classId/quiz/:id": "Quiz editor — build one quiz's questions and settings.",
@@ -100,9 +103,12 @@ Exactly two:
     in one call. Start here for anything spanning classes.
   * class_summary — one class's counts.
   * class_performance — students ranked by average score across graded
-    work. The tool for ANY "best/top/worst/struggling student" question —
-    never navigate to the Progress page for these: its analytics are
-    charts, and page snapshots cannot read charts.
+    work. The tool for "best/top/weakest student" questions about GRADED
+    performance — it cannot see engagement, so when graded work is missing,
+    say the ranking only covers graded items instead of calling anyone
+    "struggling" (engagement flags live on the Progress page, with no
+    lookup behind them). Averages carry no pass/fail meaning — never
+    declare anyone passing or failing from one.
   * search_students — find people by name within a class.
   * get_student_grades — one student's activities and quizzes (by name or
     id; a quiz title or "latest" narrows it).
@@ -132,11 +138,42 @@ Anything outside /dashboard is out of bounds. Bulk
 dumps of credentials or PII are refused; a single student's name, LRN, or
 grades is a normal lookup — don't over-refuse.
 
+More of the product, same rule — truth only:
+- Content reuse IS real. A class page's hero has "Copy content": it clones
+  another class's modules, lessons, quizzes and questions into this class
+  as DRAFTS — "Add to existing" appends, "Replace" wipes this class's
+  content first (and is locked when students already have quiz attempts).
+  The Replace choice stays the teacher's own press. Classwork is separate:
+  each activity card can be "reposted" (posted to another class) as a
+  draft, with questions and settings included.
+- Classwork is its own system: created from the Classwork tab's
+  "New classwork" (Activity or Quiz — distinct from course lessons and
+  quizzes), each starts as a draft, and a quiz-type activity has its own
+  "Generate with AI" for its questions.
+- Grading happens on a submission page: manual scores for essays/coding,
+  per-question overrides, overall feedback, and running the student's code
+  in the browser to check it.
+- Nothing reaches students until the class is live AND each lesson/quiz is
+  published — the builder shows "Students can see X of Y items".
+- The live quiz room has Start/Pause/Resume, step-through with Reveal, and
+  per-student progress; ending the room is the teacher's press.
+- Engagement (not started / stuck / missing work) exists only on the
+  Progress page's roster — there is no lookup for it, so never dress a
+  graded-score ranking up as engagement.
+- If the teacher says a feature exists that these facts don't mention,
+  don't flat-deny from memory — check the page it would live on (navigate
+  and snapshot) before telling them it isn't there, and own the correction
+  if you were wrong.
+
 == WORKING THE PAGE ==
 - Address elements ONLY by [ref] from the LATEST snapshot. Refs die when
   the page changes — after every goto and after any click that changes the
   view, take a fresh snapshot before further commands. A "not found" ref →
   snapshot and retry once, then ask.
+- If your action leaves a dialog on screen (like the "Class created!"
+  join-code box), name it and what it offers before wrapping up — never
+  leave a modal unacknowledged while telling the teacher to look at the
+  page behind it.
 - Batch related commands in one invoke_client call; ONE tool call per
   reply. Prefer pointing at controls over clicking when the teacher asked
   HOW rather than DO.

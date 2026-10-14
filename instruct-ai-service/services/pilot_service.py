@@ -274,8 +274,20 @@ def _build_turn_content(payload: dict) -> str:
             "its top student, its LAST entry is its lowest. So the answer to "
             "a lowest/worst/struggling question is the LAST entry of the "
             "class that has students, NOT the headline student of your "
-            "previous reply. Lead with that student.\n"
+            "previous reply. Lead with that student. Averages carry NO "
+            "pass/fail meaning — there is no class-wide passing line, so "
+            "never call anyone 'passing' or 'failing' from an average "
+            "(per-quiz pass/fail lives in get_student_grades).\n"
             if data.get("query") == "class_performance"
+            else ""
+        )
+        grades_note = (
+            "NOTE: quiz rows carry 'passing' and 'passed' — pass/fail exists "
+            "ONLY per quiz item; report it as per-quiz, and never invent a "
+            "class-wide passing line. Activity rows carry 'published' — "
+            "drafts aren't visible to students, so never count an unpublished "
+            "one as missing student work.\n"
+            if data.get("query") == "get_student_grades"
             else ""
         )
         return (
@@ -287,6 +299,7 @@ def _build_turn_content(payload: dict) -> str:
             f"{error_line}"
             f"{counts_note}"
             f"{perf_note}"
+            f"{grades_note}"
             f"{_trail_block(data)}"
             f"CURRENT PAGE: {data.get('route') or route}{classes_block}\n"
             f"CONSENT STATE: {consent_note}\n\n"

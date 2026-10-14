@@ -32,9 +32,13 @@ const INTERACTIVE_SELECTOR = [
 // here deliberately: the AI Studio's "Replace them / Replace all" commit
 // wipes a class's existing modules and questions, and an agent must never
 // make that choice under a general wheel consent.
-const DESTRUCTIVE_WORDS = /\b(delete|remove|confirm|unpublish|archive|reset|revoke|kick|sign out|logout|replace)\b/i;
+const DESTRUCTIVE_WORDS = /\b(delete|remove|confirm|unpublish|archive|reset|revoke|kick|sign out|logout|replace|end room)\b/i;
 
-const isDialogish = (el) => !!el.closest('[role="dialog"], [role="alertdialog"], .modal, [class*="modal"]');
+// The AI Studio's review modals use the gen-* class family rather than a
+// modal role — without them "Replace them / Replace my class content" would
+// escape the destructive marking and ride a general "Take the wheel" consent.
+const isDialogish = (el) =>
+    !!el.closest('[role="dialog"], [role="alertdialog"], .modal, [class*="modal"], .gen-overlay, [class*="gen-card"]');
 
 function isVisible(el) {
     const rect = el.getBoundingClientRect();

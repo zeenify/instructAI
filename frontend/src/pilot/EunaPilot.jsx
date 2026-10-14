@@ -46,20 +46,21 @@ function describeCommand(c) {
     return `${label} ${target}`.trim();
 }
 
-// Tiny rich-text pass for EUNA's narration: **bold**, `inline code`, and
-// dashboard links [label](/dashboard/…) which navigate the SPA in place.
-// Refs are scrubbed first so internal ids never reach the teacher's eyes.
-function renderRich(text) {
+// Tiny rich-text pass for EUNA's narration: **bold**, *italic*, `inline
+// code`, markdown pipe tables (she compares data in them), and dashboard
+// links [label](/dashboard/…) which navigate the SPA in place. Refs are
+// scrubbed first so internal ids never reach the teacher's eyes.
+function renderInline(text, keyBase) {
     const parts = [];
-    const re = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\(\/[^)]+\))/g;
+    const re = /(\*\*[^*]+\*\*|\*[^*\n]+\*|`[^`]+`|\[[^\]]+\]\(\/[^)]+\))/g;
     let last = 0;
-    let key = 0;
+    let key = keyBase;
     let m;
-    const clean = scrubRefs(text);
-    while ((m = re.exec(clean))) {
-        if (m.index > last) parts.push(clean.slice(last, m.index));
+    while ((m = re.exec(text))) {
+        if (m.index > last) parts.push(text.slice(last, m.index));
         const tok = m[0];
         if (tok.startsWith('**')) parts.push(<strong key={key++}>{tok.slice(2, -2)}</strong>);
+        else if (tok.startsWith('*')) parts.push(<em key={key++}>{tok.slice(1, -1)}</em>);
         else if (tok.startsWith('`')) parts.push(<code key={key++} className="euna-inline-code">{tok.slice(1, -1)}</code>);
         else {
             const link = tok.match(/^\[([^\]]+)\]\((\/[^)]+)\)$/);
@@ -78,8 +79,59 @@ function renderRich(text) {
         }
         last = m.index + tok.length;
     }
-    if (last < clean.length) parts.push(clean.slice(last));
+    if (last < text.length) parts.push(text.slice(last));
     return parts;
+}
+
+function renderRich(text) {
+    const clean = scrubRefs(text);
+    const lines = clean.split('\n');
+    const isTableRow = (l) => /^\s*\|.*\|\s*$/.test(l);
+    const isSeparator = (l) => /^\s*\|[\s:|-]+\|\s*$/.test(l);
+    const out = [];
+    let key = 0;
+    let plain = [];
+    const flushPlain = () => {
+        if (!plain.length) return;
+        out.push(...renderInline(plain.join('\n'), key));
+        key += Math.max(plain.length, 1);
+        plain = [];
+    };
+    for (let i = 0; i < lines.length; i++) {
+        if (isTableRow(lines[i])) {
+            const block = [];
+            while (i < lines.length && isTableRow(lines[i])) block.push(lines[i++]);
+            i--;
+            const rows = block
+                .filter((l) => !isSeparator(l))
+                .map((l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim()));
+            if (rows.length >= 2) {
+                flushPlain();
+                out.push(
+                    <table className="euna-msg__table" key={`t${key++}`}>
+                        <thead>
+                            <tr>
+                                {rows[0].map((c, ci) => <th key={ci}>{renderInline(c, 10000 + ci)}</th>)}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.slice(1).map((r, ri) => (
+                                <tr key={ri}>
+                                    {r.map((c, ci) => <td key={ci}>{renderInline(c, 20000 + ri * 40 + ci)}</td>)}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                );
+            } else {
+                plain.push(...block);
+            }
+        } else {
+            plain.push(lines[i]);
+        }
+    }
+    flushPlain();
+    return out;
 }
 
 function StepRow({ c, result }) {
@@ -172,7 +224,9 @@ export default function EunaPilot() {
         ? 'Ask me to show, tell, or do…'
         : waiting
             ? 'Your call — take the wheel, or stop me…'
-            : 'EUNA is driving…';
+            : driving
+                ? 'EUNA is driving…'
+                : 'Working…';
     const typingLabel =
         status === 'thinking'
             ? 'Thinking'

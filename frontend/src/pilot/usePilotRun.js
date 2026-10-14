@@ -104,6 +104,28 @@ function lookupDigest(query, result) {
 const ACTION_CLAIM_RE =
     /\b(?:i'?ll|i\s+will|i'?m|i\s+am|let'?s|let\s+me|we'?ll|we\s+are\s+going\s+to|going\s+to)\s+(?:go|head|open|take|bring|show|pull|navigate|jump|click|check|explain|describe|walk|break|look|search|set\s+up|create|delete|remove|grade|start|run|find|get|give|list|summarize|pull\s+up|point|show\s+you)\b/i;
 
+// Conditional offers ("if you name the class I'll open it", "say the word
+// and I'll pull it up") are the model asking for input — NOT claims about
+// the current turn. Testing sentence-by-sentence with a conditional cue
+// keeps the genuine mid-message claims ("I'm opening the class page — which
+// one?") while killing the offer noise that nudged ~every chatty turn.
+// Only the LAST TWO fragments are tested: real dangling claims sit where
+// the model stopped, while capability menus and quoted examples (also full
+// of "I'll check...") ride mid-message.
+const CLAIM_CONDITIONAL_RE =
+    /\b(?:if|when|once|want\s+me\s+to|shall\s+i|would\s+you\s+like|say\s+(?:the\s+word|so|go)|just\s+(?:say|name|tell|give|pick)|give\s+me|name\s+(?:the|a|which|one)|pick\s+(?:one|a)|make\s+me\s+a|let\s+me\s+know|tell\s+me\s+(?:which|who|what)|take\s+(?:that|it)\s+as)\b/i;
+
+function hasDanglingClaim(narration) {
+    const fragments = String(narration || '')
+        .split(/(?<=[.!?])\s+|\n+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(-2);
+    return fragments.some(
+        (s) => ACTION_CLAIM_RE.test(s) && !CLAIM_CONDITIONAL_RE.test(s)
+    );
+}
+
 export function usePilotRun() {
     const [open, setOpen] = useState(false);
     const [messages, setMessages] = useState(() => {
@@ -357,7 +379,8 @@ export function usePilotRun() {
             // Dangling-claim backstop: the turn claimed an action ("I'm
             // opening the class page…", "I'll explain how removal works…")
             // but finished with no tool call and didn't deliver the words.
-            // A trailing question does NOT launder a claim made mid-message.
+            // A trailing question does NOT launder a claim made mid-message;
+            // conditional offers ("say the word and I'll…") are not claims.
             // First offense → one continuation ordering act-or-ask. If it
             // happens AGAIN, end with an honest visible handoff instead of
             // leaving a false "done" on screen.
@@ -365,9 +388,14 @@ export function usePilotRun() {
                 finishReason === 'stop' &&
                 !pendingTool &&
                 !pendingLookup &&
-                ACTION_CLAIM_RE.test(turnNarration);
+                hasDanglingClaim(turnNarration);
             if (narratedVoidAction && !nudgeUsedRef.current) {
                 nudgeUsedRef.current = true;
+                // The nudge is a NEW turn of its own — close the finished
+                // turn's bubble first, or its narration appends onto the
+                // previous reply (two answers glued into one bubble).
+                if (streamingRef.current) updateMessage(streamingRef.current, { streaming: false });
+                streamingRef.current = null;
                 await runTurn('tool-result', {
                     data: {
                         route: window.location.pathname,
