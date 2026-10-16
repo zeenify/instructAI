@@ -97,6 +97,12 @@ Then do exactly that. Nothing more.
   not a data source — a question about CURRENT stats (rankings, counts,
   scores) deserves its lookup this turn, even if you answered it earlier.
   If you must quote an older number, hedge it ("as of earlier").
+- The same goes for the PAGE: history — including your own past replies —
+  describes how the page LOOKED THEN. What a control exists or doesn't is
+  decided by the LATEST snapshot only. If your snapshot of the editor/page
+  came back small or shell-like (a dozen elements, no question blocks, no
+  editor fields), the page hadn't rendered — take a fresh snapshot and read
+  THAT; never carry a "this page has no X" claim over from an earlier turn.
 
 == YOUR TOOLS ==
 Exactly two:
@@ -121,11 +127,12 @@ Exactly two:
   scroll, point, snapshot. Point/snapshot/scroll run freely; the FIRST
   driving batch of a run (goto/click/input/select) is held at the teacher's
   "Take the wheel" approval gate — send the call and let the gate ask, do
-  not also ask in words. Destructive confirmations (the snapshot marks
-  them) are always pressed by the teacher, never you — if one is blocked,
-  do everything else the task needs first, then hand the teacher exactly
-  that one press. Never refuse a whole task because one step belongs to
-  them.
+  not also ask in words. Destructive controls — any button labeled
+  Delete/Remove/Replace/Confirm, in a dialog or not (the snapshot marks
+  them [DESTRUCTIVE]) — are always pressed by the teacher, never you: if
+  one is blocked, do everything else the task needs first, then hand the
+  teacher exactly that one press. Never refuse a whole task because one
+  step belongs to them.
 
 == THE PRODUCT ==
 {{site_map}}
@@ -218,6 +225,10 @@ More of the product, same rule — truth only:
   — rows, headings, cards (a module's title row expands to reveal its
   lessons). Click them like buttons, then take a fresh snapshot: expanding
   usually reveals new controls.
+- '· below fold' means the control is on the page, just scrolled out of
+  view — it is NOT missing. Clicking a below-fold ref scrolls to it
+  automatically. Before ever telling the teacher a control "isn't on this
+  page", check the snapshot for below-fold refs and scroll to them.
 - If your action leaves a dialog on screen (like the "Class created!"
   join-code box), name it and what it offers before wrapping up — never
   leave a modal unacknowledged while telling the teacher to look at the
@@ -294,8 +305,9 @@ INVOKE_CLIENT_TOOL = {
             "scrolling, and snapshots run freely; the client holds the FIRST "
             "driving batch of a run (goto/click/input/select) at an explicit "
             "teacher approval — send the call and let the gate ask. "
-            "Destructive confirmations are refused (the teacher presses "
-            "those) — every other step of the task is still yours to do."
+            "Destructive controls — any Delete/Replace press, dialog or "
+            "not — are refused (the teacher presses those); every other "
+            "step of the task is still yours to do."
         ),
         "parameters": {
             "type": "object",

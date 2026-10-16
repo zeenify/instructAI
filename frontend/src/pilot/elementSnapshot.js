@@ -35,24 +35,29 @@ const INTERACTIVE_SELECTOR = [
     'h4',
 ].join(',');
 
-// A destructive confirmation control. The executor refuses to click these —
-// the teacher's own hand always finishes destructive actions. "replace" is
+// A destructive control. The executor refuses to click these — the
+// teacher's own hand always finishes destructive actions. "replace" is
 // here deliberately: the AI Studio's "Replace them / Replace all" commit
 // wipes a class's existing modules and questions, and an agent must never
-// make that choice under a general wheel consent.
+// make that choice under a general wheel consent. Marking is by LABEL, not
+// by dialog: per-row "Delete" buttons sit outside dialogs and are exactly
+// the ones a driving agent fat-fingers (the repro deleted a quiz while
+// trying to OPEN it — "Open" was invisible, "Delete" was right there).
 const DESTRUCTIVE_WORDS = /\b(delete|remove|confirm|unpublish|archive|reset|revoke|kick|sign out|logout|replace|end room)\b/i;
 
-// The AI Studio's review modals use the gen-* class family rather than a
-// modal role — without them "Replace them / Replace my class content" would
-// escape the destructive marking and ride a general "Take the wheel" consent.
-const isDialogish = (el) =>
-    !!el.closest('[role="dialog"], [role="alertdialog"], .modal, [class*="modal"], .gen-overlay, [class*="gen-card"]');
+// Capture window: the viewport plus a generous vertical margin. Controls
+// that are merely scrolled out of view still EXIST — a snapshot that omits
+// them teaches the model "this page has no Add-question control" while the
+// control is one scroll away (the quiz-editor repro). The executor scrolls
+// before clicking, so below-fold refs are fully actionable; entryLine flags
+// them so the model knows a scroll is involved.
+const CAPTURE_MARGIN = 1400;
 
 function isVisible(el) {
     const rect = el.getBoundingClientRect();
     if (rect.width < 8 || rect.height < 8) return false;
-    if (rect.bottom < 0 || rect.right < 0) return false;
-    if (rect.top > window.innerHeight + 200 || rect.left > window.innerWidth + 200) return false;
+    if (rect.bottom < -CAPTURE_MARGIN || rect.right < 0) return false;
+    if (rect.top > window.innerHeight + CAPTURE_MARGIN || rect.left > window.innerWidth + 200) return false;
     const style = getComputedStyle(el);
     if (style.visibility === 'hidden' || style.display === 'none') return false;
     if (parseFloat(style.opacity) === 0) return false;
@@ -96,6 +101,9 @@ function describeElement(el, ref) {
     }
     if (el.isContentEditable) entry.input = true;
     if (el.disabled) entry.disabled = true;
+    // Scrolled out of view but present — the executor scrolls to refs
+    // before acting, so this is a "you'll need to scroll" hint, not a limit
+    if (rect.y > window.innerHeight) entry.belowFold = true;
 
     // Affordance signal: non-button elements the UI itself marks clickable
     // (cursor: pointer) — module title rows that expand, cards, selectable
@@ -107,12 +115,10 @@ function describeElement(el, ref) {
         } catch { /* detached — no style */ }
     }
 
-    // Destructive confirm controls inside dialogs are flagged and blocked
-    if (
-        (el.tagName === 'BUTTON' || role === 'button') &&
-        isDialogish(el) &&
-        DESTRUCTIVE_WORDS.test(name)
-    ) {
+    // Any control whose label is a destructive verb is flagged and blocked —
+    // standalone per-row "Delete" buttons don't live in dialogs but get the
+    // same protection as dialog confirms.
+    if ((el.tagName === 'BUTTON' || role === 'button') && DESTRUCTIVE_WORDS.test(name)) {
         entry.dangerous = true;
     }
 
@@ -124,6 +130,7 @@ function entryLine(entry) {
     if (entry.name) parts.push(`"${entry.name}"`);
     if (entry.href) parts.push(`→ ${entry.href}`);
     if (entry.clickable) parts.push('· clickable');
+    if (entry.belowFold) parts.push('· below fold');
     if (entry.input) parts.push('(text input)');
     if (entry.value !== undefined) parts.push(`value: "${entry.value}"`);
     if (entry.disabled) parts.push('[disabled]');
@@ -155,6 +162,47 @@ export function buildElementSnapshot() {
         if (!entry.name && !entry.input && !entry.href) continue; // unnamed, unactionable
         entries.push(entry);
         lines.push(entryLine(entry));
+    }
+
+    // Pointer-affordance rows — list rows and cards the UI marks clickable
+    // with cursor:pointer that aren't semantic controls. The module builder's
+    // quiz/lesson rows are the load-bearing case: the ROW opens the item,
+    // while the only buttons inside it are per-item tools ("delete", "Live").
+    // Without a ref for the row itself the pilot can read the row but not
+    // touch it — and reaching for the adjacent Delete button is how the repro
+    // deleted a quiz while trying to open it. Only the element that DECLARES
+    // pointer (its parent doesn't inherit it) is captured, so a row isn't
+    // duplicated by every child span that inherits the cursor.
+    const captured = new Set(entries.map((e) => e.el));
+    const declaresPointer = (el) => {
+        try {
+            if (getComputedStyle(el).cursor !== 'pointer') return false;
+            const parent = el.parentElement;
+            return !parent || getComputedStyle(parent).cursor !== 'pointer';
+        } catch {
+            return false;
+        }
+    };
+    let pointerAdded = 0;
+    for (const el of document.querySelectorAll('div,li,tr,td,span,p')) {
+        if (entries.length >= MAX_ELEMENTS || pointerAdded >= 16) break;
+        if (el.closest('[data-euna-ignore]') || el.closest('[aria-hidden="true"]')) continue;
+        if (captured.has(el)) continue;
+        if (el.matches('a,button,input,textarea,select,label,[role="button"],h1,h2,h3,h4')) continue;
+        if (!isVisible(el) || !declaresPointer(el)) continue;
+        // A pointer wrapper around form fields is noise — the field is the
+        // actionable thing and is already captured
+        if (el.querySelector('input,textarea,select,[contenteditable="true"]')) continue;
+        // Name the row by its identity, not its tools — strip control labels
+        const clone = el.cloneNode(true);
+        clone.querySelectorAll('button,input,textarea,select,svg,[data-euna-ignore]').forEach((x) => x.remove());
+        const name = (clone.textContent || '').trim().replace(/\s+/g, ' ').slice(0, NAME_LIMIT);
+        if (name.length < 2) continue;
+        const entry = describeElement(el, entries.length + 1);
+        entry.name = name;
+        entries.push(entry);
+        lines.push(entryLine(entry));
+        pointerAdded += 1;
     }
 
     // Page outline — the page's text structure (headings, list rows, column

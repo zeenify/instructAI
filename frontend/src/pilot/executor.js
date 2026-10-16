@@ -6,7 +6,8 @@
  * command returns a structured result that is fed back to the model.
  *
  * Safety rules enforced here (never trusted to the model):
- *  - destructive confirm controls ([DESTRUCTIVE] in the snapshot) are refused;
+ *  - destructive controls ([DESTRUCTIVE] in the snapshot — any
+ *    Delete/Remove/Replace-labeled button, dialog or not) are refused;
  *    the teacher's own click finishes those
  *  - goto only moves inside the teacher dashboard
  *  - refs that vanished resolve to "take a snapshot" failures, never guesses
@@ -94,13 +95,15 @@ function reSnapshot(ctx) {
 }
 
 /**
- * Wait for the route change to actually settle — SPA navigation kicks off
- * data fetches that render for a while; a fixed sleep raced them and sent
- * the model skeleton snapshots (it re-issued goto until the turn budget
- * killed the run). Waits until the DOM stops mutating AND the page has real
- * content, capped at 6.5s, then snapshots whatever is on screen.
+ * Wait for the page to actually settle — SPA renders kick off data fetches
+ * that render for a while; a fixed sleep raced them and sent the model
+ * skeleton snapshots (it then answered from stale conversation history
+ * instead — a 13-element shell snapshot made it "remember" the editor had
+ * no add-question control). Waits until the DOM stops mutating AND the page
+ * has real content, capped at 6.5s, then snapshots whatever is on screen.
+ * Used after BOTH goto and click.
  */
-async function gotoSettle(ctx) {
+async function waitForPageSettle(ctx) {
     const deadline = Date.now() + 6500;
     let lastMutation = Date.now();
     const observer = new MutationObserver(() => {
@@ -121,7 +124,12 @@ async function gotoSettle(ctx) {
     };
     try {
         while (Date.now() < deadline) {
-            const quiescent = Date.now() - lastMutation >= 350;
+            // 700ms of quiet, not 350: a button click can trigger a POST
+            // whose only DOM trace is the button disabling and re-enabling
+            // when the response lands — snapshotting at first quiescence
+            // catches controls mid-flight (the palette read "all disabled"
+            // while a question was still being created).
+            const quiescent = Date.now() - lastMutation >= 700;
             if (quiescent && contentReady()) break;
             await sleep(120);
         }
@@ -174,7 +182,7 @@ async function runOne(cmd, ctx) {
         }
         overlay.hideHighlight();
         pilotNavigate(path);
-        await gotoSettle(ctx);
+        await waitForPageSettle(ctx);
         return { action, ok: true, message: `navigated to ${path}` };
     }
 
@@ -198,7 +206,7 @@ async function runOne(cmd, ctx) {
         return { action, ok: true, message: 'scrolled' };
     }
 
-    const target = resolveTarget(ref, ctx);
+    let target = resolveTarget(ref, ctx);
     if (!target) {
         // Tell the model WHAT it lost — a bare ref number gives it nothing
         // to recover with
@@ -224,7 +232,7 @@ async function runOne(cmd, ctx) {
                 ref,
                 ok: false,
                 blocked: true,
-                message: `BLOCKED: "${target.entry.name}" is a destructive confirmation. Ask the teacher to press it themselves and end your part of the task.`,
+                message: `BLOCKED: "${target.entry.name}" deletes or overwrites something — destructive actions stay in the teacher's hands. Do everything else the task needs, then ask them to press this one themselves.`,
             };
         }
         target.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -235,8 +243,10 @@ async function runOne(cmd, ctx) {
         throwIfAborted(ctx.signal);
         overlay.pulseAt(x, y);
         target.el.click();
-        await sleep(650); // modal / route settle
-        reSnapshot(ctx);
+        // The click's result is often a fetch-and-render (route change, modal
+        // with its own query) — settle like a goto, or the auto-snapshot is a
+        // 13-element shell and the model answers from stale history instead
+        await waitForPageSettle(ctx);
         return { action, ref, ok: true, message: `clicked "${target.entry.name || ref}"` };
     }
 
@@ -253,19 +263,45 @@ async function runOne(cmd, ctx) {
         await aimAt(target, { label: ctx.batchExplain });
         target.el.focus();
 
-        if (target.el.isContentEditable) {
-            target.el.textContent = value;
-            target.el.dispatchEvent(new InputEvent('input', { bubbles: true }));
-        } else {
-            const proto = target.el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-            const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-            setter?.call(target.el, value);
-            target.el.dispatchEvent(new Event('input', { bubbles: true }));
-        }
+        const applyValue = (el) => {
+            if (el.isContentEditable) {
+                el.textContent = value;
+                el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+            } else {
+                const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+                Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(el, value);
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        };
+        applyValue(target.el);
         await sleep(250);
+        // Read-back: React state updates, controlled inputs and validation
+        // rules can silently reject a fill. Report what the field ACTUALLY
+        // holds — the model guessing "maybe the button stayed disabled" came
+        // from having no ground truth about the fill.
+        const readBack = (el) =>
+            String(el.isContentEditable ? el.textContent : el.value ?? '');
+        let fieldReads = readBack(target.el);
+        if (fieldReads !== value) {
+            // One retry — the first dispatch can race a re-render that
+            // replaces the node between focus and set
+            const reanchored = resolveTarget(ref, ctx);
+            if (reanchored) target = reanchored;
+            applyValue(target.el);
+            await sleep(250);
+            fieldReads = readBack(target.el);
+        }
         // Say BOTH the value and the field — the audit log reads like a
         // natural sentence and can't be mistaken for "it typed the placeholder"
-        return { action, ref, ok: true, message: `filled "${value}" into ${target.entry.name ? `"${target.entry.name}"` : `field ${ref}`}` };
+        if (fieldReads === value) {
+            return { action, ref, ok: true, message: `filled "${value}" into ${target.entry.name ? `"${target.entry.name}"` : `field ${ref}`} — verified, the field reads it back` };
+        }
+        return {
+            action,
+            ref,
+            ok: false,
+            message: `typed "${value}" but the field reads "${fieldReads || '(empty)'}" — it rejected or cleared the input (wrong control, readonly, or the app rewrote it). Take a snapshot, find the real input, and fill that.`,
+        };
     }
 
     if (action === 'select') {

@@ -555,7 +555,11 @@ export function usePilotRun() {
                         { query: event.query, params: event.params || {} },
                         { signal: abortRef.current?.signal, timeout: 20000 },
                     );
-                    result = resp.data;
+                    // Laravel wraps the payload as { query, result } — the
+                    // digests, the cache and the Python error note all read
+                    // the bare result, so unwrap here or every trail line
+                    // about a lookup is empty/garbage
+                    result = resp.data?.result ?? resp.data;
                     failedLookupStreakRef.current = 0;
                     lookupCacheRef.current.set(cacheKey, result);
                 } catch (err) {
