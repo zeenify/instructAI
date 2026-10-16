@@ -182,7 +182,10 @@ def _build_turn_content(payload: dict) -> str:
             "(The earlier conversation is background context only. THIS "
             "request is the live question — ground your answer in data you "
             "fetch this turn, especially for stats that change: rankings, "
-            "counts, scores, submissions.)"
+            "counts, scores, submissions. And this request is an ORDER to "
+            "execute, not a status check: an \"add/create\" request means "
+            "make a NEW one — items that already exist on the page, however "
+            "similar, do not satisfy it.)"
         )
 
     if kind == "tool-result":
@@ -195,7 +198,20 @@ def _build_turn_content(payload: dict) -> str:
         # Restate the run's own task: server-side history can carry older
         # threads, and 'continue' must never mean 'finish an earlier ask'
         task = _clip(payload.get("task"), 500)
-        task_line = f"\nCURRENT TASK: {task}\nWrap up THAT task — not anything earlier in history.\n" if task else ""
+        task_line = f"\nCURRENT TASK: {task}\nWork on THAT task — not anything earlier in history.\n" if task else ""
+        # The client matched the row in the fresh snapshot against the exact
+        # string this batch typed — the model opened a same-looking sibling
+        # row instead of its own creation twice in a row without this.
+        hint = data.get("created_hint")
+        hint_line = (
+            f"\nNOTE: the item THIS batch just created (you typed \"{hint.get('value')}\") "
+            f"is snapshot ref [{hint.get('ref')}] — \"{hint.get('name')}\""
+            + (" — below the fold; clicking it scrolls there automatically"
+               if hint.get("below") else "")
+            + ". Operate on THAT ref, not a similar-looking row.\n"
+            if isinstance(hint, dict) and hint.get("ref") is not None
+            else ""
+        )
         nudge_line = (
             "NOTE: your last reply CLAIMED an action (\"I'm opening…\", "
             "\"I'll explain…\") but sent NO tool call and didn't deliver the "
@@ -213,13 +229,19 @@ def _build_turn_content(payload: dict) -> str:
             "\n".join(lines)
             + ("\n" if results else "")
             + f"{task_line}"
+            + f"{hint_line}"
             + f"{nudge_line}"
             + _trail_block(data)
             + f"CURRENT PAGE: {data.get('route') or route}{classes_block}\n"
             f"CONSENT STATE: {consent_note}\n\n"
             f"PAGE ELEMENTS (address by [ref]):\n{snapshot}\n\n"
-            "Continue the task. If it's done, give a short wrap-up answering the "
-            "original request — no tool call needed."
+            "The task is done only when EVERY part of CURRENT TASK is "
+            "complete — one successful step is not the task. Decide now:\n"
+            "- Task complete → give a short wrap-up answering the original "
+            "request, no tool call.\n"
+            "- Task not complete → send the NEXT tool call in this reply. Do "
+            "not end the turn with a status report or a \"want me to…?\" "
+            "offer while a step you are able to take remains — take it."
         )
 
     if kind == "lookup-result":

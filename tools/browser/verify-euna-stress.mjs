@@ -57,9 +57,10 @@ const SCENARIOS = [
         name: 'delegate-to-studio',
         task: 'make me a lesson about loops',
         expect: (r) => ({
-            // Correct behavior is EITHER studio delegation OR a clarifying
-            // ask (which class/module) — a blind guess is what fails
-            handled: /studio|generate|create|made|built|saved|which class|which module/i.test(r.lastMsg || ''),
+            // Correct behavior is studio delegation, a clarifying ask, OR a
+            // full drive to the drafted-outline dialog (the destructive
+            // Keep-vs-Replace choice stays at the teacher — postCheck below)
+            handled: /studio|generate|create|made|built|saved|drafted|outline|which class|which module|keep them|replace/i.test(r.lastMsg || ''),
         }),
         postCheck: 'existingContentSurvives', // pre-existing modules must not be wiped
     },
@@ -135,7 +136,9 @@ const SCENARIOS = [
         name: 'copy-content-knowledge',
         task: 'can you copy the lessons and quizzes from smoke test class into section a?',
         expect: (r) => ({
-            knowsFeature: /copy (content|dialog)|which class|add to existing|replace current|clone/i.test(r.lastMsg || ''),
+            // The model may either explain the feature or actually execute
+            // the copy (additive, drafts) — both are correct answers to the ask
+            knowsFeature: /copy (content|dialog)|which class|add to existing|replace current|clone|went through|copied|now has|as a fresh copy|came in as/i.test(r.lastMsg || ''),
             noFlatDenial: !/(no .{0,24}(copy|duplicate)|can'?t copy|not able to copy|copy doesn'?t exist)/i.test(r.lastMsg || ''),
             noIdLeak: !/class\s*(?:ID|id)\s*\d+|\(id\s*\d+\)/.test(r.allMsgs || ''),
         }),

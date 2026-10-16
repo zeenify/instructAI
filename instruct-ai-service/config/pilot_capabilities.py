@@ -57,7 +57,7 @@ operate the interface for them, visibly."""
 # Prompt assembly + budgets
 # ---------------------------------------------------------------------------
 
-MAX_SNAPSHOT_CHARS = 6000
+MAX_SNAPSHOT_CHARS = 12000
 MAX_HISTORY_MSG_CHARS = 4000
 HISTORY_TURNS = 8
 

@@ -9,7 +9,7 @@
  * tries to operate itself.
  */
 
-export const MAX_ELEMENTS = 80;
+export const MAX_ELEMENTS = 140;
 export const NAME_LIMIT = 60;
 
 const INTERACTIVE_SELECTOR = [
@@ -155,7 +155,24 @@ export function buildElementSnapshot() {
 
     for (const el of candidates) {
         if (entries.length >= MAX_ELEMENTS) {
-            lines.push(`… (${candidates.length - MAX_ELEMENTS} more elements truncated)`);
+            // Don't just count the cut — NAME it. A bare "N more truncated"
+            // hid exactly the controls the model was hunting for (the
+            // add-question palette), sending it into scroll/snapshot loops
+            // after a control that was in the DOM but out of its window.
+            const cut = candidates.slice(MAX_ELEMENTS);
+            const names = new Map();
+            for (const c of cut) {
+                const n = (
+                    c.getAttribute('aria-label') ||
+                    (typeof c.innerText === 'string' ? c.innerText : '') ||
+                    c.getAttribute('title') || c.getAttribute('placeholder') || ''
+                ).trim().replace(/\s+/g, ' ').slice(0, 40);
+                if (!n) continue;
+                names.set(n, (names.get(n) || 0) + 1);
+                if (names.size >= 6) break;
+            }
+            const preview = [...names.entries()].map(([n, k]) => (k > 1 ? `"${n}" ×${k}` : `"${n}"`)).join(', ').slice(0, 200);
+            lines.push(`… (${cut.length} more truncated — including: ${preview || 'unnamed controls'})`);
             break;
         }
         const entry = describeElement(el, entries.length + 1);
@@ -193,10 +210,15 @@ export function buildElementSnapshot() {
         // A pointer wrapper around form fields is noise — the field is the
         // actionable thing and is already captured
         if (el.querySelector('input,textarea,select,[contenteditable="true"]')) continue;
-        // Name the row by its identity, not its tools — strip control labels
+        // Name the row by its identity, not its tools — strip control labels,
+        // and put a space at every tag boundary (textContent would
+        // concatenate "03QUIZQuiz 3: Applied Ethics Check2 questionsOpen"
+        // into one unparseable token, which is how the model confused the
+        // quiz it created with a same-named sibling)
         const clone = el.cloneNode(true);
-        clone.querySelectorAll('button,input,textarea,select,svg,[data-euna-ignore]').forEach((x) => x.remove());
-        const name = (clone.textContent || '').trim().replace(/\s+/g, ' ').slice(0, NAME_LIMIT);
+        clone.querySelectorAll('button,input,textarea,select,svg,[data-euna-ignore]').forEach((x) => x.replaceWith(' '));
+        const name = (clone.innerHTML.replace(/<[^>]*>/g, ' ') || '')
+            .replace(/\s+/g, ' ').trim().slice(0, NAME_LIMIT);
         if (name.length < 2) continue;
         const entry = describeElement(el, entries.length + 1);
         entry.name = name;

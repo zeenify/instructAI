@@ -44,10 +44,12 @@ const LOOKUP_LABELS = {
     get_student_grades: 'scores',
 };
 
-// Hard cap on tool round-trips inside one run — the last line of defense
-// against a model stuck re-requesting data (the stop button remains the
-// teacher's override at any moment)
-const MAX_TOOL_TURNS = 8;
+// Hard cap on tool round-trips inside one run — a backstop against a model
+// stuck in a loop, NOT a task budget: real driving work is multi-step (a
+// "make a 5-question quiz" run spends 2-3 batches PER question). Loop
+// protection proper lives in the repeat-guard (identical all-failed batch)
+// and the failed-lookup streak; this only stops degenerate wandering.
+const MAX_TOOL_TURNS = 24;
 
 export const PILOT_SUGGESTIONS = [
     'Summarize my classes',
@@ -157,6 +159,14 @@ export function usePilotRun() {
     const toolTurnsRef = useRef(0);
     const stopNoticeShownRef = useRef(false);
     const lastBatchKeyRef = useRef(null);
+    // Read-loop detection: scroll/snapshot batches SUCCEED by definition, so
+    // a model hunting a control that isn't landing in its window can spin a
+    // dozen turns without tripping the failed-batch guard
+    const readLoopKeyRef = useRef(null);
+    const readLoopCountRef = useRef(0);
+    // A typed-and-committed name whose matching row the model hasn't opened
+    // yet — feeds the creation anchor until consumed
+    const pendingCreationRef = useRef(null);
     const taskRef = useRef('');
     const runIdRef = useRef(null);
     const turnTokenRef = useRef(null);
@@ -503,8 +513,55 @@ export function usePilotRun() {
             }
             lastBatchKeyRef.current = batchKey;
 
+            // Read-loop detection: identical read batches don't fail, they
+            // just keep returning the same page. 3× → a warning rides back
+            // to the model; 6× → stop the run the same way the failed-batch
+            // guard does.
+            const isReadBatch = commands.every((c) => SILENT_ACTIONS.has(String(c.action)) || String(c.action) === 'scroll');
+            if (isReadBatch) {
+                if (batchKey === readLoopKeyRef.current) readLoopCountRef.current += 1;
+                else {
+                    readLoopKeyRef.current = batchKey;
+                    readLoopCountRef.current = 1;
+                }
+            } else {
+                readLoopKeyRef.current = null;
+                readLoopCountRef.current = 0;
+            }
+            if (readLoopCountRef.current >= 6) {
+                push({ kind: 'notice', text: "The same read keeps landing on the same page — I'm stopping rather than spinning. Tell me what I'm missing and I'll pick it up from there." });
+                await finalize();
+                return;
+            }
+
             if (streamingRef.current) updateMessage(streamingRef.current, { streaming: false });
             streamingRef.current = null;
+
+            // Creation anchor: a batch that typed a name and clicked through
+            // it created something — the row in the CURRENT snapshot matching
+            // that string is the thing it made. Kept PENDING until the model
+            // actually clicks the matched ref: the new row often renders a
+            // beat after the post-Add snapshot (the model opened a same-
+            // looking visible sibling twice without this).
+            let createdHint = null;
+            const typedValues = results
+                .filter((r) => r.action === 'input' && r.ok && r.command?.value)
+                .map((r) => String(r.command.value))
+                .filter((v) => v.length >= 6);
+            if (typedValues.length) pendingCreationRef.current = { value: typedValues[typedValues.length - 1] };
+            if (pendingCreationRef.current) {
+                const val = pendingCreationRef.current.value;
+                const matches = [...snapshotRef.current.entries.values()].filter(
+                    (e) => e.name && e.name.includes(val)
+                );
+                if (matches.length === 1) {
+                    const hit = matches[0];
+                    createdHint = { value: val, ref: hit.ref, name: hit.name, below: !!hit.belowFold };
+                    if (results.some((r) => r.action === 'click' && r.ok && Number(r.ref) === Number(hit.ref))) {
+                        pendingCreationRef.current = null; // consumed — the model opened its creation
+                    }
+                }
+            }
 
             await runTurn('tool-result', {
                 data: {
@@ -514,6 +571,7 @@ export function usePilotRun() {
                     consent: consentRef.current,
                     explain: event.explain,
                     commands,
+                    created_hint: createdHint || undefined,
                     recent_calls: trailRef.current.slice(-10),
                     results: results.map((r) => ({
                         action: r.action,
@@ -521,7 +579,16 @@ export function usePilotRun() {
                         ok: r.ok,
                         blocked: r.blocked || undefined,
                         message: r.message,
-                    })),
+                    })).concat(
+                        readLoopCountRef.current >= 3
+                            ? [{
+                                action: 'repeat',
+                                ref: null,
+                                ok: false,
+                                message: `identical read batch repeated ${readLoopCountRef.current}× — the control you're hunting is not appearing in snapshots. Change approach: scroll a different distance, goto the page fresh, or tell the teacher this page doesn't have it.`,
+                            }]
+                            : []
+                    ),
                 },
             });
         },
@@ -638,6 +705,9 @@ export function usePilotRun() {
             abortedRef.current = false;
             stopNoticeShownRef.current = false;
             lastBatchKeyRef.current = null;
+            readLoopKeyRef.current = null;
+            readLoopCountRef.current = 0;
+            pendingCreationRef.current = null;
             trailRef.current = [];
             lookupCacheRef.current = new Map();
             failedLookupStreakRef.current = 0;
