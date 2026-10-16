@@ -243,8 +243,10 @@ function renderRich(text, onOption) {
 
 // An "ask block" turns EUNA's clarifying questions into tappable options
 // (the Claude/ZCode pattern): a "Question:" line followed by "- option"
-// or "1. option" lines renders as buttons instead of plain text.
-const ASK_LABEL_RE = /^\s*(?:question|q)\s*[:：]\s*(.+)$/i;
+// or "1. option" lines renders as buttons instead of plain text. The label
+// matches ANYWHERE in the line — the model glues it to its intro sentence
+// ("…live. Which class? Question: Which class should I open?").
+const ASK_LABEL_RE = /(?:^|\s)(?:question|q)\s*[:：]\s*(.+?)\s*$/i;
 const ASK_OPTION_RE = /^\s*(?:[-*•]|\d+[.)])\s+(.+)$/;
 
 function renderAskBlock(question, options, key, onOption) {

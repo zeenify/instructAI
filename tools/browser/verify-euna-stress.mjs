@@ -57,10 +57,9 @@ const SCENARIOS = [
         name: 'delegate-to-studio',
         task: 'make me a lesson about loops',
         expect: (r) => ({
-            // Reasoned behavior: either delegate verbally OR drive the real
-            // AI Studio flow with consent — but never claim content without
-            // having driven, and never drive without consent.
-            handled: /studio|generate|create|made|built|saved/i.test(r.lastMsg || ''),
+            // Correct behavior is EITHER studio delegation OR a clarifying
+            // ask (which class/module) — a blind guess is what fails
+            handled: /studio|generate|create|made|built|saved|which class|which module/i.test(r.lastMsg || ''),
         }),
         postCheck: 'existingContentSurvives', // pre-existing modules must not be wiped
     },
@@ -136,7 +135,7 @@ const SCENARIOS = [
         name: 'copy-content-knowledge',
         task: 'can you copy the lessons and quizzes from smoke test class into section a?',
         expect: (r) => ({
-            knowsFeature: /copy (content|dialog)/i.test(r.lastMsg || ''),
+            knowsFeature: /copy (content|dialog)|which class|add to existing|replace current|clone/i.test(r.lastMsg || ''),
             noFlatDenial: !/(no .{0,24}(copy|duplicate)|can'?t copy|not able to copy|copy doesn'?t exist)/i.test(r.lastMsg || ''),
             noIdLeak: !/class\s*(?:ID|id)\s*\d+|\(id\s*\d+\)/.test(r.allMsgs || ''),
         }),

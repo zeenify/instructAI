@@ -214,6 +214,10 @@ More of the product, same rule — truth only:
   the page changes — after every goto and after any click that changes the
   view, take a fresh snapshot before further commands. A "not found" ref →
   snapshot and retry once, then ask.
+- '· clickable' marks non-button elements the page itself makes clickable
+  — rows, headings, cards (a module's title row expands to reveal its
+  lessons). Click them like buttons, then take a fresh snapshot: expanding
+  usually reveals new controls.
 - If your action leaves a dialog on screen (like the "Class created!"
   join-code box), name it and what it offers before wrapping up — never
   leave a modal unacknowledged while telling the teacher to look at the

@@ -97,6 +97,16 @@ function describeElement(el, ref) {
     if (el.isContentEditable) entry.input = true;
     if (el.disabled) entry.disabled = true;
 
+    // Affordance signal: non-button elements the UI itself marks clickable
+    // (cursor: pointer) — module title rows that expand, cards, selectable
+    // rows. cursor inherits, so a title inside a pointer row reads pointer
+    // too. Without this the pilot sees a heading and assumes it's inert.
+    if (!el.matches('a,button,input,textarea,select')) {
+        try {
+            if (getComputedStyle(el).cursor === 'pointer') entry.clickable = true;
+        } catch { /* detached — no style */ }
+    }
+
     // Destructive confirm controls inside dialogs are flagged and blocked
     if (
         (el.tagName === 'BUTTON' || role === 'button') &&
@@ -113,6 +123,7 @@ function entryLine(entry) {
     const parts = [`[${entry.ref}] ${entry.role}`];
     if (entry.name) parts.push(`"${entry.name}"`);
     if (entry.href) parts.push(`→ ${entry.href}`);
+    if (entry.clickable) parts.push('· clickable');
     if (entry.input) parts.push('(text input)');
     if (entry.value !== undefined) parts.push(`value: "${entry.value}"`);
     if (entry.disabled) parts.push('[disabled]');
@@ -144,6 +155,33 @@ export function buildElementSnapshot() {
         if (!entry.name && !entry.input && !entry.href) continue; // unnamed, unactionable
         entries.push(entry);
         lines.push(entryLine(entry));
+    }
+
+    // Page outline — the page's text structure (headings, list rows, column
+    // headers). Controls say WHAT is actionable; the outline says what the
+    // things ARE (which module, which lesson, which column). Row identities
+    // are plain text, so without this the pilot sees controls it can't tell
+    // apart. Bounded; text already covered by a ref is skipped.
+    const outlineLines = [];
+    const outlineSeen = (text) => entries.some((e) => e.name && (e.name.includes(text) || text.includes(e.name)));
+    const container = document.querySelector('main') || document.body;
+    for (const el of container.querySelectorAll('h1,h2,h3,h4,h5,h6,li,th,caption')) {
+        if (outlineLines.length >= 40) break;
+        if (el.closest('[data-euna-ignore]') || el.closest('[aria-hidden="true"]')) continue;
+        if (!isVisible(el)) continue;
+        // Control labels (Live / Move / Delete buttons inside rows) are
+        // noise — the outline is identity only
+        const clone = el.cloneNode(true);
+        clone.querySelectorAll('button,input,textarea,select,svg,[data-euna-ignore]').forEach((x) => x.remove());
+        const text = (clone.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 90);
+        if (text.length < 2 || outlineSeen(text)) continue;
+        const kind = el.tagName === 'LI' ? 'row' : el.tagName === 'TH' ? 'col' : el.tagName.toLowerCase();
+        outlineLines.push(`${kind}: ${text}`);
+    }
+    if (outlineLines.length) {
+        lines.push('');
+        lines.push('PAGE OUTLINE (structure — what the things above are):');
+        for (const o of outlineLines) lines.push(`  ${o}`);
     }
 
     return { text: lines.join('\n'), entries };
