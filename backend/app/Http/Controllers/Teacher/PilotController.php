@@ -331,22 +331,26 @@ class PilotController extends Controller
                 return ['class' => $class->name, 'enrolled' => 0, 'note' => 'no students enrolled yet', 'ranked' => []];
             }
 
-            // Every graded item becomes one (student, pct) row
-            $scores = collect();
+            // Two grade systems live side by side: course-module quizzes and
+            // classwork activities. Track them SEPARATELY per student — a
+            // student can ace one and have nothing in the other, and the
+            // Gradebook view only shows the classwork half.
+            $quizPcts = collect();
+            $cwPcts = collect();
 
             $maxByActivity = ClassActivity::where('class_id', $class->id)->pluck('max_points', 'id');
-            if ($maxByActivity->isNotEmpty()) {
-                ActivitySubmission::whereIn('activity_id', $maxByActivity->keys())
-                    ->whereIn('student_id', $studentIds)
-                    ->whereNotNull('score')
-                    ->get(['student_id', 'score', 'activity_id'])
-                    ->each(function ($s) use ($scores, $maxByActivity) {
-                        $max = (float) $maxByActivity[$s->activity_id];
-                        if ($max > 0) {
-                            $scores->push(['student_id' => $s->student_id, 'pct' => $s->score / $max]);
-                        }
-                    });
-            }
+            ActivitySubmission::whereIn('activity_id', $maxByActivity->keys())
+                ->whereIn('student_id', $studentIds)
+                ->whereNotNull('score')
+                ->get(['student_id', 'score', 'activity_id', 'max_score'])
+                ->each(function ($s) use ($cwPcts, $maxByActivity) {
+                    // The submission's own max wins; the activity's max_points
+                    // is only the fallback (QA data often leaves it NULL)
+                    $max = (float) ($s->max_score ?: ($maxByActivity[$s->activity_id] ?? 0));
+                    if ($max > 0) {
+                        $cwPcts->push(['student_id' => $s->student_id, 'pct' => $s->score / $max]);
+                    }
+                });
 
             $quizIds = Quiz::whereIn(
                 'module_id',
@@ -359,17 +363,24 @@ class PilotController extends Controller
                     ->whereIn('student_id', $studentIds)
                     ->where('status', 'completed')
                     ->get(['student_id', 'total_score', 'max_score'])
-                    ->each(function ($q) use ($scores) {
+                    ->each(function ($q) use ($quizPcts) {
                         $max = (float) $q->max_score;
                         if ($max > 0) {
-                            $scores->push(['student_id' => $q->student_id, 'pct' => $q->total_score / $max]);
+                            $quizPcts->push(['student_id' => $q->student_id, 'pct' => $q->total_score / $max]);
                         }
                     });
             }
 
+            $scores = $quizPcts->merge($cwPcts);
             if ($scores->isEmpty()) {
                 return ['class' => $class->name, 'enrolled' => $studentIds->count(), 'note' => 'no graded work yet — nothing to rank', 'ranked' => []];
             }
+
+            $split = function ($pcts, $sid) {
+                $rows = $pcts->where('student_id', $sid);
+                if ($rows->isEmpty()) return null;
+                return ['pct' => round($rows->avg('pct') * 100, 1), 'items' => $rows->count()];
+            };
 
             $byStudent = $scores->groupBy('student_id')->map(fn ($rows) => [
                 'avg_pct' => round($rows->avg('pct') * 100, 1),
@@ -385,11 +396,22 @@ class PilotController extends Controller
                 'class' => $class->name,
                 'enrolled' => $studentIds->count(),
                 'ranked' => $byStudent
-                    ->map(fn ($agg, $sid) => [
-                        'name' => $profiles[$sid]['name'] ?? 'a student',
-                        'avg_pct' => $agg['avg_pct'],
-                        'graded_items' => $agg['graded_items'],
-                    ])
+                    ->map(function ($agg, $sid) use ($profiles, $quizPcts, $cwPcts, $split) {
+                        $quiz = $split($quizPcts, $sid);
+                        $cw = $split($cwPcts, $sid);
+                        return [
+                            'name' => $profiles[$sid]['name'] ?? 'a student',
+                            'avg_pct' => $agg['avg_pct'],
+                            'graded_items' => $agg['graded_items'],
+                            // Per-system splits: a student can appear in one
+                            // and not the other — surface both when they
+                            // tell different stories
+                            'quiz_pct' => $quiz['pct'] ?? null,
+                            'quiz_items' => $quiz['items'] ?? 0,
+                            'classwork_pct' => $cw['pct'] ?? null,
+                            'classwork_items' => $cw['items'] ?? 0,
+                        ];
+                    })
                     ->sortByDesc('avg_pct')
                     ->values()
                     ->all(),

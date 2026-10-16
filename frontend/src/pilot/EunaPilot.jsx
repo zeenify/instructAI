@@ -269,9 +269,9 @@ function StepRow({ c, result }) {
  *  and read as "it stopped". `pending` keeps it mounted through the pause,
  *  then it plays a deliberate exit. */
 function DriveBar({ label, step, waiting, leaving, pending, onOpen, onStop }) {
-    // Two-phase unmount: `shown` flips on synchronously with `pending`, and
-    // the leave animation owns the removal — no setState racing the render.
-    const [unmounted, setUnmounted] = useState(false);
+    // Two-phase unmount: starts hidden (a fresh page load shows no pill
+    // until there's something to report), the leave animation owns removal.
+    const [unmounted, setUnmounted] = useState(!pending);
     useEffect(() => {
         if (pending) return undefined;
         const t = setTimeout(() => setUnmounted(true), leaving ? 240 : 0);
@@ -310,7 +310,7 @@ function StepsCard({ msg }) {
 
 export default function EunaPilot() {
     const pilot = usePilotRun();
-    const { open, setOpen, messages, status, statusText, driving, consent, input, setInput, send, approveConsent, declineConsent, abort, clearThread, suggestions, busy } = pilot;
+    const { open, setOpen, messages, status, statusText, driving, droveThisRun, consent, input, setInput, send, approveConsent, declineConsent, abort, clearThread, suggestions, busy } = pilot;
     const scrollRef = useRef(null);
     const inputRef = useRef(null);
     const stickRef = useRef(true);
@@ -361,10 +361,13 @@ export default function EunaPilot() {
 
     const waiting = status === 'awaiting-consent';
     const statusLine = STATUS_LINE[status] || 'Ready';
-    // The pill lives for the whole run (not just the driving slices) so the
-    // teacher can always see and stop what EUNA is doing.
-    const barPending = driving || waiting || busy;
-    const leaving = (driving || waiting) && !barPending;
+    // The pill lives for the whole run once EUNA has actually taken the
+    // wheel — pure data lookups never show it ("driving" while checking
+    // grades read as a bug). It also holds through the thinking gaps between
+    // driving batches instead of blinking out.
+    const wheelRun = droveThisRun && busy;
+    const barPending = driving || waiting || wheelRun;
+    const leaving = (driving || waiting || wheelRun) && !barPending;
     const barLabel = waiting ? 'Waiting for your OK' : 'EUNA is driving';
     const barStep = waiting ? consent?.explain : (statusText || 'Working…');
     const placeholder = !busy

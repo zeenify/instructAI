@@ -139,6 +139,11 @@ export function usePilotRun() {
     const [status, setStatus] = useState('idle'); // idle|thinking|awaiting-consent|acting
     const [statusText, setStatusText] = useState('');
     const [driving, setDriving] = useState(false); // executing page actions — gates the drive bar + page lock
+    // True once a run has ACTUALLY taken the wheel (a driving batch ran).
+    // The status pill lives for the rest of the run off this flag — pure
+    // data lookups never set it, so the pill no longer claims "driving"
+    // while EUNA is merely checking grades.
+    const [droveThisRun, setDroveThisRun] = useState(false);
     const [consent, setConsent] = useState(null); // {explain, commands} while pending
     const [input, setInput] = useState('');
 
@@ -448,7 +453,10 @@ export function usePilotRun() {
             // Takeover UI only when the batch actually moves the page — a
             // point-at-controls guide or a snapshot never locks the teacher out
             const takesOver = commands.some((c) => !SILENT_ACTIONS.has(String(c.action)));
-            if (takesOver) setDriving(true);
+            if (takesOver) {
+                setDriving(true);
+                setDroveThisRun(true);
+            }
             toolTurnsRef.current += 1;
             const toolsMsgId = push({
                 kind: 'tools',
@@ -626,6 +634,7 @@ export function usePilotRun() {
             lookupCacheRef.current = new Map();
             failedLookupStreakRef.current = 0;
             nudgeUsedRef.current = false;
+            setDroveThisRun(false); // a new run starts with a clean wheel
             abortRef.current = new AbortController();
             takeSnapshot();
 
@@ -668,6 +677,7 @@ export function usePilotRun() {
         status,
         statusText,
         driving,
+        droveThisRun,
         consent,
         input,
         setInput,

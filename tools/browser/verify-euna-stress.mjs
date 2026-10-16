@@ -22,7 +22,7 @@ const SCENARIOS = [
         task: "who's my best performing student",
         expect: (r) => ({
             // Must answer with a real name (or an honest gap), NOT navigate-and-spin
-            answered: /ana cruz|smoke student one|ben diaz|no (graded|students)|can't|couldn't|don't have/i.test(r.lastMsg || ''),
+            answered: /ana cruz|smoke student one|smoke student two|ben diaz|dup probe|no (graded|students)|can't|couldn't|don't have/i.test(r.lastMsg || ''),
             noIdLeak: !/class\s*(?:ID|id)\s*\d+|\(id\s*\d+\)/.test(r.allMsgs || ''),
             usedLookup: r.lookupQueries.length > 0,
             noNavigation: !r.navigated,
@@ -85,7 +85,7 @@ const SCENARIOS = [
         name: 'taglish',
         task: 'sino ang best performing student ko?',
         expect: (r) => ({
-            answered: /ana cruz|smoke student one|ben diaz|no (graded|students)|can't|couldn't/i.test(r.lastMsg || ''),
+            answered: /ana cruz|smoke student one|smoke student two|ben diaz|dup probe|no (graded|students)|can't|couldn't/i.test(r.lastMsg || ''),
             noIdLeak: !/class\s*(?:ID|id)\s*\d+|\(id\s*\d+\)/.test(r.allMsgs || ''),
         }),
     },
@@ -109,7 +109,7 @@ const SCENARIOS = [
         name: 'pronoun-followup',
         chain: ["who's my best performing student", "what about their class's ungraded work?"],
         expect: (r) => ({
-            bestAnswered: /ana cruz|92\.9/i.test(r.replies?.[0] || ''),
+            bestAnswered: /ana cruz|92\.9|dup probe2|100/i.test(r.replies?.[0] || ''),
             followupAnswered: /ungraded|submission|smoke test class/i.test(r.replies?.[1] || ''),
             noIdLeak: !/class\s*(?:ID|id)\s*\d+|\(id\s*\d+\)/.test(r.allMsgs || ''),
         }),
@@ -121,10 +121,11 @@ const SCENARIOS = [
         chain: ['name all of my classes', 'who is the best student', 'what about the lowest one?'],
         expect: (r) => ({
             namedAllFive: /smoke test class/i.test(r.replies?.[0] || '') && /asd|section/i.test(r.replies?.[0] || '') && /test/i.test(r.replies?.[0] || ''),
-            bestAnswered: /ana cruz|92\.9/i.test(r.replies?.[1] || ''),
-            // the actual lowest is Smoke Student One (64.3%) — Ben Diaz
-            // (67.5%) is second-lowest, so naming him alone must not pass
-            lowestAnswered: /smoke student one|64\.3/i.test(r.replies?.[2] || ''),
+            bestAnswered: /ana cruz|92\.9|dup probe2|100/i.test(r.replies?.[1] || ''),
+            // under both-systems ranking the lowest is Smoke Student Two
+            // (35.3%, classwork-only) — an answer naming only course-quiz
+            // students must not pass
+            lowestAnswered: /smoke student two|35\.3/i.test(r.replies?.[2] || ''),
             noParrot: r.replies?.[1] ? !/five classes right now/i.test(r.replies[1]) : false,
             noIdLeak: !/class\s*(?:ID|id)\s*\d+|\(id\s*\d+\)/.test(r.allMsgs || ''),
         }),

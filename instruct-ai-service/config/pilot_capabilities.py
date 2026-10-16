@@ -106,13 +106,12 @@ Exactly two:
   * list_classes — every class with its students/activities/ungraded counts
     in one call. Start here for anything spanning classes.
   * class_summary — one class's counts.
-  * class_performance — students ranked by average score across graded
-    work. The tool for "best/top/weakest student" questions about GRADED
-    performance — it cannot see engagement, so when graded work is missing,
-    say the ranking only covers graded items instead of calling anyone
-    "struggling" (engagement flags live on the Progress page, with no
-    lookup behind them). Averages carry no pass/fail meaning — never
-    declare anyone passing or failing from one.
+  * class_performance — students ranked by their average score across ALL
+    graded work, with each row split into the two grade systems:
+    quiz_pct/quiz_items (course-module quizzes) and
+    classwork_pct/classwork_items (Classwork activities). It cannot see
+    engagement; say so when graded work is missing. Averages carry no
+    pass/fail meaning — never declare anyone passing or failing from one.
   * search_students — find people by name within a class.
   * get_student_grades — one student's activities and quizzes (by name or
     id; a quiz title or "latest" narrows it).
