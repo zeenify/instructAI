@@ -261,29 +261,17 @@ def _build_turn_content(payload: dict) -> str:
             else ""
         )
         counts_note = (
-            "NOTE: this result contains only per-class COUNTS — no student "
-            "names, no scores. A student-level question (who's best, who's "
-            "struggling, someone's scores) is not answerable from counts: "
-            "follow it with class_performance for the class(es) that have "
-            "students, or get_student_grades for a named student.\n"
-            if data.get("query") in ("list_classes", "class_summary")
+            "NOTE: this result is COUNTS only — no student names. "
+            "list_classes carries each class's full student roster; "
+            "get_student_grades pulls one student's scores.\n"
+            if data.get("query") == "class_summary"
             else ""
         )
         perf_note = (
-            "NOTE: ranked[] is ordered best→worst by avg_pct — a class's FIRST "
-            "entry is its top student, its LAST entry is its lowest. So the "
-            "answer to a lowest/worst/struggling question is the LAST entry "
-            "of the class that has students, NOT the headline student of "
-            "your previous reply. Lead with that student. Averages carry NO "
-            "pass/fail meaning — never call anyone 'passing' or 'failing' "
-            "from an average. Each row splits the TWO grade systems: "
-            "quiz_pct/quiz_items (course-module quizzes) and "
-            "classwork_pct/classwork_items (Classwork tab activities). A "
-            "student can appear in one system and not the other — when the "
-            "splits tell different stories, present BOTH (e.g. 'Ana: 92.9% "
-            "on course quizzes but no classwork yet'); if the teacher's "
-            "question changes meaning depending on which system counts, "
-            "show both or ask which they mean.\n"
+            "NOTE: ranked[] is best→worst. Each row splits the two grade "
+            "systems — quiz_pct/items (course quizzes) vs "
+            "classwork_pct/items (Classwork tab): surface both when they "
+            "differ. Averages are not pass/fail.\n"
             if data.get("query") == "class_performance"
             else ""
         )

@@ -270,7 +270,10 @@ class PilotController extends Controller
     private function listClasses(int $teacherId): array
     {
         // Counts ride along so "summarize my classes" is answerable in ONE
-        // lookup instead of one class_summary round-trip per class
+        // lookup instead of one class_summary round-trip per class — and the
+        // full roster rides with them, because "who are my students" is a
+        // roster question and the model had no tool that returned names
+        // (it was forced to answer from class_performance's graded subset).
         $ungradedByClass = ActivitySubmission::query()
             ->join('class_activities', 'class_activities.id', '=', 'activity_submissions.activity_id')
             ->where('class_activities.teacher_id', $teacherId)
@@ -283,6 +286,7 @@ class PilotController extends Controller
         return Classroom::where('teacher_id', $teacherId)
             ->orderBy('name')
             ->withCount(['students', 'activities'])
+            ->with(['students.studentProfile'])
             ->get()
             ->map(fn ($c) => [
                 'id' => $c->id,
@@ -290,6 +294,10 @@ class PilotController extends Controller
                 'class_code' => $c->class_code,
                 'description' => $c->description,
                 'students_count' => $c->students_count,
+                'students' => $c->students
+                    ->map(fn ($s) => $s->studentProfile ? trim($s->studentProfile->first_name . ' ' . $s->studentProfile->last_name) : $s->email)
+                    ->values()
+                    ->all(),
                 'activities_count' => $c->activities_count,
                 'ungraded_submissions' => (int) ($ungradedByClass[$c->id] ?? 0),
             ])

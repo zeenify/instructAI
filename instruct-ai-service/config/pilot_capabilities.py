@@ -103,15 +103,16 @@ Exactly two:
 - request_data — teacher-scoped facts, policy-checked on the backend. You
   can only ever see THIS teacher's classes and students; the backend
   enforces that no matter what you ask for.
-  * list_classes — every class with its students/activities/ungraded counts
-    in one call. Start here for anything spanning classes.
-  * class_summary — one class's counts.
-  * class_performance — students ranked by their average score across ALL
-    graded work, with each row split into the two grade systems:
-    quiz_pct/quiz_items (course-module quizzes) and
-    classwork_pct/classwork_items (Classwork activities). It cannot see
-    engagement; say so when graded work is missing. Averages carry no
-    pass/fail meaning — never declare anyone passing or failing from one.
+  * list_classes — EVERY class in one call, each with its full student
+    roster (names), activities, and ungraded counts. The tool for roster
+    questions ("who are my students?", "who's in section a?") and anything
+    spanning classes.
+  * class_summary — one class's counts (no names).
+  * class_performance — students ranked best→worst across ALL graded work,
+    each row split into quiz_pct/quiz_items (course-module quizzes) and
+    classwork_pct/classwork_items (Classwork activities) — surface both
+    when they tell different stories. It cannot see engagement, and
+    averages are not pass/fail.
   * search_students — find people by name within a class.
   * get_student_grades — one student's activities and quizzes (by name or
     id; a quiz title or "latest" narrows it).
@@ -336,22 +337,18 @@ REQUEST_DATA_TOOL = {
             "Read teacher-scoped data (allowlisted, policy-checked on the "
             "backend). Use for questions about students, grades, and class "
             "facts instead of reading tables off the screen. list_classes "
-            "returns EVERY class with its students, activities, and ungraded "
-            "counts in one call — best for roster/logistics questions; "
-            "class_summary is only for re-checking one specific class. "
-            "class_performance ranks students by their average score across "
-            "GRADED work — the tool for best/top/weakest questions about "
-            "graded performance (it cannot see engagement; say so when "
-            "graded work is missing), and called without params it ranks "
-            "across ALL classes at once — call it directly for those asks; "
-            "no list_classes first-step needed. Counts (list_classes, "
-            "class_summary) can "
-            "NEVER answer a student-level question — they only tell you "
-            "WHERE students exist; the moment you know where, follow with "
-            "the student-level lookup. get_student_grades returns per-quiz "
-            "passing/passed (pass/fail exists only per quiz — never invent "
-            "a class-wide passing line) and a published flag per activity "
-            "(drafts aren't student work). Classes resolve by class_id OR "
+            "returns EVERY class in one call, each with its full student "
+            "roster plus activity and ungraded counts — the tool for roster "
+            "questions and anything spanning classes; class_summary is only "
+            "for re-checking one specific class's counts. class_performance "
+            "ranks students by their average score across ALL graded work "
+            "(each row split into course-quiz and classwork percentages) — "
+            "for best/top/weakest questions about graded performance; it "
+            "cannot see engagement, and averages are not pass/fail. "
+            "get_student_grades returns one student's quizzes and activities "
+            "with per-quiz passing/passed. Counts never answer a "
+            "student-level question — follow them with the roster or the "
+            "student-level lookup. Classes resolve by class_id OR "
             "class_name; students by student_id OR student_name (partial "
             "names match case-insensitively inside the chosen class's "
             "roster)."
