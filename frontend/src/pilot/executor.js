@@ -15,6 +15,10 @@
 
 import * as overlay from './overlay';
 import { pilotNavigate } from './bridge';
+import { installNetWatch, netPending } from './netWatch';
+
+// Wrap fetch/XHR once at pilot load — waitForPageSettle reads the counter
+installNetWatch();
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -39,6 +43,45 @@ function reAnchorToLive(entry) {
         '[role="combobox"]', '[contenteditable="true"]',
     ].join(',');
     const wanted = entry.name.toLowerCase();
+
+    // Pointer-row entries (div/li captured by the affordance scan) can't be
+    // re-anchored through the interactive selector — and they die the most:
+    // every list refetch replaces the row nodes. Re-anchor them by their
+    // control-stripped name (the captured name is prefix-truncated, so the
+    // live name must START WITH it, not equal it).
+    const INTERACTIVE_TAGS = new Set(['a', 'button', 'input', 'textarea', 'select']);
+    if (!INTERACTIVE_TAGS.has(entry.tag) && entry.role !== 'button') {
+        let best = null;
+        let bestDist = Infinity;
+        const probe = wanted.slice(0, 24);
+        for (const el of document.querySelectorAll(entry.tag)) {
+            if (el.closest('[data-euna-ignore]') || el.closest('[aria-hidden="true"]')) continue;
+            const r = el.getBoundingClientRect();
+            if (r.width < 8 || r.height < 8) continue;
+            // cheap text pre-filter before any cloning
+            if (!(el.textContent || '').toLowerCase().includes(probe)) continue;
+            const clone = el.cloneNode(true);
+            clone.querySelectorAll('button,input,textarea,select,svg,[data-euna-ignore]').forEach((x) => x.replaceWith(' '));
+            const liveName = (clone.innerHTML.replace(/<[^>]*>/g, ' ') || '')
+                .replace(/\s+/g, ' ').trim().toLowerCase();
+            if (!liveName || !liveName.startsWith(wanted)) continue;
+            if (entry.rect) {
+                const dist = Math.hypot(
+                    r.x + r.width / 2 - (entry.rect.x + entry.rect.w / 2),
+                    r.y + r.height / 2 - (entry.rect.y + entry.rect.h / 2)
+                );
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = el;
+                }
+            } else {
+                best = el;
+                break;
+            }
+        }
+        return best;
+    }
+
     let best = null;
     let bestDist = Infinity;
     for (const el of document.querySelectorAll(selector)) {
@@ -124,12 +167,12 @@ async function waitForPageSettle(ctx) {
     };
     try {
         while (Date.now() < deadline) {
-            // 700ms of quiet, not 350: a button click can trigger a POST
-            // whose only DOM trace is the button disabling and re-enabling
-            // when the response lands — snapshotting at first quiescence
-            // catches controls mid-flight (the palette read "all disabled"
-            // while a question was still being created).
-            const quiescent = Date.now() - lastMutation >= 700;
+            // 700ms of DOM quiet AND no in-flight requests: on this box a
+            // POST takes ~2.4s (remote Neon DB) and the DOM only mutates
+            // when its response renders — quiescence alone snapshots
+            // mid-flight states (the new row "rendered late" on every
+            // create, and the creation anchor found nothing to point at).
+            const quiescent = Date.now() - lastMutation >= 700 && netPending() === 0;
             if (quiescent && contentReady()) break;
             await sleep(120);
         }
