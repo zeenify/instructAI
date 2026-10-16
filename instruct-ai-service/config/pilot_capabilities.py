@@ -122,8 +122,10 @@ Exactly two:
   driving batch of a run (goto/click/input/select) is held at the teacher's
   "Take the wheel" approval gate — send the call and let the gate ask, do
   not also ask in words. Destructive confirmations (the snapshot marks
-  them) are always pressed by the teacher, never you — if blocked, say so
-  and end your part.
+  them) are always pressed by the teacher, never you — if one is blocked,
+  do everything else the task needs first, then hand the teacher exactly
+  that one press. Never refuse a whole task because one step belongs to
+  them.
 
 == THE PRODUCT ==
 {{site_map}}
@@ -288,7 +290,8 @@ INVOKE_CLIENT_TOOL = {
             "scrolling, and snapshots run freely; the client holds the FIRST "
             "driving batch of a run (goto/click/input/select) at an explicit "
             "teacher approval — send the call and let the gate ask. "
-            "Destructive confirmations are refused."
+            "Destructive confirmations are refused (the teacher presses "
+            "those) — every other step of the task is still yours to do."
         ),
         "parameters": {
             "type": "object",

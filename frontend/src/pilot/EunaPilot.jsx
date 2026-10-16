@@ -166,6 +166,32 @@ function renderRich(text, onOption) {
             } else {
                 plain.push(...block);
             }
+        } else if (
+            // The model sometimes writes options as BARE lines (no "- "):
+            // short name-like lines directly after "Question:" are options.
+            plain.length > 0 &&
+            ASK_LABEL_RE.exec(plain[plain.length - 1]) &&
+            !isTableRow(lines[i]) &&
+            lines[i].trim().length > 0 &&
+            lines[i].trim().length <= 80 &&
+            !/[.!?]$/.test(lines[i].trim())
+        ) {
+            const options = [];
+            while (i < lines.length) {
+                const t = lines[i].trim();
+                if (!t || t.length > 80 || /[.!?]$/.test(t) || isTableRow(lines[i])) break;
+                options.push(t);
+                i++;
+            }
+            i--;
+            if (options.length >= 2) {
+                const qMatch = ASK_LABEL_RE.exec(plain[plain.length - 1]);
+                plain.pop();
+                flushPlain();
+                out.push(renderAskBlock(qMatch[1], options, key++, onOption));
+            } else {
+                plain.push(lines[i]);
+            }
         } else if (isBullet(lines[i]) || isNumbered(lines[i])) {
             // Consecutive "- item" / "1. item" lines become REAL list
             // elements — raw dashes with pre-wrap read as a wall of text.

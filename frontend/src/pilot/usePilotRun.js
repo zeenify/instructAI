@@ -119,9 +119,13 @@ function hasDanglingClaim(narration) {
     const fragments = String(narration || '')
         .split(/(?<=[.!?])\s+|\n+/)
         .map((s) => s.trim())
-        .filter(Boolean)
-        .slice(-2);
-    return fragments.some(
+        .filter(Boolean);
+    // Menu options ("— The brand-new module (I'll create it first)") and
+    // numbered walkthrough steps ("1. Click Grade…") are choices and
+    // instructions for the TEACHER — never EUNA's own claims. Testing them
+    // nudged half the ask-card replies.
+    const own = fragments.filter((s) => !/^[-*•]\s/.test(s) && !/^\d+[.)]\s/.test(s));
+    return own.slice(-2).some(
         (s) => ACTION_CLAIM_RE.test(s) && !CLAIM_CONDITIONAL_RE.test(s)
     );
 }

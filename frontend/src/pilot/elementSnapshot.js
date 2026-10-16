@@ -25,6 +25,14 @@ const INTERACTIVE_SELECTOR = [
     '[role="option"]',
     '[role="switch"]',
     '[contenteditable="true"]',
+    // Headings are the page's wayfinding — module names, page titles,
+    // section labels live here and several are clickable (a module heading
+    // expands it). Without them the pilot reads controls whose meaning it
+    // can't see ("two modules but I can't tell them apart").
+    'h1',
+    'h2',
+    'h3',
+    'h4',
 ].join(',');
 
 // A destructive confirmation control. The executor refuses to click these —
