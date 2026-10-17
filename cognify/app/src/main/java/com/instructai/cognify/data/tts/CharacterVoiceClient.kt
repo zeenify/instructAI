@@ -35,7 +35,9 @@ private val builtinVoices = listOf(
     CharacterVoice(id = "72c3988b410f43c9b0905521135ff010", name = "Marin", likes = 8, gainDb = 0.0),
     CharacterVoice(id = "0c03219a981c4570a1b23a15b4107f30", name = "Makima", likes = 79, gainDb = 16.0),
     CharacterVoice(id = "7e9fe06681074145b0227d3685b3b570", name = "Reze", likes = 41, gainDb = 0.0),
-    CharacterVoice(id = "4371047e054b4bd28073cd643f5077ff", name = "Horikita", likes = 3, gainDb = 0.0),
+    // Horikita (4371047e…) removed — Fish Audio deleted the reference ("Reference
+    // not found"), so every clip for it failed at runtime. Restore once the
+    // reference is re-created on the Fish account.
     CharacterVoice(id = "c85fb11f91f84312a4bd16756f298ae2", name = "Gojo", likes = 601, gainDb = 0.0),
     CharacterVoice(id = "b1d5b2071ce3450b8f497cca90b78061", name = "Toji", likes = 132, gainDb = 0.0),
 )

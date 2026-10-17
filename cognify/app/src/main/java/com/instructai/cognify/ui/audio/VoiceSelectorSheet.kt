@@ -92,12 +92,14 @@ fun VoiceSelectorDialog(
     localVoices: List<VocalAvatar>,
     characterVoices: List<VocalAvatar>,
     selectedId: String?,
+    playingPreviewId: String?,
     onSelect: (String?, String) -> Unit,
+    onPreview: (String?, String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val selectedAvatar = (localVoices + characterVoices).firstOrNull { it.id == selectedId }
         ?: localVoices.firstOrNull { it.id == null }
-    var previewPlaying by remember { mutableStateOf(false) }
+    val previewIsPlaying = playingPreviewId != null
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -189,13 +191,21 @@ fun VoiceSelectorDialog(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Clip preview
+                        // Clip preview — plays a pre-generated sample of this voice
+                        val isPreviewPlaying = previewIsPlaying &&
+                            (playingPreviewId == selectedAvatar?.id ||
+                                (playingPreviewId == "system" && selectedAvatar?.id == null))
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(Color(0xFF2A2A32))
-                                .clickable { previewPlaying = true }
+                                .clickable {
+                                    onPreview(
+                                        selectedAvatar?.id?.takeIf { it != "cogni-placeholder" },
+                                        selectedAvatar?.name ?: "the system voice",
+                                    )
+                                }
                                 .padding(vertical = 12.dp, horizontal = 20.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -207,8 +217,8 @@ fun VoiceSelectorDialog(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
-                                    Icons.Filled.VolumeUp,
-                                    contentDescription = "Volume",
+                                    if (isPreviewPlaying) Icons.Filled.Close else Icons.Filled.VolumeUp,
+                                    contentDescription = if (isPreviewPlaying) "Stop" else "Hear this voice",
                                     tint = Color.White,
                                     modifier = Modifier.size(24.dp),
                                 )
@@ -217,12 +227,13 @@ fun VoiceSelectorDialog(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("Voice Sample", color = Color.White, style = MaterialTheme.typography.labelMedium)
                                 Text(
-                                    "Tap to preview",
+                                    if (isPreviewPlaying) "Playing — tap to stop"
+                                    else "Hear ${selectedAvatar?.name ?: "this voice"} read a sample",
                                     color = Color.White.copy(alpha = 0.5f),
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }
-                            if (!previewPlaying) {
+                            if (!isPreviewPlaying) {
                                 Icon(Icons.Filled.PlayArrow, contentDescription = "Play", tint = Color(0xFFAF52DE))
                             } else {
                                 Text(

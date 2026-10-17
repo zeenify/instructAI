@@ -106,6 +106,14 @@ class PlayerController @Inject constructor(
             if (playbackState == Player.STATE_ENDED) {
                 scope.launch { advance() }
             }
+            syncPlayingState()
+        }
+
+        // The notification / media button pauses or resumes ExoPlayer directly —
+        // PlayerState.isPlaying must follow it, or the clip observer below sees a
+        // stale "isPlaying" and force-resumes audio the user just paused.
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            syncPlayingState()
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -114,6 +122,17 @@ class PlayerController @Inject constructor(
                 it.copy(errorMessage = "Audio issue — regenerating this sentence.", isBuffering = true)
             }
             scope.launch { requestRegenerate() }
+        }
+    }
+
+    private fun syncPlayingState() {
+        val s = _state.value
+        if (s.currentIndex < 0) return
+        val playing = player.playWhenReady &&
+            player.playbackState != Player.STATE_ENDED &&
+            player.playbackState != Player.STATE_IDLE
+        if (s.isPlaying != playing) {
+            _state.update { it.copy(isPlaying = playing) }
         }
     }
 
@@ -127,6 +146,7 @@ class PlayerController @Inject constructor(
     private var playbackServiceStarted = false
     private var playbackStarted = false
     private var mergedPath: String? = null
+    private var mergeAttempted = false
 
     private var tts: TextToSpeech? = null
 
@@ -158,6 +178,10 @@ class PlayerController @Inject constructor(
             durationsMs = estimateDurations(sentences),
         )
         session.setSessionActivity(sessionActivityPendingIntent())
+        // Fresh user intent — mark the player as "should be playing". Clip
+        // loading is async; when the current sentence's file lands, startClip
+        // only calls play() because this flag is set.
+        player.playWhenReady = true
 
         observeJob = scope.launch {
             ttsClipDao.observeClips(reviewId, characterId).collect { clips ->
@@ -182,11 +206,21 @@ class PlayerController @Inject constructor(
                 _state.update {
                     it.copy(sessionDurationMs = it.durationsMs.values.sum())
                 }
-                if (mergedPath == null && !playbackStarted && !fallbackAll && errorSet.isEmpty() && readyMap.size == sentences.size) {
-                    startMergedPlayback()
-                } else {
-                    ensureCurrentClip()
+                if (mergedPath == null && !mergeAttempted) {
+                    val s = _state.value
+                    val allClipsReady = !s.fallbackAll && errorSet.isEmpty() &&
+                        s.sentences.isNotEmpty() && readyMap.size >= s.sentences.size
+                    if (allClipsReady) {
+                        // Every sentence has audio: move to a single merged file.
+                        // The media notification then shows the whole session
+                        // (title + full duration) instead of clip-by-clip entries,
+                        // both when playback hasn't started yet and mid-session.
+                        mergeAttempted = true
+                        beginMergedPlayback(if (playbackStarted) currentTimelineMs() else null)
+                        return@collect
+                    }
                 }
+                ensureCurrentClip()
             }
         }
 
@@ -222,12 +256,18 @@ class PlayerController @Inject constructor(
         if (s.currentIndex < 0) return
         if (!s.isPlaying) {
             _state.update { it.copy(isPlaying = true) }
-            if (player.isPlaying) return
-            if (player.duration > 0) {
-                startPlaybackService()
-                player.play()
-            } else {
-                ensureCurrentClip()
+            player.playWhenReady = true
+            when {
+                s.fallbackAll -> {
+                    // Fallback TTS isn't an ExoPlayer item — re-speak the sentence.
+                    loadedIndex = null
+                    ensureCurrentClip()
+                }
+                player.playbackState == Player.STATE_READY && player.mediaItemCount > 0 -> {
+                    startPlaybackService()
+                    player.play()
+                }
+                else -> ensureCurrentClip()
             }
         }
     }
@@ -236,7 +276,7 @@ class PlayerController @Inject constructor(
         val s = _state.value
         if (s.currentIndex < 0) return
         if (s.isPlaying) {
-            if (player.isPlaying) player.pause()
+            player.pause()
             tts?.stop()
             _state.update { it.copy(isPlaying = false) }
         } else {
@@ -330,6 +370,7 @@ class PlayerController @Inject constructor(
     }
 
     private fun stopInternal() {
+        sessionGeneration++
         observeJob?.cancel()
         observeJob = null
         positionJob?.cancel()
@@ -341,6 +382,7 @@ class PlayerController @Inject constructor(
         loadedIndex = null
         playbackStarted = false
         mergedPath = null
+        mergeAttempted = false
     }
 
     private fun estimateDurations(sentences: List<String>): Map<Int, Long> =
@@ -382,7 +424,10 @@ class PlayerController @Inject constructor(
                 if (loadedIndex != s.currentIndex || player.mediaItemCount == 0) {
                     loadedIndex = s.currentIndex
                     startClip(path, s.currentIndex)
-                } else if (s.isPlaying && !player.isPlaying && player.playbackState != Player.STATE_BUFFERING) {
+                } else if (player.playWhenReady && !player.isPlaying &&
+                    player.playbackState != Player.STATE_BUFFERING &&
+                    player.playbackState != Player.STATE_IDLE
+                ) {
                     player.play()
                 }
             }
@@ -411,8 +456,16 @@ class PlayerController @Inject constructor(
                     .setUri(Uri.fromFile(File(path)))
                     .setMediaMetadata(
                         MediaMetadata.Builder()
-                            .setTitle("Sentence ${index + 1} of ${s.sentences.size}")
-                            .setArtist(s.title.ifBlank { "Cognify" })
+                            .setTitle(s.title.ifBlank { "Cognify" })
+                            .setArtist(
+                                buildString {
+                                    append(s.characterName.ifBlank { "Narration" })
+                                    append(" · Sentence ")
+                                    append(index + 1)
+                                    append(" of ")
+                                    append(s.sentences.size)
+                                }
+                            )
                             .build()
                     )
                     .build()
@@ -420,11 +473,17 @@ class PlayerController @Inject constructor(
             player.playbackParameters = PlaybackParameters(s.speed, 1f)
             player.prepare()
             if (offsetMs > 0) player.seekTo(offsetMs)
-            startPlaybackService()
-            player.play()
-            playbackStarted = true
+            if (player.playWhenReady) {
+                // Only honor the session's play intent. A clip that finished
+                // generating while the user had paused loads silently and waits.
+                startPlaybackService()
+                player.play()
+                playbackStarted = true
+                _state.update { it.copy(isBuffering = false, isPlaying = true, errorMessage = null) }
+            } else {
+                _state.update { it.copy(isBuffering = false, isPlaying = false, errorMessage = null) }
+            }
             loadedIndex = index
-            _state.update { it.copy(isBuffering = false, isPlaying = true, errorMessage = null) }
         } catch (e: Exception) {
             logger.log("PlayerController", "startClip failed", e)
             _state.update { it.copy(errorMessage = "Clip unavailable — regenerating.", isBuffering = true) }
@@ -432,7 +491,13 @@ class PlayerController @Inject constructor(
         }
     }
 
-    private fun startMergedPlayback() {
+    /**
+     * Builds one mp3 from every ready sentence and plays it as a single item so
+     * the media notification reflects the entire session. [startAtTimelineMs]
+     * is the user's position in the per-clip timeline when hot-swapping
+     * mid-session; null = start from the beginning.
+     */
+    private fun beginMergedPlayback(startAtTimelineMs: Long?) {
         val s = _state.value
         val paths = s.sentences.indices.mapNotNull { readyMap[it] }
         if (paths.size != s.sentences.size) return
@@ -440,7 +505,9 @@ class PlayerController @Inject constructor(
             File(context.cacheDir, "merged"),
             "merged_${s.reviewId}_${s.characterId?.take(8)}.mp3"
         )
+        val gen = sessionGeneration
         mergedPath = outFile.absolutePath
+        val wasPlaying = player.playWhenReady
         playbackStarted = true
         scope.launch {
             val merged = withContext(Dispatchers.IO) {
@@ -451,6 +518,11 @@ class PlayerController @Inject constructor(
                     logger.log("PlayerController", "merge failed", e)
                     null
                 }
+            }
+            if (gen != sessionGeneration) {
+                // A stop/new session raced the merge — abandon silently; the
+                // current session owns player state now.
+                return@launch
             }
             if (merged == null) {
                 mergedPath = null
@@ -472,17 +544,46 @@ class PlayerController @Inject constructor(
                 )
                 player.playbackParameters = PlaybackParameters(s.speed, 1f)
                 player.prepare()
-                startPlaybackService()
-                player.play()
+                if (startAtTimelineMs != null && startAtTimelineMs > 0) {
+                    val maxMs = player.duration.takeIf { it > 0 } ?: startAtTimelineMs
+                    player.seekTo(startAtTimelineMs.coerceAtMost(maxMs))
+                    _state.update { it.copy(currentIndex = locateTime(startAtTimelineMs.coerceAtMost(maxMs)).first) }
+                }
                 loadedIndex = 0
+                if (wasPlaying && player.playWhenReady) {
+                    startPlaybackService()
+                    player.play()
+                }
                 _state.update {
-                    it.copy(isBuffering = false, isPlaying = true, isMerged = true, errorMessage = null)
+                    it.copy(
+                        isBuffering = false,
+                        isPlaying = wasPlaying,
+                        isMerged = true,
+                        errorMessage = null,
+                    )
                 }
             } catch (e: Exception) {
-                logger.log("PlayerController", "startMergedPlayback failed", e)
+                logger.log("PlayerController", "beginMergedPlayback failed", e)
                 mergedPath = null
                 ensureCurrentClip()
             }
+        }
+    }
+
+    /**
+     * Incremented by every stop/new session so async work (like the merge) can
+     * detect it no longer belongs to the active session.
+     */
+    private var sessionGeneration = 0
+
+    /** The user's position mapped onto the whole-session timeline (ms). */
+    private fun currentTimelineMs(): Long {
+        val s = _state.value
+        return if (s.isMerged) {
+            player.currentPosition
+        } else {
+            timelineStartMs(s.currentIndex) +
+                (player.currentPosition.takeIf { player.duration > 0 } ?: 0L)
         }
     }
 
@@ -544,6 +645,7 @@ class PlayerController @Inject constructor(
     }
 
     private fun finishPlayback() {
+        sessionGeneration++
         player.stop()
         player.clearMediaItems()
         tts?.stop()

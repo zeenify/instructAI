@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.instructai.cognify.audio.PlayerController
 import com.instructai.cognify.audio.PlayerState
+import com.instructai.cognify.audio.VoicePreviewPlayer
 import com.instructai.cognify.data.local.dao.ReviewTtsDao
 import com.instructai.cognify.data.local.dao.TtsClipDao
 import com.instructai.cognify.data.local.entity.ReviewTtsEntity
@@ -52,6 +53,7 @@ class SummaryViewModel @Inject constructor(
     private val ttsClipDao: TtsClipDao,
     private val ttsGenerationManager: TtsGenerationManager,
     private val playerController: PlayerController,
+    private val voicePreviewPlayer: VoicePreviewPlayer,
     private val logger: AppLogger,
 ) : ViewModel() {
 
@@ -59,6 +61,16 @@ class SummaryViewModel @Inject constructor(
     val state: StateFlow<SummaryState> = _state.asStateFlow()
 
     val playerState: StateFlow<PlayerState> = playerController.state
+
+    val previewPlayingId: StateFlow<String?> = voicePreviewPlayer.playingVoiceId
+
+    fun previewVoice(voiceId: String?, name: String) {
+        voicePreviewPlayer.toggle(voiceId, name)
+    }
+
+    fun stopVoicePreview() {
+        voicePreviewPlayer.stop()
+    }
 
     private var reviewId: Long = -1L
     private var transformJob: Job? = null
@@ -106,6 +118,7 @@ class SummaryViewModel @Inject constructor(
 
     fun selectVoice(id: Long, voiceId: String?) {
         if (voiceId == _state.value.selectedVoiceId) return
+        voicePreviewPlayer.stop()
         viewModelScope.launch {
             characterVoiceClient.setReviewVoiceId(id, voiceId)
             if (playerController.isActiveFor(id)) playerController.stop()

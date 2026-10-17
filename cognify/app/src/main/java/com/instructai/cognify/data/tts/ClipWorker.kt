@@ -25,6 +25,8 @@ import java.security.MessageDigest
 private const val KOKORO_VOICE_FEMALE = "kokoro-local-female"
 private const val KOKORO_VOICE_MALE = "kokoro-local-male"
 private const val RETRY_DELAY_MS = 10_000L
+/** Budget per sentence before the worker gives up (the file stays marked error). */
+private const val MAX_ATTEMPTS_PER_CLIP = 8
 
 @HiltWorker
 class ClipWorker @AssistedInject constructor(
@@ -53,14 +55,26 @@ class ClipWorker @AssistedInject constructor(
 
         val baseDir = File(applicationContext.filesDir, "tts/${payload.reviewId}/${payload.characterId}").apply { mkdirs() }
         val semaphore = Semaphore(2)
+        val attempts = mutableMapOf<Int, Int>()
 
         while (true) {
             val existing = ttsClipDao.getClips(payload.reviewId, payload.characterId)
             val pending = sentences.indices.filter { index ->
                 val row = existing.firstOrNull { it.sentenceIndex == index }
-                !(row?.status == TtsStatus.READY && row.filePath?.let { File(it).exists() } == true)
+                val generated = row?.status == TtsStatus.READY && row.filePath?.let { File(it).exists() } == true
+                !generated && (attempts.getOrDefault(index, 0) < MAX_ATTEMPTS_PER_CLIP)
             }
-            if (pending.isEmpty()) return Result.success()
+            .also { indices -> indices.forEach { attempts[it] = attempts.getOrDefault(it, 0) + 1 } }
+            if (pending.isEmpty()) {
+                val gaveUpOn = sentences.indices.count { index ->
+                    val row = existing.firstOrNull { it.sentenceIndex == index }
+                    !(row?.status == TtsStatus.READY && row.filePath != null)
+                }
+                if (gaveUpOn > 0) {
+                    logger.log("ClipWorker", "giving up on $gaveUpOn clip(s) after ${MAX_ATTEMPTS_PER_CLIP} attempts each")
+                }
+                return Result.success()
+            }
 
             supervisorScope {
                 pending.map { index ->

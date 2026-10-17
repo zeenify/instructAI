@@ -48,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -87,8 +88,14 @@ fun SummaryScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val player by viewModel.playerState.collectAsState()
+    val previewPlayingId by viewModel.previewPlayingId.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val showVoiceSelector = remember { mutableStateOf(false) }
+
+    // Preview audio must never outlive the picker UI.
+    DisposableEffect(Unit) {
+        onDispose { viewModel.stopVoicePreview() }
+    }
 
     val localVoices = listOf(
         VocalAvatar("kokoro-local-female", "Kokoro Female", "", painting = Color(0xFFE91E63)),
@@ -202,10 +209,15 @@ fun SummaryScreen(
             localVoices = localVoices,
             characterVoices = characterAvatars,
             selectedId = state.selectedVoiceId,
+            playingPreviewId = previewPlayingId,
             onSelect = { id, _ ->
                 viewModel.selectVoice(reviewId, id)
             },
-            onDismiss = { showVoiceSelector.value = false },
+            onPreview = { id, name -> viewModel.previewVoice(id, name) },
+            onDismiss = {
+                viewModel.stopVoicePreview()
+                showVoiceSelector.value = false
+            },
         )
     }
 }

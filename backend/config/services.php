@@ -37,12 +37,8 @@ return [
                 'likes' => 41,
                 'gain_db' => 0,
             ],
-            [
-                'id' => '4371047e054b4bd28073cd643f5077ff',
-                'name' => 'Horikita',
-                'likes' => 3,
-                'gain_db' => 0,
-            ],
+            // Horikita (4371047e…) removed — Fish Audio deleted the reference
+            // ("Reference not found"), so synthesis always failed for it.
             [
                 'id' => 'c85fb11f91f84312a4bd16756f298ae2',
                 'name' => 'Gojo',
