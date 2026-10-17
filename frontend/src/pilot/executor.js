@@ -6,7 +6,8 @@
  * command returns a structured result that is fed back to the model.
  *
  * Safety rules enforced here (never trusted to the model):
- *  - destructive confirm controls ([DESTRUCTIVE] in the snapshot) are refused;
+ *  - destructive controls ([DESTRUCTIVE] in the snapshot — any
+ *    Delete/Remove/Replace-labeled button, dialog or not) are refused;
  *    the teacher's own click finishes those
  *  - goto only moves inside the teacher dashboard
  *  - refs that vanished resolve to "take a snapshot" failures, never guesses
@@ -14,6 +15,10 @@
 
 import * as overlay from './overlay';
 import { pilotNavigate } from './bridge';
+import { installNetWatch, netPending } from './netWatch';
+
+// Wrap fetch/XHR once at pilot load — waitForPageSettle reads the counter
+installNetWatch();
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -38,6 +43,45 @@ function reAnchorToLive(entry) {
         '[role="combobox"]', '[contenteditable="true"]',
     ].join(',');
     const wanted = entry.name.toLowerCase();
+
+    // Pointer-row entries (div/li captured by the affordance scan) can't be
+    // re-anchored through the interactive selector — and they die the most:
+    // every list refetch replaces the row nodes. Re-anchor them by their
+    // control-stripped name (the captured name is prefix-truncated, so the
+    // live name must START WITH it, not equal it).
+    const INTERACTIVE_TAGS = new Set(['a', 'button', 'input', 'textarea', 'select']);
+    if (!INTERACTIVE_TAGS.has(entry.tag) && entry.role !== 'button') {
+        let best = null;
+        let bestDist = Infinity;
+        const probe = wanted.slice(0, 24);
+        for (const el of document.querySelectorAll(entry.tag)) {
+            if (el.closest('[data-euna-ignore]') || el.closest('[aria-hidden="true"]')) continue;
+            const r = el.getBoundingClientRect();
+            if (r.width < 8 || r.height < 8) continue;
+            // cheap text pre-filter before any cloning
+            if (!(el.textContent || '').toLowerCase().includes(probe)) continue;
+            const clone = el.cloneNode(true);
+            clone.querySelectorAll('button,input,textarea,select,svg,[data-euna-ignore]').forEach((x) => x.replaceWith(' '));
+            const liveName = (clone.innerHTML.replace(/<[^>]*>/g, ' ') || '')
+                .replace(/\s+/g, ' ').trim().toLowerCase();
+            if (!liveName || !liveName.startsWith(wanted)) continue;
+            if (entry.rect) {
+                const dist = Math.hypot(
+                    r.x + r.width / 2 - (entry.rect.x + entry.rect.w / 2),
+                    r.y + r.height / 2 - (entry.rect.y + entry.rect.h / 2)
+                );
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = el;
+                }
+            } else {
+                best = el;
+                break;
+            }
+        }
+        return best;
+    }
+
     let best = null;
     let bestDist = Infinity;
     for (const el of document.querySelectorAll(selector)) {
@@ -94,21 +138,42 @@ function reSnapshot(ctx) {
 }
 
 /**
- * Wait for the route change to actually settle — SPA navigation kicks off
- * data fetches that render for a while; a fixed sleep raced them and sent
- * the model skeleton snapshots (it re-issued goto until the turn budget
- * killed the run). Waits until the DOM stops mutating for ~350ms, capped
- * at 4s, then snapshots whatever is on screen.
+ * Wait for the page to actually settle — SPA renders kick off data fetches
+ * that render for a while; a fixed sleep raced them and sent the model
+ * skeleton snapshots (it then answered from stale conversation history
+ * instead — a 13-element shell snapshot made it "remember" the editor had
+ * no add-question control). Waits until the DOM stops mutating AND the page
+ * has real content, capped at 6.5s, then snapshots whatever is on screen.
+ * Used after BOTH goto and click.
  */
-async function gotoSettle(ctx) {
-    const deadline = Date.now() + 4000;
+async function waitForPageSettle(ctx) {
+    const deadline = Date.now() + 6500;
     let lastMutation = Date.now();
     const observer = new MutationObserver(() => {
         lastMutation = Date.now();
     });
     observer.observe(document.body, { childList: true, subtree: true });
+    // A quiet DOM is not a loaded page: routes render their shell and
+    // skeletons first, then sit perfectly still while TanStack queries are
+    // in flight. The old 350ms-quiescence check snapshotted exactly that
+    // state — the pilot "saw" only the sidebar on a fully working class
+    // page and told the teacher the page hadn't rendered.
+    const contentReady = () => {
+        const main = document.querySelector('main');
+        if (!main) return true;
+        const skeletons = main.querySelectorAll('.db-skeleton').length;
+        const text = (main.innerText || '').trim();
+        return skeletons === 0 && text.length > 40;
+    };
     try {
-        while (Date.now() - lastMutation < 350 && Date.now() < deadline) {
+        while (Date.now() < deadline) {
+            // 700ms of DOM quiet AND no in-flight requests: on this box a
+            // POST takes ~2.4s (remote Neon DB) and the DOM only mutates
+            // when its response renders — quiescence alone snapshots
+            // mid-flight states (the new row "rendered late" on every
+            // create, and the creation anchor found nothing to point at).
+            const quiescent = Date.now() - lastMutation >= 700 && netPending() === 0;
+            if (quiescent && contentReady()) break;
             await sleep(120);
         }
         await sleep(250); // let the final mutation's renders paint
@@ -160,7 +225,7 @@ async function runOne(cmd, ctx) {
         }
         overlay.hideHighlight();
         pilotNavigate(path);
-        await gotoSettle(ctx);
+        await waitForPageSettle(ctx);
         return { action, ok: true, message: `navigated to ${path}` };
     }
 
@@ -177,14 +242,48 @@ async function runOne(cmd, ctx) {
         if (target) {
             target.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         } else {
-            window.scrollBy({ top: cmd.direction === 'up' ? -420 : 420, behavior: 'smooth' });
+            // Scroll the scrollable container nearest the viewport center —
+            // modals scroll their own body and window.scrollBy never reaches
+            // fields inside them (a whole turn budget died hunting the
+            // points field inside the classwork modal). Popups over the
+            // center are skipped: they are not the surface the model means.
+            const dir = cmd.direction === 'up' ? -420 : 420;
+            const cx = window.innerWidth / 2;
+            const cy = window.innerHeight / 2;
+            let chosen = null;
+            try {
+                const scrollables = [...document.querySelectorAll('*')].filter((el) => {
+                    if (el.closest('[data-euna-ignore]')) return false;
+                    const s = getComputedStyle(el);
+                    return /(auto|scroll)/.test(s.overflowY)
+                        && el.scrollHeight > el.clientHeight + 4
+                        && el.clientHeight > 120;
+                });
+                // The INNERMOST scrollable containing the viewport center —
+                // the page behind a modal is also scrollable and also
+                // contains the center; scrolling it moves nothing the model
+                // can see.
+                let bestArea = Infinity;
+                for (const el of scrollables) {
+                    const r = el.getBoundingClientRect();
+                    if (r.width < 100 || r.height < 100) continue;
+                    if (!(cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom)) continue;
+                    const area = r.width * r.height;
+                    if (area < bestArea) {
+                        bestArea = area;
+                        chosen = el;
+                    }
+                }
+            } catch { /* best effort — fall back to window */ }
+            if (chosen) chosen.scrollBy({ top: dir, behavior: 'smooth' });
+            else window.scrollBy({ top: dir, behavior: 'smooth' });
         }
         await sleep(450);
         throwIfAborted(ctx.signal);
         return { action, ok: true, message: 'scrolled' };
     }
 
-    const target = resolveTarget(ref, ctx);
+    let target = resolveTarget(ref, ctx);
     if (!target) {
         // Tell the model WHAT it lost — a bare ref number gives it nothing
         // to recover with
@@ -210,7 +309,7 @@ async function runOne(cmd, ctx) {
                 ref,
                 ok: false,
                 blocked: true,
-                message: `BLOCKED: "${target.entry.name}" is a destructive confirmation. Ask the teacher to press it themselves and end your part of the task.`,
+                message: `BLOCKED: "${target.entry.name}" deletes or overwrites something — destructive actions stay in the teacher's hands. Do everything else the task needs, then ask them to press this one themselves.`,
             };
         }
         target.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -220,10 +319,37 @@ async function runOne(cmd, ctx) {
         await sleep(180);
         throwIfAborted(ctx.signal);
         overlay.pulseAt(x, y);
+        // Toggle truth: popups (date pickers, dropdown menus) portal to the
+        // body as fixed elements. Clicking a trigger can OPEN one — or CLOSE
+        // the one that was already open — and the model never tracked that,
+        // so it re-clicked triggers and burned the budget re-opening a
+        // calendar it had just closed. State the delta in the result.
+        // Best-effort only: this note must never break the click itself.
+        let portalsBefore = [];
+        let clickedInPortal = false;
+        try {
+            portalsBefore = [...document.body.children].filter((el) => {
+                if (el.closest('[data-euna-ignore]')) return false;
+                return getComputedStyle(el).position === 'fixed';
+            });
+            clickedInPortal = portalsBefore.some((p) => p.contains(target.el));
+        } catch { /* best effort */ }
         target.el.click();
-        await sleep(650); // modal / route settle
-        reSnapshot(ctx);
-        return { action, ref, ok: true, message: `clicked "${target.entry.name || ref}"` };
+        // The click's result is often a fetch-and-render (route change, modal
+        // with its own query) — settle like a goto, or the auto-snapshot is a
+        // 13-element shell and the model answers from stale history instead
+        await waitForPageSettle(ctx);
+        let portalNote = '';
+        try {
+            const portalsAfter = [...document.body.children].filter((el) => {
+                if (el.closest('[data-euna-ignore]')) return false;
+                return getComputedStyle(el).position === 'fixed';
+            });
+            if (portalsAfter.length > portalsBefore.length) portalNote = ' — a popup/menu OPENED from this click; its controls are in the snapshot, act on them directly (do not click the trigger again)';
+            else if (portalsAfter.length < portalsBefore.length && clickedInPortal) portalNote = ' — the popup closed after your selection; that is normal — the value is set, move on to the next field';
+            else if (portalsAfter.length < portalsBefore.length) portalNote = ' — the popup that was open is now CLOSED (this trigger toggles it)';
+        } catch { /* best effort */ }
+        return { action, ref, ok: true, message: `clicked "${target.entry.name || ref}"${portalNote}` };
     }
 
     if (action === 'input') {
@@ -239,17 +365,72 @@ async function runOne(cmd, ctx) {
         await aimAt(target, { label: ctx.batchExplain });
         target.el.focus();
 
-        if (target.el.isContentEditable) {
-            target.el.textContent = value;
-            target.el.dispatchEvent(new InputEvent('input', { bubbles: true }));
-        } else {
-            const proto = target.el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-            const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-            setter?.call(target.el, value);
-            target.el.dispatchEvent(new Event('input', { bubbles: true }));
+        // A ref can resolve to a wrapper (row/label captured by the pointer
+        // scan) rather than the field itself — and the native value setter
+        // throws "Illegal invocation" on anything that isn't an input.
+        // Resolve the element that can actually hold text once, reuse it for
+        // fill AND read-back, and say exactly what we resolved to when none
+        // exists — the bare DOM exception taught the model nothing.
+        let writable = target.el.isContentEditable
+            ? target.el
+            : (target.el.tagName === 'TEXTAREA' || target.el.tagName === 'INPUT')
+                ? target.el
+                : (target.el.querySelector?.('input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea') ?? null);
+        if (!writable) {
+            return {
+                action, ref, ok: false,
+                message: `ref ${ref} resolved to a <${String(target.el.tagName).toLowerCase()}${target.entry.name ? ` "${target.entry.name}"` : ''}>, which can't hold typed text — take a snapshot and target the input field itself`,
+            };
         }
+        if (writable !== target.el && typeof writable.focus === 'function') {
+            try { writable.focus(); } catch { /* detached */ }
+        }
+        const applyValue = (el) => {
+            if (el.isContentEditable) {
+                el.textContent = value;
+                el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+            } else {
+                const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+                Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(el, value);
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        };
+        applyValue(writable);
         await sleep(250);
-        return { action, ref, ok: true, message: `filled "${target.entry.name || ref}"` };
+        // Read-back: React state updates, controlled inputs and validation
+        // rules can silently reject a fill. Report what the field ACTUALLY
+        // holds — the model guessing "maybe the button stayed disabled" came
+        // from having no ground truth about the fill.
+        const readBack = (el) =>
+            String(el.isContentEditable ? el.textContent : el.value ?? '');
+        let fieldReads = readBack(writable);
+        if (fieldReads !== value) {
+            // One retry — the first dispatch can race a re-render that
+            // replaces the node between focus and set
+            const reanchored = resolveTarget(ref, ctx);
+            if (reanchored) {
+                target = reanchored;
+                writable = reanchored.el.isContentEditable
+                    ? reanchored.el
+                    : (reanchored.el.tagName === 'TEXTAREA' || reanchored.el.tagName === 'INPUT')
+                        ? reanchored.el
+                        : (reanchored.el.querySelector?.('input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea') ?? reanchored.el);
+            }
+            applyValue(writable);
+            await sleep(250);
+            fieldReads = readBack(writable);
+        }
+        // Say BOTH the value and the field — the audit log reads like a
+        // natural sentence and can't be mistaken for "it typed the placeholder"
+        if (fieldReads === value) {
+            return { action, ref, ok: true, message: `filled "${value}" into ${target.entry.name ? `"${target.entry.name}"` : `field ${ref}`} — verified, the field reads it back` };
+        }
+        return {
+            action,
+            ref,
+            ok: false,
+            message: `typed "${value}" but the field reads "${fieldReads || '(empty)'}" — it rejected or cleared the input (wrong control, readonly, or the app rewrote it). Take a snapshot, find the real input, and fill that.`,
+        };
     }
 
     if (action === 'select') {
@@ -300,10 +481,25 @@ export async function executeBatch(commands, ctx) {
         if (ctx.signal?.aborted) break;
         let result;
         try {
-            result = await runOne(cmd, batchCtx);
+            // A command that never returns must fail the batch, not wedge
+            // the whole run — batch execution has no stream watchdog over
+            // it, and a hung promise here stalls the pilot silently.
+            result = await Promise.race([
+                runOne(cmd, batchCtx),
+                sleep(45000).then(() => ({ action: String(cmd.action || ''), ref: cmd.ref, ok: false, message: 'command timed out after 45s — take a snapshot and try a different approach' })),
+            ]);
         } catch (err) {
             if (err?.name === 'AbortError') break;
-            result = { action: String(cmd.action || ''), ref: cmd.ref, ok: false, message: `executor error: ${err?.message || err}` };
+            // A bare "Illegal invocation" told us nothing — the first stack
+            // frames name the exact throw site (bundle + line in dev).
+            const where = String(err?.stack || '')
+                .split('\n').slice(1, 3)
+                .map((s) => s.trim().replace(/^at\s+/, ''))
+                .filter(Boolean).join('  <-  ');
+            result = {
+                action: String(cmd.action || ''), ref: cmd.ref, ok: false,
+                message: `executor error: ${err?.message || err}${cmd.action || cmd.ref ? ` (while ${cmd.action || 'acting'} on ref ${cmd.ref})` : ''}${where ? ` @ ${where}` : ''}`,
+            };
         }
         results.push({ ...result, command: cmd });
         if (result.blocked) break; // destructive refusal ends the batch

@@ -103,12 +103,20 @@ export default function ActivityCard({ activity, classId, onDelete }) {
         // two-step on the card too (same as the editor), never one click
         if (activity.is_published && !confirmUnpublish) {
             setConfirmUnpublish(true);
+            toast('Click the eye again to confirm unpublish', { duration: 3500 });
             setTimeout(() => setConfirmUnpublish(false), 3500);
             return;
         }
         setConfirmUnpublish(false);
         withBusy(async () => {
             const res = await api.post(`/teacher/activities/${activity.id}/publish`);
+            // Optimistic flip: on this box a round trip is ~2.4s and the
+            // list poll is 15s — waiting for the refetch made the toggle
+            // feel dead ("I clicked it and nothing happened").
+            queryClient.setQueryData(classActivitiesKey(classId), (old) => {
+                if (!Array.isArray(old)) return old;
+                return old.map((a) => (a.id === activity.id ? { ...a, is_published: res.data.is_published } : a));
+            });
             refresh();
             if (res.data.is_published) {
                 toast.success('Published — students can now see it');

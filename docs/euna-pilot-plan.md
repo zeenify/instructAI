@@ -331,9 +331,11 @@ the act).
 
 ```json
 { "name": "invoke_client",
-  "description": "Operate the teacher's dashboard UI. Recon and navigation are fine;
-     the FIRST mutating batch needs a consent-request event first. Never press a
-     destructive confirm button — stop and let the teacher do it.",
+  "description": "Operate the teacher's dashboard UI. Pointing, scrolling, and
+     snapshots run freely; the FIRST driving batch of a run (goto/click/input/
+     select) is held at the client's 'Take the wheel' gate — send the call and
+     let the gate ask. Never press a destructive confirm button — stop and let
+     the teacher do it.",
   "parameters": { "type": "OBJECT", "properties": {
       "explain": { "type": "STRING" },
       "commands": { "type": "ARRAY", "items": { "type": "OBJECT", "properties": {

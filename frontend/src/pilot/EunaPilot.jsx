@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, Loader2, Sparkles, Square, X, Ban, TriangleAlert, MousePointerClick } from 'lucide-react';
 import { usePilotRun } from './usePilotRun';
 import { scrubRefs } from './textUtils';
@@ -46,20 +46,21 @@ function describeCommand(c) {
     return `${label} ${target}`.trim();
 }
 
-// Tiny rich-text pass for EUNA's narration: **bold**, `inline code`, and
-// dashboard links [label](/dashboard/…) which navigate the SPA in place.
-// Refs are scrubbed first so internal ids never reach the teacher's eyes.
-function renderRich(text) {
+// Tiny rich-text pass for EUNA's narration: **bold**, *italic*, `inline
+// code`, markdown pipe tables (she compares data in them), and dashboard
+// links [label](/dashboard/…) which navigate the SPA in place. Refs are
+// scrubbed first so internal ids never reach the teacher's eyes.
+function renderInline(text, keyBase) {
     const parts = [];
-    const re = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\(\/[^)]+\))/g;
+    const re = /(\*\*[^*]+\*\*|\*[^*\n]+\*|`[^`]+`|\[[^\]]+\]\(\/[^)]+\))/g;
     let last = 0;
-    let key = 0;
+    let key = keyBase;
     let m;
-    const clean = scrubRefs(text);
-    while ((m = re.exec(clean))) {
-        if (m.index > last) parts.push(clean.slice(last, m.index));
+    while ((m = re.exec(text))) {
+        if (m.index > last) parts.push(text.slice(last, m.index));
         const tok = m[0];
         if (tok.startsWith('**')) parts.push(<strong key={key++}>{tok.slice(2, -2)}</strong>);
+        else if (tok.startsWith('*')) parts.push(<em key={key++}>{tok.slice(1, -1)}</em>);
         else if (tok.startsWith('`')) parts.push(<code key={key++} className="euna-inline-code">{tok.slice(1, -1)}</code>);
         else {
             const link = tok.match(/^\[([^\]]+)\]\((\/[^)]+)\)$/);
@@ -78,8 +79,194 @@ function renderRich(text) {
         }
         last = m.index + tok.length;
     }
-    if (last < clean.length) parts.push(clean.slice(last));
+    if (last < text.length) parts.push(text.slice(last));
     return parts;
+}
+
+function renderRich(text, onOption) {
+    const clean = scrubRefs(text);
+    const lines = clean.split('\n');
+    const isTableRow = (l) => /^\s*\|.*\|\s*$/.test(l);
+    const isSeparator = (l) => /^\s*\|[\s:|-]+\|\s*$/.test(l);
+    const isBullet = (l) => /^\s*[-*•]\s+/.test(l);
+    const isNumbered = (l) => /^\s*\d+[.)]\s+/.test(l);
+    const out = [];
+    let key = 0;
+    let plain = [];
+    const flushPlain = () => {
+        if (!plain.length) return;
+        out.push(...renderInline(plain.join('\n'), key));
+        key += Math.max(plain.length, 1);
+        plain = [];
+    };
+    for (let i = 0; i < lines.length; i++) {
+        // The model glues the table's header to the intro sentence ("…the
+        // rundown: | Class | … |") and the following prose to the last row
+        // ("| test | 0 | 0 | So, …"). Split those grafts so a real table
+        // renders instead of raw pipes.
+        if (
+            !isTableRow(lines[i]) &&
+            lines[i].includes('|') &&
+            i + 1 < lines.length &&
+            isSeparator(lines[i + 1])
+        ) {
+            const cut = lines[i].indexOf('|');
+            plain.push(lines[i].slice(0, cut).trimEnd());
+            lines[i] = lines[i].slice(cut);
+        }
+        if (isTableRow(lines[i])) {
+            const block = [];
+            let j = i;
+            while (j < lines.length) {
+                const l = lines[j];
+                if (isTableRow(l)) {
+                    block.push(l);
+                    j += 1;
+                    continue;
+                }
+                if (l.trim().startsWith('|')) {
+                    // "| row… | trailing prose" — cut at the last pipe; the
+                    // tail rejoins the prose stream on the next pass
+                    const lastPipe = l.lastIndexOf('|');
+                    const head = l.slice(0, lastPipe + 1);
+                    if (isTableRow(head)) {
+                        block.push(head);
+                        lines[j] = l.slice(lastPipe + 1).trim();
+                        if (!lines[j]) j += 1;
+                    }
+                }
+                break;
+            }
+            i = j - 1;
+            const rows = block
+                .filter((l) => !isSeparator(l))
+                .map((l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim()));
+            if (rows.length >= 2) {
+                flushPlain();
+                out.push(
+                    // The wrapper scrolls, not the panel — a wide table must
+                    // never blow out the chat's width.
+                    <div className="euna-msg__tablewrap" key={`tw${key++}`}>
+                        <table className="euna-msg__table">
+                            <thead>
+                                <tr>
+                                    {rows[0].map((c, ci) => <th key={ci}>{renderInline(c, 10000 + ci)}</th>)}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows.slice(1).map((r, ri) => (
+                                    <tr key={ri}>
+                                        {r.map((c, ci) => <td key={ci}>{renderInline(c, 20000 + ri * 40 + ci)}</td>)}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                );
+            } else {
+                plain.push(...block);
+            }
+        } else if (
+            // The model sometimes writes options as BARE lines (no "- "):
+            // short name-like lines directly after "Question:" are options.
+            plain.length > 0 &&
+            ASK_LABEL_RE.exec(plain[plain.length - 1]) &&
+            !isTableRow(lines[i]) &&
+            lines[i].trim().length > 0 &&
+            lines[i].trim().length <= 80 &&
+            !/[.!?]$/.test(lines[i].trim())
+        ) {
+            const options = [];
+            while (i < lines.length) {
+                const t = lines[i].trim();
+                if (!t || t.length > 80 || /[.!?]$/.test(t) || isTableRow(lines[i])) break;
+                options.push(t);
+                i++;
+            }
+            i--;
+            if (options.length >= 2) {
+                const qMatch = ASK_LABEL_RE.exec(plain[plain.length - 1]);
+                plain.pop();
+                flushPlain();
+                out.push(renderAskBlock(qMatch[1], options, key++, onOption));
+            } else {
+                plain.push(lines[i]);
+            }
+        } else if (isBullet(lines[i]) || isNumbered(lines[i])) {
+            // Consecutive "- item" / "1. item" lines become REAL list
+            // elements — raw dashes with pre-wrap read as a wall of text.
+            // Immediately after a "Question:" line they're answer OPTIONS:
+            // they render as tappable cards that send the choice back.
+            const ask = ASK_LABEL_RE.exec(lines[i - 1] || '');
+            const optMatch = ASK_OPTION_RE.exec(lines[i]);
+            if (ask && optMatch) {
+                const options = [];
+                while (i < lines.length) {
+                    const m = ASK_OPTION_RE.exec(lines[i]);
+                    if (!m) break;
+                    options.push(m[1]);
+                    i++;
+                }
+                i--;
+                // The "Question:" line already went to `plain` — drop it and
+                // emit the ask card (question + options) in its place.
+                plain.pop();
+                flushPlain();
+                out.push(renderAskBlock(ask[1], options, key++, onOption));
+                continue;
+            }
+            const ordered = isNumbered(lines[i]);
+            const items = [];
+            while (
+                i < lines.length &&
+                (ordered ? isNumbered(lines[i]) : isBullet(lines[i]))
+            ) {
+                items.push(lines[i++].replace(/^\s*(?:[-*•]|\d+[.)])\s+/, ''));
+            }
+            i--;
+            flushPlain();
+            const ListTag = ordered ? 'ol' : 'ul';
+            out.push(
+                <ListTag className={`euna-msg__list ${ordered ? 'euna-msg__list--num' : ''}`} key={`l${key++}`}>
+                    {items.map((item, ii) => (
+                        <li key={ii}>{renderInline(item, 30000 + key * 40 + ii)}</li>
+                    ))}
+                </ListTag>
+            );
+        } else {
+            plain.push(lines[i]);
+        }
+    }
+    flushPlain();
+    return out;
+}
+
+// An "ask block" turns EUNA's clarifying questions into tappable options
+// (the Claude/ZCode pattern): a "Question:" line followed by "- option"
+// or "1. option" lines renders as buttons instead of plain text. The label
+// matches ANYWHERE in the line — the model glues it to its intro sentence
+// ("…live. Which class? Question: Which class should I open?").
+const ASK_LABEL_RE = /(?:^|\s)(?:question|q)\s*[:：]\s*(.+?)\s*$/i;
+const ASK_OPTION_RE = /^\s*(?:[-*•]|\d+[.)])\s+(.+)$/;
+
+function renderAskBlock(question, options, key, onOption) {
+    return (
+        <div className="euna-ask" key={`ask${key}`}>
+            <p className="euna-ask__q">{renderInline(question, 40000 + key)}</p>
+            <div className="euna-ask__options">
+                {options.map((opt, oi) => (
+                    <button
+                        type="button"
+                        className="euna-ask__option"
+                        key={oi}
+                        onClick={() => onOption(opt)}
+                    >
+                        <span>{renderInline(opt, 41000 + key * 20 + oi)}</span>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
 }
 
 function StepRow({ c, result }) {
@@ -104,6 +291,40 @@ function StepRow({ c, result }) {
     );
 }
 
+/** The floating status pill: "EUNA is driving / Waiting for your OK".
+ *  Lifetime is keyed on the whole busy run (status !== 'idle') so it stays
+ *  put while EUNA thinks between batches — it used to drop for that stretch
+ *  and read as "it stopped". `pending` keeps it mounted through the pause,
+ *  then it plays a deliberate exit. */
+function DriveBar({ label, step, waiting, leaving, pending, onOpen, onStop }) {
+    // Two-phase unmount: starts hidden (a fresh page load shows no pill
+    // until there's something to report), the leave animation owns removal.
+    const [unmounted, setUnmounted] = useState(!pending);
+    useEffect(() => {
+        if (pending) return undefined;
+        const t = setTimeout(() => setUnmounted(true), leaving ? 240 : 0);
+        return () => clearTimeout(t);
+    }, [pending, leaving]);
+    if (!pending && unmounted) return null;
+    return (
+        <div
+            className={`euna-drive-bar ${waiting && !leaving ? 'is-waiting' : ''} ${leaving ? 'is-leaving' : ''}`}
+            role="status"
+        >
+            <EunaAvatar size={24} className="euna-drive-bar__avatar" />
+            <span className="euna-drive-bar__dot" />
+            <button type="button" className="euna-drive-bar__main" title="Open EUNA Pilot" onClick={onOpen}>
+                <span className="euna-drive-bar__label">{label}</span>
+                {step && <span className="euna-drive-bar__step">{step}</span>}
+            </button>
+            <button type="button" className="euna-drive-bar__stop" onClick={onStop}>
+                <Square size={11} />
+                Stop
+            </button>
+        </div>
+    );
+}
+
 function StepsCard({ msg }) {
     return (
         <div className="euna-steps">
@@ -117,66 +338,108 @@ function StepsCard({ msg }) {
 
 export default function EunaPilot() {
     const pilot = usePilotRun();
-    const { open, setOpen, messages, status, statusText, consent, input, setInput, send, approveConsent, declineConsent, abort, clearThread, suggestions, busy } = pilot;
+    const { open, setOpen, messages, status, statusText, driving, droveThisRun, consent, input, setInput, send, approveConsent, declineConsent, abort, clearThread, suggestions, busy } = pilot;
     const scrollRef = useRef(null);
     const inputRef = useRef(null);
+    const stickRef = useRef(true);
 
-    // Stick to the bottom only while the teacher is already reading the
-    // latest — never yank them back while they scroll up mid-narration
-    useEffect(() => {
+    // Chat-rule scrolling: follow the latest message while the teacher is at
+    // (or near) the bottom; never yank them back while they've scrolled up to
+    // read. The stick decision is made by the teacher's OWN scroll events —
+    // the old approach re-checked "nearBottom" after the new content had
+    // already rendered, so any appended message taller than the tolerance
+    // silently broke the follow.
+    const handleBodyScroll = () => {
         const el = scrollRef.current;
         if (!el) return;
-        const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 90;
-        if (nearBottom) el.scrollTop = el.scrollHeight;
-    }, [messages, statusText, consent]);
+        stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    };
 
-    // Focus the composer when the panel opens; Escape closes it
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (el && stickRef.current) el.scrollTop = el.scrollHeight;
+    }, [messages, statusText, status, consent]);
+
+    // Focus the composer when the panel opens; Escape closes it. Opening
+    // mid-run also re-arms the follow so the teacher lands on the latest.
     useEffect(() => {
         if (!open) return;
         inputRef.current?.focus();
+        stickRef.current = true;
+        const el = scrollRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
         const onKey = (e) => e.key === 'Escape' && setOpen(false);
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
     }, [open, setOpen]);
 
+    // Sending is the teacher speaking from the bottom of the thread — always
+    // re-arm the follow so their own message and the reply stay in view
+    const sendAndFollow = (text) => {
+        stickRef.current = true;
+        send(text);
+    };
+
     const handleKey = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            send();
+            sendAndFollow();
         }
     };
 
     const waiting = status === 'awaiting-consent';
     const statusLine = STATUS_LINE[status] || 'Ready';
+    // The pill lives for the whole run once EUNA has actually taken the
+    // wheel — pure data lookups never show it ("driving" while checking
+    // grades read as a bug). It also holds through the thinking gaps between
+    // driving batches instead of blinking out.
+    const wheelRun = droveThisRun && busy;
+    const barPending = driving || waiting || wheelRun;
+    const leaving = (driving || waiting || wheelRun) && !barPending;
+    const barLabel = waiting ? 'Waiting for your OK' : 'EUNA is driving';
+    const barStep = waiting ? consent?.explain : (statusText || 'Working…');
     const placeholder = !busy
         ? 'Ask me to show, tell, or do…'
         : waiting
             ? 'Your call — take the wheel, or stop me…'
-            : 'EUNA is driving…';
+            : driving
+                ? 'EUNA is driving…'
+                : 'Working…';
+    const typingLabel =
+        status === 'thinking'
+            ? 'Thinking'
+            : (statusText || 'Checking the page').replace(/…+$/, '');
+    // The click lock owns the page for the WHOLE driving run — not just the
+    // batch moments. Between batches the model streams (thinking) with the
+    // drive bar up, and a real click landing then navigates the page out
+    // from under the run. Plain chat never locks (no wheel taken); waiting
+    // for consent stays interactive — the teacher's page is theirs until
+    // they approve. Panel (9990) + bar (9987) + FAB (9985) sit above the
+    // lock, so Stop and the composer stay reachable.
+    const pageLocked = driving || (wheelRun && !waiting);
 
     return (
         <div className="euna-root" data-euna-ignore>
-            {busy && (
-                <div className={`euna-drive-bar ${waiting ? 'is-waiting' : ''}`} role="status">
-                    <EunaAvatar size={24} className="euna-drive-bar__avatar" />
-                    <span className="euna-drive-bar__dot" />
-                    <button
-                        type="button"
-                        className="euna-drive-bar__main"
-                        title="Open EUNA Pilot"
-                        onClick={() => setOpen(true)}
-                    >
-                        <span className="euna-drive-bar__label">{waiting ? 'Waiting for your OK' : 'EUNA is driving'}</span>
-                        {!waiting && statusText && statusText !== 'Thinking…' && (
-                            <span className="euna-drive-bar__step">{statusText}</span>
-                        )}
-                    </button>
-                    <button type="button" className="euna-drive-bar__stop" onClick={abort}>
-                        <Square size={11} />
-                        Stop
-                    </button>
-                </div>
-            )}
+            {/* Driving owns the page: the bar, the blue corner glow and the
+                click lock hold for the entire driving run, thinking gaps
+                included. Waiting for consent shows the bar (with Stop) but
+                NOT the lock. */}
+            {pageLocked && <div className="euna-driving-blocker" aria-hidden="true" />}
+            {pageLocked && <div className="euna-driving-glow" aria-hidden="true" />}
+
+            <DriveBar
+                label={barLabel}
+                step={barStep}
+                waiting={waiting}
+                leaving={leaving}
+                pending={barPending}
+                onOpen={() => setOpen(true)}
+                onStop={abort}
+            />
+
+            {/* Consent with the panel closed still needs an answer — pulse the
+                FAB so the takeover request is never missed */}
+            {waiting && !open && <span className="euna-fab__badge" aria-hidden="true" />}
 
             {open && (
                 <section className="euna-panel" aria-label="EUNA Pilot">
@@ -218,7 +481,7 @@ export default function EunaPilot() {
                                 return (
                                     <div key={m.id} className="euna-msg euna-msg--euna">
                                         <EunaAvatar size={24} className="euna-msg__avatar" />
-                                        <span className={`euna-msg__text ${m.streaming ? 'is-streaming' : ''}`}>{renderRich(m.text)}</span>
+                                        <div className={`euna-msg__text ${m.streaming ? 'is-streaming' : ''}`}>{renderRich(m.text, sendAndFollow)}</div>
                                     </div>
                                 );
                             }
@@ -233,6 +496,22 @@ export default function EunaPilot() {
                             }
                             return null;
                         })}
+
+                        {/* The "someone is typing" bubble — while EUNA thinks
+                            or checks, and NOT while narration is already
+                            streaming (the live caret covers that) */}
+                        {(status === 'thinking' || status === 'acting') &&
+                         !messages.some((m) => m.streaming) && (
+                            <div className="euna-msg euna-msg--euna">
+                                <EunaAvatar size={24} className="euna-msg__avatar" />
+                                <span className="euna-msg__text euna-typing">
+                                    {typingLabel}
+                                    <span className="euna-typing__dots" aria-hidden="true">
+                                        <i /><i /><i />
+                                    </span>
+                                </span>
+                            </div>
+                        )}
 
                         {consent && (
                             <div className="euna-consent">
@@ -258,7 +537,7 @@ export default function EunaPilot() {
                         {messages.length === 0 && (
                             <div className="euna-chips">
                                 {suggestions.map((s) => (
-                                    <button key={s} className="euna-chip" onClick={() => send(s)} disabled={busy}>
+                                    <button key={s} className="euna-chip" onClick={() => sendAndFollow(s)} disabled={busy}>
                                         {s}
                                     </button>
                                 ))}
@@ -282,7 +561,7 @@ export default function EunaPilot() {
                                     <Square size={13} />
                                 </button>
                             ) : (
-                                <button className="euna-send" title="Send" onClick={() => send()} disabled={!input.trim()}>
+                                <button className="euna-send" title="Send" onClick={() => sendAndFollow()} disabled={!input.trim()}>
                                     <Sparkles size={14} />
                                 </button>
                             )}

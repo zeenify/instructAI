@@ -6,10 +6,11 @@
  * UI → continue the stream with tool results → … → commit (Laravel persists
  * the turn + audit rows).
  *
- * The consent gate is structural, not prompt-hoped: any batch containing
- * click/input/select is held at an explicit "Take the wheel" CTA until the
- * teacher approves. The executor independently refuses destructive confirm
- * controls regardless of this flag.
+ * The consent gate is structural, not prompt-hoped: any batch that moves or
+ * changes the page — navigation (goto) included — is held at an explicit
+ * "Take the wheel" CTA until the teacher approves. The executor
+ * independently refuses destructive confirm controls regardless of this
+ * flag.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -24,12 +25,31 @@ const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:
 const THREAD_KEY = 'euna-pilot-thread';
 const THREAD_LIMIT = 40;
 
-const ACTING_ACTIONS = new Set(['click', 'input', 'select']);
+// Actions that move or change the page — the teacher's "take the wheel" set.
+// goto is in deliberately: navigating the teacher somewhere uninvited IS
+// driving, even if nothing is clicked (the section-B report). Point/hover/
+// snapshot/scroll stay free — they guide and read without moving anyone.
+const ACTING_ACTIONS = new Set(['click', 'input', 'select', 'goto']);
+// Batches made ONLY of these are invisible reads — they run without the
+// takeover UI (no bar/glow/lock); a "Read page" row still lands in the thread.
+const SILENT_ACTIONS = new Set(['snapshot', 'hover', 'point']);
 
-// Hard cap on tool round-trips inside one run — the last line of defense
-// against a model stuck re-requesting data (the stop button remains the
-// teacher's override at any moment)
-const MAX_TOOL_TURNS = 8;
+// Teacher-facing words for the status strip while a lookup runs — the raw
+// query names ("get_student_grades") are plumbing, not speech.
+const LOOKUP_LABELS = {
+    list_classes: 'your classes',
+    class_summary: 'the class summary',
+    class_performance: 'student rankings',
+    search_students: 'your student roster',
+    get_student_grades: 'scores',
+};
+
+// Hard cap on tool round-trips inside one run — a backstop against a model
+// stuck in a loop, NOT a task budget: real driving work is multi-step (a
+// "make a 5-question quiz" run spends 2-3 batches PER question). Loop
+// protection proper lives in the repeat-guard (identical all-failed batch)
+// and the failed-lookup streak; this only stops degenerate wandering.
+const MAX_TOOL_TURNS = 30;
 
 export const PILOT_SUGGESTIONS = [
     'Summarize my classes',
@@ -55,6 +75,13 @@ function lookupDigest(query, result) {
         if (query === 'class_summary' && result && !result.error) {
             return `${result.class?.name ?? 'class'}: ${result.students} students, ${result.ungraded_submissions} ungraded`;
         }
+        if (query === 'class_performance' && result && !result.error) {
+            const rows = (result.classes || []).map((c) => {
+                const top = (c.ranked || []).slice(0, 3).map((r) => `${r.name} ${r.avg_pct}%`).join(', ');
+                return `${c.class}: ${top || c.note || 'no graded work'}`;
+            });
+            return rows.join(' | ').slice(0, 300);
+        }
         if (query === 'search_students' && Array.isArray(result)) {
             const names = result.map((s) => `${s.name} (id ${s.student_id})`).join(', ');
             return names ? `found: ${names}`.slice(0, 300) : 'no matches';
@@ -79,6 +106,32 @@ function lookupDigest(query, result) {
 const ACTION_CLAIM_RE =
     /\b(?:i'?ll|i\s+will|i'?m|i\s+am|let'?s|let\s+me|we'?ll|we\s+are\s+going\s+to|going\s+to)\s+(?:go|head|open|take|bring|show|pull|navigate|jump|click|check|explain|describe|walk|break|look|search|set\s+up|create|delete|remove|grade|start|run|find|get|give|list|summarize|pull\s+up|point|show\s+you)\b/i;
 
+// Conditional offers ("if you name the class I'll open it", "say the word
+// and I'll pull it up") are the model asking for input — NOT claims about
+// the current turn. Testing sentence-by-sentence with a conditional cue
+// keeps the genuine mid-message claims ("I'm opening the class page — which
+// one?") while killing the offer noise that nudged ~every chatty turn.
+// Only the LAST TWO fragments are tested: real dangling claims sit where
+// the model stopped, while capability menus and quoted examples (also full
+// of "I'll check...") ride mid-message.
+const CLAIM_CONDITIONAL_RE =
+    /\b(?:if|when|once|want\s+me\s+to|shall\s+i|would\s+you\s+like|say\s+(?:the\s+word|so|go)|just\s+(?:say|name|tell|give|pick)|give\s+me|name\s+(?:the|a|which|one)|pick\s+(?:one|a)|make\s+me\s+a|let\s+me\s+know|tell\s+me\s+(?:which|who|what)|take\s+(?:that|it)\s+as)\b/i;
+
+function hasDanglingClaim(narration) {
+    const fragments = String(narration || '')
+        .split(/(?<=[.!?])\s+|\n+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    // Menu options ("— The brand-new module (I'll create it first)") and
+    // numbered walkthrough steps ("1. Click Grade…") are choices and
+    // instructions for the TEACHER — never EUNA's own claims. Testing them
+    // nudged half the ask-card replies.
+    const own = fragments.filter((s) => !/^[-*•]\s/.test(s) && !/^\d+[.)]\s/.test(s));
+    return own.slice(-2).some(
+        (s) => ACTION_CLAIM_RE.test(s) && !CLAIM_CONDITIONAL_RE.test(s)
+    );
+}
+
 export function usePilotRun() {
     const [open, setOpen] = useState(false);
     const [messages, setMessages] = useState(() => {
@@ -91,6 +144,12 @@ export function usePilotRun() {
     });
     const [status, setStatus] = useState('idle'); // idle|thinking|awaiting-consent|acting
     const [statusText, setStatusText] = useState('');
+    const [driving, setDriving] = useState(false); // executing page actions — gates the drive bar + page lock
+    // True once a run has ACTUALLY taken the wheel (a driving batch ran).
+    // The status pill lives for the rest of the run off this flag — pure
+    // data lookups never set it, so the pill no longer claims "driving"
+    // while EUNA is merely checking grades.
+    const [droveThisRun, setDroveThisRun] = useState(false);
     const [consent, setConsent] = useState(null); // {explain, commands} while pending
     const [input, setInput] = useState('');
 
@@ -100,6 +159,19 @@ export function usePilotRun() {
     const toolTurnsRef = useRef(0);
     const stopNoticeShownRef = useRef(false);
     const lastBatchKeyRef = useRef(null);
+    // Read-loop detection: scroll/snapshot batches SUCCEED by definition, so
+    // a model hunting a control that isn't landing in its window can spin a
+    // dozen turns without tripping the failed-batch guard
+    const readLoopKeyRef = useRef(null);
+    const readLoopCountRef = useRef(0);
+    // A-B-A oscillation tracking (toggle flip-flops dodge identical-batch
+    // detection by alternating between two different keys)
+    const prevBatchKeyRef = useRef(null);
+    const twoAgoKeyRef = useRef(null);
+    const oscillationCountRef = useRef(0);
+    // A typed-and-committed name whose matching row the model hasn't opened
+    // yet — feeds the creation anchor until consumed
+    const pendingCreationRef = useRef(null);
     const taskRef = useRef('');
     const runIdRef = useRef(null);
     const turnTokenRef = useRef(null);
@@ -109,6 +181,9 @@ export function usePilotRun() {
     // back to the model as RECENT ACTIONS so it can't re-ask for data it
     // already has (each stream turn is otherwise stateless)
     const trailRef = useRef([]);
+    // Tool calls the server dropped this turn (one action per turn) — rides
+    // back on the next turn so the model knows what didn't run
+    const droppedToolsRef = useRef(null);
     const lookupCacheRef = useRef(new Map());
     // Consecutive failed lookups — three in a row means the model is
     // thrashing ids/params; the next one is served an error that tells it
@@ -189,6 +264,7 @@ export function usePilotRun() {
             streamingRef.current = null;
             overlay.hideHighlight();
             overlay.hideCursor();
+            setDriving(false);
             setStatus('idle');
             setStrip('');
             setConsent(null);
@@ -219,30 +295,52 @@ export function usePilotRun() {
                 return;
             }
 
-            let envelope;
-            try {
-                const resp = await api.post(
-                    '/teacher/ai/pilot-prepare',
-                    {
-                        run_id: runIdRef.current,
-                        kind,
-                        route: window.location.pathname,
-                        message: kind === 'start' ? task : undefined,
-                        data: data || {},
-                    },
-                    { signal: abortRef.current?.signal, timeout: 20000 },
-                );
-                envelope = resp.data;
-                turnTokenRef.current = envelope.turn_token;
-            } catch (err) {
-                if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') {
+            let envelope = null;
+            const maxAttempts = 3;
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                try {
+                    const resp = await api.post(
+                        '/teacher/ai/pilot-prepare',
+                        {
+                            run_id: runIdRef.current,
+                            kind,
+                            route: window.location.pathname,
+                            message: kind === 'start' ? task : undefined,
+                            data: data || {},
+                        },
+                        { signal: abortRef.current?.signal, timeout: 20000 },
+                    );
+                    envelope = resp.data;
+                    break;
+                } catch (err) {
+                    if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') {
+                        await finalize();
+                        return;
+                    }
+                    // This box serves the dashboard AND the pilot from one PHP
+                    // worker — transient refusals right after an in-page action
+                    // (the page's own writes are still draining) are common.
+                    // A mid-run drop must not look like the task failed, so
+                    // retry with backoff before giving up.
+                    if (abortedRef.current) {
+                        await finalize();
+                        return;
+                    }
+                    if (attempt < maxAttempts) {
+                        await new Promise((r) => setTimeout(r, 1200 * attempt));
+                        continue;
+                    }
+                    push({
+                        kind: 'notice',
+                        text: kind === 'start'
+                            ? "I couldn't reach the dashboard backend — is it running?"
+                            : "The connection dropped on my side — every step you saw complete DID go through. Ask me to continue if the page doesn't look right.",
+                    });
                     await finalize();
                     return;
                 }
-                push({ kind: 'notice', text: "I couldn't reach my coordinator — is the backend up?" });
-                await finalize();
-                return;
             }
+            turnTokenRef.current = envelope.turn_token;
 
             let pendingTool = null;
             let pendingLookup = null;
@@ -274,6 +372,10 @@ export function usePilotRun() {
                             break;
                         case 'finish':
                             finishReason = ev.reason;
+                            // The server runs ONE tool per turn; extra parallel
+                            // calls are dropped — carry them so the next turn
+                            // tells the model honestly what didn't run
+                            droppedToolsRef.current = ev.dropped?.length ? ev.dropped : null;
                             if (ev.reason === 'error') setStrip('');
                             break;
                         default:
@@ -308,7 +410,8 @@ export function usePilotRun() {
             // Dangling-claim backstop: the turn claimed an action ("I'm
             // opening the class page…", "I'll explain how removal works…")
             // but finished with no tool call and didn't deliver the words.
-            // A trailing question does NOT launder a claim made mid-message.
+            // A trailing question does NOT launder a claim made mid-message;
+            // conditional offers ("say the word and I'll…") are not claims.
             // First offense → one continuation ordering act-or-ask. If it
             // happens AGAIN, end with an honest visible handoff instead of
             // leaving a false "done" on screen.
@@ -316,9 +419,14 @@ export function usePilotRun() {
                 finishReason === 'stop' &&
                 !pendingTool &&
                 !pendingLookup &&
-                ACTION_CLAIM_RE.test(turnNarration);
+                hasDanglingClaim(turnNarration);
             if (narratedVoidAction && !nudgeUsedRef.current) {
                 nudgeUsedRef.current = true;
+                // The nudge is a NEW turn of its own — close the finished
+                // turn's bubble first, or its narration appends onto the
+                // previous reply (two answers glued into one bubble).
+                if (streamingRef.current) updateMessage(streamingRef.current, { streaming: false });
+                streamingRef.current = null;
                 await runTurn('tool-result', {
                     data: {
                         route: window.location.pathname,
@@ -368,6 +476,13 @@ export function usePilotRun() {
 
             setStatus('acting');
             setStrip(event.explain || 'Operating…');
+            // Takeover UI only when the batch actually moves the page — a
+            // point-at-controls guide or a snapshot never locks the teacher out
+            const takesOver = commands.some((c) => !SILENT_ACTIONS.has(String(c.action)));
+            if (takesOver) {
+                setDriving(true);
+                setDroveThisRun(true);
+            }
             toolTurnsRef.current += 1;
             const toolsMsgId = push({
                 kind: 'tools',
@@ -392,6 +507,11 @@ export function usePilotRun() {
             executedRef.current.push(...results.map((r) => ({ ...r, explain: event.explain || '' })));
             trailRef.current.push(...results.map((r) => r.message).filter(Boolean));
             updateMessage(toolsMsgId, { results });
+            // Batch done — the page is the teacher's again while the next
+            // turn streams (the drive bar + page lock are tied to `driving`)
+            if (takesOver) setDriving(false);
+            setStatus('thinking');
+            setStrip('');
 
             // Repeat detection: an identical batch that just failed entirely
             // means the model is stuck — stop honestly instead of burning
@@ -405,9 +525,73 @@ export function usePilotRun() {
             }
             lastBatchKeyRef.current = batchKey;
 
+            // Loop detection: identical batches mean the model is stuck —
+            // reads just keep returning the same page; repeated CLICKS can
+            // be worse (a toggle button opens then closes the same popup).
+            // 3× → a warning rides back to the model; 6× → stop the run.
+            const isReadBatch = commands.every((c) => SILENT_ACTIONS.has(String(c.action)) || String(c.action) === 'scroll');
+            if (batchKey === readLoopKeyRef.current) readLoopCountRef.current += 1;
+            else {
+                readLoopKeyRef.current = batchKey;
+                readLoopCountRef.current = 1;
+            }
+            // Oscillation (A-B-A): alternating batches — a toggle whose label
+            // swaps with the state it creates, an open/close pair — produce a
+            // DIFFERENT key every turn and dodge the identical-batch guard
+            // entirely. If this batch equals the one from two batches ago,
+            // the run is ping-ponging between two states.
+            const oscillating = batchKey === twoAgoKeyRef.current;
+            twoAgoKeyRef.current = prevBatchKeyRef.current;
+            prevBatchKeyRef.current = batchKey;
+            oscillationCountRef.current = oscillating ? oscillationCountRef.current + 1 : 0;
+            const loopCount = Math.max(readLoopCountRef.current, oscillationCountRef.current * 2);
+            if (loopCount >= 6) {
+                push({ kind: 'notice', text: "The same steps keep landing in the same place — I'm stopping rather than spinning. Tell me what I'm missing and I'll pick it up from there." });
+                await finalize();
+                return;
+            }
+            const loopWarning = loopCount >= 3
+                ? [{
+                    action: 'repeat',
+                    ref: null,
+                    ok: false,
+                    message: oscillationCountRef.current >= 2
+                        ? `this batch is ping-ponging with the previous one (${oscillationCountRef.current + 1}× A→B→A) — classic toggle flip-flop: a toggle's label describes the action from the CURRENT state, so if the page line already shows the state the teacher asked for (theme: light, the tab you want), that step is DONE. Move to the next part of the task.`
+                        : `identical batch repeated ${readLoopCountRef.current}× — this exact sequence is not progressing${isReadBatch ? ' and the control you\'re hunting is not appearing in snapshots' : ' (if a click opens then closes the same popup, that\'s why — look at what\'s ALREADY open in the snapshot)'}. Change approach: act on a different ref, scroll or goto somewhere fresh, or tell the teacher this control doesn't exist.`,
+                }]
+                : [];
+
             if (streamingRef.current) updateMessage(streamingRef.current, { streaming: false });
             streamingRef.current = null;
 
+            // Creation anchor: a batch that typed a name and clicked through
+            // it created something — the row in the CURRENT snapshot matching
+            // that string is the thing it made. Kept PENDING until the model
+            // actually clicks the matched ref: the new row often renders a
+            // beat after the post-Add snapshot (the model opened a same-
+            // looking visible sibling twice without this).
+            let createdHint = null;
+            const typedValues = results
+                .filter((r) => r.action === 'input' && r.ok && r.command?.value)
+                .map((r) => String(r.command.value))
+                .filter((v) => v.length >= 6);
+            if (typedValues.length) pendingCreationRef.current = { value: typedValues[typedValues.length - 1] };
+            if (pendingCreationRef.current) {
+                const val = pendingCreationRef.current.value;
+                const matches = [...snapshotRef.current.entries.values()].filter(
+                    (e) => e.name && e.name.includes(val)
+                );
+                if (matches.length === 1) {
+                    const hit = matches[0];
+                    createdHint = { value: val, ref: hit.ref, name: hit.name, below: !!hit.belowFold };
+                    if (results.some((r) => r.action === 'click' && r.ok && Number(r.ref) === Number(hit.ref))) {
+                        pendingCreationRef.current = null; // consumed — the model opened its creation
+                    }
+                }
+            }
+
+            const dropped = droppedToolsRef.current;
+            droppedToolsRef.current = null;
             await runTurn('tool-result', {
                 data: {
                     route: window.location.pathname,
@@ -416,6 +600,8 @@ export function usePilotRun() {
                     consent: consentRef.current,
                     explain: event.explain,
                     commands,
+                    created_hint: createdHint || undefined,
+                    dropped_tools: dropped || undefined,
                     recent_calls: trailRef.current.slice(-10),
                     results: results.map((r) => ({
                         action: r.action,
@@ -423,7 +609,7 @@ export function usePilotRun() {
                         ok: r.ok,
                         blocked: r.blocked || undefined,
                         message: r.message,
-                    })),
+                    })).concat(loopWarning),
                 },
             });
         },
@@ -437,7 +623,7 @@ export function usePilotRun() {
     const handleLookup = useCallback(
         async (event) => {
             setStatus('acting');
-            setStrip(`Looking up ${event.query}…`);
+            setStrip(`Checking ${LOOKUP_LABELS[event.query] || 'your data'}…`);
             toolTurnsRef.current += 1;
 
             const cacheKey = `${event.query}|${JSON.stringify(event.params || {}, Object.keys(event.params || {}).sort())}`;
@@ -457,7 +643,11 @@ export function usePilotRun() {
                         { query: event.query, params: event.params || {} },
                         { signal: abortRef.current?.signal, timeout: 20000 },
                     );
-                    result = resp.data;
+                    // Laravel wraps the payload as { query, result } — the
+                    // digests, the cache and the Python error note all read
+                    // the bare result, so unwrap here or every trail line
+                    // about a lookup is empty/garbage
+                    result = resp.data?.result ?? resp.data;
                     failedLookupStreakRef.current = 0;
                     lookupCacheRef.current.set(cacheKey, result);
                 } catch (err) {
@@ -480,14 +670,18 @@ export function usePilotRun() {
             if (streamingRef.current) updateMessage(streamingRef.current, { streaming: false });
             streamingRef.current = null;
 
+            const droppedLookup = droppedToolsRef.current;
+            droppedToolsRef.current = null;
             await runTurn('lookup-result', {
                 data: {
                     route: window.location.pathname,
+                    task: taskRef.current,
                     query: event.query,
                     params: event.params || {},
                     result,
                     repeated: isRepeat && !streakBreached ? true : undefined,
                     failed_streak: streakBreached || undefined,
+                    dropped_tools: droppedLookup || undefined,
                     recent_calls: trailRef.current.slice(-10),
                 },
             });
@@ -535,10 +729,14 @@ export function usePilotRun() {
             abortedRef.current = false;
             stopNoticeShownRef.current = false;
             lastBatchKeyRef.current = null;
+            readLoopKeyRef.current = null;
+            readLoopCountRef.current = 0;
+            pendingCreationRef.current = null;
             trailRef.current = [];
             lookupCacheRef.current = new Map();
             failedLookupStreakRef.current = 0;
             nudgeUsedRef.current = false;
+            setDroveThisRun(false); // a new run starts with a clean wheel
             abortRef.current = new AbortController();
             takeSnapshot();
 
@@ -580,6 +778,8 @@ export function usePilotRun() {
         messages,
         status,
         statusText,
+        driving,
+        droveThisRun,
         consent,
         input,
         setInput,

@@ -99,10 +99,16 @@ export default function DateTimePicker({ value, onChange, disabled }) {
 
     const displayValue = value ? format(new Date(value), 'MMM d, yyyy h:mm aa') : '';
 
-    const hourOptions = Array.from({ length: 24 }, (_, i) => ({
-        value: String(i).padStart(2, '0'),
-        label: String(i).padStart(2, '0'),
-    }));
+    // 12-hour labels with an explicit AM/PM — the display reads "5:00 PM",
+    // so a bare "17" (or a bare "05") in the menu invites the wrong pick,
+    // by teacher hands and by the pilot alike.
+    const hourOptions = Array.from({ length: 24 }, (_, i) => {
+        const h12 = i % 12 === 0 ? 12 : i % 12;
+        return {
+            value: String(i).padStart(2, '0'),
+            label: `${String(h12).padStart(2, '0')} ${i < 12 ? 'AM' : 'PM'}`,
+        };
+    });
     const minuteOptions = Array.from({ length: 60 }, (_, i) => ({
         value: String(i).padStart(2, '0'),
         label: String(i).padStart(2, '0'),
@@ -154,14 +160,14 @@ export default function DateTimePicker({ value, onChange, disabled }) {
                     }}
                 >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                        <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} type="button"
+                        <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} type="button" aria-label="Previous month"
                             style={{ display: 'grid', placeItems: 'center', width: 30, height: 30, background: 'transparent', border: '1px solid var(--db-border)', borderRadius: 9, cursor: 'pointer', color: 'var(--db-text-2)' }}>
                             <ChevronLeft size={16} />
                         </button>
                         <span style={{ fontFamily: 'var(--db-font-display)', fontSize: 15, fontWeight: 700, color: 'var(--db-text)' }}>
                             {format(currentMonth, 'MMMM yyyy')}
                         </span>
-                        <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} type="button"
+                        <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} type="button" aria-label="Next month"
                             style={{ display: 'grid', placeItems: 'center', width: 30, height: 30, background: 'transparent', border: '1px solid var(--db-border)', borderRadius: 9, cursor: 'pointer', color: 'var(--db-text-2)' }}>
                             <ChevronRight size={16} />
                         </button>
@@ -180,6 +186,7 @@ export default function DateTimePicker({ value, onChange, disabled }) {
                             const isToday = isSameDay(day, new Date());
                             return (
                                 <button key={day.toISOString()} onClick={() => selectDay(day)} type="button"
+                                    aria-label={format(day, 'MMMM d, yyyy')}
                                     style={{
                                         padding: '8px 0', borderRadius: 9, border: isSelected ? 'none' : '1px solid transparent',
                                         background: isSelected ? 'var(--db-accent)' : isToday ? 'var(--db-accent-soft)' : 'transparent',

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Reorder, useDragControls } from 'framer-motion';
 import {
     ChevronLeft, Plus, Trash2, Clock, Eye, EyeOff, Loader2, HelpCircle, Upload,
-    BookOpen, UserCheck, AlertTriangle, FileText, Timer, Shuffle, Radio, Edit3, Check, X,
+    BookOpen, UserCheck, AlertTriangle, FileText, Timer, Shuffle, Radio, Edit3, Check, X, Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -17,6 +17,7 @@ import CodeMirror from '@uiw/react-codemirror';
 import { CODE_LANGUAGES, cmExtension, languageOf } from '../../utils/codeLanguages';
 import TestCaseEditor from '../../components/teacher/TestCaseEditor';
 import HtmlChecksEditor from '../../components/teacher/HtmlChecksEditor';
+import AiQuestionModal from './AiQuestionModal';
 import './ActivityEditor.css';
 
 const QUESTION_TYPES = [
@@ -225,6 +226,7 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
                         <div>
                             <span className="ae-field-label">{type === 'enumeration' ? 'Points per correct answer' : 'Points'}</span>
                             <input className="ae-input" type="number" min={1} step={1} value={points} style={{ width: 92 }}
+                                aria-label={type === 'enumeration' ? 'Points per correct answer' : 'Points'}
                                 onChange={(e) => setPoints(Math.min(1000, Math.max(1, Math.round(Number(e.target.value) || 1))))} />
                         </div>
                         {type === 'enumeration' && options.filter(o => o.trim()).length > 0 && (
@@ -546,6 +548,7 @@ export default function ActivityEditor() {
     const savingRef = useRef(false);
     const pendingFlushRef = useRef(false);
     const [showAddQuestion, setShowAddQuestion] = useState(false);
+    const [showAiQuestions, setShowAiQuestions] = useState(false);
     const [editQuestion, setEditQuestion] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteFileTarget, setDeleteFileTarget] = useState(null);
@@ -862,7 +865,7 @@ export default function ActivityEditor() {
                                 activity.submissions_count !== undefined
                                     ? `${activity.submissions_count} submission${activity.submissions_count !== 1 ? 's' : ''}`
                                     : null,
-                                !isQuiz && activity.deadline_at && (
+                                (!isQuiz || activity.pacing_mode === 'student') && activity.deadline_at && (
                                     <span key="due" style={{ color: isPastDue ? 'var(--db-danger)' : undefined }}>
                                         due {format(new Date(activity.deadline_at), 'MMM d, h:mm a')}
                                         {activity.deadline_behavior === 'soft' ? ' · late OK' : ' · closes at deadline'}
@@ -960,8 +963,10 @@ export default function ActivityEditor() {
                         )}
                     </div>
 
-                    {/* Deadline (activities with something to submit) */}
-                    {activity.submission_type !== 'material' && !isQuiz && (
+                    {/* Deadline (activities with something to submit, and
+                        student-paced quizzes — teacher-paced quizzes run on
+                        the room's own lifecycle instead) */}
+                    {activity.submission_type !== 'material' && (!isQuiz || activity.pacing_mode === 'student') && (
                         <div className="ae-card">
                             <h4 className="ae-card-label"><Clock size={13} /> Deadline</h4>
                             <DateTimePicker value={activity.deadline_at} onChange={(val) => handleFieldChange('deadline_at', val)} />
@@ -1160,9 +1165,15 @@ export default function ActivityEditor() {
                             </p>
                         </div>
                         {(isQuiz || activity.submission_type === 'questions') && !questionsDisabled && (
-                            <button className="db-btn-primary" onClick={() => setShowAddQuestion(true)} type="button">
-                                <Plus size={16} /> Add question
-                            </button>
+                            <div className="ae-col-actions">
+                                <button className="db-btn-ghost ae-ai-btn" onClick={() => setShowAiQuestions(true)} type="button"
+                                    title="Write questions from your class material with AI">
+                                    <Sparkles size={15} /> Generate with AI
+                                </button>
+                                <button className="db-btn-primary" onClick={() => setShowAddQuestion(true)} type="button">
+                                    <Plus size={16} /> Add question
+                                </button>
+                            </div>
                         )}
                     </div>
 
@@ -1176,9 +1187,14 @@ export default function ActivityEditor() {
                                         <p className="ae-empty-sub">
                                             {isQuiz ? 'Multiple choice, coding, essays — mix any types.' : 'Add questions for students to answer.'}
                                         </p>
-                                        <button className="db-btn-primary" onClick={() => setShowAddQuestion(true)} type="button">
-                                            <Plus size={15} /> Add your first question
-                                        </button>
+                                        <div className="ae-col-actions" style={{ justifyContent: 'center' }}>
+                                            <button className="db-btn-ghost ae-ai-btn" onClick={() => setShowAiQuestions(true)} type="button">
+                                                <Sparkles size={15} /> Generate with AI
+                                            </button>
+                                            <button className="db-btn-primary" onClick={() => setShowAddQuestion(true)} type="button">
+                                                <Plus size={15} /> Add your first question
+                                            </button>
+                                        </div>
                                     </>
                                 ) : (
                                     <p className="ae-empty-sub">This activity is locked — questions can no longer change.</p>
@@ -1283,6 +1299,17 @@ export default function ActivityEditor() {
             </div>
 
             <CreateQuestionModal key={showAddQuestion} isOpen={showAddQuestion} onClose={() => setShowAddQuestion(false)} onCreated={handleAddQuestion} />
+            {showAiQuestions && (
+                <AiQuestionModal
+                    activityId={activityId}
+                    activityTitle={activity?.title || 'this activity'}
+                    onClose={() => setShowAiQuestions(false)}
+                    onCommitted={() => {
+                        fetchActivity();
+                        queryClient.invalidateQueries({ queryKey: classActivitiesKey(classId) });
+                    }}
+                />
+            )}
             <CreateQuestionModal key={'edit-' + (editQuestion?.id || 'null')} isOpen={!!editQuestion} onClose={() => setEditQuestion(null)} onEdited={handleEditQuestionSubmit} editQuestion={editQuestion} />
             <DeleteModal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)}
                 onConfirm={() => { if (deleteTarget) handleDeleteQuestion(deleteTarget); setDeleteTarget(null); }}

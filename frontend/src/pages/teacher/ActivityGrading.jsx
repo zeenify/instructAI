@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Loader2, CheckSquare, Download, MessageSquare, Search, Edit3, FileText, ImageIcon, CheckCircle, Play, Eye, Code2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
 import CodeMirror from '@uiw/react-codemirror';
 import { cmExtension, languageOf, normalizeHtmlChecks, injectPreviewBridge } from '../../utils/codeLanguages';
+import InteractiveTerminal from '../../components/student/InteractiveTerminal';
 import './ActivityGrading.css';
 
 function studentName(s) {
@@ -15,6 +16,20 @@ function studentName(s) {
 
 function studentAvatar(s) {
   return s?.student?.avatar || s?.avatar || null;
+}
+
+// Mirror of the backend's ActivityGrading::autoGradable — a coding question
+// with test cases (or HTML with page checks) grades itself at submit; without
+// them it needs the teacher. The grading page's grouping must follow this,
+// not the question type.
+function isAutoGradableQuestion(q) {
+  if (!q) return false;
+  if (q.type === 'essay') return false;
+  if (q.type === 'coding') {
+    if ((q.language || 'java') === 'html') return (q.html_checks || []).length > 0;
+    return ((q.test_cases ?? q.testCases)?.length ?? 0) > 0;
+  }
+  return true;
 }
 
 function FilePreview({ file }) {
@@ -295,8 +310,8 @@ export default function ActivityGrading() {
 
             {/* Per-answer grading — manual questions first, auto-graded below */}
             {gradingTarget.questions && gradingTarget.questions.length > 0 && (() => {
-              const manual = gradingTarget.questions.filter((q) => q.type === 'essay' || q.type === 'coding');
-              const auto = gradingTarget.questions.filter((q) => q.type !== 'essay' && q.type !== 'coding');
+              const manual = gradingTarget.questions.filter((q) => !isAutoGradableQuestion(q));
+              const auto = gradingTarget.questions.filter((q) => isAutoGradableQuestion(q));
 
               const answerOf = (q) => gradingTarget.answers?.find((a) => a.question_id === q.id);
               const questionNumber = (q) => gradingTarget.questions.indexOf(q) + 1;
@@ -373,22 +388,29 @@ export default function ActivityGrading() {
                               </p>
                               <span className="ag-mq-label" style={{ whiteSpace: 'nowrap' }}>{q.points} pts</span>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                              <span className="ag-aq-answer">
-                                {answerSummary(q, answer)}
-                              </span>
-                              {answer?.is_correct !== null && answer?.is_correct !== undefined && (
-                                <span className={`ag-verdict ${answer?.is_correct ? 'pass' : 'fail'}`}>
-                                  {answer?.is_correct ? 'Correct (auto)' : 'Incorrect (auto)'}
-                                </span>
-                              )}
-                              <div className="ag-score-row" style={{ marginLeft: 'auto' }}>
-                                <input type="number" min={0} max={q.points} step={0.5} className="ag-score-input" style={{ width: 64, fontSize: 13 }}
-                                  title="Override the auto score if needed"
-                                  value={gradingForm.answers?.[q.id]?.score ?? 0}
-                                  onChange={(e) => { const v = Math.min(Math.max(Number(e.target.value) || 0, 0), q.points); setGradingForm((prev) => ({ ...prev, answers: { ...prev.answers, [q.id]: { score: v } } })); }} />
-                                <span className="ag-score-max-label">/ {q.points}</span>
+                            {q.type === 'coding' && answer?.submitted_answer ? (
+                              <div style={{ marginBottom: 10 }}>
+                                <CodingAnswerView language={q.language} code={answer.submitted_answer} htmlChecks={q.html_checks || []} testResults={answer.test_results} />
                               </div>
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                                <span className="ag-aq-answer">
+                                  {answerSummary(q, answer)}
+                                </span>
+                                {answer?.is_correct !== null && answer?.is_correct !== undefined && (
+                                  <span className={`ag-verdict ${answer?.is_correct ? 'pass' : 'fail'}`}>
+                                    {answer?.is_correct ? 'Correct (auto)' : 'Incorrect (auto)'}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            <div className="ag-score-row" style={q.type === 'coding' ? {} : { marginLeft: 'auto' }}>
+                              <label className="ag-score-label">Score:</label>
+                              <input type="number" min={0} max={q.points} step={0.5} className="ag-score-input" style={{ width: 64, fontSize: 13 }}
+                                title="Override the auto score if needed"
+                                value={gradingForm.answers?.[q.id]?.score ?? 0}
+                                onChange={(e) => { const v = Math.min(Math.max(Number(e.target.value) || 0, 0), q.points); setGradingForm((prev) => ({ ...prev, answers: { ...prev.answers, [q.id]: { score: v } } })); }} />
+                              <span className="ag-score-max-label">/ {q.points}</span>
                             </div>
                           </div>
                         );
@@ -545,8 +567,9 @@ export default function ActivityGrading() {
 
 // Teacher-side view of a student's code: syntax highlighted in the question's
 // language, a sandboxed live preview for HTML submissions (graded against the
-// question's page checks, same harness students see), and a run-it-yourself
-// pane (with stdin) so the teacher sees what the code actually did.
+// question's page checks, same harness students see), and the same interactive
+// terminal students get — the program pauses on input and the teacher types
+// into it, exactly like the student's own run.
 function CodingAnswerView({ language, code, htmlChecks: htmlChecksProp = [], testResults = null }) {
   const lang = languageOf(language);
   const isHtml = lang.preview;
@@ -554,9 +577,7 @@ function CodingAnswerView({ language, code, htmlChecks: htmlChecksProp = [], tes
   const [tab, setTab] = useState('code');
   const [previewDoc, setPreviewDoc] = useState('');
   const [previewResults, setPreviewResults] = useState(null);
-  const [stdin, setStdin] = useState('');
-  const [runOutput, setRunOutput] = useState('');
-  const [runError, setRunError] = useState(false);
+  const termRef = useRef(null);
   const [running, setRunning] = useState(false);
 
   useEffect(() => {
@@ -575,39 +596,23 @@ function CodingAnswerView({ language, code, htmlChecks: htmlChecksProp = [], tes
     setTab('preview');
   };
 
-  const runCode = async () => {
-    if (running) return;
-    setRunning(true);
-    setRunOutput('');
-    setRunError(false);
-    setTab('output');
-    try {
-      const res = await api.post('/teacher/run-code', {
-        language: lang.id,
-        code,
-        input: stdin || undefined,
-      }, { timeout: 45000 });
-      const data = res.data;
-      if (data.compile_output) {
-        setRunOutput(data.compile_output);
-        setRunError(true);
-      } else if (data.stderr) {
-        setRunOutput(data.stderr);
-        setRunError(true);
-      } else {
-        const clean = (data.stdout || '').trim().replace(/\r\n/g, '\n');
-        setRunOutput(clean || '> Program executed successfully (No output).');
-      }
-    } catch {
-      setRunOutput('Could not reach the execution engine.');
-      setRunError(true);
-    } finally {
-      setRunning(false);
-    }
-  };
-
   return (
     <div className="ag-cv">
+      {/* IO test-case verdicts from submit-time auto-grading — so the teacher
+          sees WHY the score is what it is instead of trusting a number */}
+      {(testResults?.tests?.length ?? 0) > 0 && (
+        <div className="ag-cv-checks" style={{ marginBottom: 8 }}>
+          <div className="ag-cv-checks-title">
+            Test cases — {testResults.passed}/{testResults.total} passed (graded automatically)
+          </div>
+          {testResults.tests.map((t, i) => (
+            <div key={i} className="ag-cv-check-row">
+              <span style={{ color: t.passed ? '#34d399' : '#f87171', flexShrink: 0 }}>{t.passed ? '✓' : '✕'}</span>
+              <span>Test {i + 1}{t.hidden ? ' (hidden)' : ''}</span>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="ag-cv-head">
         <span className="ag-cv-lang" style={{ background: `${lang.color}1f`, border: `1px solid ${lang.color}55`, color: lang.color }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: lang.color }} />
@@ -618,7 +623,7 @@ function CodingAnswerView({ language, code, htmlChecks: htmlChecksProp = [], tes
             <Code2 size={11} /> Code
           </button>
           {!isHtml && (
-            <button onClick={() => setTab('output')} type="button" className={`ag-cv-tab ${tab === 'output' ? 'on' : ''}`}>
+            <button onClick={() => setTab('run')} type="button" className={`ag-cv-tab ${tab === 'run' ? 'on' : ''}`}>
               <Play size={11} /> Run
             </button>
           )}
@@ -658,20 +663,19 @@ function CodingAnswerView({ language, code, htmlChecks: htmlChecksProp = [], tes
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="ag-cv-stdin">
             <div className="ag-cv-stdin-head">
-              <span className="ag-cv-stdin-label">Input (stdin)</span>
-              <button onClick={runCode} type="button" disabled={running} className="ag-cv-run-btn">
+              <span className="ag-cv-stdin-label">Interactive terminal — when the program asks for input, just type here</span>
+              <button
+                onClick={() => termRef.current?.triggerRun()}
+                type="button"
+                disabled={running}
+                className="ag-cv-run-btn"
+              >
                 {running ? 'Running…' : 'Run student code'}
               </button>
             </div>
-            <textarea
-              value={stdin}
-              onChange={(e) => setStdin(e.target.value)}
-              rows={2}
-              placeholder="Lines fed to the program (one per read)..."
-            />
           </div>
-          <div className={`ag-cv-terminal ${runError ? 'err' : ''}`}>
-            {runOutput || (running ? 'Running…' : 'Click "Run student code" to execute with the input above.')}
+          <div style={{ height: 320, background: '#050120', borderBottomLeftRadius: 10, borderBottomRightRadius: 10, overflow: 'hidden' }}>
+            <InteractiveTerminal compact ref={termRef} code={code} language={lang.id} onRunningChange={setRunning} />
           </div>
         </div>
       )}

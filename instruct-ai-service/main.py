@@ -3,6 +3,7 @@ InstructAI Service - AI-powered curriculum and content generation
 Refactored modular architecture with debug logging
 """
 import os
+import asyncio
 import json
 import hmac
 import hashlib
@@ -26,6 +27,7 @@ from config.models import GEN_CONTENT_MODEL
 from utils.logger import print_metrics_summary
 from services.curriculum_service import generate_curriculum_stream, generate_curriculum_legacy
 from services.content_service import generate_content_stream
+from services.qa_service import generate_qa_questions_stream
 from services.stage1_outline_service import generate_lesson_outline
 from services.stage2_content_service import generate_all_section_contents
 from services.stage3_formatter_service import format_all_sections_to_lesson
@@ -273,6 +275,57 @@ async def content_stream_endpoint(
         ),
         media_type="text/event-stream"
     )
+
+
+@app.post("/ai/generate-qa-questions-stream")
+async def qa_questions_stream_endpoint(
+    context: str = Form(...),  # JSON list of {source, title, text} — pre-extracted by Laravel
+    settings: str = Form(...),  # JSON {types, count, difficulty, focus}
+    files: list[UploadFile] = File(None, alias="files[]"),  # PHP forwards the bracketed multi-upload name
+):
+    """
+    Generate Q&A questions for a classwork activity, in batches, grounded in
+    teacher-selected class material. Laravel pre-extracts lesson/curriculum
+    text and forwards uploaded files raw — text is extracted here so PPTX
+    works (python-pptx).
+    """
+    try:
+        sources = json.loads(context)
+        if not isinstance(sources, list):
+            raise ValueError("context must be a list")
+    except Exception as e:
+        print(f"[QA] bad context: {e}")
+        return JSONResponse(status_code=400, content={"error": "bad context"})
+
+    try:
+        qa_settings = json.loads(settings)
+        if not isinstance(qa_settings, dict):
+            raise ValueError("settings must be an object")
+    except Exception as e:
+        print(f"[QA] bad settings: {e}")
+        return JSONResponse(status_code=400, content={"error": "bad settings"})
+
+    # files is None (not []) when the form carries no uploads — e.g. the
+    # lessons-only run, the most common flow
+    for file in (files or [])[:4]:
+        text = await asyncio.to_thread(_safe_extract, file)
+        if text and text.strip():
+            sources.append({"source": "file", "title": file.filename, "text": text[:20000]})
+        else:
+            print(f"[QA] no text extracted from {file.filename}")
+
+    return StreamingResponse(
+        generate_qa_questions_stream(ai_pool=ai_pool, context_sources=sources, settings=qa_settings),
+        media_type="text/event-stream",
+    )
+
+
+def _safe_extract(file: UploadFile) -> str:
+    try:
+        return extract_text(file)
+    except Exception as e:
+        print(f"[QA] extract failed for {file.filename}: {type(e).__name__}: {e}")
+        return ""
 
 
 # ===== TEST ENDPOINT - STAGE 1 OUTLINE =====

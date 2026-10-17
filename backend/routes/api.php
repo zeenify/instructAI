@@ -17,6 +17,7 @@ use App\Http\Controllers\Teacher\ClassActivityController;
 // --- ADD STUDENT CONTROLLERS ---
 use App\Http\Controllers\Teacher\CodeRunController;
 use App\Http\Controllers\Teacher\ActivityQuestionController;
+use App\Http\Controllers\Teacher\ActivityAiController;
 use App\Http\Controllers\Teacher\ClassroomController;
 use App\Http\Controllers\Admin\StudentWhitelistController;
 use App\Http\Controllers\Admin\TeacherWhitelistController;
@@ -56,6 +57,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/teacher/classes', [ClassroomController::class, 'index']);
     Route::post('/teacher/classes', [ClassroomController::class, 'store']);
     Route::get('/teacher/classes/{id}', [ClassroomController::class, 'show']);
+    Route::get('/teacher/classes/{id}/copy-preview', [ClassroomController::class, 'copyPreview']);
+    Route::post('/teacher/classes/{id}/copy-from', [ClassroomController::class, 'copyFrom']);
     Route::delete('/teacher/class/{id}', [ClassroomController::class, 'destroy']);
     Route::get('/teacher/overview', [ClassroomController::class, 'overview']);
     Route::put('/teacher/classes/{id}/color', [ClassroomController::class, 'updateColor']);
@@ -243,6 +246,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('/teacher/activities/{activityId}/questions/{questionId}', [ClassActivityController::class, 'updateQuestion']);
     Route::delete('/teacher/activities/{activityId}/questions/{questionId}', [ClassActivityController::class, 'destroyQuestion']);
     Route::post('/teacher/activities/{activityId}/questions/reorder', [ClassActivityController::class, 'reorderQuestions']);
+
+    // Activity AI question generation (context tree → stream → commit)
+    Route::get('/teacher/activities/{activityId}/ai-context', [ActivityAiController::class, 'context']);
+    Route::post('/teacher/activities/{activityId}/ai-generate-questions', [ActivityAiController::class, 'generate']);
+    Route::post('/teacher/activities/{activityId}/ai-commit-questions', [ActivityAiController::class, 'commit']);
 
     // Activity Instruction Files
     Route::post('/teacher/activities/{id}/upload-instruction-file', [ClassActivityController::class, 'uploadInstructionFile']);

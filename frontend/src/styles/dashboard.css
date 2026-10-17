@@ -1255,6 +1255,29 @@
     color: var(--db-accent);
 }
 
+/* "Copy from class" — quiet hero action, pushed to the far right */
+.cc-hero-btn {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid var(--db-border-strong);
+    background: var(--db-card);
+    color: var(--db-text-2);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.cc-hero-btn:hover {
+    border-color: var(--db-accent-border);
+    color: var(--db-accent-bright);
+}
+
 .cd-header {
     display: flex;
     align-items: flex-start;

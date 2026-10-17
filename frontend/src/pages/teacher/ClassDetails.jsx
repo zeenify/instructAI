@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { useClassDetails } from '../../queries/classDetails';
 import Classwork from './Classwork';
 import CourseBuilder from './CourseBuilder';
+import CopyClassModal from './CopyClassModal';
 import { SkeletonBlock } from '../../components/ui/skeletons';
 import '../../styles/dashboard.css';
 
@@ -88,6 +89,8 @@ export default function ClassDetails() {
     const content = course ?? null;
 
     const [copied, setCopied] = useState(false);
+    const [copyModalOpen, setCopyModalOpen] = useState(false);
+    const [copyVersion, setCopyVersion] = useState(0);
 
     useEffect(() => {
         if (isError) {
@@ -139,6 +142,15 @@ export default function ClassDetails() {
                         <span className="cd-code-chip-hint">Copy</span>
                         {classroom.class_code}
                         {copied ? <Check size={14} /> : <Copy size={14} />}
+                    </button>
+                    <button
+                        type="button"
+                        className="cc-hero-btn"
+                        onClick={() => setCopyModalOpen(true)}
+                        title="Copy content (modules, lessons, quizzes) from one of your other classes"
+                    >
+                        <Copy size={14} />
+                        Copy content
                     </button>
                 </div>
                 {/* One quiet line instead of four cards — "to grade" only
@@ -210,9 +222,12 @@ export default function ClassDetails() {
                         </div>
                     ) : (
                         /* key: builder state (modules, expanded module, modes) is
-                           per-course — never leak across class switches */
+                           per-course — never leak across class switches. The
+                           copy version remounts the builder after a content
+                           copy: the builder seeds its state once from
+                           initialCourse, so a refetch alone never reaches it. */
                         <CourseBuilder
-                            key={course.id}
+                            key={`${course.id}:${copyVersion}`}
                             courseId={course.id}
                             embedded
                             initialCourse={content}
@@ -261,6 +276,16 @@ export default function ClassDetails() {
 
             {/* CLASSWORK TAB */}
             {activeTab === 'classwork' && <Classwork classId={id} />}
+
+            {/* COPY CONTENT FROM ANOTHER CLASS */}
+            {copyModalOpen && (
+                <CopyClassModal
+                    classId={id}
+                    courseId={course?.id}
+                    onCommitted={() => setCopyVersion((v) => v + 1)}
+                    onClose={() => setCopyModalOpen(false)}
+                />
+            )}
         </div>
     );
 }

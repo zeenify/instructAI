@@ -9,6 +9,7 @@ use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Module;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class ClassroomController extends Controller
@@ -174,4 +175,206 @@ class ClassroomController extends Controller
         return response()->json($classroom);
     }
 
+    /**
+     * What this class can offer as a COPY SOURCE: a compact summary of its
+     * content tree (modules/lessons/quizzes). Powers the "Copy content from
+     * another class" picker on the target class page. (Classwork has its
+     * own per-activity repost — not part of this flow.)
+     */
+    public function copyPreview(Request $request, $id)
+    {
+        $classroom = Classroom::where('id', $id)
+            ->where('teacher_id', $request->user()->id)
+            ->first();
+        if (!$classroom) {
+            return response()->json(['message' => 'Class not found or unauthorized'], 403);
+        }
+
+        $course = Course::where('class_id', $classroom->id)
+            ->orderBy('order_index', 'asc')
+            ->with(['modules' => fn ($q) => $q->orderBy('order_index', 'asc')->withCount(['lessons', 'quizzes'])])
+            ->first();
+
+        $modules = [];
+        $totals = ['lessons' => 0, 'quizzes' => 0, 'questions' => 0];
+        if ($course) {
+            foreach ($course->modules as $module) {
+                $questionCount = \App\Models\Question::whereIn(
+                    'quiz_id',
+                    \App\Models\Quiz::where('module_id', $module->id)->pluck('id')
+                )->count();
+                $modules[] = [
+                    'id' => $module->id,
+                    'title' => $module->title,
+                    'lessons_count' => (int) $module->lessons_count,
+                    'quizzes_count' => (int) $module->quizzes_count,
+                    'questions_count' => $questionCount,
+                ];
+                $totals['lessons'] += (int) $module->lessons_count;
+                $totals['quizzes'] += (int) $module->quizzes_count;
+                $totals['questions'] += $questionCount;
+            }
+        }
+
+        return response()->json([
+            'class' => ['id' => $classroom->id, 'name' => $classroom->name],
+            'modules' => $modules,
+            'totals' => $totals,
+        ]);
+    }
+
+    /**
+     * Copy another class's content (course → modules → lessons → quizzes →
+     * questions → test cases) into THIS class. Everything arrives
+     * unpublished as drafts the teacher reviews before publishing —
+     * mirrors the ai-commit conventions. (Classwork copy lives on the
+     * activity card's repost endpoint.)
+     */
+    public function copyFrom(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'source_class_id' => 'required|integer',
+            'content_mode' => 'required|in:append,replace',
+        ]);
+
+        $target = Classroom::where('id', $id)
+            ->where('teacher_id', $request->user()->id)
+            ->first();
+        if (!$target) {
+            return response()->json(['message' => 'Class not found or unauthorized'], 403);
+        }
+
+        $source = Classroom::where('id', $validated['source_class_id'])
+            ->where('teacher_id', $request->user()->id)
+            ->first();
+        if (!$source) {
+            return response()->json(['message' => 'Source class not found or unauthorized'], 403);
+        }
+        if ((int) $source->id === (int) $target->id) {
+            return response()->json(['message' => 'Pick a different class to copy from'], 422);
+        }
+
+        $sourceCourse = Course::where('class_id', $source->id)
+            ->orderBy('order_index', 'asc')
+            ->with(['modules' => fn ($q) => $q->orderBy('order_index', 'asc')])
+            ->first();
+        if (!$sourceCourse || $sourceCourse->modules->isEmpty()) {
+            return response()->json(['message' => "“{$source->name}” has no content to copy yet"], 422);
+        }
+
+        // Replace wipes the target's module tree — a wipe that would cascade
+        // student quiz attempts is refused BEFORE the transaction opens
+        if ($validated['content_mode'] === 'replace') {
+            $targetQuizIds = \App\Models\Quiz::whereIn(
+                'module_id',
+                \App\Models\Module::whereIn('course_id', Course::where('class_id', $target->id)->pluck('id'))->pluck('id')
+            )->pluck('id');
+            $attemptCount = \App\Models\QuizAttempt::whereIn('quiz_id', $targetQuizIds)->count();
+            if ($attemptCount > 0) {
+                return response()->json([
+                    'message' => "Students already have {$attemptCount} quiz attempt" . ($attemptCount === 1 ? '' : 's')
+                        . ' in this class — replacing content would erase their grades. Copy with "Add to existing" instead.',
+                ], 422);
+            }
+        }
+
+        $result = DB::transaction(function () use ($target, $source, $sourceCourse, $validated) {
+            $counts = ['modules' => 0, 'lessons' => 0, 'quizzes' => 0, 'questions' => 0];
+
+            // Strict 1 class = 1 course (docs/data-layer-plan.md): the target
+            // course exists for every class created since the auto-course
+            // change; legacy classes get one on demand.
+            $targetCourse = Course::where('class_id', $target->id)
+                ->orderBy('order_index', 'asc')
+                ->first();
+            if (!$targetCourse) {
+                $targetCourse = $target->courses()->create([
+                    'teacher_id' => $target->teacher_id,
+                    'title' => $target->name,
+                    'is_published' => false,
+                    'order_index' => 0,
+                ]);
+            }
+
+            // 'replace' wipes the target's existing module tree first
+            // (same semantics as the AI commit's replace mode); student
+            // attempts were already guarded above the transaction
+            if ($validated['content_mode'] === 'replace') {
+                $moduleIds = $targetCourse->modules()->pluck('id');
+                $quizIds = \App\Models\Quiz::whereIn('module_id', $moduleIds)->pluck('id');
+                \App\Models\QuestionTestCase::whereIn('testable_id', $quizIds)
+                    ->where('testable_type', \App\Models\Question::class)->delete();
+                \App\Models\Question::whereIn('quiz_id', $quizIds)->delete();
+                \App\Models\Lesson::whereIn('module_id', $moduleIds)->delete();
+                \App\Models\Quiz::whereIn('module_id', $moduleIds)->delete();
+                \App\Models\Module::whereIn('id', $moduleIds)->delete();
+            }
+
+            $baseOrder = $validated['content_mode'] === 'replace'
+                ? 0
+                : ((int) $targetCourse->modules()->max('order_index') ?? 0) + 1;
+
+            foreach ($sourceCourse->modules as $sourceModule) {
+                $moduleCopy = $sourceModule->replicate();
+                $moduleCopy->course_id = $targetCourse->id;
+                $moduleCopy->order_index = $baseOrder++;
+                $moduleCopy->is_published = false;
+                $moduleCopy->save();
+                $counts['modules']++;
+
+                foreach ($sourceModule->lessons()->orderBy('order_index')->get() as $lesson) {
+                    $lessonCopy = $lesson->replicate();
+                    $lessonCopy->module_id = $moduleCopy->id;
+                    $lessonCopy->is_published = false;
+                    // Blocks are keyed by uuid — regenerate so two lessons
+                    // never share block ids. Assignment (not array union:
+                    // union keeps the existing key) on the cast copy.
+                    $blocks = collect($lessonCopy->content ?? [])
+                        ->map(function ($block) {
+                            $block['id'] = (string) Str::uuid();
+                            return $block;
+                        })
+                        ->values()
+                        ->all();
+                    $lessonCopy->content = $blocks;
+                    // The AI tutor's index tracks this hash per lesson id —
+                    // a clone reindexes on its next publish
+                    $lessonCopy->indexed_hash = null;
+                    $lessonCopy->save();
+                    $counts['lessons']++;
+                }
+
+                foreach ($sourceModule->quizzes()->orderBy('order_index')->get() as $quiz) {
+                    $quizCopy = $quiz->replicate();
+                    $quizCopy->module_id = $moduleCopy->id;
+                    $quizCopy->is_published = false;
+                    $quizCopy->save();
+                    $counts['quizzes']++;
+
+                    foreach ($quiz->questions()->orderBy('order_index')->with('testCases')->get() as $question) {
+                        $questionCopy = $question->replicate();
+                        $questionCopy->quiz_id = $quizCopy->id;
+                        $questionCopy->save();
+                        $counts['questions']++;
+
+                        foreach ($question->testCases as $testCase) {
+                            $caseCopy = $testCase->replicate();
+                            $caseCopy->testable_type = \App\Models\Question::class;
+                            $caseCopy->testable_id = $questionCopy->id;
+                            $caseCopy->save();
+                        }
+                    }
+                }
+            }
+
+            return $counts;
+        });
+
+        return response()->json([
+            'message' => 'Copied from “' . $source->name . '” as drafts: '
+                . "{$result['modules']} module" . ($result['modules'] === 1 ? '' : 's')
+                . " ({$result['lessons']} lessons, {$result['quizzes']} quizzes)",
+            'counts' => $result,
+        ], 201);
+    }
 }

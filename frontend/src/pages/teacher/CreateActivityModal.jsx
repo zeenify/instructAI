@@ -85,6 +85,10 @@ export default function CreateActivityModal({ isOpen, onClose, classId }) {
     if (!isOpen) return null;
 
     const isQuiz = selectedType === 'quiz';
+    // Deadlines: required for submitted activities, OPTIONAL for quizzes —
+    // a student-paced quiz can be due Friday; teacher-paced quizzes run on
+    // the room's own lifecycle, and the backend drops the deadline for them.
+    const showsDeadline = isQuiz || (selectedType === 'activity' && submissionType !== 'material');
     const needsDeadline = selectedType === 'activity' && submissionType !== 'material';
 
     const reset = () => {
@@ -127,7 +131,7 @@ export default function CreateActivityModal({ isOpen, onClose, classId }) {
                 title: title.trim(),
                 description: description.trim() || null,
                 activity_type: selectedType,
-                deadline_at: selectedType === 'quiz' ? null : (deadlineAt || null),
+                deadline_at: deadlineAt || null,
                 deadline_behavior: deadlineBehavior,
             };
             if (selectedType === 'activity') {
@@ -227,9 +231,9 @@ export default function CreateActivityModal({ isOpen, onClose, classId }) {
                                     value={description} onChange={(e) => setDescription(e.target.value)} />
                             </label>
 
-                            {needsDeadline && (
+                            {showsDeadline && (
                                 <div className="db-field">
-                                    <span className="db-field-label"><Clock size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} /> Deadline</span>
+                                    <span className="db-field-label"><Clock size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} /> Deadline{isQuiz && <em> · optional</em>}</span>
                                     <DateTimePicker value={deadlineAt} onChange={setDeadlineAt} />
                                     <div className="cw-presets">
                                         {DEADLINE_PRESETS.map((p) => (

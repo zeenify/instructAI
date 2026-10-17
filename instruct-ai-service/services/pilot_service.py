@@ -21,8 +21,11 @@ Events yielded (SSE-framed by main.py):
 """
 
 import json
+import os
 
-from config.models import GEN_CONTENT_MODEL
+from openai import OpenAI
+
+from config.models import GEN_CONTENT_MODEL, PILOT_MODEL, RIVER_BASE_URL
 from config.pilot_capabilities import (
     HISTORY_TURNS,
     MAX_HISTORY_MSG_CHARS,
@@ -175,7 +178,14 @@ def _build_turn_content(payload: dict) -> str:
             f"CURRENT PAGE: {route}{classes_block}\n"
             f"CONSENT STATE: {consent_note}\n\n"
             f"PAGE ELEMENTS (address by [ref]):\n{snapshot}\n\n"
-            f"TEACHER REQUEST: {task}"
+            f"TEACHER REQUEST: {task}\n"
+            "(The earlier conversation is background context only. THIS "
+            "request is the live question — ground your answer in data you "
+            "fetch this turn, especially for stats that change: rankings, "
+            "counts, scores, submissions. And this request is an ORDER to "
+            "execute, not a status check: an \"add/create\" request means "
+            "make a NEW one — items that already exist on the page, however "
+            "similar, do not satisfy it.)"
         )
 
     if kind == "tool-result":
@@ -188,37 +198,79 @@ def _build_turn_content(payload: dict) -> str:
         # Restate the run's own task: server-side history can carry older
         # threads, and 'continue' must never mean 'finish an earlier ask'
         task = _clip(payload.get("task"), 500)
-        task_line = f"\nCURRENT TASK: {task}\nWrap up THAT task — not anything earlier in history.\n" if task else ""
+        task_line = f"\nCURRENT TASK: {task}\nWork on THAT task — not anything earlier in history.\n" if task else ""
+        # The client matched the row in the fresh snapshot against the exact
+        # string this batch typed — the model opened a same-looking sibling
+        # row instead of its own creation twice in a row without this.
+        hint = data.get("created_hint")
+        hint_line = (
+            f"\nNOTE: the item THIS batch just created (you typed \"{hint.get('value')}\") "
+            f"is snapshot ref [{hint.get('ref')}] — \"{hint.get('name')}\""
+            + (" — below the fold; clicking it scrolls there automatically"
+               if hint.get("below") else "")
+            + ". Operate on THAT ref, not a similar-looking row.\n"
+            if isinstance(hint, dict) and hint.get("ref") is not None
+            else ""
+        )
         nudge_line = (
             "NOTE: your last reply CLAIMED an action (\"I'm opening…\", "
             "\"I'll explain…\") but sent NO tool call and didn't deliver the "
-            "words. Fix it NOW, in this reply: send the tool call (goto/"
-            "point/snapshot run freely, no permission needed), OR actually "
-            "deliver the explanation/answer you promised, OR ask a teacher "
-            "a question. Never claim without doing. If the teacher's request "
-            "already approved exactly this read-only action, send the tool "
-            "call — do not re-ask.\n"
+            "words. Fix it NOW, in this reply: send the tool call (point/"
+            "scroll/snapshot run freely; a goto or click lands at the "
+            "teacher's approval gate — the gate asks, so don't ask in words "
+            "too), OR actually deliver the explanation/answer you promised, "
+            "OR ask the teacher a question. Never claim without doing. If "
+            "the teacher's request already approved exactly this read-only "
+            "action, send the tool call — do not re-ask.\n"
             if data.get("nudge")
+            else ""
+        )
+        # Parallel tool calls: only the first runs. The model must know its
+        # second call never executed, or it believes the page already moved.
+        dropped = data.get("dropped_tools")
+        dropped_line = (
+            "NOTE: your previous turn ALSO requested "
+            + ", ".join(f"«{d}»" for d in dropped)
+            + " — only one action runs per turn, so that call was NOT "
+            "executed. Send it again now if the task still needs it.\n"
+            if dropped
             else ""
         )
         return (
             "\n".join(lines)
             + ("\n" if results else "")
             + f"{task_line}"
+            + f"{hint_line}"
             + f"{nudge_line}"
+            + f"{dropped_line}"
             + _trail_block(data)
             + f"CURRENT PAGE: {data.get('route') or route}{classes_block}\n"
             f"CONSENT STATE: {consent_note}\n\n"
             f"PAGE ELEMENTS (address by [ref]):\n{snapshot}\n\n"
-            "Continue the task. If it's done, give a short wrap-up answering the "
-            "original request — no tool call needed."
+            "The task is done only when EVERY part of CURRENT TASK is "
+            "complete — one successful step is not the task. Decide now:\n"
+            "- Task complete → give a short wrap-up answering the original "
+            "request, no tool call.\n"
+            "- Task not complete → send the NEXT tool call in this reply. Do "
+            "not end the turn with a status report or a \"want me to…?\" "
+            "offer while a step you are able to take remains — take it."
         )
 
     if kind == "lookup-result":
         data = payload.get("data") or {}
         result = json.dumps(data.get("result"), ensure_ascii=False)[:4000]
         task = _clip(payload.get("task"), 500)
+        # The task goes BEFORE the data and is echoed at the end: with the
+        # fresh lookup sitting next to the previous answer in context, the
+        # model re-renders its last reply's subject instead of answering
+        # the new ask (the 'lowest one?' → 'best student' anchor bug).
         task_line = f"CURRENT TASK: {task}\n" if task else ""
+        task_echo = (
+            f"\nThe teacher's live question is: «{task}» — open your reply by "
+            "answering exactly that, in your first sentence.\n"
+            if task
+            else ""
+        )
         repeat_line = (
             "NOTE: you already ran this EXACT lookup earlier this run — what "
             "follows is the same cached data. Do not call it again; use it.\n"
@@ -242,13 +294,50 @@ def _build_turn_content(payload: dict) -> str:
             if isinstance(raw_result, dict) and "error" in raw_result
             else ""
         )
+        counts_note = (
+            "NOTE: this result is COUNTS only — no student names. "
+            "list_classes carries each class's full student roster; "
+            "get_student_grades pulls one student's scores.\n"
+            if data.get("query") == "class_summary"
+            else ""
+        )
+        perf_note = (
+            "NOTE: ranked[] is best→worst. Each row splits the two grade "
+            "systems — quiz_pct/items (course quizzes) vs "
+            "classwork_pct/items (Classwork tab): surface both when they "
+            "differ. Averages are not pass/fail.\n"
+            if data.get("query") == "class_performance"
+            else ""
+        )
+        grades_note = (
+            "NOTE: quiz rows carry 'passing' and 'passed' — pass/fail exists "
+            "ONLY per quiz item; report it as per-quiz, and never invent a "
+            "class-wide passing line. Activity rows carry 'published' — "
+            "drafts aren't visible to students, so never count an unpublished "
+            "one as missing student work.\n"
+            if data.get("query") == "get_student_grades"
+            else ""
+        )
+        dropped = data.get("dropped_tools")
+        dropped_line = (
+            "NOTE: your previous turn ALSO requested "
+            + ", ".join(f"«{d}»" for d in dropped)
+            + " — only one action runs per turn, so that call was NOT "
+            "executed. Send it again now if the task still needs it.\n"
+            if dropped
+            else ""
+        )
         return (
+            f"{task_line}"
             f"DATA for {data.get('query')} (params: {json.dumps(data.get('params') or {})}) "
             f"returned:\n{result}\n\n"
-            f"{task_line}"
             f"{repeat_line}"
             f"{streak_line}"
             f"{error_line}"
+            f"{counts_note}"
+            f"{perf_note}"
+            f"{grades_note}"
+            f"{dropped_line}"
             f"{_trail_block(data)}"
             f"CURRENT PAGE: {data.get('route') or route}{classes_block}\n"
             f"CONSENT STATE: {consent_note}\n\n"
@@ -257,6 +346,7 @@ def _build_turn_content(payload: dict) -> str:
             "answers or can't (e.g. it has no failing-student data), say what you "
             "DO know, be honest about the gap, and offer the closest next step. "
             "NEVER greet, never say the message was empty or didn't come through."
+            f"{task_echo}"
         )
 
     return f"CURRENT PAGE: {route}\n\n{json.dumps(payload.get('data') or {}, ensure_ascii=False)[:2000]}"
@@ -266,6 +356,40 @@ class PilotService:
     def __init__(self):
         self.ai_pool = AIClientPool()
         self._system_prompt = build_system_prompt()
+        # The pilot is a conversational agent, not a content pump — it gets
+        # its own model (DeepSeek via River) and its own bill. The Gemini
+        # pool stays as the fallback when River is unavailable.
+        river_key = os.getenv("RIVER_API_KEY")
+        self._river = (
+            OpenAI(api_key=river_key, base_url=RIVER_BASE_URL, timeout=120, max_retries=1)
+            if river_key else None
+        )
+
+    def _open_stream(self, messages):
+        """River first; on any pre-stream failure fall back to the Gemini
+        pool. Fallback only happens before the first chunk — a stream that
+        dies mid-run surfaces its error to the teacher like normal."""
+        if self._river is not None:
+            try:
+                return self._river.chat.completions.create(
+                    model=PILOT_MODEL,
+                    messages=messages,
+                    tools=PILOT_TOOLS,
+                    temperature=0.25,
+                    max_tokens=1400,
+                    stream=True,
+                ), None
+            except Exception as e:
+                print(f"[Pilot] River unavailable ({type(e).__name__}: {str(e)[:160]}) — Gemini pool fallback")
+        client, key_num = self.ai_pool.get_available_client()
+        return client.chat.completions.create(
+            model=GEN_CONTENT_MODEL,
+            messages=messages,
+            tools=PILOT_TOOLS,
+            temperature=0.25,
+            max_tokens=1400,
+            stream=True,
+        ), key_num
 
     def _build_messages(self, payload: dict) -> list:
         messages = [{"role": "system", "content": self._system_prompt}]
@@ -282,23 +406,16 @@ class PilotService:
         return messages
 
     def stream_turn(self, payload: dict):
-        """One Gemini streaming turn → generator of event dicts."""
+        """One agent turn → generator of event dicts."""
         messages = self._build_messages(payload)
-        client, key_num = self.ai_pool.get_available_client()
 
         tool_calls = {}
         finish_reason = None
         produced = False
+        pool_key = None
 
         try:
-            stream = client.chat.completions.create(
-                model=GEN_CONTENT_MODEL,
-                messages=messages,
-                tools=PILOT_TOOLS,
-                temperature=0.25,
-                max_tokens=1400,
-                stream=True,
-            )
+            stream, pool_key = self._open_stream(messages)
 
             for chunk in stream:
                 if not getattr(chunk, "choices", None):
@@ -327,9 +444,11 @@ class PilotService:
                 if choice.finish_reason:
                     finish_reason = choice.finish_reason
 
-            self.ai_pool.mark_success(key_num)
+            if pool_key is not None:
+                self.ai_pool.mark_success(pool_key)
         except Exception as e:
-            self.ai_pool.mark_rate_limited(key_num, backoff_seconds=30)
+            if pool_key is not None:
+                self.ai_pool.mark_rate_limited(pool_key, backoff_seconds=30)
             print(f"[Pilot Stream Error] {type(e).__name__}: {e}")
             yield {"type": "error", "message": "I hit a snag talking to my brain — try again in a moment."}
             yield {"type": "finish", "reason": "error"}
@@ -337,6 +456,7 @@ class PilotService:
 
         if tool_calls:
             emitted = False
+            dropped_names = []
             for idx in sorted(tool_calls):
                 slot = tool_calls[idx]
                 name = slot["name"]
@@ -349,8 +469,10 @@ class PilotService:
                 parsed = _parse_tool_args(name, raw_args)
                 if emitted:
                     # One tool event per turn — the client acts on one batch;
-                    # the trail tells the model to continue with the rest
+                    # the dropped list rides the finish event so the NEXT
+                    # turn's trail tells the model what never ran
                     print(f"[PILOT] dropped extra tool call in same turn: {name}")
+                    dropped_names.append(name)
                     continue
                 if name == "invoke_client":
                     if not parsed["commands"]:
@@ -372,7 +494,10 @@ class PilotService:
                     }
 
             if emitted:
-                yield {"type": "finish", "reason": "tool-calls"}
+                finish_event = {"type": "finish", "reason": "tool-calls"}
+                if dropped_names:
+                    finish_event["dropped"] = dropped_names
+                yield finish_event
             else:
                 # The model meant to act but produced garbage — say so honestly
                 yield {"type": "error", "message": "I couldn't form that action — rephrase and I'll try again."}

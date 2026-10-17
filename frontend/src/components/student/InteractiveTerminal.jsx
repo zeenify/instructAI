@@ -4,13 +4,20 @@ import '@xterm/xterm/css/xterm.css';
 import { Play, Loader2, Square } from 'lucide-react';
 import { languageOf } from '../../utils/codeLanguages';
 
-const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code, language = 'java', onComplete, lessonId, blockId, mode, expected, compact = false, onRun }, ref) {
+const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code, language = 'java', onComplete, lessonId, blockId, mode, expected, compact = false, onRun, onRunningChange }, ref) {
     const terminalRef = useRef(null);
     const wsRef = useRef(null);
     const termRef = useRef(null);
     const [isRunning, setIsRunning] = useState(false);
-    const [hasError, setHasError] = useState(false);
     const isRunningRef = useRef(false);
+    // Single choke point so external listeners (e.g. a grading pane's Run
+    // button) track running state through every exit path
+    const setRunning = (v) => {
+        isRunningRef.current = v;
+        setIsRunning(v);
+        onRunningChange?.(v);
+    };
+    const [hasError, setHasError] = useState(false);
 
     useEffect(() => {
         const term = new Terminal({
@@ -91,8 +98,7 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
         }
 
         onRun?.();
-        isRunningRef.current = true;
-        setIsRunning(true);
+        setRunning(true);
         setHasError(false);
         termRef.current?.clear();
         const langLabel = languageOf(language).label;
@@ -134,8 +140,7 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
 
                     case 'exit':
                         termRef.current?.write(`\r\n> Process exited with code ${data.code}\r\n`);
-                        isRunningRef.current = false;
-                        setIsRunning(false);
+                        setRunning(false);
 
                         if (mode === 'challenge' && onComplete) {
                             onComplete();
@@ -153,15 +158,13 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
         ws.onerror = (err) => {
             setHasError(true);
             termRef.current?.write(`\r\n[CONNECTION ERROR] ${err.message}\r\n`);
-            isRunningRef.current = false;
-                        setIsRunning(false);
+            setRunning(false);
         };
 
         ws.onclose = () => {
             if (isRunningRef.current) {
                 termRef.current?.write('\r\n> Connection closed\r\n');
-                isRunningRef.current = false;
-                setIsRunning(false);
+                setRunning(false);
             }
         };
     };

@@ -869,35 +869,35 @@ export default function QuizBuilder() {
             <div className="ed-insert">
                 <span className="ed-insert-label">Add a question to this quiz</span>
                 <div className="ed-insert-grid">
-                    <button type="button" className="ed-insert-card" onClick={() => addQuestion('multiple_choice')} disabled={isCreating}>
+                    <button type="button" className="ed-insert-card" onClick={() => addQuestion('multiple_choice')} aria-label="Add a multiple choice question" disabled={isCreating}>
                         <span className="ed-insert-icon"><CheckCircle2 size={19} /></span>
                         <span className="ed-insert-text">
                             <span className="ed-insert-name">Multiple choice</span>
                             <span className="ed-insert-sub">Pick one answer</span>
                         </span>
                     </button>
-                    <button type="button" className="ed-insert-card" onClick={() => addQuestion('identification')} disabled={isCreating}>
+                    <button type="button" className="ed-insert-card" onClick={() => addQuestion('identification')} aria-label="Add an identification question" disabled={isCreating}>
                         <span className="ed-insert-icon"><Type size={19} /></span>
                         <span className="ed-insert-text">
                             <span className="ed-insert-name">Identification</span>
                             <span className="ed-insert-sub">Type the exact answer</span>
                         </span>
                     </button>
-                    <button type="button" className="ed-insert-card" onClick={() => addQuestion('enumeration')} disabled={isCreating}>
+                    <button type="button" className="ed-insert-card" onClick={() => addQuestion('enumeration')} aria-label="Add an enumeration question" disabled={isCreating}>
                         <span className="ed-insert-icon"><ListOrdered size={19} /></span>
                         <span className="ed-insert-text">
                             <span className="ed-insert-name">Enumeration</span>
                             <span className="ed-insert-sub">List several answers</span>
                         </span>
                     </button>
-                    <button type="button" className="ed-insert-card" onClick={() => addQuestion('true_false')} disabled={isCreating}>
+                    <button type="button" className="ed-insert-card" onClick={() => addQuestion('true_false')} aria-label="Add a true-or-false question" disabled={isCreating}>
                         <span className="ed-insert-icon"><Hash size={19} /></span>
                         <span className="ed-insert-text">
                             <span className="ed-insert-name">True or False</span>
                             <span className="ed-insert-sub">Two options only</span>
                         </span>
                     </button>
-                    <button type="button" className="ed-insert-card" onClick={() => addQuestion('coding')} disabled={isCreating}>
+                    <button type="button" className="ed-insert-card" onClick={() => addQuestion('coding')} aria-label="Add a coding question" disabled={isCreating}>
                         <span className="ed-insert-icon"><Code size={19} /></span>
                         <span className="ed-insert-text">
                             <span className="ed-insert-name">Coding</span>
