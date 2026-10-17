@@ -1,5 +1,5 @@
 import { Toaster } from 'sonner';
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ClassProvider } from './context/ClassContext';
@@ -27,8 +27,11 @@ import ActivityResults from './pages/teacher/ActivityResults';
 
 // Admin Pages
 import AdminLayout from './components/layouts/AdminLayout';
-import StudentWhitelist from './pages/admin/StudentWhitelist';
-import TeacherWhitelist from './pages/admin/TeacherWhitelist';
+import AdminOverview from './pages/admin/AdminOverview';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminClasses from './pages/admin/AdminClasses';
+import AdminWhitelists from './pages/admin/AdminWhitelists';
+import AdminSystem from './pages/admin/AdminSystem';
 
 // Student Pages
 import StudentOverview from './pages/student/StudentOverview';
@@ -53,10 +56,33 @@ function LogoutRoute() {
   return null;
 }
 
+// Safety net: a render crash used to white-screen the whole app with no
+// message. Now the error is visible on the page instead of a silent void.
+class RootErrorBoundary extends React.Component {
+  state = { error: null };
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <pre style={{
+          padding: 24, whiteSpace: 'pre-wrap', fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 12.5, color: '#b91c1c', background: '#fef2f2', minHeight: '100vh',
+        }}>
+          {'ROOT ERROR\n\n' + String(this.state.error?.stack || this.state.error)}
+        </pre>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   const { theme } = useTheme();
   return (
     <AuthProvider>
+      <RootErrorBoundary>
       <BrowserRouter>
         <Toaster
           position="top-right"
@@ -135,8 +161,11 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<StudentWhitelist />} />
-            <Route path="teachers" element={<TeacherWhitelist />} />
+            <Route index element={<AdminOverview />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="classes" element={<AdminClasses />} />
+            <Route path="whitelists" element={<AdminWhitelists />} />
+            <Route path="system" element={<AdminSystem />} />
           </Route>
 
           {/* --- Student Dashboard (Immortal Sidebar) --- */}
@@ -197,8 +226,9 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </RootErrorBoundary>
     </AuthProvider>
-  ); 
+  );
 }
 
 export default App;

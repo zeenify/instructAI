@@ -98,6 +98,13 @@ class AuthController extends Controller
         }
 
         $user = User::where('email', $request->email)->firstOrFail();
+
+        if (!$user->is_active) {
+            // Tokens never expire, so revoking them is what ends live sessions.
+            $user->tokens()->delete();
+
+            return response()->json(['message' => 'This account has been disabled by the school admin.'], 403);
+        }
         
         // Determine which profile to load
         $profile = $user->role === 'student' ? 'studentProfile' : 'teacherProfile';
@@ -171,6 +178,13 @@ class AuthController extends Controller
                     ]);
                     $this->markTeacherClaimed($email);
                 }
+            }
+
+            // Disabled accounts (incl. re-disabled Google ones) get no token.
+            if (!$user->is_active) {
+                $user->tokens()->delete();
+
+                return response()->json(['message' => 'This account has been disabled by the school admin.'], 403);
             }
 
             // Generate Token

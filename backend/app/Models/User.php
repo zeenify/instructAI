@@ -12,11 +12,12 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
-        'email', 
-        'password', 
-        'role', 
-        'google_id', 
-        'avatar'
+        'email',
+        'password',
+        'role',
+        'google_id',
+        'avatar',
+        'is_active',
     ];
 
     protected $hidden = [
@@ -52,6 +53,16 @@ class User extends Authenticatable
 
     public function classes() {
         return $this->belongsToMany(Classroom::class, 'enrollments', 'student_id', 'class_id');
+    }
+
+    // Display name across roles: profile first/last when present, email as the
+    // fallback (Google accounts can lack profile rows).
+    public function accountName(): string
+    {
+        $profile = $this->role === 'teacher' ? $this->teacherProfile : $this->studentProfile;
+        $name = trim(($profile->first_name ?? '') . ' ' . ($profile->last_name ?? ''));
+
+        return $name !== '' ? $name : $this->email;
     }
 
 }

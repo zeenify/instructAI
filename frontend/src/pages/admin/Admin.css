@@ -1,0 +1,512 @@
+/* Admin panel page styles — the db- system covers cards/stats/modals; these
+   are the admin-only surfaces built on top of it (tables, meters, config
+   grid). Page-scoped per the CSS architecture rule. */
+
+.ad-kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--db-text-3);
+    margin: 0 0 6px;
+}
+
+.ad-sub {
+    font-size: 14px;
+    color: var(--db-text-2);
+    margin: 6px 0 0;
+}
+
+.ad-head-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.ad-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
+@media (max-width: 1000px) {
+    .ad-two-col {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ad-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--db-accent);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.ad-link:hover {
+    text-decoration: underline;
+}
+
+.ad-link.inline {
+    font-size: inherit;
+}
+
+/* Rows (newest accounts, biggest classes, services) */
+.ad-rows {
+    display: flex;
+    flex-direction: column;
+}
+
+.ad-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 4px;
+    border-top: 1px solid var(--db-border-soft, var(--db-border));
+}
+
+.ad-row-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--db-text);
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ad-row-sub {
+    font-size: 12px;
+    color: var(--db-text-3);
+    margin: 1px 0 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ad-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--db-text-2);
+    white-space: nowrap;
+}
+
+/* Whitelist meters */
+.ad-meter {
+    padding: 10px 0 4px;
+}
+
+.ad-meter-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+}
+
+.ad-meter-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--db-text);
+}
+
+.ad-meter-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: var(--db-text-3);
+}
+
+.ad-meter-track {
+    height: 7px;
+    border-radius: 99px;
+    background: var(--db-accent-soft);
+    overflow: hidden;
+}
+
+.ad-meter-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: var(--db-accent);
+}
+
+/* Chips */
+.ad-chip {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.ad-chip.teacher {
+    color: var(--db-accent);
+    background: var(--db-accent-soft);
+    border: 1px solid var(--db-accent-border);
+}
+
+.ad-chip.student {
+    color: var(--db-green);
+    background: var(--db-green-soft);
+    border: 1px solid var(--db-green-border);
+}
+
+.ad-chip.admin {
+    color: var(--db-text-2);
+    background: var(--db-card-2);
+    border: 1px solid var(--db-border-strong, var(--db-border));
+}
+
+.ad-chip.active,
+.ad-chip.available,
+.ad-chip.claimed {
+    color: var(--db-green);
+    background: var(--db-green-soft);
+    border: 1px solid var(--db-green-border);
+}
+
+.ad-chip.disabled {
+    color: var(--db-danger);
+    background: var(--db-danger-soft);
+    border: 1px solid rgba(248, 113, 113, 0.4);
+}
+
+/* Toolbar: filter + search */
+.ad-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 14px;
+    flex-wrap: wrap;
+}
+
+.ad-search {
+    flex: 1;
+    min-width: 240px;
+    max-width: 420px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    height: 40px;
+    border-radius: 11px;
+    border: 1px solid var(--db-border);
+    background: var(--db-card-2);
+    color: var(--db-text-3);
+}
+
+.ad-search input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 13.5px;
+    color: var(--db-text);
+    min-width: 0;
+}
+
+.ad-clear {
+    border: none;
+    background: transparent;
+    color: var(--db-text-3);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+}
+
+/* Table */
+.ad-table {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 14px 12px;
+}
+
+.ad-tr {
+    display: grid;
+    grid-template-columns: 2.2fr 0.9fr 1.3fr 0.7fr 1fr 0.9fr 52px;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 6px;
+    border-top: 1px solid var(--db-border-soft, var(--db-border));
+}
+
+/* Whitelist + classes tables use fewer trailing columns — let cells flow */
+.ad-tr[role='row']:nth-child(1).ad-th {
+    border-top: none;
+}
+
+.ad-th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--db-text-3);
+    border-top: none !important;
+}
+
+.ad-cell-account {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.ad-cell-title {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--db-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ad-cell-sub {
+    display: block;
+    font-size: 12px;
+    color: var(--db-text-3);
+    margin-top: 1px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mono {
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.02em;
+}
+
+.ad-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.ad-avatar.teacher {
+    background: var(--db-accent-soft);
+    color: var(--db-accent);
+}
+
+.ad-avatar.student {
+    background: var(--db-green-soft);
+    color: var(--db-green);
+}
+
+.ad-class-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--db-accent);
+    flex-shrink: 0;
+}
+
+.ad-icon-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--db-border);
+    background: transparent;
+    color: var(--db-text-3);
+    cursor: pointer;
+}
+
+.ad-icon-btn.danger:hover {
+    color: var(--db-danger);
+    border-color: var(--db-danger);
+    background: var(--db-danger-soft);
+}
+
+.ad-empty {
+    padding: 26px 16px;
+    text-align: center;
+    font-size: 13.5px;
+    color: var(--db-text-3);
+}
+
+.ad-foot-note {
+    font-size: 12px;
+    color: var(--db-text-3);
+    margin: 10px 2px 0;
+}
+
+/* Reset-password one-time modal */
+.ad-modal-sub {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--db-text-2);
+    margin: 4px 0 14px;
+}
+
+.ad-otp-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ad-otp {
+    flex: 1;
+    display: block;
+    padding: 11px 14px;
+    border-radius: 10px;
+    border: 1px dashed var(--db-accent-border, var(--db-border));
+    background: var(--db-accent-soft);
+    color: var(--db-accent-bright, var(--db-accent));
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+    text-align: center;
+    user-select: all;
+}
+
+/* System page */
+.ad-service {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 4px;
+    border-top: 1px solid var(--db-border-soft, var(--db-border));
+}
+
+.ad-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.ad-dot.ok {
+    background: var(--db-green);
+}
+
+.ad-dot.bad {
+    background: var(--db-danger);
+}
+
+.ad-dot.pulsing {
+    animation: ad-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes ad-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.35); }
+    50% { box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.08); }
+}
+
+.ad-config-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 18px;
+    padding: 4px 4px 8px;
+}
+
+.ad-config-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 2px;
+    font-size: 12.5px;
+}
+
+.ad-ok {
+    color: var(--db-green);
+}
+
+.ad-missing {
+    color: var(--db-text-3);
+}
+
+.ad-volumes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 12px;
+    padding: 6px 4px 10px;
+}
+
+.ad-volume {
+    padding: 12px;
+    border-radius: 12px;
+    background: var(--db-card-2);
+    border: 1px solid var(--db-border);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.ad-volume-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--db-text);
+}
+
+.ad-volume-label {
+    font-size: 11.5px;
+    color: var(--db-text-3);
+}
+
+/* Bulk paste box */
+.ad-bulk {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+    margin: 6px 0 14px;
+}
+
+.ad-bulk-input {
+    flex: 1;
+    resize: vertical;
+    min-height: 64px;
+    padding: 10px 12px;
+    border-radius: 11px;
+    border: 1px solid var(--db-border);
+    background: var(--db-card-2);
+    color: var(--db-text);
+    font-size: 13px;
+    font-family: inherit;
+    line-height: 1.5;
+    outline: none;
+}
+
+.ad-bulk-input:focus {
+    border-color: var(--db-accent);
+}
+
+.ad-bulk .db-btn-primary {
+    align-self: flex-end;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ad-refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 40px;
+}
+
+.ad-spin {
+    animation: ad-spin 0.9s linear infinite;
+}
+
+@keyframes ad-spin {
+    to { transform: rotate(360deg); }
+}

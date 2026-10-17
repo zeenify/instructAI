@@ -14,11 +14,14 @@ use App\Http\Controllers\Student\ReviewerController;
 use App\Http\Controllers\Student\TtsController;
 use App\Http\Controllers\Teacher\AnalyticsController;
 use App\Http\Controllers\Teacher\ClassActivityController;
-// --- ADD STUDENT CONTROLLERS ---
 use App\Http\Controllers\Teacher\CodeRunController;
 use App\Http\Controllers\Teacher\ActivityQuestionController;
 use App\Http\Controllers\Teacher\ActivityAiController;
 use App\Http\Controllers\Teacher\ClassroomController;
+use App\Http\Controllers\Admin\OverviewController;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\ClassController;
+use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\StudentWhitelistController;
 use App\Http\Controllers\Admin\TeacherWhitelistController;
 use App\Http\Controllers\Teacher\CourseController;
@@ -45,15 +48,20 @@ Route::post('/euna/tts', [ChatController::class, 'tts'])->middleware('throttle:2
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
         $user = $request->user();
-        $profile = $user->role === 'teacher' ? 'teacherProfile' : 'studentProfile';
+        if ($user->role === 'admin') {
+            // Admins have no profile row; their email + role is the identity.
+            return $user;
+        }
 
-        return $user->load($profile);
+        return $user->load($user->role === 'teacher' ? 'teacherProfile' : 'studentProfile');
     });
 
     Route::post('/logout', [AuthController::class, 'logout']);
 });
 
-Route::middleware(['auth:sanctum'])->group(function () {
+// ── TEACHER routes — role-checked: only teacher accounts may drive content,
+// grading, live sessions and the EUNA pilot.
+Route::middleware(['auth:sanctum', 'role:teacher'])->group(function () {
     Route::get('/teacher/classes', [ClassroomController::class, 'index']);
     Route::post('/teacher/classes', [ClassroomController::class, 'store']);
     Route::get('/teacher/classes/{id}', [ClassroomController::class, 'show']);
@@ -104,19 +112,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Which languages the engine can actually run (runtime installed or not)
     Route::get('/teacher/engine-languages', [CodeRunController::class, 'languages']);
 
-    // Enrollment whitelists — ADMIN ONLY (role enforced server-side). Only
-    // LRNs/emails on these lists can register or sign up as students/teachers
-    // of Penaranda Senior High School.
-    Route::middleware('role:admin')->group(function () {
-        Route::get('/admin/student-whitelist', [StudentWhitelistController::class, 'index']);
-        Route::post('/admin/student-whitelist', [StudentWhitelistController::class, 'store']);
-        Route::delete('/admin/student-whitelist/{id}', [StudentWhitelistController::class, 'destroy']);
-
-        Route::get('/admin/teacher-whitelist', [TeacherWhitelistController::class, 'index']);
-        Route::post('/admin/teacher-whitelist', [TeacherWhitelistController::class, 'store']);
-        Route::delete('/admin/teacher-whitelist/{id}', [TeacherWhitelistController::class, 'destroy']);
-    });
-
     // delete
     Route::post('/teacher/courses/{id}/publish-all', [CourseController::class, 'publishAll']);
     Route::delete('/teacher/modules/{id}', [ModuleController::class, 'destroy']);
@@ -140,35 +135,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ];
     });
 
-    // ==========================================
-    // STUDENT ROUTES (NEW!)
-    // ==========================================
-    Route::get('/student/classes', [EnrollmentController::class, 'index']);
-    Route::post('/student/enroll', [EnrollmentController::class, 'enroll']);
-
-    Route::get('/student/classes/{id}', [StudentCourseController::class, 'showClass']);
-    Route::get('/student/courses/{id}', [StudentCourseController::class, 'showCourse']);
-
-    Route::get('/student/lessons/{id}', [StudentLessonController::class, 'show']);
-    Route::post('/student/lessons/{id}/complete', [StudentLessonController::class, 'complete']);
-
-    Route::get('/student/quizzes/{id}', [StudentQuizController::class, 'show']);
-    Route::post('/student/attempts/{attemptId}/answer', [StudentQuizController::class, 'saveAnswer']);
-    Route::post('/student/lessons/{id}/submit-code', [StudentLessonController::class, 'submitCode']);
-    Route::post('/student/quizzes/{id}/submit', [StudentQuizController::class, 'submit']);
-
-    // Remote Code Execution Proxy — throttled: each run spawns a process
-    Route::post('/student/execute', [CodeExecutionController::class, 'execute'])->middleware('throttle:code-execution');
-    Route::post('/ai/verify-code-challenge', [CodeExecutionController::class, 'verifyCodeChallenge'])->middleware('throttle:code-execution');
-
-    // AI Chat (Student) — streaming goes browser → Python directly;
-    // Laravel runs the checks (prepare) and persists the turn (commit)
-    Route::post('/student/ai/chat', [AIChatController::class, 'chat']);
-    Route::post('/student/ai/chat-prepare', [AIChatController::class, 'chatPrepare']);
-    Route::post('/student/ai/chat-commit', [AIChatController::class, 'chatCommit']);
-    Route::post('/student/ai/history', [AIChatController::class, 'loadHistory']);
-    Route::post('/student/ai/clear', [AIChatController::class, 'clearHistory']);
-
     // EUNA Pilot (teacher dashboard copilot) — prepare signs the payload the
     // browser streams straight to Python; commit persists turn + audit rows;
     // lookup is the allowlisted teacher-scoped read API.
@@ -177,28 +143,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/teacher/ai/pilot-prepare', [PilotController::class, 'prepare'])->middleware('throttle:30,1');
     Route::post('/teacher/ai/pilot-commit', [PilotController::class, 'commit'])->middleware('throttle:60,1');
     Route::post('/teacher/ai/pilot-lookup', [PilotController::class, 'lookup'])->middleware('throttle:60,1');
-    Route::post('/student/generate-reviewer', [ReviewerController::class, 'generate']);
-    Route::post('/student/reviewer/transform-tts', [ReviewerController::class, 'transformTts']);
-    Route::post('/student/extract-text', [ReviewerController::class, 'extractText']);
-    Route::post('/student/tts', [TtsController::class, 'synthesize']);
-    Route::get('/student/tts/voices', [TtsController::class, 'voices']);
-
-    // Student Class Activities
-    Route::get('/student/classes/{classId}/activities', [StudentClassActivityController::class, 'index']);
-    Route::get('/student/activities/{id}', [StudentClassActivityController::class, 'show']);
-    Route::post('/student/activities/{id}/submit', [StudentClassActivityController::class, 'submit']);
-    Route::post('/student/activities/{id}/unsubmit', [StudentClassActivityController::class, 'unsubmit']);
-    Route::post('/student/activities/{id}/upload-file', [StudentClassActivityController::class, 'uploadFile']);
-    Route::delete('/student/activities/{id}/remove-file', [StudentClassActivityController::class, 'removeFile']);
-
-    // Student Live Quiz (student-paced)
-    Route::post('/student/activities/{id}/quiz/join', [LiveQuizController::class, 'join']);
-    Route::post('/student/activities/{id}/quiz/start', [LiveQuizController::class, 'start']);
-    Route::post('/student/activities/{id}/quiz/answers', [LiveQuizController::class, 'answers']);
-    Route::post('/student/activities/{id}/quiz/advance', [LiveQuizController::class, 'advance']);
-    Route::post('/student/activities/{id}/quiz/finish', [LiveQuizController::class, 'finish']);
-    Route::post('/student/activities/{id}/quiz/heartbeat', [LiveQuizController::class, 'heartbeat']);
-    Route::get('/student/activities/{id}/quiz/state', [LiveQuizController::class, 'state']);
 
     // Indexing (Teacher)
     Route::post('/teacher/courses/{id}/index', [IndexingController::class, 'indexCourse']);
@@ -264,5 +208,87 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Gradebook
     Route::get('/teacher/classes/{classId}/gradebook', [ClassActivityController::class, 'gradebook']);
+});
 
+// ── STUDENT routes — role-checked.
+Route::middleware(['auth:sanctum', 'role:student'])->group(function () {
+    Route::get('/student/classes', [EnrollmentController::class, 'index']);
+    Route::post('/student/enroll', [EnrollmentController::class, 'enroll']);
+
+    Route::get('/student/classes/{id}', [StudentCourseController::class, 'showClass']);
+    Route::get('/student/courses/{id}', [StudentCourseController::class, 'showCourse']);
+
+    Route::get('/student/lessons/{id}', [StudentLessonController::class, 'show']);
+    Route::post('/student/lessons/{id}/complete', [StudentLessonController::class, 'complete']);
+
+    Route::get('/student/quizzes/{id}', [StudentQuizController::class, 'show']);
+    Route::post('/student/attempts/{attemptId}/answer', [StudentQuizController::class, 'saveAnswer']);
+    Route::post('/student/lessons/{id}/submit-code', [StudentLessonController::class, 'submitCode']);
+    Route::post('/student/quizzes/{id}/submit', [StudentQuizController::class, 'submit']);
+
+    // Remote Code Execution Proxy — throttled: each run spawns a process
+    Route::post('/student/execute', [CodeExecutionController::class, 'execute'])->middleware('throttle:code-execution');
+
+    // AI Chat (Student) — streaming goes browser → Python directly;
+    // Laravel runs the checks (prepare) and persists the turn (commit)
+    Route::post('/student/ai/chat', [AIChatController::class, 'chat']);
+    Route::post('/student/ai/chat-prepare', [AIChatController::class, 'chatPrepare']);
+    Route::post('/student/ai/chat-commit', [AIChatController::class, 'chatCommit']);
+    Route::post('/student/ai/history', [AIChatController::class, 'loadHistory']);
+    Route::post('/student/ai/clear', [AIChatController::class, 'clearHistory']);
+
+    Route::post('/student/generate-reviewer', [ReviewerController::class, 'generate']);
+    Route::post('/student/reviewer/transform-tts', [ReviewerController::class, 'transformTts']);
+    Route::post('/student/extract-text', [ReviewerController::class, 'extractText']);
+    Route::post('/student/tts', [TtsController::class, 'synthesize']);
+    Route::get('/student/tts/voices', [TtsController::class, 'voices']);
+
+    // Student Class Activities
+    Route::get('/student/classes/{classId}/activities', [StudentClassActivityController::class, 'index']);
+    Route::get('/student/activities/{id}', [StudentClassActivityController::class, 'show']);
+    Route::post('/student/activities/{id}/submit', [StudentClassActivityController::class, 'submit']);
+    Route::post('/student/activities/{id}/unsubmit', [StudentClassActivityController::class, 'unsubmit']);
+    Route::post('/student/activities/{id}/upload-file', [StudentClassActivityController::class, 'uploadFile']);
+    Route::delete('/student/activities/{id}/remove-file', [StudentClassActivityController::class, 'removeFile']);
+
+    // Student Live Quiz (student-paced)
+    Route::post('/student/activities/{id}/quiz/join', [LiveQuizController::class, 'join']);
+    Route::post('/student/activities/{id}/quiz/start', [LiveQuizController::class, 'start']);
+    Route::post('/student/activities/{id}/quiz/answers', [LiveQuizController::class, 'answers']);
+    Route::post('/student/activities/{id}/quiz/advance', [LiveQuizController::class, 'advance']);
+    Route::post('/student/activities/{id}/quiz/finish', [LiveQuizController::class, 'finish']);
+    Route::post('/student/activities/{id}/quiz/heartbeat', [LiveQuizController::class, 'heartbeat']);
+    Route::get('/student/activities/{id}/quiz/state', [LiveQuizController::class, 'state']);
+});
+
+// Challenge verification backs the lesson coding flow students run — either
+// authenticated role may call it.
+Route::middleware(['auth:sanctum', 'role:student,teacher'])->group(function () {
+    Route::post('/ai/verify-code-challenge', [CodeExecutionController::class, 'verifyCodeChallenge'])->middleware('throttle:code-execution');
+});
+
+// ── ADMIN routes — enrollment whitelists gate registration itself; only
+// LRNs/emails on these lists can register as students/teachers of
+// Penaranda Senior High School. The rest is the school-wide ops panel.
+Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+    Route::get('/admin/student-whitelist', [StudentWhitelistController::class, 'index']);
+    Route::post('/admin/student-whitelist', [StudentWhitelistController::class, 'store']);
+    Route::delete('/admin/student-whitelist/{id}', [StudentWhitelistController::class, 'destroy']);
+
+    Route::get('/admin/teacher-whitelist', [TeacherWhitelistController::class, 'index']);
+    Route::post('/admin/teacher-whitelist', [TeacherWhitelistController::class, 'store']);
+    Route::delete('/admin/teacher-whitelist/{id}', [TeacherWhitelistController::class, 'destroy']);
+
+    // Panel: overview stats, user management, class oversight, system status.
+    Route::get('/admin/overview', [OverviewController::class, 'index']);
+
+    Route::get('/admin/users', [UserController::class, 'index']);
+    Route::post('/admin/users/{user}/disable', [UserController::class, 'disable']);
+    Route::post('/admin/users/{user}/enable', [UserController::class, 'enable']);
+    Route::post('/admin/users/{user}/reset-password', [UserController::class, 'resetPassword']);
+    Route::delete('/admin/users/{user}', [UserController::class, 'destroy']);
+
+    Route::get('/admin/classes', [ClassController::class, 'index']);
+
+    Route::get('/admin/system', [SystemController::class, 'index']);
 });
