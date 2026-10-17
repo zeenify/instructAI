@@ -365,6 +365,26 @@ async function runOne(cmd, ctx) {
         await aimAt(target, { label: ctx.batchExplain });
         target.el.focus();
 
+        // A ref can resolve to a wrapper (row/label captured by the pointer
+        // scan) rather than the field itself — and the native value setter
+        // throws "Illegal invocation" on anything that isn't an input.
+        // Resolve the element that can actually hold text once, reuse it for
+        // fill AND read-back, and say exactly what we resolved to when none
+        // exists — the bare DOM exception taught the model nothing.
+        let writable = target.el.isContentEditable
+            ? target.el
+            : (target.el.tagName === 'TEXTAREA' || target.el.tagName === 'INPUT')
+                ? target.el
+                : (target.el.querySelector?.('input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea') ?? null);
+        if (!writable) {
+            return {
+                action, ref, ok: false,
+                message: `ref ${ref} resolved to a <${String(target.el.tagName).toLowerCase()}${target.entry.name ? ` "${target.entry.name}"` : ''}>, which can't hold typed text — take a snapshot and target the input field itself`,
+            };
+        }
+        if (writable !== target.el && typeof writable.focus === 'function') {
+            try { writable.focus(); } catch { /* detached */ }
+        }
         const applyValue = (el) => {
             if (el.isContentEditable) {
                 el.textContent = value;
@@ -375,7 +395,7 @@ async function runOne(cmd, ctx) {
                 el.dispatchEvent(new Event('input', { bubbles: true }));
             }
         };
-        applyValue(target.el);
+        applyValue(writable);
         await sleep(250);
         // Read-back: React state updates, controlled inputs and validation
         // rules can silently reject a fill. Report what the field ACTUALLY
@@ -383,15 +403,22 @@ async function runOne(cmd, ctx) {
         // from having no ground truth about the fill.
         const readBack = (el) =>
             String(el.isContentEditable ? el.textContent : el.value ?? '');
-        let fieldReads = readBack(target.el);
+        let fieldReads = readBack(writable);
         if (fieldReads !== value) {
             // One retry — the first dispatch can race a re-render that
             // replaces the node between focus and set
             const reanchored = resolveTarget(ref, ctx);
-            if (reanchored) target = reanchored;
-            applyValue(target.el);
+            if (reanchored) {
+                target = reanchored;
+                writable = reanchored.el.isContentEditable
+                    ? reanchored.el
+                    : (reanchored.el.tagName === 'TEXTAREA' || reanchored.el.tagName === 'INPUT')
+                        ? reanchored.el
+                        : (reanchored.el.querySelector?.('input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea') ?? reanchored.el);
+            }
+            applyValue(writable);
             await sleep(250);
-            fieldReads = readBack(target.el);
+            fieldReads = readBack(writable);
         }
         // Say BOTH the value and the field — the audit log reads like a
         // natural sentence and can't be mistaken for "it typed the placeholder"
@@ -463,7 +490,16 @@ export async function executeBatch(commands, ctx) {
             ]);
         } catch (err) {
             if (err?.name === 'AbortError') break;
-            result = { action: String(cmd.action || ''), ref: cmd.ref, ok: false, message: `executor error: ${err?.message || err}` };
+            // A bare "Illegal invocation" told us nothing — the first stack
+            // frames name the exact throw site (bundle + line in dev).
+            const where = String(err?.stack || '')
+                .split('\n').slice(1, 3)
+                .map((s) => s.trim().replace(/^at\s+/, ''))
+                .filter(Boolean).join('  <-  ');
+            result = {
+                action: String(cmd.action || ''), ref: cmd.ref, ok: false,
+                message: `executor error: ${err?.message || err}${cmd.action || cmd.ref ? ` (while ${cmd.action || 'acting'} on ref ${cmd.ref})` : ''}${where ? ` @ ${where}` : ''}`,
+            };
         }
         results.push({ ...result, command: cmd });
         if (result.blocked) break; // destructive refusal ends the batch

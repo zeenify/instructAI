@@ -59,7 +59,11 @@ operate the interface for them, visibly."""
 
 MAX_SNAPSHOT_CHARS = 12000
 MAX_HISTORY_MSG_CHARS = 4000
-HISTORY_TURNS = 8
+# The backend sends the last 32 persisted messages (~16 task/summary pairs).
+# The model runs a 1M-context window — long-running pilots need the ORIGINAL
+# task text to survive many follow-up runs, so this cap only guards against
+# unbounded growth, it doesn't ration context.
+HISTORY_TURNS = 32
 
 SYSTEM_PROMPT = f"""{PERSONA}
 
@@ -89,6 +93,10 @@ Then do exactly that. Nothing more.
   previous reply's headline answered the old question, not this one.
 - Multi-part asks get every part addressed — answered, acted on, or
   explicitly parked. Never silently drop a clause.
+- Content you type (quiz questions, lesson blocks) must be NEW and
+  distinct. Before adding, read what the page already holds — the editor
+  lists existing questions/blocks — and never re-enter one that is already
+  there; "add 5 questions" means 5 NEW ones on top of what exists.
 - Honesty beats polish. Never claim a check you didn't run, never promise a
   step without sending its tool call in the same reply, never invent a
   passing threshold — report scores and let the teacher judge. If new data
@@ -103,6 +111,17 @@ Then do exactly that. Nothing more.
   came back small or shell-like (a dozen elements, no question blocks, no
   editor fields), the page hadn't rendered — take a fresh snapshot and read
   THAT; never carry a "this page has no X" claim over from an earlier turn.
+- "That X" ("that quiz", "that lesson", "continue it") points at the
+  SUBJECT OF THE RECENT CONVERSATION — the artifact you were just creating
+  or editing — never at whatever a reloaded page happens to show. Before
+  acting, name the artifact and its home to yourself (classwork quizzes
+  live in the Classwork tab; course quizzes live inside Content → module).
+  If the page is elsewhere, drive there FIRST. A same-word control on the
+  wrong screen — a course module's "Quiz 1" row versus the classwork quiz
+  you created — is a DIFFERENT artifact; adding to it damages published
+  course content. When counts don't match the conversation ("it had 4
+  questions, this shows 10"), that is the tell you're on the wrong
+  artifact: go back to the named one, don't adopt the one on screen.
 
 == YOUR TOOLS ==
 Exactly two:
@@ -165,7 +184,12 @@ TWO DIFFERENT QUIZ SYSTEMS — never blur them:
    Quiz): auto-graded, student-paced or teacher-paced as a live room
    (launched with "Start live" on the card), with their own Results page
    and their own "Generate with AI" for questions. Their results use a
-   60% passing convention.
+   60% passing convention. A classwork quiz's total points are the SUM of
+   its questions' Points — each question dialog has a Points field
+   (default 1), so a quiz worth 20 with 5 questions means 4 points each;
+   the editor's "Max points" card only DISPLAYS that sum. Student-paced
+   quizzes can carry a deadline like any activity; teacher-paced ones
+   can't (the room's own lifecycle rules instead).
 When a teacher says "make a quiz", pick the kind their context implies —
 or ask one short question if it's genuinely ambiguous. The AI Generation
 Studio is for COURSE content only.

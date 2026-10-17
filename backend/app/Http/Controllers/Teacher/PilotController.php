@@ -60,10 +60,12 @@ class PilotController extends Controller
         // A dead run leaves its user turn persisted with no AI answer — a
         // dangling request the model would happily "complete" later out of
         // thin air. Trim trailing orphans so history always ends on a paired
-        // exchange.
+        // exchange. 32 messages ≈ 16 task/summary pairs: long-running pilots
+        // span many runs, and the original instruction must never age out of
+        // the window (the model runs 1M context — this is ~50k chars worst case).
         $history = PilotMessage::where('teacher_id', $teacher->id)
             ->orderByDesc('created_at')
-            ->limit(10)
+            ->limit(40)
             ->get()
             ->reverse()
             ->values();
@@ -72,7 +74,7 @@ class PilotController extends Controller
             $history->pop();
         }
 
-        $history = $history->slice(-8)->values()
+        $history = $history->slice(-32)->values()
             ->map(fn ($m) => ['sender' => $m->sender, 'message' => $m->message])
             ->all();
 

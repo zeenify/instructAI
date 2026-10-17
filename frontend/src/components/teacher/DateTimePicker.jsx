@@ -99,10 +99,16 @@ export default function DateTimePicker({ value, onChange, disabled }) {
 
     const displayValue = value ? format(new Date(value), 'MMM d, yyyy h:mm aa') : '';
 
-    const hourOptions = Array.from({ length: 24 }, (_, i) => ({
-        value: String(i).padStart(2, '0'),
-        label: String(i).padStart(2, '0'),
-    }));
+    // 12-hour labels with an explicit AM/PM — the display reads "5:00 PM",
+    // so a bare "17" (or a bare "05") in the menu invites the wrong pick,
+    // by teacher hands and by the pilot alike.
+    const hourOptions = Array.from({ length: 24 }, (_, i) => {
+        const h12 = i % 12 === 0 ? 12 : i % 12;
+        return {
+            value: String(i).padStart(2, '0'),
+            label: `${String(h12).padStart(2, '0')} ${i < 12 ? 'AM' : 'PM'}`,
+        };
+    });
     const minuteOptions = Array.from({ length: 60 }, (_, i) => ({
         value: String(i).padStart(2, '0'),
         label: String(i).padStart(2, '0'),

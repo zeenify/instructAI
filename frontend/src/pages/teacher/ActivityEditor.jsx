@@ -226,6 +226,7 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
                         <div>
                             <span className="ae-field-label">{type === 'enumeration' ? 'Points per correct answer' : 'Points'}</span>
                             <input className="ae-input" type="number" min={1} step={1} value={points} style={{ width: 92 }}
+                                aria-label={type === 'enumeration' ? 'Points per correct answer' : 'Points'}
                                 onChange={(e) => setPoints(Math.min(1000, Math.max(1, Math.round(Number(e.target.value) || 1))))} />
                         </div>
                         {type === 'enumeration' && options.filter(o => o.trim()).length > 0 && (
@@ -864,7 +865,7 @@ export default function ActivityEditor() {
                                 activity.submissions_count !== undefined
                                     ? `${activity.submissions_count} submission${activity.submissions_count !== 1 ? 's' : ''}`
                                     : null,
-                                !isQuiz && activity.deadline_at && (
+                                (!isQuiz || activity.pacing_mode === 'student') && activity.deadline_at && (
                                     <span key="due" style={{ color: isPastDue ? 'var(--db-danger)' : undefined }}>
                                         due {format(new Date(activity.deadline_at), 'MMM d, h:mm a')}
                                         {activity.deadline_behavior === 'soft' ? ' · late OK' : ' · closes at deadline'}
@@ -962,8 +963,10 @@ export default function ActivityEditor() {
                         )}
                     </div>
 
-                    {/* Deadline (activities with something to submit) */}
-                    {activity.submission_type !== 'material' && !isQuiz && (
+                    {/* Deadline (activities with something to submit, and
+                        student-paced quizzes — teacher-paced quizzes run on
+                        the room's own lifecycle instead) */}
+                    {activity.submission_type !== 'material' && (!isQuiz || activity.pacing_mode === 'student') && (
                         <div className="ae-card">
                             <h4 className="ae-card-label"><Clock size={13} /> Deadline</h4>
                             <DateTimePicker value={activity.deadline_at} onChange={(val) => handleFieldChange('deadline_at', val)} />

@@ -194,7 +194,13 @@ class ClassActivityController extends Controller
                 default => null,
             },
             'max_points' => $validated['max_points'] ?? null,
-            'deadline_at' => $validated['activity_type'] === 'quiz' ? null : ($validated['deadline_at'] ?? null),
+            // Teacher-paced quizzes run on the room's own lifecycle, but a
+            // student-paced quiz can be due Friday like any assignment — the
+            // student submit paths enforce deadline_at + hard/soft the same
+            // way they do for activities.
+            'deadline_at' => ($validated['activity_type'] === 'quiz' && ($validated['pacing_mode'] ?? 'student') === 'teacher')
+                ? null
+                : ($validated['deadline_at'] ?? null),
             'deadline_behavior' => $validated['deadline_behavior'] ?? 'hard',
             'late_submission' => $validated['late_submission'] ?? false,
             'late_penalty_pct' => $validated['late_penalty_pct'] ?? null,
@@ -261,9 +267,13 @@ class ClassActivityController extends Controller
         ]);
 
         if ($activity->activity_type === 'quiz') {
-            // D1: quizzes are live-only — deadlines are an activity concept
-            $validated['deadline_at'] = null;
-            unset($validated['deadline_behavior'], $validated['late_submission'], $validated['late_penalty_pct']);
+            // Teacher-paced quizzes run on the room's own clock — no wall-clock
+            // deadline. Student-paced quizzes CAN be due like an assignment:
+            // the student submit paths already enforce deadline_at + hard/soft.
+            if (($validated['pacing_mode'] ?? $activity->pacing_mode) === 'teacher') {
+                $validated['deadline_at'] = null;
+                unset($validated['deadline_behavior'], $validated['late_submission'], $validated['late_penalty_pct']);
+            }
 
             // Lock quiz settings while the room is live
             if ($activity->is_live) {
