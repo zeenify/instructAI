@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { LayoutDashboard, Book, LogOut, Plus, Loader2, Sparkles, Hash, Menu, Smartphone, X } from 'lucide-react';
+import { LayoutDashboard, Book, LogOut, Plus, Loader2, Sparkles, Hash, Menu, ArrowRight, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import cache from '../../utils/cache';
@@ -142,8 +142,8 @@ export default function StudentLayout() {
                             <p className="sv-appcard-title">Cognify, on your phone</p>
                             <p className="sv-appcard-sub">Flashcards &amp; podcast narration from your classes</p>
                             <a className="sv-appcard-cta" href={COGNIFY_APK_URL} download="Cognify.apk">
-                                <Smartphone size={13} />
-                                <span>Get the Android app</span>
+                                <span>Get the app</span>
+                                <ArrowRight size={11} strokeWidth={2.5} />
                             </a>
                         </div>
                     </div>
