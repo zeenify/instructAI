@@ -127,7 +127,9 @@ fun CognifyNavGraph(
             }
 
             composable(Routes.STATS) {
-                StatsScreen()
+                StatsScreen(
+                    onReviewClick = { id, title -> navController.navigate(Routes.reviewDetail(id, title)) },
+                )
             }
 
             composable(
@@ -226,7 +228,6 @@ fun CognifyNavGraph(
             composable(Routes.SETTINGS) {
                 com.instructai.cognify.ui.settings.SettingsScreen(
                     onBack = { navController.popBackStack() },
-                    onVoiceLab = { navController.navigate(Routes.VOICE_LAB) },
                     onLogout = {
                         navController.navigate(Routes.LOGIN) {
                             popUpTo(0) { inclusive = true }
@@ -244,12 +245,6 @@ fun CognifyNavGraph(
                             launchSingleTop = true
                         }
                     },
-                )
-            }
-
-            composable(Routes.VOICE_LAB) {
-                com.instructai.cognify.ui.voicelab.VoiceLabScreen(
-                    onBack = { navController.popBackStack() },
                 )
             }
         }

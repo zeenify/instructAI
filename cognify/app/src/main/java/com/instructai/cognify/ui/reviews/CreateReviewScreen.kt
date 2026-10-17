@@ -94,7 +94,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.instructai.cognify.ui.theme.CognifyColors
 import kotlinx.coroutines.launch
 
 private enum class ScreenMode { FORM, PROGRESS, PREVIEW }
@@ -154,7 +153,7 @@ fun CreateReviewScreen(
                         Button(
                             onClick = { showSaveDialog = true },
                             shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = CognifyColors.ElectricViolet),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary),
                         ) {
                             Icon(Icons.Filled.Save, null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
@@ -199,7 +198,7 @@ fun CreateReviewScreen(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             ) {
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("Save Reviewer", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineSmall, color = CognifyColors.ElectricViolet)
+                    Text("Save Reviewer", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
                     Text("Name your reviewer:", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     OutlinedTextField(
                         value = reviewTitle,
@@ -223,7 +222,7 @@ fun CreateReviewScreen(
                                 }
                             },
                             enabled = reviewTitle.isNotBlank(),
-                            colors = ButtonDefaults.buttonColors(containerColor = CognifyColors.ElectricViolet),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary),
                             shape = RoundedCornerShape(12.dp),
                         ) { Text("Save") }
                     }
@@ -259,7 +258,7 @@ private fun CreationForm(state: ReviewCreationState, viewModel: CreateReviewView
 
         ReviewTypeToggle(
             icon = Icons.Filled.Style, label = "Flashcards", desc = "Q&A pairs with spaced repetition",
-            color = CognifyColors.ElectricViolet, enabled = state.flashcardEnabled, count = state.flashcardCount,
+            color = MaterialTheme.colorScheme.primary, enabled = state.flashcardEnabled, count = state.flashcardCount,
             onToggle = { viewModel.toggleFlashcard() },
             onCountChange = { viewModel.setFlashcardCount(it) },
         )
@@ -287,13 +286,13 @@ private fun CreationForm(state: ReviewCreationState, viewModel: CreateReviewView
                 OutlinedButton(
                     onClick = { viewModel.setDifficulty(d) },
                     colors = if (sel) ButtonDefaults.outlinedButtonColors(
-                        containerColor = CognifyColors.ElectricViolet.copy(alpha = 0.15f),
+                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                     ) else ButtonDefaults.outlinedButtonColors(),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(d.replaceFirstChar { it.uppercase() },
-                        color = if (sel) CognifyColors.ElectricViolet else MaterialTheme.colorScheme.onSurface,
+                        color = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                         fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
                     )
                 }
@@ -306,7 +305,7 @@ private fun CreationForm(state: ReviewCreationState, viewModel: CreateReviewView
             modifier = Modifier.fillMaxWidth().height(52.dp),
             enabled = !state.isGenerating,
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = CognifyColors.ElectricViolet),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary),
         ) {
             Icon(Icons.Filled.RocketLaunch, null)
             Spacer(Modifier.width(8.dp))
@@ -321,7 +320,7 @@ private fun SourceTabRow(selectedTab: SourceTab, onTabSelected: (SourceTab) -> U
     TabRow(
         selectedTabIndex = selectedTab.ordinal,
         containerColor = MaterialTheme.colorScheme.surface,
-        contentColor = CognifyColors.ElectricViolet,
+        contentColor = MaterialTheme.colorScheme.primary,
     ) {
         listOf(
             SourceTab.MODULES to (Icons.Filled.LibraryBooks to "Classes"),
@@ -375,7 +374,7 @@ private fun ModulesSource(state: ReviewCreationState, viewModel: CreateReviewVie
                         ) {
                             Box(
                                 Modifier.size(8.dp).clip(CircleShape)
-                                    .background(if (courseTree.course.isCoding) Color(0xFF00BCD4) else CognifyColors.ElectricViolet)
+                                    .background(if (courseTree.course.isCoding) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary)
                             )
                             Spacer(Modifier.width(8.dp))
                             Column(Modifier.weight(1f)) {
@@ -397,7 +396,7 @@ private fun ModulesSource(state: ReviewCreationState, viewModel: CreateReviewVie
                                             Modifier.fillMaxWidth().clickable { moduleExpanded = !moduleExpanded }.padding(vertical = 6.dp),
                                             verticalAlignment = Alignment.CenterVertically,
                                         ) {
-                                            Icon(Icons.Filled.LibraryBooks, null, tint = CognifyColors.ElectricViolet, modifier = Modifier.size(18.dp))
+                                            Icon(Icons.Filled.LibraryBooks, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                             Spacer(Modifier.width(6.dp))
                                             Column(Modifier.weight(1f)) {
                                                 Text(mod.module.title, fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
@@ -407,7 +406,7 @@ private fun ModulesSource(state: ReviewCreationState, viewModel: CreateReviewVie
                                             IconButton(onClick = { viewModel.selectAllInCourseModule(ci, mi) }, modifier = Modifier.size(28.dp)) {
                                                 Icon(if (sel == mod.lessons.size && mod.lessons.isNotEmpty())
                                                     Icons.Filled.RadioButtonChecked else Icons.Filled.RadioButtonUnchecked,
-                                                    "Select all", tint = CognifyColors.ElectricViolet, modifier = Modifier.size(18.dp))
+                                                    "Select all", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                             }
                                             Icon(if (moduleExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, modifier = Modifier.size(18.dp))
                                         }
@@ -421,7 +420,7 @@ private fun ModulesSource(state: ReviewCreationState, viewModel: CreateReviewVie
                                                     ) {
                                                         Icon(if (mod.selectedLessonIds.contains(lesson.id))
                                                             Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked, null,
-                                                            tint = if (mod.selectedLessonIds.contains(lesson.id)) CognifyColors.ElectricViolet
+                                                            tint = if (mod.selectedLessonIds.contains(lesson.id)) MaterialTheme.colorScheme.primary
                                                             else MaterialTheme.colorScheme.onSurfaceVariant,
                                                             modifier = Modifier.size(16.dp))
                                                         Spacer(Modifier.width(6.dp))
@@ -532,7 +531,7 @@ private fun SourceContent(state: ReviewCreationState, viewModel: CreateReviewVie
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { photoPicker.launch("image/*") },
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = CognifyColors.ElectricViolet),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
                 ) {
                     Icon(Icons.Filled.Image, null, Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
@@ -597,7 +596,7 @@ private fun SourceContent(state: ReviewCreationState, viewModel: CreateReviewVie
                         onClick = { viewModel.extractAllFiles() },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = CognifyColors.ElectricViolet),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary),
                     ) {
                         if (state.files.any { it.isExtracting }) {
                             CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
@@ -636,7 +635,7 @@ private fun FileCard(
         colors = CardDefaults.cardColors(
             containerColor = when {
                 file.error != null -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
-                file.extractedText.isNotBlank() -> CognifyColors.ElectricViolet.copy(alpha = 0.06f)
+                file.extractedText.isNotBlank() -> MaterialTheme.colorScheme.primary.copy(alpha = 0.06f)
                 else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
             }
         ),
@@ -649,13 +648,13 @@ private fun FileCard(
                 file.fileName.endsWith(".pptx", ignoreCase = true) -> Icons.Filled.Edit
                 else -> Icons.Filled.FileUpload
             }
-            Icon(mimeIcon, null, tint = CognifyColors.ElectricViolet, modifier = Modifier.size(20.dp))
+            Icon(mimeIcon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
 
             Column(Modifier.weight(1f)) {
                 Text(file.fileName, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 when {
-                    file.isExtracting -> Text("Extracting...", style = MaterialTheme.typography.labelSmall, color = CognifyColors.ElectricViolet)
+                    file.isExtracting -> Text("Extracting...", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     file.error != null -> Text("Error: ${file.error}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
                     file.extractedText.isNotBlank() -> Text("${file.extractedText.length} chars extracted", style = MaterialTheme.typography.labelSmall, color = Color(0xFF4CAF50))
                     file.hasBeenExtracted -> Text("No text found (image-based file?)", style = MaterialTheme.typography.labelSmall, color = Color(0xFFFFA726))
@@ -783,7 +782,7 @@ fun ReviewerPreviewContent(result: ReviewerResultState, modifier: Modifier = Mod
             ScrollableTabRow(
                 selectedTabIndex = safeIndex,
                 containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = CognifyColors.ElectricViolet,
+                contentColor = MaterialTheme.colorScheme.primary,
                 edgePadding = 0.dp,
             ) {
                 tabs.forEachIndexed { i, tab ->
@@ -815,13 +814,13 @@ private fun FlashcardList(flashcards: List<Map<String, String>>) {
             val back = fc["back"] ?: ""
             val open = expanded == i
             Card(Modifier.fillMaxWidth().clickable { expanded = if (open) -1 else i },
-                colors = CardDefaults.cardColors(containerColor = if (open) CognifyColors.ElectricViolet.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                colors = CardDefaults.cardColors(containerColor = if (open) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
                 shape = RoundedCornerShape(10.dp)) {
                 Column(Modifier.padding(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(26.dp).clip(RoundedCornerShape(6.dp)).background(CognifyColors.ElectricViolet.copy(alpha = 0.2f)),
+                        Box(Modifier.size(26.dp).clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
                             contentAlignment = Alignment.Center) {
-                            Text("${i + 1}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, color = CognifyColors.ElectricViolet)
+                            Text("${i + 1}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                         }
                         Spacer(Modifier.width(10.dp))
                         Text(front, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = if (open) Int.MAX_VALUE else 2, overflow = TextOverflow.Ellipsis)

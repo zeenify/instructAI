@@ -1,44 +1,65 @@
 package com.instructai.cognify.ui.theme
 
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// Core brand palette
+/*
+ * Apple system palette (iOS). Each color ships a light and a dark variant,
+ * matching UIColor's dynamic system colors; ScreenText.kt / Tints.kt pick
+ * between them via LocalIsDarkTheme (provided by CognifyTheme).
+ */
+
+/** True while the app renders its dark scheme, regardless of the source (system or user override). */
+val LocalIsDarkTheme = staticCompositionLocalOf { false }
+
+data class Tint(val fg: Color, val soft: Color)
+
 object CognifyColors {
-    val DeepNavy = Color(0xFF0D0D1A)
-    val DeepNavyLight = Color(0xFF1A1A2E)
-    val Midnight = Color(0xFF16213E)
-    val ElectricViolet = Color(0xFF7C4DFF)
-    val ElectricVioletLight = Color(0xFFB388FF)
-    val ElectricVioletDark = Color(0xFF651FFF)
-    val Gold = Color(0xFFFFD700)
-    val GoldLight = Color(0xFFFFE44D)
-    val GoldDark = Color(0xFFFFC107)
-    val Silver = Color(0xFFE0E0E8)
-    val Charcoal = Color(0xFF2A2A3E)
 
-    // Semantic
-    val Success = Color(0xFF00E676)
-    val Error = Color(0xFFFF5252)
-    val Warning = Color(0xFFFFD740)
-    val Info = Color(0xFF40C4FF)
+    // ---- iOS system accents: light / dark ----
+    val PurpleL = Color(0xFFAF52DE); val PurpleD = Color(0xFFBF5AF2)   // brand accent (Cognify purple, Apple-flavored)
+    val BlueL = Color(0xFF007AFF);   val BlueD = Color(0xFF0A84FF)
+    val GreenL = Color(0xFF34C759);  val GreenD = Color(0xFF30D158)
+    val RedL = Color(0xFFFF3B30);    val RedD = Color(0xFFFF453A)
+    val OrangeL = Color(0xFFFF9500); val OrangeD = Color(0xFFFF9F0A)
+    val TealL = Color(0xFF30B0C7);   val TealD = Color(0xFF40C8E0)
+    val IndigoL = Color(0xFF5856D6); val IndigoD = Color(0xFF5E5CE6)
+    val YellowL = Color(0xFFFFCC00); val YellowD = Color(0xFFFFD60A)
 
-    // Gradients
-    val PrimaryGradient = listOf(Color(0xFF7C4DFF), Color(0xFF651FFF))
-    val GoldGradient = listOf(Color(0xFFFFD700), Color(0xFFFFC107))
-    val SuccessGradient = listOf(Color(0xFF00E676), Color(0xFF00C853))
-    val ErrorGradient = listOf(Color(0xFFFF5252), Color(0xFFD32F2F))
-    val NavyGradient = listOf(Color(0xFF0D0D1A), Color(0xFF1A1A2E))
-    val GlassGradient = listOf(Color(0x33FFFFFF), Color(0x0DFFFFFF))
-    val CardGradient = listOf(Color(0xFF1A1A2E), Color(0xFF16213E))
+    // ---- Neutrals: light ----
+    val BgL = Color(0xFFF2F2F7)         // systemGroupedBackground
+    val CardL = Color(0xFFFFFFFF)       // secondarySystemGroupedBackground
+    val FillL = Color(0xFFE5E5EA)       // systemFill (skeletons, tracks)
+    val InkL = Color(0xFF000000)        // label
+    val SubInkL = Color(0x993C3C43)     // secondaryLabel
+    val HintL = Color(0x4D3C3C43)       // tertiaryLabel
+    val SeparatorL = Color(0xFFD1D1D6)
 
-    // Surfaces
-    val SurfaceLight = Color(0xFFF5F5FA)
-    val SurfaceDark = Color(0xFF0D0D1A)
-    val CardLight = Color(0xFFFFFFFF)
-    val CardDark = Color(0xFF1A1A2E)
-    val CardDarkAlt = Color(0xFF16213E)
+    // ---- Neutrals: dark ----
+    val BgD = Color(0xFF000000)
+    val CardD = Color(0xFF1C1C1E)       // secondarySystemGroupedBackground
+    val FillD = Color(0xFF2C2C2E)       // tertiarySystemFill
+    val InkD = Color(0xFFFFFFFF)
+    val SubInkD = Color(0x99EBEBF5)     // secondaryLabel
+    val HintD = Color(0x4DEBEBF5)       // tertiaryLabel
+    val SeparatorD = Color(0xFF38383A)
 
-    // Overlay
-    val Scrim = Color(0x99000000)
-    val Glass = Color(0x1AFFFFFF)
+    // Rotating tints for reviewer icon chips — flat Apple-style colored glyphs.
+    fun accent(isDark: Boolean) = if (isDark) PurpleD else PurpleL
+
+    private val accentsLight = listOf(PurpleL, BlueL, TealL, OrangeL, GreenL, IndigoL)
+    private val accentsDark = listOf(PurpleD, BlueD, TealD, OrangeD, GreenD, IndigoD)
+
+    /** A flat tinted chip (fg = glyph color, soft = 12% wash over the card). */
+    fun chipTint(index: Int, isDark: Boolean): Tint {
+        val fg = if (isDark) accentsDark[index % accentsDark.size] else accentsLight[index % accentsLight.size]
+        return Tint(fg = fg, soft = fg.copy(alpha = 0.13f))
+    }
+
+    object Semantics {
+        fun success(isDark: Boolean) = if (isDark) GreenD else GreenL
+        fun danger(isDark: Boolean) = if (isDark) RedD else RedL
+        fun warning(isDark: Boolean) = if (isDark) OrangeD else OrangeL
+        fun info(isDark: Boolean) = if (isDark) BlueD else BlueL
+    }
 }

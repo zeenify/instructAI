@@ -2,8 +2,10 @@ package com.instructai.cognify.ui.stats
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.instructai.cognify.data.local.dao.RecentSessionInfo
 import com.instructai.cognify.data.local.dao.ReviewDao
 import com.instructai.cognify.data.logging.AppLogger
+import com.instructai.cognify.data.repository.DailyActivity
 import com.instructai.cognify.data.repository.StudyStatsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +23,9 @@ data class StatsState(
     val totalFlashcards: Int = 0,
     val totalQuestions: Int = 0,
     val avgScore: Float? = null,
+    val totalSessions: Int = 0,
+    val dailyActivity: List<DailyActivity> = emptyList(),
+    val recentSessions: List<RecentSessionInfo> = emptyList(),
     val isLoading: Boolean = true,
 )
 
@@ -98,6 +103,33 @@ class StatsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 logger.log("StatsViewModel", "avg score flow error", e)
+            }
+        }
+        viewModelScope.launch {
+            try {
+                studyStatsRepository.observeTotalSessions().collect { count ->
+                    _state.value = _state.value.copy(totalSessions = count)
+                }
+            } catch (e: Exception) {
+                logger.log("StatsViewModel", "total sessions flow error", e)
+            }
+        }
+        viewModelScope.launch {
+            try {
+                studyStatsRepository.observeDailyActivity(days = 28).collect { days ->
+                    _state.value = _state.value.copy(dailyActivity = days)
+                }
+            } catch (e: Exception) {
+                logger.log("StatsViewModel", "daily activity flow error", e)
+            }
+        }
+        viewModelScope.launch {
+            try {
+                studyStatsRepository.observeRecentSessions(limit = 6).collect { sessions ->
+                    _state.value = _state.value.copy(recentSessions = sessions)
+                }
+            } catch (e: Exception) {
+                logger.log("StatsViewModel", "recent sessions flow error", e)
             }
         }
     }

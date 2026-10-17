@@ -53,7 +53,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.instructai.cognify.R
-import com.instructai.cognify.ui.theme.CognifyColors
 
 internal fun voiceImageFor(name: String): Int? = when (name.lowercase()) {
     "miku nakano" -> R.drawable.miku_nakano
@@ -109,7 +108,7 @@ fun VoiceSelectorDialog(
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        listOf(CognifyColors.DeepNavy, CognifyColors.DeepNavyLight)
+                        listOf(Color(0xFF101016), Color(0xFF191922))
                     )
                 ),
         ) {
@@ -152,7 +151,7 @@ fun VoiceSelectorDialog(
                                 .clip(CircleShape)
                                 .background(
                                     Brush.radialGradient(
-                                        colors = listOf(Color.White, selectedAvatar?.painting ?: CognifyColors.ElectricViolet)
+                                        colors = listOf(Color.White, selectedAvatar?.painting ?: Color(0xFFAF52DE))
                                     )
                                 ),
                             contentAlignment = Alignment.Center,
@@ -195,7 +194,7 @@ fun VoiceSelectorDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(14.dp))
-                                .background(CognifyColors.Charcoal)
+                                .background(Color(0xFF2A2A32))
                                 .clickable { previewPlaying = true }
                                 .padding(vertical = 12.dp, horizontal = 20.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -204,7 +203,7 @@ fun VoiceSelectorDialog(
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(CognifyColors.ElectricViolet),
+                                    .background(Color(0xFFAF52DE)),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
@@ -224,11 +223,11 @@ fun VoiceSelectorDialog(
                                 )
                             }
                             if (!previewPlaying) {
-                                Icon(Icons.Filled.PlayArrow, contentDescription = "Play", tint = CognifyColors.ElectricViolet)
+                                Icon(Icons.Filled.PlayArrow, contentDescription = "Play", tint = Color(0xFFAF52DE))
                             } else {
                                 Text(
                                     "...",
-                                    color = CognifyColors.ElectricVioletLight,
+                                    color = Color(0xFFBF5AF2),
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }
@@ -368,7 +367,7 @@ private fun VoiceSquareCard(
     modifier: Modifier = Modifier,
 ) {
     val borderMod = if (selected) {
-        Modifier.border(2.dp, CognifyColors.ElectricVioletLight, RoundedCornerShape(16.dp))
+        Modifier.border(2.dp, Color(0xFFBF5AF2), RoundedCornerShape(16.dp))
     } else {
         Modifier.border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
     }
@@ -415,7 +414,7 @@ private fun VoiceSquareCard(
                 Icon(
                     Icons.Filled.Check,
                     contentDescription = "Selected",
-                    tint = CognifyColors.ElectricVioletLight,
+                    tint = Color(0xFFBF5AF2),
                     modifier = Modifier.size(14.dp),
                 )
             }
@@ -433,7 +432,7 @@ private fun VoiceCharacterCard(
     modifier: Modifier = Modifier,
 ) {
     val borderMod = if (selected) {
-        Modifier.border(2.dp, CognifyColors.Gold, RoundedCornerShape(20.dp))
+        Modifier.border(2.dp, Color(0xFFFFD60A), RoundedCornerShape(20.dp))
     } else {
         Modifier.border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
     }
@@ -482,13 +481,13 @@ private fun VoiceCharacterCard(
                         .padding(8.dp)
                         .size(26.dp)
                         .clip(CircleShape)
-                        .background(CognifyColors.Gold),
+                        .background(Color(0xFFFFD60A)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         Icons.Filled.Check,
                         contentDescription = "Selected",
-                        tint = CognifyColors.DeepNavy,
+                        tint = Color(0xFF101016),
                         modifier = Modifier.size(15.dp),
                     )
                 }

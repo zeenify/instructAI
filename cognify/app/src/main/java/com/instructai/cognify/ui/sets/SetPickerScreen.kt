@@ -65,7 +65,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -73,7 +72,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.instructai.cognify.ui.theme.CognifyColors
-import com.instructai.cognify.ui.theme.CognifyGradients
+import com.instructai.cognify.ui.theme.LocalIsDarkTheme
+import com.instructai.cognify.ui.theme.Tint
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,6 +86,7 @@ fun SetPickerScreen(
     viewModel: SetPickerViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val isDark = LocalIsDarkTheme.current
     var pendingDelete by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(reviewId, type) {
@@ -96,9 +97,9 @@ fun SetPickerScreen(
         "practice" -> Icons.Filled.QuestionAnswer
         else -> Icons.Filled.Style
     }
-    val gradient = when (type) {
-        "practice" -> CognifyGradients.gold
-        else -> CognifyGradients.primary
+    val tint = when (type) {
+        "practice" -> CognifyColors.chipTint(3, isDark)
+        else -> CognifyColors.chipTint(0, isDark)
     }
     val title = when (type) {
         "practice" -> "Practice Sets"
@@ -157,7 +158,7 @@ fun SetPickerScreen(
                     SetCard(
                         set = set,
                         icon = icon,
-                        gradient = gradient,
+                        tint = tint,
                         deletable = set.id != null && state.sets.size > 1 && !state.isGenerating,
                         onClick = { onStartSet(set.id) },
                         onDelete = { pendingDelete = set.id },
@@ -174,7 +175,8 @@ fun SetPickerScreen(
                     .height(54.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = CognifyColors.ElectricViolet,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                 ),
             ) {
@@ -298,7 +300,8 @@ private fun NewSetSheet(
                         .height(54.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = CognifyColors.ElectricViolet,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                         disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     ),
                 ) {
@@ -337,7 +340,7 @@ private fun OptionsSection(
         text = "How many",
         style = MaterialTheme.typography.labelLarge,
         fontWeight = FontWeight.SemiBold,
-        color = CognifyColors.ElectricViolet,
+        color = MaterialTheme.colorScheme.primary,
     )
     Spacer(modifier = Modifier.height(6.dp))
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -368,8 +371,8 @@ private fun OptionsSection(
         onValueChange = { v -> onOptions { o -> o.copy(count = v.toInt().coerceIn(1, maxCount)) } },
         valueRange = 1f..maxCount.toFloat(),
         colors = androidx.compose.material3.SliderDefaults.colors(
-            thumbColor = CognifyColors.ElectricViolet,
-            activeTrackColor = CognifyColors.ElectricViolet,
+            thumbColor = MaterialTheme.colorScheme.primary,
+            activeTrackColor = MaterialTheme.colorScheme.primary,
             inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
         ),
     )
@@ -381,7 +384,7 @@ private fun OptionsSection(
         text = "Difficulty",
         style = MaterialTheme.typography.labelLarge,
         fontWeight = FontWeight.SemiBold,
-        color = CognifyColors.ElectricViolet,
+        color = MaterialTheme.colorScheme.primary,
     )
     Spacer(modifier = Modifier.height(6.dp))
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -396,8 +399,8 @@ private fun OptionsSection(
                     )
                 },
                 colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = CognifyColors.ElectricViolet.copy(alpha = 0.18f),
-                    selectedLabelColor = CognifyColors.ElectricViolet,
+                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                    selectedLabelColor = MaterialTheme.colorScheme.primary,
                 ),
             )
         }
@@ -410,7 +413,7 @@ private fun OptionsSection(
         text = "Additional prompt",
         style = MaterialTheme.typography.labelLarge,
         fontWeight = FontWeight.SemiBold,
-        color = CognifyColors.ElectricViolet,
+        color = MaterialTheme.colorScheme.primary,
     )
     Spacer(modifier = Modifier.height(6.dp))
     OutlinedTextField(
@@ -452,8 +455,8 @@ private fun OptionsSection(
             checked = options.avoidUsed,
             onCheckedChange = { checked -> onOptions { o -> o.copy(avoidUsed = checked) } },
             colors = SwitchDefaults.colors(
-                checkedThumbColor = CognifyColors.Gold,
-                checkedTrackColor = CognifyColors.ElectricViolet.copy(alpha = 0.4f),
+                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
             ),
         )
     }
@@ -525,7 +528,7 @@ private fun LiveGenerationSection(
                 .fillMaxWidth()
                 .height(10.dp)
                 .clip(RoundedCornerShape(5.dp)),
-            color = CognifyColors.ElectricViolet,
+            color = MaterialTheme.colorScheme.primary,
             trackColor = MaterialTheme.colorScheme.surfaceVariant,
             gapSize = 0.dp,
             drawStopIndicator = {},
@@ -542,7 +545,7 @@ private fun LiveGenerationSection(
             Text(
                 text = "${(progress * 100).toInt()}%",
                 style = MaterialTheme.typography.labelLarge,
-                color = CognifyColors.ElectricViolet,
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
             )
         }
@@ -554,7 +557,7 @@ private fun LiveGenerationSection(
                 CircularProgressIndicator(
                     modifier = Modifier.size(18.dp),
                     strokeWidth = 2.dp,
-                    color = CognifyColors.ElectricViolet,
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
@@ -586,14 +589,14 @@ private fun LiveGenerationSection(
                                 modifier = Modifier
                                     .size(28.dp)
                                     .clip(RoundedCornerShape(9.dp))
-                                    .background(CognifyColors.ElectricViolet.copy(alpha = 0.15f)),
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
                                     text = "${index + 1}",
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = CognifyColors.ElectricViolet,
+                                    color = MaterialTheme.colorScheme.primary,
                                 )
                             }
                             Spacer(modifier = Modifier.width(12.dp))
@@ -642,7 +645,7 @@ private fun LiveGenerationSection(
 private fun SetCard(
     set: ReviewSetInfo,
     icon: ImageVector,
-    gradient: Brush,
+    tint: Tint,
     deletable: Boolean,
     onClick: () -> Unit,
     onDelete: () -> Unit,
@@ -654,7 +657,7 @@ private fun SetCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(
             modifier = Modifier
@@ -666,10 +669,10 @@ private fun SetCard(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(gradient),
+                    .background(tint.soft),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                Icon(icon, contentDescription = null, tint = tint.fg, modifier = Modifier.size(24.dp))
             }
 
             Spacer(modifier = Modifier.width(14.dp))

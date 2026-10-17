@@ -44,7 +44,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.instructai.cognify.ui.theme.CognifyColors
 
 @Composable
 fun GenerationProgressScreen(
@@ -80,7 +79,7 @@ fun GenerationProgressScreen(
             modifier = Modifier
                 .size(80.dp)
                 .clip(RoundedCornerShape(20.dp))
-                .background(CognifyColors.ElectricViolet.copy(alpha = 0.15f)),
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -89,7 +88,7 @@ fun GenerationProgressScreen(
                 modifier = Modifier
                     .size(40.dp)
                     .alpha(pulseAlpha),
-                tint = CognifyColors.ElectricViolet,
+                tint = MaterialTheme.colorScheme.primary,
             )
         }
 
@@ -118,8 +117,8 @@ fun GenerationProgressScreen(
                 .fillMaxWidth()
                 .height(6.dp)
                 .clip(RoundedCornerShape(3.dp)),
-            color = CognifyColors.ElectricViolet,
-            trackColor = CognifyColors.ElectricViolet.copy(alpha = 0.15f),
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
         )
 
         Spacer(Modifier.height(24.dp))
@@ -216,7 +215,7 @@ private fun ProgressTypeCard(item: GenProgressItem) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
                     strokeWidth = 2.dp,
-                    color = CognifyColors.ElectricViolet,
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
         }

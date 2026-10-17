@@ -9,16 +9,22 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import com.instructai.cognify.data.prefs.ThemeMode
+import com.instructai.cognify.data.prefs.ThemePreferences
 import com.instructai.cognify.ui.navigation.CognifyNavGraph
 import com.instructai.cognify.ui.theme.CognifyTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.runBlocking
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -27,7 +33,11 @@ class MainActivity : ComponentActivity() {
         const val EXTRA_OPEN_REVIEW = "open_review_id"
     }
 
+    @Inject
+    lateinit var themePreferences: ThemePreferences
+
     private var pendingReviewId by mutableStateOf<Long?>(null)
+    private var themeMode by mutableStateOf(ThemeMode.SYSTEM)
 
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -35,6 +45,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         readIntent(intent)
+        // Theme is read up front so the very first frame is already right
+        // (avoids a light flash on a dark-mode device).
+        themeMode = runCatching {
+            runBlocking { themePreferences.current() }
+        }.getOrDefault(ThemeMode.SYSTEM)
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
@@ -44,7 +59,13 @@ class MainActivity : ComponentActivity() {
         }
         enableEdgeToEdge()
         setContent {
-            CognifyTheme {
+            val observedMode by themePreferences.themeMode.collectAsState(initial = themeMode)
+            val darkTheme = when (observedMode) {
+                ThemeMode.DARK -> true
+                ThemeMode.LIGHT -> false
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+            }
+            CognifyTheme(darkTheme = darkTheme) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     CognifyNavGraph(
                         deepLinkReviewId = pendingReviewId,

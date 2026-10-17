@@ -1,6 +1,7 @@
 package com.instructai.cognify.data.repository
 
 import com.instructai.cognify.data.local.dao.CompletedSessionDao
+import com.instructai.cognify.data.local.dao.RecentSessionInfo
 import com.instructai.cognify.data.local.dao.StudyStatsDao
 import com.instructai.cognify.data.local.entity.CompletedSessionEntity
 import com.instructai.cognify.data.local.entity.StudyStatsEntity
@@ -14,6 +15,11 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
+
+data class DailyActivity(
+    val date: LocalDate,
+    val total: Int,
+)
 
 @Singleton
 class StudyStatsRepository @Inject constructor(
@@ -99,6 +105,24 @@ class StudyStatsRepository @Inject constructor(
             }
         }
     }
+
+    fun observeRecentSessions(limit: Int = 6): Flow<List<RecentSessionInfo>> =
+        completedSessionDao.observeRecentSessions(limit)
+
+    fun observeTotalSessions(): Flow<Int> = completedSessionDao.observeTotalCount()
+
+    /** Per-day activity (items reviewed) for the last [days] days, oldest first. */
+    fun observeDailyActivity(days: Int = 30): Flow<List<DailyActivity>> =
+        observeAllStats().map { stats ->
+            val totals = stats.associate {
+                it.dateEpochDay to (it.flashcardsReviewed + it.questionsAnswered + it.reviewsCreated)
+            }
+            val today = LocalDate.now()
+            (days - 1L downTo 0L).map { back ->
+                val day = today.minusDays(back)
+                DailyActivity(date = day, total = totals[day.toEpochDay()] ?: 0)
+            }
+        }
 
     private fun currentStreak(activeDays: List<Long>): Int {
         if (activeDays.isEmpty()) return 0

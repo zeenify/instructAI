@@ -6,67 +6,65 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val CognifyDarkColorScheme = darkColorScheme(
-    primary = CognifyColors.ElectricViolet,
-    onPrimary = CognifyColors.DeepNavy,
-    primaryContainer = CognifyColors.ElectricVioletDark,
-    onPrimaryContainer = CognifyColors.ElectricVioletLight,
-    secondary = CognifyColors.Gold,
-    onSecondary = CognifyColors.DeepNavy,
-    secondaryContainer = CognifyColors.GoldDark,
-    onSecondaryContainer = CognifyColors.GoldLight,
-    tertiary = CognifyColors.ElectricVioletLight,
-    onTertiary = CognifyColors.DeepNavy,
-    background = CognifyColors.DeepNavy,
-    onBackground = CognifyColors.Silver,
-    surface = CognifyColors.DeepNavyLight,
-    onSurface = CognifyColors.Silver,
-    surfaceVariant = CognifyColors.Midnight,
-    onSurfaceVariant = CognifyColors.Silver.copy(alpha = 0.7f),
-    outline = CognifyColors.Charcoal,
-    outlineVariant = CognifyColors.Charcoal.copy(alpha = 0.5f),
-    error = CognifyColors.Error,
-    onError = CognifyColors.DeepNavy,
-    errorContainer = CognifyColors.Error.copy(alpha = 0.15f),
-    onErrorContainer = CognifyColors.Error,
-    surfaceTint = CognifyColors.ElectricViolet,
-    inverseSurface = CognifyColors.Silver,
-    inverseOnSurface = CognifyColors.DeepNavy,
-    inversePrimary = CognifyColors.ElectricVioletDark,
+    primary = CognifyColors.PurpleD,
+    onPrimary = CognifyColors.InkD,
+    primaryContainer = CognifyColors.PurpleD.copy(alpha = 0.20f),
+    onPrimaryContainer = CognifyColors.PurpleD,
+    secondary = CognifyColors.OrangeD,
+    onSecondary = CognifyColors.BgD,
+    tertiary = CognifyColors.BlueD,
+    onTertiary = CognifyColors.BgD,
+    background = CognifyColors.BgD,
+    onBackground = CognifyColors.InkD,
+    surface = CognifyColors.CardD,
+    onSurface = CognifyColors.InkD,
+    surfaceVariant = CognifyColors.FillD,
+    onSurfaceVariant = CognifyColors.SubInkD,
+    outline = CognifyColors.SeparatorD,
+    outlineVariant = CognifyColors.SeparatorD.copy(alpha = 0.55f),
+    error = CognifyColors.RedD,
+    onError = CognifyColors.InkD,
+    errorContainer = CognifyColors.RedD.copy(alpha = 0.18f),
+    onErrorContainer = CognifyColors.RedD,
+    surfaceTint = Color.Transparent,
+    inverseSurface = CognifyColors.InkD,
+    inverseOnSurface = CognifyColors.BgD,
+    inversePrimary = CognifyColors.PurpleL,
 )
 
 private val CognifyLightColorScheme = lightColorScheme(
-    primary = CognifyColors.ElectricViolet,
-    onPrimary = CognifyColors.DeepNavy,
-    primaryContainer = CognifyColors.ElectricVioletLight,
-    onPrimaryContainer = CognifyColors.ElectricVioletDark,
-    secondary = CognifyColors.GoldDark,
-    onSecondary = CognifyColors.DeepNavy,
-    secondaryContainer = CognifyColors.GoldLight,
-    onSecondaryContainer = CognifyColors.GoldDark,
-    tertiary = CognifyColors.ElectricVioletDark,
-    onTertiary = CognifyColors.DeepNavy,
-    background = CognifyColors.SurfaceLight,
-    onBackground = CognifyColors.DeepNavy,
-    surface = CognifyColors.CardLight,
-    onSurface = CognifyColors.DeepNavy,
-    surfaceVariant = CognifyColors.SurfaceLight,
-    onSurfaceVariant = CognifyColors.DeepNavyLight,
-    outline = CognifyColors.Silver,
-    outlineVariant = CognifyColors.Silver.copy(alpha = 0.5f),
-    error = CognifyColors.Error,
-    onError = CognifyColors.CardLight,
-    errorContainer = CognifyColors.Error.copy(alpha = 0.1f),
-    onErrorContainer = CognifyColors.Error,
-    surfaceTint = CognifyColors.ElectricViolet,
-    inverseSurface = CognifyColors.DeepNavy,
-    inverseOnSurface = CognifyColors.Silver,
-    inversePrimary = CognifyColors.ElectricVioletLight,
+    primary = CognifyColors.PurpleL,
+    onPrimary = CognifyColors.CardL,
+    primaryContainer = CognifyColors.PurpleL.copy(alpha = 0.14f),
+    onPrimaryContainer = CognifyColors.PurpleL,
+    secondary = CognifyColors.OrangeL,
+    onSecondary = CognifyColors.CardL,
+    tertiary = CognifyColors.BlueL,
+    onTertiary = CognifyColors.CardL,
+    background = CognifyColors.BgL,
+    onBackground = CognifyColors.InkL,
+    surface = CognifyColors.CardL,
+    onSurface = CognifyColors.InkL,
+    surfaceVariant = CognifyColors.FillL,
+    onSurfaceVariant = CognifyColors.SubInkL,
+    outline = CognifyColors.SeparatorL,
+    outlineVariant = CognifyColors.SeparatorL.copy(alpha = 0.55f),
+    error = CognifyColors.RedL,
+    onError = CognifyColors.CardL,
+    errorContainer = CognifyColors.RedL.copy(alpha = 0.12f),
+    onErrorContainer = CognifyColors.RedL,
+    surfaceTint = Color.Transparent,
+    inverseSurface = CognifyColors.InkL,
+    inverseOnSurface = CognifyColors.CardL,
+    inversePrimary = CognifyColors.PurpleD,
 )
 
 @Composable
@@ -85,10 +83,12 @@ fun CognifyTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = CognifyTypography,
-        shapes = CognifyShapes,
-        content = content,
-    )
+    CompositionLocalProvider(LocalIsDarkTheme provides darkTheme) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = CognifyTypography,
+            shapes = CognifyShapes,
+            content = content,
+        )
+    }
 }

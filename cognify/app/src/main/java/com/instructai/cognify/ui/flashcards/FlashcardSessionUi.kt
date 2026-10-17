@@ -56,7 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.instructai.cognify.ui.components.ConfettiOverlay
 import com.instructai.cognify.ui.theme.CognifyColors
-import com.instructai.cognify.ui.theme.CognifyGradients
+import com.instructai.cognify.ui.theme.LocalIsDarkTheme
 import kotlin.math.abs
 import kotlinx.coroutines.launch
 
@@ -105,7 +105,8 @@ fun FlashcardSessionScreen(
                 Button(
                     onClick = onBack,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = CognifyColors.ElectricViolet,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
                     ),
                 ) {
                     Text("Back")
@@ -117,6 +118,7 @@ fun FlashcardSessionScreen(
 
     val currentCard = state.cards.getOrNull(state.currentIndex) ?: return
     val scope = rememberCoroutineScope()
+    val isDark = LocalIsDarkTheme.current
     val slideAnim = remember { Animatable(0f) }
     var isSwiping by remember { mutableStateOf(false) }
     val swipeThreshold = 200f
@@ -166,7 +168,7 @@ fun FlashcardSessionScreen(
                     .fillMaxWidth()
                     .height(4.dp)
                     .clip(RoundedCornerShape(50)),
-                color = CognifyColors.ElectricViolet,
+                color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
             )
 
@@ -239,12 +241,12 @@ fun FlashcardSessionScreen(
                             .height(56.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = CognifyColors.Error.copy(alpha = 0.15f),
+                            containerColor = CognifyColors.Semantics.danger(isDark).copy(alpha = 0.14f),
                         ),
                     ) {
-                        Icon(Icons.Filled.Close, contentDescription = null, tint = CognifyColors.Error)
+                        Icon(Icons.Filled.Close, contentDescription = null, tint = CognifyColors.Semantics.danger(isDark))
                         Spacer(modifier = Modifier.size(8.dp))
-                        Text("Don't Know", color = CognifyColors.Error, fontWeight = FontWeight.SemiBold)
+                        Text("Don't Know", color = CognifyColors.Semantics.danger(isDark), fontWeight = FontWeight.SemiBold)
                     }
 
                     Button(
@@ -260,12 +262,12 @@ fun FlashcardSessionScreen(
                             .height(56.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = CognifyColors.Success.copy(alpha = 0.15f),
+                            containerColor = CognifyColors.Semantics.success(isDark).copy(alpha = 0.14f),
                         ),
                     ) {
-                        Icon(Icons.Filled.ThumbUp, contentDescription = null, tint = CognifyColors.Success)
+                        Icon(Icons.Filled.ThumbUp, contentDescription = null, tint = CognifyColors.Semantics.success(isDark))
                         Spacer(modifier = Modifier.size(8.dp))
-                        Text("Got It", color = CognifyColors.Success, fontWeight = FontWeight.SemiBold)
+                        Text("Got It", color = CognifyColors.Semantics.success(isDark), fontWeight = FontWeight.SemiBold)
                     }
                 }
             } else {
@@ -312,18 +314,13 @@ fun FlipCard(
                     alpha = if (rotation <= 90f) 1f else 0f
                 },
             shape = RoundedCornerShape(20.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface,
             ),
         ) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = CognifyGradients.card,
-                        shape = RoundedCornerShape(20.dp),
-                    ),
+                modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(
@@ -332,8 +329,8 @@ fun FlipCard(
                 ) {
                     Text(
                         text = "QUESTION",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = CognifyColors.ElectricVioletLight,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
                         letterSpacing = 2.sp,
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -356,23 +353,13 @@ fun FlipCard(
                     rotationY = 180f
                 },
             shape = RoundedCornerShape(20.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
             colors = CardDefaults.cardColors(
-                containerColor = CognifyColors.DeepNavyLight,
+                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
             ),
         ) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
-                            listOf(
-                                CognifyColors.ElectricViolet.copy(alpha = 0.1f),
-                                CognifyColors.DeepNavyLight,
-                            )
-                        ),
-                        shape = RoundedCornerShape(20.dp),
-                    ),
+                modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(
@@ -381,8 +368,8 @@ fun FlipCard(
                 ) {
                     Text(
                         text = "ANSWER",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = CognifyColors.GoldLight,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
                         letterSpacing = 2.sp,
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -391,13 +378,13 @@ fun FlipCard(
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
-                        color = CognifyColors.GoldLight,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
         }
     }
-    }
+}
 }
 
 @Composable
@@ -408,6 +395,8 @@ fun SessionCompleteScreen(
     onRestart: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val isDark = LocalIsDarkTheme.current
+
     Box(modifier = Modifier.fillMaxSize()) {
         ConfettiOverlay(visible = true)
 
@@ -435,7 +424,7 @@ fun SessionCompleteScreen(
                         text = "$known",
                         style = MaterialTheme.typography.displayLarge,
                         fontWeight = FontWeight.Bold,
-                        color = CognifyColors.Success,
+                        color = CognifyColors.Semantics.success(isDark),
                     )
                     Text("Known", style = MaterialTheme.typography.bodyMedium)
                 }
@@ -444,7 +433,7 @@ fun SessionCompleteScreen(
                         text = "$unknown",
                         style = MaterialTheme.typography.displayLarge,
                         fontWeight = FontWeight.Bold,
-                        color = CognifyColors.Error,
+                        color = CognifyColors.Semantics.danger(isDark),
                     )
                     Text("Review", style = MaterialTheme.typography.bodyMedium)
                 }
@@ -453,7 +442,7 @@ fun SessionCompleteScreen(
                         text = "$total",
                         style = MaterialTheme.typography.displayLarge,
                         fontWeight = FontWeight.Bold,
-                        color = CognifyColors.ElectricViolet,
+                        color = MaterialTheme.colorScheme.primary,
                     )
                     Text("Total", style = MaterialTheme.typography.bodyMedium)
                 }
@@ -473,7 +462,8 @@ fun SessionCompleteScreen(
                 Button(
                     onClick = onBack,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = CognifyColors.ElectricViolet,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
                     ),
                 ) {
                     Text("Done")
@@ -481,7 +471,8 @@ fun SessionCompleteScreen(
                 Button(
                     onClick = onRestart,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = CognifyColors.ElectricViolet.copy(alpha = 0.7f),
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
                     ),
                 ) {
                     Icon(Icons.Filled.Refresh, contentDescription = null)

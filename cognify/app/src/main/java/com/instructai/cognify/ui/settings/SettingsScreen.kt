@@ -1,9 +1,7 @@
 package com.instructai.cognify.ui.settings
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,200 +14,193 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Memory
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.ui.window.Dialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.instructai.cognify.data.local.ai.ModelRegistry
-import com.instructai.cognify.data.local.ai.ModelSpec
+import com.instructai.cognify.BuildConfig
+import com.instructai.cognify.data.prefs.ThemeMode
+import com.instructai.cognify.data.repository.ApiMode
 import com.instructai.cognify.ui.theme.CognifyColors
-import com.instructai.cognify.ui.theme.CognifyGradients
+import com.instructai.cognify.ui.theme.LocalIsDarkTheme
+
+/*
+ * Settings — iOS grouped-list style. Sections: profile, appearance
+ * (system/light/dark), study data, AI generation, account.
+ * Test-bed leftovers (Voice Lab, on-device AI, manual server URL, debug logs)
+ * were removed entirely.
+ */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
     onLogout: () -> Unit = {},
-    onVoiceLab: () -> Unit = {},
-    isDarkMode: Boolean = true,
-    onToggleTheme: () -> Unit = {},
-    onClearData: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val isLoggedOut by viewModel.isLoggedOut.collectAsState()
+    val aiSettings by viewModel.aiSettings.collectAsState()
+    val themeMode by viewModel.themeMode.collectAsState()
+    val isClearingData by viewModel.isClearingData.collectAsState()
+    val isDark = LocalIsDarkTheme.current
+
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showClearDialog by remember { mutableStateOf(false) }
+    var showClearDone by remember { mutableStateOf(false) }
 
     LaunchedEffect(isLoggedOut) {
         if (isLoggedOut) onLogout()
     }
 
     if (showLogoutDialog) {
-        Dialog(onDismissRequest = { showLogoutDialog = false }) {
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-            ) {
-                Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFFFF5252).copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Logout,
-                            contentDescription = null,
-                            tint = Color(0xFFFF5252),
-                            modifier = Modifier.size(28.dp),
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Log Out",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Are you sure you want to log out?\nAny unsynced data will be lost.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Button(
-                            onClick = { showLogoutDialog = false },
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            ),
-                        ) {
-                            Text("Cancel", fontWeight = FontWeight.SemiBold)
-                        }
-                        Button(
-                            onClick = {
-                                showLogoutDialog = false
-                                viewModel.logout()
-                            },
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = CognifyColors.ElectricViolet),
-                        ) {
-                            Text("Log Out", fontWeight = FontWeight.SemiBold, color = Color.White)
-                        }
-                    }
-                }
-            }
-        }
+        SettingsDialog(
+            icon = Icons.AutoMirrored.Filled.Logout,
+            iconTint = MaterialTheme.colorScheme.error,
+            iconBg = MaterialTheme.colorScheme.errorContainer,
+            title = "Log Out",
+            message = "Any study data that hasn't synced yet stays on this device. You can log back in anytime.",
+            confirmText = "Log Out",
+            destructive = true,
+            onDismiss = { showLogoutDialog = false },
+            onConfirm = {
+                showLogoutDialog = false
+                viewModel.logout()
+            },
+        )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Settings") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-            )
-        },
-    ) { padding ->
-        Column(
+    if (showClearDialog) {
+        SettingsDialog(
+            icon = Icons.Filled.DeleteForever,
+            iconTint = MaterialTheme.colorScheme.error,
+            iconBg = MaterialTheme.colorScheme.errorContainer,
+            title = "Clear All Data?",
+            message = "Every reviewer, flashcard, and study record saved on this phone will be permanently removed.",
+            confirmText = if (isClearingData) null else "Delete Everything",
+            destructive = true,
+            onDismiss = { if (!isClearingData) showClearDialog = false },
+            onConfirm = {
+                viewModel.clearAllData()
+                showClearDialog = false
+                showClearDone = true
+            },
+        )
+    }
+
+    if (showClearDone) {
+        SettingsDialog(
+            icon = Icons.Filled.CheckCircle,
+            iconTint = CognifySettings.green(),
+            iconBg = CognifySettings.greenSoft(),
+            title = "All Cleared",
+            message = "Your local study data has been erased. Fresh copies of your class reviewers will download next time you open them.",
+            confirmText = "Done",
+            onDismiss = { showClearDone = false },
+            onConfirm = { showClearDone = false },
+        )
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        // Slim header
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState()),
+                .fillMaxWidth()
+                .padding(start = 6.dp, end = 20.dp, top = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "Settings",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp),
         ) {
             val user = viewModel.user
 
+            Spacer(modifier = Modifier.height(10.dp))
+
             if (user != null) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = CognifyColors.ElectricViolet.copy(alpha = 0.08f)),
-                ) {
+                GroupedCard {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(CognifyGradients.primary),
+                                .size(50.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
                                 text = user.name.take(1).uppercase(),
                                 style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White,
                             )
                         }
                         Spacer(modifier = Modifier.width(14.dp))
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = user.name,
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
                             )
+                            Spacer(modifier = Modifier.height(1.dp))
                             Text(
                                 text = user.email,
                                 style = MaterialTheme.typography.bodySmall,
@@ -218,566 +209,455 @@ fun SettingsScreen(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(24.dp))
             }
 
-            Text(
-                text = "Appearance",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = CognifyColors.ElectricViolet,
-            )
+            Spacer(modifier = Modifier.height(26.dp))
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            SettingsCard(
-                icon = Icons.Filled.DarkMode,
-                title = "Dark Mode",
-                subtitle = "Toggle dark theme",
-                trailing = {
-                    androidx.compose.material3.Switch(
-                        checked = isDarkMode,
-                        onCheckedChange = { onToggleTheme() },
-                        colors = androidx.compose.material3.SwitchDefaults.colors(
-                            checkedThumbColor = CognifyColors.Gold,
-                            checkedTrackColor = CognifyColors.ElectricViolet.copy(alpha = 0.4f),
-                        ),
-                    )
-                },
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Data & Sync",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = CognifyColors.ElectricViolet,
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            SettingsCard(
-                icon = Icons.Filled.Storage,
-                title = "Storage Usage",
-                subtitle = "Manage cached files and downloads",
-            )
-
-            SettingsCard(
-                icon = Icons.Filled.Delete,
-                title = "Clear All Data",
-                subtitle = "Remove all local reviews and progress",
-                onClick = onClearData,
-                iconTint = Color(0xFFFF5252),
-                titleColor = Color(0xFFFF5252),
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "AI Provider",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = CognifyColors.ElectricViolet,
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            val aiSettings by viewModel.aiSettings.collectAsState()
-            val localAi by viewModel.localAi.collectAsState()
-
-            ModeRow(
-                icon = Icons.Filled.Psychology,
-                title = "Use My Own Key (Gemini)",
-                subtitle = "Enter your personal Gemini API key",
-                selected = aiSettings.apiMode == com.instructai.cognify.data.repository.ApiMode.GEMINI,
-                onClick = { viewModel.setApiMode(com.instructai.cognify.data.repository.ApiMode.GEMINI) },
-            )
-
-            ModeRow(
-                icon = Icons.Filled.Storage,
-                title = "Use Server API",
-                subtitle = "Default — no key needed, stricter limits",
-                selected = aiSettings.apiMode == com.instructai.cognify.data.repository.ApiMode.BACKEND,
-                onClick = { viewModel.setApiMode(com.instructai.cognify.data.repository.ApiMode.BACKEND) },
-            )
-
-            ModeRow(
-                icon = Icons.Filled.Memory,
-                title = "Local AI (On-Device)",
-                subtitle = "Runs on your phone — private, offline, no limits",
-                selected = aiSettings.apiMode == com.instructai.cognify.data.repository.ApiMode.LOCAL,
-                onClick = { viewModel.setApiMode(com.instructai.cognify.data.repository.ApiMode.LOCAL) },
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (aiSettings.apiMode == com.instructai.cognify.data.repository.ApiMode.GEMINI) {
-                var editKey by remember(aiSettings.directApiKey) { mutableStateOf(aiSettings.directApiKey) }
-                OutlinedTextField(
-                    value = editKey,
-                    onValueChange = { editKey = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Gemini API Key") },
-                    placeholder = { Text("AIza...") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                )
-                Spacer(Modifier.height(8.dp))
-                Button(
-                    onClick = {
-                        viewModel.setDirectApiKey(editKey)
-                        viewModel.saveDirectApiKey()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CognifyColors.ElectricViolet),
-                    enabled = editKey.isNotBlank(),
-                ) { Text("Save Key") }
-            } else if (aiSettings.apiMode == com.instructai.cognify.data.repository.ApiMode.LOCAL) {
-                LocalAiCard(
-                    card = localAi,
-                    onStart = viewModel::startLocalAi,
-                    onStop = viewModel::stopLocalAi,
-                    onSelectModel = viewModel::selectLocalModel,
-                    onDeleteModel = viewModel::deleteLocalModel,
-                )
-            } else {
-                Text(
-                    text = "Using shared server key. Free-tier limits apply.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp),
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Server",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = CognifyColors.ElectricViolet,
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            val isManual = aiSettings.manualServerUrl != null
-
-            ModeRow(
-                icon = Icons.Filled.Sync,
-                title = "Automatic (recommended)",
-                subtitle = "Laptop when reachable, deployed backend otherwise",
-                selected = !isManual,
-                onClick = { viewModel.clearServerUrl() },
-            )
-
-            ModeRow(
-                icon = Icons.Filled.Cloud,
-                title = "Manual",
-                subtitle = "Pick a specific backend URL",
-                selected = isManual,
-                onClick = { /* keep current manual URL */ },
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (isManual) {
-                var editUrl by remember(aiSettings.serverUrl) { mutableStateOf(aiSettings.serverUrl) }
-                OutlinedTextField(
-                    value = editUrl,
-                    onValueChange = { editUrl = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Backend URL") },
-                    placeholder = { Text("https://your-backend.onrender.com/api/") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                )
-                Spacer(Modifier.height(8.dp))
-                Button(
-                    onClick = {
-                        viewModel.setServerUrl(editUrl)
-                        viewModel.setApiMode(com.instructai.cognify.data.repository.ApiMode.BACKEND)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CognifyColors.ElectricViolet),
-                    enabled = editUrl.isNotBlank(),
-                ) { Text("Save Server") }
-            } else {
-                Text(
-                    text = "Active: ${aiSettings.serverUrl}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp),
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Debug",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = CognifyColors.ElectricViolet,
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            val errorLogs by viewModel.errorLogs.collectAsState()
-            val context = LocalContext.current
-
-            SettingsCard(
-                icon = Icons.Filled.BugReport,
-                title = "Error Logs",
-                subtitle = "${errorLogs.size} entries — tap to view",
-                onClick = {
-                    val text = errorLogs.joinToString("\n\n---\n\n") { it.formatted() }
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    clipboard.setPrimaryClip(ClipData.newPlainText("Cognify Error Logs", text))
-                },
-            )
-
-            if (errorLogs.isNotEmpty()) {
-                SettingsCard(
-                    icon = Icons.Filled.DeleteSweep,
-                    title = "Clear Error Logs",
-                    subtitle = "Remove all stored error logs",
-                    onClick = { viewModel.clearLogs() },
-                    iconTint = Color(0xFFFF5252),
-                    titleColor = Color(0xFFFF5252),
-                )
-            }
-
-            SettingsCard(
-                icon = Icons.Filled.RecordVoiceOver,
-                title = "Voice Lab (Phase 0)",
-                subtitle = "Kokoro vs Pocket TTS voice A/B test",
-                onClick = onVoiceLab,
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Account",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = CognifyColors.ElectricViolet,
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            SettingsCard(
-                icon = Icons.Filled.Info,
-                title = "About",
-                subtitle = "Version 1.0.0",
-            )
-
-            SettingsCard(
-                icon = Icons.AutoMirrored.Filled.Logout,
-                title = "Log Out",
-                subtitle = "Sign out of your account",
-                onClick = { showLogoutDialog = true },
-                iconTint = Color(0xFFFF5252),
-                titleColor = Color(0xFFFF5252),
-            )
-        }
-    }
-}
-
-@Composable
-private fun LocalAiCard(
-    card: LocalAiCardState,
-    onStart: () -> Unit,
-    onStop: () -> Unit,
-    onSelectModel: (ModelSpec) -> Unit,
-    onDeleteModel: (ModelSpec) -> Unit,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-
-            // --- Power row ---
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val isOn = card.engineState is com.instructai.cognify.data.local.ai.LocalAiState.On
-                val isBusy = card.engineState is com.instructai.cognify.data.local.ai.LocalAiState.Downloading ||
-                    card.engineState is com.instructai.cognify.data.local.ai.LocalAiState.Loading
-
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(
-                            if (isOn) CognifyColors.ElectricViolet.copy(alpha = 0.2f)
-                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Filled.Memory,
-                        contentDescription = null,
-                        tint = if (isOn) CognifyColors.ElectricViolet else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(28.dp),
-                    )
-                }
-                Spacer(modifier = Modifier.width(14.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Local AI",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = when (val s = card.engineState) {
-                            is com.instructai.cognify.data.local.ai.LocalAiState.On ->
-                                "On — ${s.modelName}. Auto-stops after 10 min idle."
-                            is com.instructai.cognify.data.local.ai.LocalAiState.Downloading -> {
-                                val p = s.progress
-                                if (p != null) "Downloading ${p.percent}% (${formatBytes(p.bytesPerSecond)}/s)"
-                                else "Downloading model..."
-                            }
-                            is com.instructai.cognify.data.local.ai.LocalAiState.Loading -> "Loading model into RAM..."
-                            is com.instructai.cognify.data.local.ai.LocalAiState.Error -> "Error: ${s.message}"
-                            com.instructai.cognify.data.local.ai.LocalAiState.Off -> "Off — tap Start to power up"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
-                Button(
-                    onClick = if (isOn || isBusy) onStop else onStart,
-                    modifier = Modifier.height(40.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    enabled = !(isBusy && card.engineState is com.instructai.cognify.data.local.ai.LocalAiState.Loading),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isOn || isBusy) Color(0xFFFF5252) else CognifyColors.ElectricViolet,
-                    ),
-                ) {
-                    Text(
-                        if (isOn || isBusy) "Stop" else "Start",
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold,
+            SectionLabel("Appearance")
+            GroupedCard {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Filled.Palette,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Theme",
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    ThemeSegmentedControl(
+                        selected = themeMode,
+                        onSelect = viewModel::setThemeMode,
                     )
                 }
             }
 
-            // --- Download progress bar ---
-            val downloading = card.engineState as? com.instructai.cognify.data.local.ai.LocalAiState.Downloading
-            if (downloading?.progress != null) {
-                Spacer(modifier = Modifier.height(10.dp))
-                LinearProgressIndicator(
-                    progress = { downloading.progress!!.percent / 100f },
-                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-                    color = CognifyColors.ElectricViolet,
-                )
-            }
+            Spacer(modifier = Modifier.height(26.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // --- Model list ---
-            Text(
-                text = "Model",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = CognifyColors.ElectricViolet,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            val engineOn = card.engineState is com.instructai.cognify.data.local.ai.LocalAiState.On
-            val engineBusy = card.engineState is com.instructai.cognify.data.local.ai.LocalAiState.Downloading ||
-                card.engineState is com.instructai.cognify.data.local.ai.LocalAiState.Loading
-
-            ModelRegistry.ALL.forEach { spec ->
-                val downloadedBytes = card.downloadedModels[spec.id] ?: 0L
-                val downloaded = downloadedBytes > 0
-                val selected = card.selectedModelId == spec.id
-                val recommended = card.recommendedModelId == spec.id
-
+            SectionLabel("Study Data")
+            GroupedCard {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 6.dp),
+                        .clickable { if (!isClearingData) showClearDialog = true }
+                        .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    RadioButton(
-                        selected = selected,
-                        onClick = { if (!engineOn && !engineBusy) onSelectModel(spec) },
-                        enabled = !engineOn && !engineBusy,
-                        colors = androidx.compose.material3.RadioButtonDefaults.colors(
-                            selectedColor = CognifyColors.ElectricViolet,
-                        ),
+                    Icon(
+                        Icons.Filled.DeleteForever,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(22.dp),
                     )
+                    Spacer(modifier = Modifier.width(14.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = spec.displayName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                            )
-                            if (recommended) {
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Recommended",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = CognifyColors.Gold,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
-                        }
                         Text(
-                            text = if (downloaded) "~${spec.ramEstimateGb}GB RAM while on"
-                            else "Download ${formatBytes(spec.sizeBytes)} · ~${spec.ramEstimateGb}GB RAM",
+                            text = "Clear All Data",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        Spacer(modifier = Modifier.height(1.dp))
+                        Text(
+                            text = "Remove reviewers, cards, and study history from this device",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    if (downloaded) {
-                        IconButton(onClick = { onDeleteModel(spec) }, enabled = !engineBusy) {
-                            Icon(
-                                Icons.Filled.Delete,
-                                contentDescription = "Delete model",
-                                tint = Color(0xFFFF5252).copy(alpha = 0.8f),
-                                modifier = Modifier.size(20.dp),
+                    if (isClearingData) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    } else {
+                        Chevron()
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(26.dp))
+
+            SectionLabel("AI Generation")
+            GroupedCard {
+                Column {
+                    ToggleRow(
+                        icon = Icons.Filled.Shield,
+                        title = "School Server",
+                        subtitle = "Default — no setup needed, fair-use limits apply",
+                        selected = aiSettings.apiMode == ApiMode.BACKEND,
+                        onClick = { viewModel.setApiMode(ApiMode.BACKEND) },
+                        showDivider = aiSettings.apiMode == ApiMode.GEMINI,
+                    )
+                    if (aiSettings.apiMode == ApiMode.GEMINI) {
+                        var editKey by remember(aiSettings.directApiKey) { mutableStateOf(aiSettings.directApiKey) }
+                        Column(modifier = Modifier.padding(start = 52.dp, end = 16.dp, bottom = 14.dp)) {
+                            OutlinedTextField(
+                                value = editKey,
+                                onValueChange = { editKey = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("Gemini API Key") },
+                                placeholder = { Text("AIza...") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
                             )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(
+                                onClick = {
+                                    viewModel.setDirectApiKey(editKey)
+                                    viewModel.saveDirectApiKey()
+                                },
+                                modifier = Modifier.fillMaxWidth().height(42.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                enabled = editKey.isNotBlank(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                                ),
+                            ) {
+                                Text("Save Key", style = MaterialTheme.typography.labelLarge)
+                            }
                         }
                     }
+                    ToggleRow(
+                        icon = Icons.Filled.Key,
+                        title = "Use My Own Key (Gemini)",
+                        subtitle = "Bring a personal API key for higher limits",
+                        selected = aiSettings.apiMode == ApiMode.GEMINI,
+                        onClick = { viewModel.setApiMode(ApiMode.GEMINI) },
+                        showDivider = false,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            GroupedCard {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Filled.Cloud,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Connected Server",
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Spacer(modifier = Modifier.height(1.dp))
+                        Text(
+                            text = aiSettings.serverHost.ifBlank { BuildConfig.API_BASE_URL },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(26.dp))
+
+            SectionLabel("About")
+            GroupedCard {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Filled.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Text(
+                        text = "Version",
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = BuildConfig.VERSION_NAME,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(26.dp))
+
+            SectionLabel("Account")
+            GroupedCard {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showLogoutDialog = true }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Logout,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Log Out",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        Spacer(modifier = Modifier.height(1.dp))
+                        Text(
+                            text = "Sign out of your Cognify account",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Chevron()
+                }
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
+        }
+    }
+}
+
+private object CognifySettings {
+    @Composable fun green() = if (LocalIsDarkTheme.current) CognifyColors.GreenD else CognifyColors.GreenL
+    @Composable fun greenSoft() = green().copy(alpha = 0.16f)
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 16.dp, bottom = 7.dp),
+    )
+}
+
+@Composable
+private fun GroupedCard(content: @Composable () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun Chevron() {
+    Icon(
+        Icons.Filled.ChevronRight,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+        modifier = Modifier.size(18.dp),
+    )
+}
+
+/** iOS-style 3-way segmented control (System / Light / Dark). */
+@Composable
+private fun ThemeSegmentedControl(
+    selected: ThemeMode,
+    onSelect: (ThemeMode) -> Unit,
+) {
+    val options = listOf(
+        ThemeMode.SYSTEM to "Automatic",
+        ThemeMode.LIGHT to "Light",
+        ThemeMode.DARK to "Dark",
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Row(modifier = Modifier.padding(3.dp)) {
+            options.forEach { (mode, label) ->
+                val isSelected = selected == mode
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            if (isSelected) MaterialTheme.colorScheme.surface
+                            else Color.Transparent
+                        )
+                        .clickable { if (!isSelected) onSelect(mode) }
+                        .padding(vertical = 9.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (isSelected) MaterialTheme.colorScheme.onSurface
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }
     }
 }
 
-private fun formatBytes(bytes: Long): String = when {
-    bytes >= 1_000_000_000 -> "%.1fGB".format(bytes / 1_000_000_000.0)
-    bytes >= 1_000_000 -> "%.0fMB".format(bytes / 1_000_000.0)
-    bytes >= 1_000 -> "%.0fKB".format(bytes / 1_000.0)
-    else -> "${bytes}B"
-}
-
 @Composable
-private fun ModeRow(
+private fun ToggleRow(
     icon: ImageVector,
     title: String,
     subtitle: String,
     selected: Boolean,
     onClick: () -> Unit,
+    showDivider: Boolean,
 ) {
-    val shape = RoundedCornerShape(16.dp)
-    Card(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        shape = shape,
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected)
-                CognifyColors.ElectricViolet.copy(alpha = 0.15f)
-            else MaterialTheme.colorScheme.surface,
-        ),
-    ) {
+    Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable(onClick = onClick)
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = if (selected) CognifyColors.ElectricViolet else CognifyColors.ElectricViolet.copy(alpha = 0.5f),
-            )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
+            Box(
+                modifier = Modifier
+                    .size(26.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = if (selected) MaterialTheme.colorScheme.primary
+                           else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(21.dp),
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (selected) CognifyColors.ElectricViolet else MaterialTheme.colorScheme.onSurface,
                 )
+                Spacer(modifier = Modifier.height(1.dp))
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-
             if (selected) {
                 Icon(
                     Icons.Filled.CheckCircle,
-                    contentDescription = null,
-                    tint = CognifyColors.ElectricViolet,
+                    contentDescription = "Selected",
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp),
                 )
             }
+        }
+        if (showDivider) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(0.75.dp)
+                    .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)),
+            )
         }
     }
 }
 
 @Composable
-private fun SettingsCard(
+private fun SettingsDialog(
     icon: ImageVector,
+    iconTint: Color,
+    iconBg: Color,
     title: String,
-    subtitle: String,
-    trailing: @Composable (() -> Unit)? = null,
-    onClick: (() -> Unit)? = null,
-    iconTint: Color = CognifyColors.ElectricViolet,
-    titleColor: Color = MaterialTheme.colorScheme.onSurface,
+    message: String,
+    confirmText: String?,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    destructive: Boolean = false,
 ) {
-    val shape = RoundedCornerShape(16.dp)
-    Card(
-        onClick = onClick ?: {},
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = shape,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-        ),
-        enabled = onClick != null,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = iconTint,
-            )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.padding(26.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .background(iconBg),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(text = title, style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Medium,
-                    color = titleColor,
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-
-            if (trailing != null) {
-                trailing()
-            } else if (onClick != null) {
-                Icon(
-                    Icons.Filled.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Spacer(modifier = Modifier.height(22.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).height(46.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                        ),
+                    ) {
+                        Text("Cancel", style = MaterialTheme.typography.labelLarge)
+                    }
+                    if (confirmText != null) {
+                        Button(
+                            onClick = onConfirm,
+                            modifier = Modifier.weight(1f).height(46.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (destructive) MaterialTheme.colorScheme.error
+                                                 else MaterialTheme.colorScheme.primary,
+                                contentColor = if (destructive) MaterialTheme.colorScheme.onError
+                                               else MaterialTheme.colorScheme.onPrimary,
+                            ),
+                        ) {
+                            Text(confirmText, style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
+                }
             }
         }
     }
 }
+

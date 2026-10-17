@@ -77,8 +77,6 @@ import com.instructai.cognify.ui.audio.VoiceSelectorDialog
 import com.instructai.cognify.ui.audio.voiceColor
 import com.instructai.cognify.ui.audio.voiceImageFor
 import com.instructai.cognify.ui.components.ShimmerCard
-import com.instructai.cognify.ui.theme.CognifyColors
-import com.instructai.cognify.ui.theme.CognifyGradients
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -234,7 +232,7 @@ private fun SegmentedTabs(
                     .clip(RoundedCornerShape(10.dp))
                     .then(
                         if (active) {
-                            Modifier.background(CognifyGradients.primary)
+                            Modifier.background(MaterialTheme.colorScheme.primary)
                         } else {
                             Modifier.background(Color.Transparent)
                         }
@@ -296,7 +294,7 @@ private fun NotesTab(sections: List<SummarySection>) {
                                     .width(48.dp)
                                     .height(4.dp)
                                     .background(
-                                        Brush.horizontalGradient(CognifyGradients.accentPair),
+                                        MaterialTheme.colorScheme.primary,
                                         RoundedCornerShape(2.dp)
                                     )
                             )
@@ -312,7 +310,7 @@ private fun NotesTab(sections: List<SummarySection>) {
                                 Box(
                                     modifier = Modifier
                                         .size(8.dp)
-                                        .background(CognifyColors.ElectricViolet, RoundedCornerShape(4.dp)),
+                                        .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp)),
                                 )
                                 Spacer(modifier = Modifier.width(14.dp))
                                 Text(
@@ -440,7 +438,7 @@ private fun NarratorRow(
         Icon(
             Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = "Change narrator",
-            tint = CognifyColors.ElectricViolet,
+            tint = MaterialTheme.colorScheme.primary,
         )
     }
 }
@@ -456,19 +454,14 @@ private fun GenerateCta(
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            Brush.horizontalGradient(CognifyGradients.accentPair)
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
         ),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            CognifyColors.ElectricViolet.copy(alpha = 0.12f),
-                            CognifyColors.DeepNavy.copy(alpha = 0.08f)
-                        )
-                    ),
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
                     RoundedCornerShape(20.dp)
                 )
                 .padding(20.dp),
@@ -531,7 +524,7 @@ private fun GenerateCta(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(CognifyGradients.primary, RoundedCornerShape(16.dp)),
+                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(16.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -569,7 +562,7 @@ private fun GeneratingState() {
                 CircularProgressIndicator(
                     modifier = Modifier.size(32.dp),
                     strokeWidth = 3.dp,
-                    color = CognifyColors.ElectricViolet,
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(modifier = Modifier.height(14.dp))
                 Text(
@@ -628,7 +621,7 @@ private fun ErrorState(
                 onClick = onRetry,
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = CognifyColors.ElectricViolet,
+                    containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = Color.White,
                 ),
             ) {
@@ -681,7 +674,7 @@ private fun ParagraphList(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(CognifyGradients.primary, RoundedCornerShape(14.dp)),
+                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -808,7 +801,7 @@ private fun MiniPlayerPill(
         modifier = modifier,
         shape = RoundedCornerShape(22.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = CognifyColors.DeepNavy),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1E)),
     ) {
         Column(modifier = Modifier.padding(start = 8.dp, end = 4.dp, top = 10.dp, bottom = 8.dp)) {
             Slider(
@@ -823,8 +816,8 @@ private fun MiniPlayerPill(
                     .height(28.dp),
                 valueRange = 0f..sliderMax,
                 colors = SliderDefaults.colors(
-                    thumbColor = CognifyColors.ElectricVioletLight,
-                    activeTrackColor = CognifyColors.ElectricVioletLight,
+                    thumbColor = Color(0xFFBF5AF2),
+                    activeTrackColor = Color(0xFFBF5AF2),
                     inactiveTrackColor = Color.White.copy(alpha = 0.15f),
                 ),
             )

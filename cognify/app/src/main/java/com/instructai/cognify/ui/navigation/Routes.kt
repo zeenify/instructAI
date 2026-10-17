@@ -14,7 +14,6 @@ object Routes {
     const val PRACTICE_TEST = "practice_test/{reviewId}/{setId}"
     const val SUMMARY = "summary/{reviewId}"
     const val STATS = "stats"
-    const val VOICE_LAB = "voice_lab"
 
     fun reviewDetail(reviewId: Long, reviewTitle: String = "") =
         "review_detail/$reviewId/${URLEncoder.encode(reviewTitle, "UTF-8")}"

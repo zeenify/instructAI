@@ -59,7 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.instructai.cognify.ui.theme.CognifyColors
-import com.instructai.cognify.ui.theme.CognifyGradients
+import com.instructai.cognify.ui.theme.LocalIsDarkTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,6 +70,7 @@ fun PracticeTestScreen(
     viewModel: PracticeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val isDark = LocalIsDarkTheme.current
 
     LaunchedEffect(reviewId, setId) {
         viewModel.loadQuestions(reviewId, setId)
@@ -154,7 +155,7 @@ fun PracticeTestScreen(
                     .fillMaxWidth()
                     .height(4.dp)
                     .clip(RoundedCornerShape(50)),
-                color = CognifyColors.ElectricViolet,
+                color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
             )
 
@@ -213,7 +214,7 @@ fun PracticeTestScreen(
                             }),
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = CognifyColors.ElectricViolet,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                             ),
                         )
@@ -226,7 +227,8 @@ fun PracticeTestScreen(
                                     .height(48.dp),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = CognifyColors.ElectricViolet,
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary,
                                     disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                                 ),
                                 enabled = textAnswer.isNotBlank(),
@@ -263,8 +265,8 @@ fun PracticeTestScreen(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = if (state.isCorrect == true)
-                            CognifyColors.Success.copy(alpha = 0.1f)
-                        else CognifyColors.Error.copy(alpha = 0.1f),
+                            CognifyColors.Semantics.success(isDark).copy(alpha = 0.12f)
+                        else CognifyColors.Semantics.danger(isDark).copy(alpha = 0.12f),
                     ),
                 ) {
                     Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
@@ -272,7 +274,7 @@ fun PracticeTestScreen(
                             Icon(
                                 if (state.isCorrect == true) Icons.Filled.Check else Icons.Filled.Close,
                                 contentDescription = null,
-                                tint = if (state.isCorrect == true) CognifyColors.Success else CognifyColors.Error,
+                                tint = if (state.isCorrect == true) CognifyColors.Semantics.success(isDark) else CognifyColors.Semantics.danger(isDark),
                                 modifier = Modifier.size(24.dp),
                             )
                             Spacer(modifier = Modifier.width(10.dp))
@@ -280,7 +282,7 @@ fun PracticeTestScreen(
                                 text = if (state.isCorrect == true) "Correct!" else "Incorrect",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (state.isCorrect == true) CognifyColors.Success else CognifyColors.Error,
+                                color = if (state.isCorrect == true) CognifyColors.Semantics.success(isDark) else CognifyColors.Semantics.danger(isDark),
                             )
                         }
                         if (state.isCorrect == false) {
@@ -288,7 +290,7 @@ fun PracticeTestScreen(
                             Text(
                                 text = "Correct answer: ${question.correctAnswer.replace(Regex("^[A-Z]\\)\\s*"), "").trim()}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = CognifyColors.Success,
+                                color = CognifyColors.Semantics.success(isDark),
                                 fontWeight = FontWeight.Medium,
                             )
                         }
@@ -304,7 +306,8 @@ fun PracticeTestScreen(
                         .height(52.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = CognifyColors.ElectricViolet,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
                     ),
                 ) {
                     Text(
@@ -326,11 +329,12 @@ private fun OptionButton(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
+    val isDark = LocalIsDarkTheme.current
     val bgColor by animateColorAsState(
         targetValue = when {
-            isCorrect == true -> CognifyColors.Success.copy(alpha = 0.15f)
-            isCorrect == false && isSelected -> CognifyColors.Error.copy(alpha = 0.15f)
-            isSelected -> CognifyColors.ElectricViolet.copy(alpha = 0.1f)
+            isCorrect == true -> CognifyColors.Semantics.success(isDark).copy(alpha = 0.15f)
+            isCorrect == false && isSelected -> CognifyColors.Semantics.danger(isDark).copy(alpha = 0.15f)
+            isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
             else -> MaterialTheme.colorScheme.surface
         },
         animationSpec = tween(200),
@@ -338,9 +342,9 @@ private fun OptionButton(
     )
 
     val borderColor = when {
-        isCorrect == true -> CognifyColors.Success
-        isCorrect == false && isSelected -> CognifyColors.Error
-        isSelected -> CognifyColors.ElectricViolet
+        isCorrect == true -> CognifyColors.Semantics.success(isDark)
+        isCorrect == false && isSelected -> CognifyColors.Semantics.danger(isDark)
+        isSelected -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
     }
 
@@ -374,6 +378,12 @@ private fun ResultScreen(
         animationSpec = tween(1000),
         label = "score",
     )
+    val isDark = LocalIsDarkTheme.current
+    val scoreColor = when {
+        percentage >= 80 -> CognifyColors.Semantics.success(isDark)
+        percentage >= 50 -> CognifyColors.Semantics.warning(isDark)
+        else -> CognifyColors.Semantics.danger(isDark)
+    }
 
     Box(
         modifier = Modifier
@@ -388,20 +398,14 @@ private fun ResultScreen(
                 modifier = Modifier
                     .size(120.dp)
                     .clip(CircleShape)
-                    .background(
-                        when {
-                            percentage >= 80 -> CognifyGradients.success
-                            percentage >= 50 -> CognifyGradients.gold
-                            else -> CognifyGradients.error
-                        }
-                    ),
+                    .background(scoreColor.copy(alpha = 0.14f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = "${animatedScore.toInt()}%",
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = scoreColor,
                 )
             }
 
@@ -439,7 +443,8 @@ private fun ResultScreen(
                 Button(
                     onClick = onRestart,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = CognifyColors.ElectricViolet,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
                     ),
                 ) {
                     Icon(Icons.Filled.Refresh, contentDescription = null)
