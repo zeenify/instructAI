@@ -519,3 +519,87 @@ aside {
 .student-theme .main-content {
     max-width: none;
 }
+
+/* ── Cognify app promo card (sidebar bottom, dismissible) ── */
+.sv-appcard {
+    position: relative;
+    display: flex;
+    gap: 10px;
+    margin: 20px 12px 4px;
+    padding: 12px;
+    background: var(--bg-primary);
+    border: 1.5px solid var(--border-color);
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.sv-appcard::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    background: #6d5ae0;
+}
+
+.sv-appcard-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.sv-appcard-body { min-width: 0; }
+
+.sv-appcard-title {
+    margin: 0;
+    font-family: 'Fraunces', serif;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.25;
+}
+
+.sv-appcard-sub {
+    margin: 3px 0 8px;
+    font-size: 10.5px;
+    line-height: 1.45;
+    color: var(--text-tertiary);
+}
+
+.sv-appcard-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    background: #6d5ae0;
+    color: #fffdf7;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.sv-appcard-cta:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
+.sv-appcard-close {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    border: none;
+    background: transparent;
+    color: var(--text-tertiary);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.sv-appcard-close:hover {
+    background: var(--side-hover);
+    color: var(--text-primary);
+}

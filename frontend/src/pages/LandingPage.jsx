@@ -8,6 +8,7 @@ import {
   BookOpen,
   Brain,
   ClipboardCheck,
+  Download,
   FileUp,
   GraduationCap,
   ListChecks,
@@ -15,11 +16,13 @@ import {
   Presentation,
   ScanSearch,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   Terminal,
   Trophy,
   Volume2,
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import EunaChatSection from '../components/landing/EunaChatSection.jsx';
 import LandingScene from '../components/landing3d/LandingScene.jsx';
 import './LandingPage.css';
@@ -644,6 +647,13 @@ function Track({ role }) {
 // Cognify — the mobile companion
 // ─────────────────────────────────────────────────────────────
 
+// The APK is hosted by the backend (backend/public/downloads/). Derive the
+// origin from the API URL so dev QR codes still work on the LAN, falling
+// back to the deployed backend.
+const COGNIFY_APK_URL = `${(
+  import.meta.env.VITE_API_URL || 'https://instructai-backend.onrender.com/api'
+).replace(/\/api\/?$/, '')}/downloads/Cognify.apk`;
+
 function CognifySection() {
   return (
     <section className="pik-cognify" id="cognify">
@@ -671,7 +681,20 @@ function CognifySection() {
             <li><Volume2 size={15} strokeWidth={2.5} /> reads cards aloud with on-device voices, even offline</li>
             <li><Sparkles size={15} strokeWidth={2.5} /> streaks and study stats that only count real reviews</li>
           </ul>
-          <p className="cognify-note">free on Android · signs in with your InstructAI account</p>
+          <div className="cognify-download">
+            <a className="cognify-dl-btn" href={COGNIFY_APK_URL} download="Cognify.apk">
+              <Download size={19} strokeWidth={2.5} />
+              <span className="cognify-dl-main">Download for Android</span>
+              <span className="cognify-dl-sub">.apk · v1.0</span>
+            </a>
+            <div className="cognify-qr" aria-label={`QR code linking to ${COGNIFY_APK_URL}`}>
+              <div className="cognify-qr-card">
+                <QRCodeSVG value={COGNIFY_APK_URL} size={92} marginSize={0} level="M" />
+              </div>
+              <span className="cognify-qr-cap">scan to install</span>
+            </div>
+          </div>
+          <p className="cognify-note">requires Android 8.0+ · signs in with your InstructAI account · free</p>
         </motion.div>
 
         <motion.div
@@ -782,6 +805,7 @@ function Footer({ onPick }) {
           <div>
             <h4>Students</h4>
             <a href="/register/student">Join with a code</a>
+            <a href={COGNIFY_APK_URL} download="Cognify.apk">Cognify for Android (APK)</a>
             <a href="/login">Student log in</a>
             <button type="button" onClick={() => onPick('student', true)}>See the student side</button>
           </div>

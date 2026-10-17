@@ -22,8 +22,6 @@ import org.json.JSONObject
 import java.io.File
 import java.security.MessageDigest
 
-private const val KOKORO_VOICE_FEMALE = "kokoro-local-female"
-private const val KOKORO_VOICE_MALE = "kokoro-local-male"
 private const val RETRY_DELAY_MS = 10_000L
 /** Budget per sentence before the worker gives up (the file stays marked error). */
 private const val MAX_ATTEMPTS_PER_CLIP = 8
@@ -35,7 +33,6 @@ class ClipWorker @AssistedInject constructor(
     private val characterVoiceClient: CharacterVoiceClient,
     private val reviewTtsDao: ReviewTtsDao,
     private val ttsClipDao: TtsClipDao,
-    private val prototypeTtsEngine: PrototypeTtsEngine,
     private val logger: AppLogger,
 ) : CoroutineWorker(appContext, workerParams) {
 
@@ -110,11 +107,7 @@ class ClipWorker @AssistedInject constructor(
             TtsClipEntity(payload.reviewId, payload.characterId, index, payload.voiceId, sha1(text), null, null, TtsStatus.GENERATING, now)
         )
 
-        val bytes = if (isKokoroVoice(payload.voiceId)) {
-            generateKokoroClip(payload.reviewId, payload.characterId, index, text, payload.voiceId)?.readBytes()
-        } else {
-            characterVoiceClient.fetchClipBytes(text, payload.voiceId)
-        }
+        val bytes = characterVoiceClient.fetchClipBytes(text, payload.voiceId)
         if (bytes != null) {
             val file = File(baseDir, "s$index.mp3")
             file.writeBytes(bytes)
@@ -156,27 +149,6 @@ class ClipWorker @AssistedInject constructor(
             Payload(reviewId, characterId, voiceId)
         } catch (e: Exception) {
             logger.log("ClipWorker", "parsePayload failed: ${e.message}", e)
-            null
-        }
-    }
-
-    private fun isKokoroVoice(voiceId: String): Boolean =
-        voiceId == KOKORO_VOICE_FEMALE || voiceId == KOKORO_VOICE_MALE
-
-    private fun generateKokoroClip(reviewId: Long, characterId: String, index: Int, text: String, voiceId: String): File? {
-        return try {
-            val dir = File(applicationContext.filesDir, "tts/$reviewId/$characterId").apply { mkdirs() }
-            val voice = VoiceLabVoice(
-                id = voiceId,
-                label = if (voiceId == KOKORO_VOICE_MALE) "Kokoro Male" else "Kokoro Female",
-                engine = TtsEngineType.KOKORO,
-                sid = if (voiceId == KOKORO_VOICE_MALE) 7 else 0,
-            )
-            val result = prototypeTtsEngine.generate(applicationContext, voice, text, dir)
-            val wav = result.wavPath?.let { File(it) }
-            if (wav != null && wav.exists() && result.error == null) wav else null
-        } catch (e: Exception) {
-            logger.log("ClipWorker", "kokoro clip failed s$index", e)
             null
         }
     }

@@ -89,12 +89,7 @@ class CharacterVoiceClient @Inject constructor(
         builtinPersonas[voiceId] ?: CharacterPersona("System", "")
 
     fun voiceName(voiceId: String?): String =
-        builtinVoices.firstOrNull { it.id == voiceId }?.name
-            ?: when (voiceId) {
-                "kokoro-local-female" -> "Kokoro Female"
-                "kokoro-local-male" -> "Kokoro Male"
-                else -> "System Voice"
-            }
+        builtinVoices.firstOrNull { it.id == voiceId }?.name ?: "System Voice"
 
     suspend fun fetchClipBytes(text: String, voiceId: String): ByteArray? {
         return try {

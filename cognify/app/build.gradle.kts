@@ -1,9 +1,17 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+}
+
+// Release signing — keystore.properties sits beside the settings file.
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
@@ -25,6 +33,17 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (keystoreProps.getProperty("storeFile") != null) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -32,6 +51,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 
@@ -51,14 +71,6 @@ android {
 }
 
 dependencies {
-    // litertlm-android 0.17.0 transitively pulls coroutines 1.11.0 (Kotlin 2.2
-    // metadata, unreadable by our Kotlin 2.0.21 compiler). The coroutine APIs
-    // it uses are stable, so hold the whole family at our pinned version.
-    constraints {
-        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
-        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
-    }
-
     // Compose
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
@@ -118,10 +130,6 @@ dependencies {
 
     // ML Kit text recognition
     implementation(libs.mlkit.text.recognition)
-
-    // On-device LLM (Local AI mode)
-    implementation(libs.mediapipe.genai)
-    implementation(libs.litertlm.android)
 
     // Core
     implementation(libs.core.ktx)

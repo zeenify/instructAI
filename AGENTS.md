@@ -34,6 +34,21 @@ spinners only when no cached data exists — and page-level loading uses
 inline actions; invalidate by query key after mutations; never add new
 `bypassCache` usage.
 
+## Cognify Android app (cognify/) — build & distribution
+
+Official download: `backend/public/downloads/Cognify.apk` — served by Laravel at
+`<backend-origin>/downloads/Cognify.apk`; the landing page's Cognify section
+(button + QR) and the student sidebar promo card derive that URL from
+`VITE_API_URL` (origin swap `/api` → ``). To ship a new version: bump
+`versionCode`/`versionName`, run `./gradlew assembleRelease` in `cognify/`
+(signing via committed `cognify/keystore.properties`; rotate out of the repo
+before a real Play release), copy
+`cognify/app/build/outputs/apk/release/app-release.apk`
+→ `backend/public/downloads/Cognify.apk`, commit. The old on-device LLM
+(mediapipe/litertlm) and Kokoro/sherpa TTS engines were removed from the app
+(downloads), keep them out. Voice previews for the narrator picker are real
+Fish Audio renders in `cognify/app/src/main/assets/voice_previews/`.
+
 ## UI/UX overhaul — active workflow (do not skip steps)
 
 We are redesigning the web app **page by page**, one page at a time:

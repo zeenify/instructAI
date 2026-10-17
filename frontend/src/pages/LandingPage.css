@@ -1548,6 +1548,86 @@
 
 .cognify-points svg { color: #6d5ae0; flex-shrink: 0; }
 
+/* ── download row: big apk button + scan-to-install QR ── */
+.cognify-download {
+  margin-top: 28px;
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  flex-wrap: wrap;
+}
+
+.cognify-dl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  padding: 15px 24px;
+  background: #6d5ae0;
+  color: #fffdf7;
+  border: 2px solid var(--pik-ink);
+  border-radius: 13px;
+  box-shadow: 3px 3px 0 var(--pik-shadow);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.86rem;
+  text-decoration: none;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.cognify-dl-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0 var(--pik-shadow);
+}
+
+.cognify-dl-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--pik-shadow);
+}
+
+.cognify-dl-main {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.cognify-dl-sub {
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: lowercase;
+  opacity: 0.72;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 253, 247, 0.35);
+}
+
+.cognify-qr {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cognify-qr-card {
+  background: #fffdf7;
+  border: 2px solid var(--pik-ink);
+  border-radius: 11px;
+  box-shadow: 3px 3px 0 var(--pik-shadow);
+  padding: 8px;
+  line-height: 0;
+}
+
+.cognify-qr-card svg { display: block; }
+
+.cognify-qr-cap {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+  text-transform: lowercase;
+  color: var(--pik-ink-soft);
+  max-width: 72px;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .cognify-download { gap: 18px; }
+}
+
 .cognify-note {
   margin-top: 24px;
   font-family: 'JetBrains Mono', monospace;

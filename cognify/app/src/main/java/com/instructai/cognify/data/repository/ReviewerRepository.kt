@@ -10,7 +10,6 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.instructai.cognify.data.logging.AppLogger
-import com.instructai.cognify.data.local.ai.LocalAiEngine
 import com.instructai.cognify.data.remote.ApiService
 import com.instructai.cognify.data.remote.TokenManager
 import com.instructai.cognify.data.remote.ai.GeminiApi
@@ -64,7 +63,6 @@ class ReviewerRepository @Inject constructor(
     private val geminiApi: GeminiApi,
     private val tokenManager: TokenManager,
     private val reviewRepository: ReviewRepository,
-    private val localAiEngine: LocalAiEngine,
     private val logger: AppLogger,
     @ApplicationContext private val context: Context,
 ) {
@@ -378,7 +376,9 @@ class ReviewerRepository @Inject constructor(
             ApiMode.BACKEND -> generateViaBackend(
                 lessonContent, lessonTitle, reviewerTypes, counts, difficulty, extraInstruction, avoidItems
             )
-            ApiMode.LOCAL -> generateViaLocal(
+            // LOCAL was the on-device engine, removed from the app — route a
+            // stale preference to the server instead.
+            ApiMode.LOCAL -> generateViaBackend(
                 lessonContent, lessonTitle, reviewerTypes, counts, difficulty, extraInstruction, avoidItems
             )
         }
@@ -565,171 +565,6 @@ class ReviewerRepository @Inject constructor(
         }
 
         emit(ReviewerEvent.Complete)
-    }
-
-    /** Local models have a much smaller context budget than cloud Gemini. */
-    private val MAX_LOCAL_CONTENT_CHARS = 16_000
-
-    private val LOCAL_SYSTEM_INSTRUCTION = """You are a world-class study material creator. Return ONLY valid JSON. No markdown, no code fences, no explanations.
-
-NOISE NOTICE: The lesson content may have been extracted from documents, slides, or OCR and can contain noise — page headers/footers, page numbers, presenter or author names, dates, IDs/registration numbers, signature lines, template/slide-deck text (e.g. 'Thank you', 'Course outline', institution names), and OCR typos. IGNORE all such non-study content. Base your materials ONLY on actual educational content. Correct minor OCR typos using context; skip fragments that are unreadable or clearly administrative/metadata."""
-
-    private fun generateViaLocal(
-        lessonContent: String,
-        lessonTitle: String,
-        reviewerTypes: List<String>,
-        counts: Map<String, Int>,
-        difficulty: String,
-        extraInstruction: String? = null,
-        avoidItems: List<String> = emptyList(),
-    ): Flow<ReviewerEvent> = flow {
-        // Auto power-on: if LOCAL is selected but the engine is off, this
-        // generation is the trigger (download/load progress surfaces via
-        // engine state while the UI shows "generating").
-        for (rtype in reviewerTypes) emit(ReviewerEvent.Progress(rtype, "preparing"))
-        val started = localAiEngine.ensureStarted()
-        if (started.isFailure) {
-            val msg = started.exceptionOrNull()?.message ?: "Local AI failed to start"
-            logger.log("ReviewerRepository", "[local] power-on failed: $msg")
-            emit(ReviewerEvent.Error("local", msg))
-            emit(ReviewerEvent.Complete)
-            return@flow
-        }
-
-        val model = localAiEngine.currentModel
-        val trimmedContent = lessonContent.take(MAX_LOCAL_CONTENT_CHARS)
-        logger.log("ReviewerRepository", "Starting local generation | model=${model.id} | title=$lessonTitle | content=${trimmedContent.length} chars | types=$reviewerTypes")
-
-        val completed = mutableListOf<String>()
-        val total = reviewerTypes.size
-
-        typeLoop@ for (rtype in reviewerTypes) {
-            emit(ReviewerEvent.Progress(rtype, "generating"))
-
-            val promptTemplate = getPromptTemplate(rtype)
-            val count = counts[rtype] ?: getDefaultCount(rtype)
-
-            // First attempt, then one retry with a stricter format reminder —
-            // small models are more prone to breaking JSON than cloud Gemini.
-            var items: List<Map<String, Any>> = emptyList()
-            var lastError: String? = null
-            for (attempt in 1..2) {
-                val result = localAiEngine.generate(
-                    buildLocalPrompt(promptTemplate, lessonTitle, trimmedContent, count, difficulty) +
-                        buildPromptSuffix(extraInstruction, avoidItems)
-                )
-                val content = result.getOrNull()
-                if (content == null) {
-                    lastError = result.exceptionOrNull()?.message ?: "Generation failed"
-                    logger.log("ReviewerRepository", "[$rtype] local attempt $attempt failed: $lastError")
-                    continue
-                }
-                items = parseLocalItems(content, rtype)
-                if (items.isNotEmpty()) {
-                    logger.log("ReviewerRepository", "[$rtype] parsed ${items.size}/$count items | raw_chars=${content.length}")
-                    break
-                }
-                lastError = "Failed to parse model JSON output"
-                logger.log("ReviewerRepository", "[$rtype] local attempt $attempt unparsable | raw=${content.take(300)}")
-            }
-
-            if (items.isEmpty()) {
-                emit(ReviewerEvent.Error(rtype, lastError ?: "Generation failed"))
-                continue@typeLoop
-            }
-
-            // Emit the first batch immediately so the UI can show items
-            // while the (slow) top-up rounds continue.
-            completed.add(rtype)
-            emit(ReviewerEvent.Chunk(rtype, items, completed.size, total))
-
-            // Small models often stop early (2-3 items instead of the asked
-            // count, or output cut by the context ceiling). Top up with
-            // follow-up passes using a lean prompt asking only for the
-            // missing remainder — short prompts are easier for tiny models
-            // to follow and leave more output budget.
-            val seenKeys = avoidItems.mapTo(mutableSetOf()) { it.trim().lowercase() }
-            items.forEach { seenKeys.add(localItemKey(it)) }
-            var topUpRounds = 0
-            while (items.size < count && topUpRounds < 3) {
-                topUpRounds++
-                val need = count - items.size
-                val avoid = seenKeys.take(15).joinToString("; ")
-                    val itemSpec = if (rtype == "practice") {
-                        """{"type": "multiple_choice", "question": "...", "options": ["A) ...", "B) ...", "C) ...", "D) ..."], "correct_answer": "A) ...", "explanation": "..."}"""
-                    } else {
-                        """{"front": "...", "back": "..."}"""
-                    }
-                    val kind = if (rtype == "practice") "practice questions" else "flashcards"
-                    val topUpPrompt = """$LOCAL_SYSTEM_INSTRUCTION
-
-Generate exactly $need ADDITIONAL $kind from the lesson below. Do NOT repeat or slightly rephrase these existing items: $avoid
-
-Lesson title: $lessonTitle
-Lesson content:
-$trimmedContent
-
-Return ONLY a valid JSON array of $need objects, each exactly like:
-$itemSpec"""
-                    val result = localAiEngine.generate(topUpPrompt)
-                    val content = result.getOrNull() ?: break
-                    val more = parseLocalItems(content, rtype).filter { localItemKey(it) !in seenKeys }
-                    if (more.isEmpty()) {
-                        logger.log("ReviewerRepository", "[$rtype] top-up round $topUpRounds produced nothing new | raw=${content.take(200)}")
-                        break
-                    }
-                    more.forEach { seenKeys.add(localItemKey(it)) }
-                    items = items + more
-                    logger.log("ReviewerRepository", "[$rtype] top-up round $topUpRounds added ${more.size} (total ${items.size}/$count)")
-                    // Stream the new items to the UI as they arrive.
-                    emit(ReviewerEvent.Chunk(rtype, more, completed.size, total))
-            }
-        }
-
-        emit(ReviewerEvent.Complete)
-    }
-
-    private fun buildLocalPrompt(
-        promptTemplate: String,
-        lessonTitle: String,
-        content: String,
-        count: Int,
-        difficulty: String,
-    ): String = LOCAL_SYSTEM_INSTRUCTION + "\n\n" + promptTemplate
-        .replace("{title}", lessonTitle)
-        .replace("{content}", content)
-        .replace("{count}", count.toString())
-        .replace("{difficulty}", difficulty)
-
-    /** Stable identity of an item for dedupe across top-up rounds. */
-    private fun localItemKey(item: Map<String, Any>): String =
-        (item["front"] ?: item["question"] ?: item["title"] ?: "").toString().trim().lowercase()
-
-    /**
-     * Parse with the shared parser, then fall back to repairing a JSON array
-     * the model cut off mid-way (context ceiling): close it after the last
-     * complete object and parse again.
-     */
-    private fun parseLocalItems(content: String, rtype: String): List<Map<String, Any>> {
-        parseGroqResponseToMaps(content, rtype).takeIf { it.isNotEmpty() }?.let { return it }
-        if (rtype == "summary") return emptyList()
-
-        val cleaned = content.trim()
-            .removeSurrounding("```json", "```")
-            .removeSurrounding("```", "```")
-            .trim()
-        val start = cleaned.indexOf('[')
-        if (start < 0) return emptyList()
-        val body = cleaned.substring(start)
-        if (body.endsWith("]")) return emptyList()
-        val lastComplete = body.lastIndexOf('}')
-        if (lastComplete < 0) return emptyList()
-        val repaired = body.substring(0, lastComplete + 1) + "]"
-        val salvaged = parseGroqResponseToMaps(repaired, rtype)
-        if (salvaged.isNotEmpty()) {
-            logger.log("ReviewerRepository", "[$rtype] salvaged ${salvaged.size} items from truncated JSON")
-        }
-        return salvaged
     }
 
     private fun getPromptTemplate(rtype: String): String = when (rtype) {

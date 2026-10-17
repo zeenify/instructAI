@@ -97,9 +97,10 @@ fun SummaryScreen(
         onDispose { viewModel.stopVoicePreview() }
     }
 
+    // The only on-device narrator is the system TTS voice ("Cogni").
+    // The old Kokoro entries relied on a dev-only model download and never
+    // worked on a clean install.
     val localVoices = listOf(
-        VocalAvatar("kokoro-local-female", "Kokoro Female", "", painting = Color(0xFFE91E63)),
-        VocalAvatar("kokoro-local-male", "Kokoro Male", "", painting = Color(0xFF2196F3)),
         VocalAvatar("cogni-placeholder", "Cogni", "", painting = Color(0xFF7C4DFF)),
     )
     val characterAvatars = state.voices.map { v ->

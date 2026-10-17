@@ -1,14 +1,37 @@
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { LayoutDashboard, Book, LogOut, Plus, Loader2, Sparkles, Hash, Menu } from 'lucide-react';
+import { LayoutDashboard, Book, LogOut, Plus, Loader2, Sparkles, Hash, Menu, Smartphone, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import cache from '../../utils/cache';
 import JoinClassModal from '../student/JoinClassModal';
 import ThemeToggle from '../ui/ThemeToggle';
+import cognifyImg from '../../assets/landing/cognify.png';
 import '../../pages/teacher/Dashboard.css';
 import '../../pages/student/Student.css';
-  
+
+// APK lives on the backend (backend/public/downloads/Cognify.apk). Same
+// origin derivation as the landing page's download row.
+const COGNIFY_APK_URL = `${(
+  import.meta.env.VITE_API_URL || 'https://instructai-backend.onrender.com/api'
+).replace(/\/api\/?$/, '')}/downloads/Cognify.apk`;
+const PROMO_DISMISS_KEY = 'cognify-promo-dismissed-at';
+const PROMO_REMIND_AFTER_MS = 14 * 24 * 60 * 60 * 1000;
+
+// The mobile-app promo card hides itself for two weeks when dismissed.
+function useCognifyPromo() {
+    const [showPromo, setShowPromo] = useState(() => {
+        try {
+            const at = Number(localStorage.getItem(PROMO_DISMISS_KEY) || 0);
+            return Date.now() - at > PROMO_REMIND_AFTER_MS;
+        } catch { return true; }
+    });
+    const dismissPromo = () => {
+        try { localStorage.setItem(PROMO_DISMISS_KEY, String(Date.now())); } catch { /* private mode */ }
+        setShowPromo(false);
+    };
+    return [showPromo, dismissPromo];
+}
 
 export default function StudentLayout() {
     const { user, logout } = useAuth();
@@ -23,6 +46,7 @@ export default function StudentLayout() {
 
     const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
     const [navOpen, setNavOpen] = useState(false);
+    const [showPromo, dismissPromo] = useCognifyPromo();
 
     const fetchClasses = async (forceRefresh = false) => {
         const cacheKey = 'sidebar:student:classes';
@@ -107,6 +131,23 @@ export default function StudentLayout() {
                         </nav>
                     </div>
                 </div>
+
+                {showPromo && (
+                    <div className="sv-appcard">
+                        <button type="button" className="sv-appcard-close" onClick={dismissPromo} aria-label="Hide this">
+                            <X size={13} />
+                        </button>
+                        <img src={cognifyImg} alt="" className="sv-appcard-logo" />
+                        <div className="sv-appcard-body">
+                            <p className="sv-appcard-title">Cognify, on your phone</p>
+                            <p className="sv-appcard-sub">Flashcards &amp; podcast narration from your classes</p>
+                            <a className="sv-appcard-cta" href={COGNIFY_APK_URL} download="Cognify.apk">
+                                <Smartphone size={13} />
+                                <span>Get the Android app</span>
+                            </a>
+                        </div>
+                    </div>
+                )}
 
                 <div style={{ paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', padding: '12px' }}>

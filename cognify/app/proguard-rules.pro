@@ -18,3 +18,7 @@
 -keep class com.google.mediapipe.** { *; }
 -keep class com.google.protobuf.** { *; }
 -dontwarn com.google.mediapipe.**
+
+# PDFBox Android: the JPX (JPEG2000) filter has an optional dependency on
+# gemalto jp2, which is not bundled. PDF parsing here is plain text/PDF 1.x.
+-dontwarn com.gemalto.jp2.**
