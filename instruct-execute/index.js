@@ -21,8 +21,19 @@ const WS_TIMEOUT_MS = 30 * 1000;
 const COMPILE_TIMEOUT_MS = 20 * 1000;
 const AVAILABILITY_TTL_MS = 30 * 1000;
 const MAX_CONCURRENT_JOBS = Math.max(2, os.cpus().length * 2);
+// Students iterate: run, read the error, fix, run again. And on a Render-style
+// deployment EVERY student arrives through the same proxy IP (app.set('trust
+// proxy') below recovers the real client where possible), so this is a
+// class-wide budget — keep it generous. Token-authenticated callers (the
+// Laravel auto-grader, the AI generator's verification) bypass it entirely.
 const RATE_WINDOW_MS = 60 * 1000;
-const RATE_MAX_PER_WINDOW = 60;           // per IP per minute
+const RATE_MAX_PER_WINDOW = 600;          // per IP per minute (browser traffic)
+// Interactive sessions: the kill timer is IDLE-based (reset on every keystroke)
+// so an actively-used terminal lives and an abandoned one gets reaped; plus an
+// absolute session cap for safety. A program paused on input costs no CPU —
+// what it consumes is a concurrency slot.
+const IDLE_TIMEOUT_MS = 120 * 1000;
+const MAX_INTERACTIVE_MS = 10 * 60 * 1000;
 const GRACE_MS = 150;                     // pipe-drain grace after the process exits
 
 // --- AUTH (optional) ---
@@ -249,7 +260,7 @@ function normalizeInput(input) {
  * Streams events through onEvent (WS) and hands the live child to onProcess
  * (WS stdin routing). Always resolves with the full result and cleans up.
  */
-function executeJob({ language, code, input, interactive = false, timeoutMs, onEvent, onProcess }) {
+function executeJob({ language, code, input, interactive = false, timeoutMs, onEvent, onProcess, control }) {
     return new Promise((resolve) => {
         const lang = LANGS[language];
         const folderPath = path.join(os.tmpdir(), `exec-${uuidv4()}`);
@@ -258,7 +269,9 @@ function executeJob({ language, code, input, interactive = false, timeoutMs, onE
         let compileChild = null;
         let runTimer = null;
         let compileTimer = null;
+        let absoluteTimer = null;
         let timedOut = false;
+        let timeoutReason = '';
         let settled = false;
 
         const emit = (event) => { try { onEvent && onEvent(event); } catch { /* client gone */ } };
@@ -276,6 +289,7 @@ function executeJob({ language, code, input, interactive = false, timeoutMs, onE
             settled = true;
             clearTimeout(runTimer);
             clearTimeout(compileTimer);
+            clearTimeout(absoluteTimer);
             // Group-kill anything still alive (grandchildren can hold the stdio
             // pipes open — without this the job slot leaks).
             killTree(runChild);
@@ -323,11 +337,35 @@ function executeJob({ language, code, input, interactive = false, timeoutMs, onE
                     try { runChild.stdin.end(); } catch { /* noop */ }
                 }
 
-                runTimer = setTimeout(() => {
+                // Batch mode: total timeout (protects the host from runaway
+                // scripts). Interactive mode: IDLE timeout — typing resets the
+                // clock, so an actively-used terminal lives and an abandoned
+                // one gets reaped (a program paused on input costs no CPU;
+                // what it holds is a concurrency slot). Plus an absolute cap.
+                const killForTimeout = () => {
                     timedOut = true;
-                    emit({ type: 'error', message: 'Execution Timed Out' });
+                    timeoutReason = interactive
+                        ? 'Session closed after inactivity'
+                        : 'Execution Timed Out';
+                    emit({
+                        type: 'error',
+                        message: interactive
+                            ? 'Session ended — no input for a while. Press Run to start again.'
+                            : 'Execution Timed Out',
+                    });
                     killTree(runChild);
-                }, timeoutMs);
+                };
+                if (interactive) {
+                    const armIdle = () => {
+                        clearTimeout(runTimer);
+                        runTimer = setTimeout(killForTimeout, IDLE_TIMEOUT_MS);
+                    };
+                    armIdle();
+                    if (control) control.poke = armIdle; // WS handler calls this on every keystroke
+                    absoluteTimer = setTimeout(killForTimeout, MAX_INTERACTIVE_MS);
+                } else {
+                    runTimer = setTimeout(killForTimeout, timeoutMs);
+                }
 
                 // 'exit' (not 'close') completes the job even when a grandchild
                 // keeps the stdio pipes open; a short grace collects late output.
@@ -337,7 +375,7 @@ function executeJob({ language, code, input, interactive = false, timeoutMs, onE
                         if (timedOut) {
                             finish({
                                 stdout: cap(stdout),
-                                stderr: 'Execution Timed Out (Possible Infinite Loop)',
+                                stderr: timeoutReason || 'Execution Timed Out (Possible Infinite Loop)',
                                 compile_output: '',
                                 exit_code: exitCode ?? -1,
                                 timed_out: true,
@@ -416,12 +454,20 @@ sweepTempDirs();
 setInterval(sweepTempDirs, 60 * 60 * 1000).unref();
 
 // --- 1. AUTH + REQUEST LOGGER ---
+// Behind a deployment proxy (Render/Railway) every student arrives through
+// the same edge IP; trust proxy lets req.ip resolve X-Forwarded-For so the
+// rate budget is per-coursemate instead of per-infrastructure.
+app.set('trust proxy', 1);
 app.use((req, res, next) => {
     if (!requestAuthorized(req)) {
         return res.status(401).json({ error: 'Unauthorized.' });
     }
-    const ip = req.socket.remoteAddress || 'unknown';
-    if (rateLimited(ip)) {
+    // Token-authenticated callers (the Laravel auto-grader, the AI generator's
+    // verification) bypass the rate budget — grading a whole class's
+    // submissions in a burst is legitimate authorized load.
+    const internalCall = Boolean(ENGINE_TOKEN) && requestAuthorized(req);
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    if (!internalCall && rateLimited(ip)) {
         return res.status(429).json({ error: 'Too many requests — slow down and try again in a minute.' });
     }
     console.log(`>>> Incoming: ${req.method} ${req.url}`);
@@ -528,12 +574,14 @@ wss.on('connection', (ws, req) => {
                 }
 
                 jobRunning = true;
+                const jobControl = {}; // run kicks in and arms poke() — every keystroke resets the idle clock
                 executeJob({
                     language,
                     code: data.code,
                     input: data.input,
                     interactive: true,
                     timeoutMs: WS_TIMEOUT_MS,
+                    control: jobControl,
                     onEvent: (event) => {
                         try { ws.send(JSON.stringify(event)); } catch { /* closed */ }
                     },
@@ -561,6 +609,10 @@ wss.on('connection', (ws, req) => {
                     activeChild.stdin.write(value);
                 } else {
                     pendingInput.push(value);
+                }
+                // Typing = the session is alive — resets the idle kill timer
+                if (jobRunning) {
+                    try { jobControl?.poke?.(); } catch { /* terminal between phases */ }
                 }
             } else if (data.type === 'eof') {
                 // Ctrl+D equivalent: close stdin so read-until-EOF programs finish
