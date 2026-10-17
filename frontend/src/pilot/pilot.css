@@ -236,7 +236,10 @@
     position: absolute;
     top: 18px;
     left: 18px;
-    max-width: 220px;
+    /* Size to the text; long labels wrap instead of spilling out of the
+       pill (batch explains are full sentences) */
+    width: max-content;
+    max-width: 300px;
     padding: 2px 9px 3px;
     border: 1px solid rgba(255, 255, 255, 0.85);
     border-radius: 8px;
@@ -247,7 +250,8 @@
     font-size: 12px;
     font-weight: 600;
     line-height: 1.5;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: break-word;
     opacity: 0;
     transform: translateY(4px) scale(0.94);
     transition: opacity 0.22s ease-out, transform 0.22s ease-out;

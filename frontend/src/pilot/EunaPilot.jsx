@@ -409,18 +409,23 @@ export default function EunaPilot() {
         status === 'thinking'
             ? 'Thinking'
             : (statusText || 'Checking the page').replace(/…+$/, '');
+    // The click lock owns the page for the WHOLE driving run — not just the
+    // batch moments. Between batches the model streams (thinking) with the
+    // drive bar up, and a real click landing then navigates the page out
+    // from under the run. Plain chat never locks (no wheel taken); waiting
+    // for consent stays interactive — the teacher's page is theirs until
+    // they approve. Panel (9990) + bar (9987) + FAB (9985) sit above the
+    // lock, so Stop and the composer stay reachable.
+    const pageLocked = driving || (wheelRun && !waiting);
 
     return (
         <div className="euna-root" data-euna-ignore>
             {/* Driving owns the page: the bar, the blue corner glow and the
-                click lock all appear together, and chatting or thinking never
-                shows them. Waiting for consent shows the bar (with Stop) but
-                NOT the lock — the teacher's page stays theirs until they
-                approve. The lock blocks real pointers — the executor drives
-                through programmatic clicks and the panel (9990) + bar (9987)
-                + FAB (9985) all sit above it. */}
-            {driving && <div className="euna-driving-blocker" aria-hidden="true" />}
-            {driving && <div className="euna-driving-glow" aria-hidden="true" />}
+                click lock hold for the entire driving run, thinking gaps
+                included. Waiting for consent shows the bar (with Stop) but
+                NOT the lock. */}
+            {pageLocked && <div className="euna-driving-blocker" aria-hidden="true" />}
+            {pageLocked && <div className="euna-driving-glow" aria-hidden="true" />}
 
             <DriveBar
                 label={barLabel}
