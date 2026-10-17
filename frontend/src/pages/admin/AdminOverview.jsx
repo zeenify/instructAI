@@ -5,7 +5,6 @@ import { Users, GraduationCap, School, BookOpen, ArrowRight } from 'lucide-react
 import StatCard from '../../components/ui/StatCard';
 import { SkeletonBlock, StatCardSkeleton } from '../../components/ui/skeletons';
 import { useAdminOverview } from '../../queries/admin';
-import { useAuth } from '../../context/AuthContext';
 import './Admin.css';
 
 function WhitelistMeter({ label, total, claimed }) {
@@ -22,7 +21,6 @@ function WhitelistMeter({ label, total, claimed }) {
 }
 
 export default function AdminOverview() {
-    const { user } = useAuth();
     const { data, isLoading } = useAdminOverview();
 
     if (isLoading || !data) {
@@ -38,14 +36,18 @@ export default function AdminOverview() {
     }
 
     const { counts, whitelist, newest, top_classes: topClasses } = data;
-    const firstName = (user?.student_profile?.first_name || user?.teacher_profile?.first_name || user?.email?.split('@')[0]) ?? 'Admin';
 
     return (
         <div className="db-hero-pad">
-            <div className="db-hero">
-                <p className="ad-kicker">School operations</p>
-                <h1 className="db-title">The whole school, {firstName}</h1>
-                <p className="ad-sub">{counts.students} students and {counts.teachers} teachers across {counts.classes} classes — whitelists decide who can join.</p>
+            <div className="ad-head-row">
+                <div>
+                    <p className="ad-kicker">Administrator</p>
+                    <h1 className="ad-title">Overview</h1>
+                    <p className="ad-sub">
+                        {counts.students} students · {counts.teachers} teachers · {counts.classes} classes.
+                        The whitelists below decide who can register at all.
+                    </p>
+                </div>
             </div>
 
             <div className="db-stats-grid" style={{ margin: '18px 0 22px' }}>

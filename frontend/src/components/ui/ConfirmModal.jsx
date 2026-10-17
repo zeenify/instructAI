@@ -3,11 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, Upload, AlertCircle } from 'lucide-react';
 
 const variantConfig = {
-  danger: { icon: AlertTriangle, gradient: 'from-red-500/20 to-red-600/10', border: 'border-red-500/25', iconColor: 'text-red-400', iconBorder: 'border-red-500/30', btnGradient: 'from-red-600 to-red-700', btnHover: 'hover:from-red-500 hover:to-red-600', btnShadow: 'hover:shadow-red-600/40' },
-  warning: { icon: AlertCircle, gradient: 'from-amber-500/20 to-amber-600/10', border: 'border-amber-500/25', iconColor: 'text-amber-400', iconBorder: 'border-amber-500/30', btnGradient: 'from-amber-600 to-amber-700', btnHover: 'hover:from-amber-500 hover:to-amber-600', btnShadow: 'hover:shadow-amber-600/40' },
-  default: { icon: Upload, gradient: 'from-blue-500/20 to-blue-600/10', border: 'border-blue-500/25', iconColor: 'text-blue-400', iconBorder: 'border-blue-500/30', btnGradient: 'from-blue-600 to-blue-700', btnHover: 'hover:from-blue-500 hover:to-blue-600', btnShadow: 'hover:shadow-blue-600/40' },
+  danger: { icon: AlertTriangle, iconColor: 'var(--db-danger)', iconBg: 'var(--db-danger-soft)', accent: 'var(--db-danger)' },
+  warning: { icon: AlertCircle, iconColor: 'var(--db-amber)', iconBg: 'var(--db-amber-soft)', accent: 'var(--db-amber)' },
+  default: { icon: Upload, iconColor: 'var(--db-accent)', iconBg: 'var(--db-accent-soft)', accent: 'var(--db-accent)' },
 };
 
+// Theme-aware confirm dialog (db- tokens: light pages get a light surface,
+// dark pages a dark one). Same props across every consumer in the app.
 export default function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', cancelText = 'Cancel', loading, variant = 'default' }) {
   const cfg = variantConfig[variant] || variantConfig.default;
   const Icon = cfg.icon;
@@ -16,43 +18,81 @@ export default function ConfirmModal({ isOpen, onClose, onConfirm, title, messag
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
           <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            style={{ background: 'rgba(8, 10, 18, 0.55)', backdropFilter: 'blur(6px)' }}
+            className="absolute inset-0"
+          />
+          <motion.div
+            initial={{ scale: 0.94, opacity: 0, y: 18 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className={`relative z-10 w-full max-w-lg bg-gradient-to-br from-[#1a1a2e] to-[#0f0f1a] ${cfg.border} rounded-[28px] overflow-hidden shadow-2xl`}
+            exit={{ scale: 0.94, opacity: 0, y: 18 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            style={{
+              position: 'relative',
+              zIndex: 10,
+              width: '100%',
+              maxWidth: 440,
+              background: 'var(--db-card)',
+              border: '1px solid var(--db-border-strong)',
+              borderRadius: 22,
+              boxShadow: '0 24px 70px rgba(2, 4, 12, 0.45)',
+              padding: '30px 30px 26px',
+            }}
           >
-            <div style={{ padding: '50px 40px' }}>
-              <div className="flex justify-center mb-16">
-                <div className={`w-28 h-28 bg-gradient-to-br ${cfg.gradient} rounded-3xl flex items-center justify-center ${cfg.iconColor} ${cfg.iconBorder}`}>
-                  <Icon size={56} />
-                </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20 }}>
+              <span style={{
+                width: 46, height: 46, borderRadius: 14, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: cfg.iconBg, color: cfg.iconColor,
+                border: `1px solid ${cfg.iconColor}22`,
+              }}>
+                <Icon size={23} />
+              </span>
+              <div style={{ minWidth: 0, paddingTop: 3 }}>
+                <h3 style={{ fontFamily: 'var(--db-font-display)', fontSize: 20, fontWeight: 700, margin: 0, color: 'var(--db-text)', lineHeight: 1.2 }}>
+                  {title}
+                </h3>
+                <p style={{ fontSize: 14, lineHeight: 1.55, color: 'var(--db-text-2)', margin: '7px 0 0' }}>
+                  {message}
+                </p>
               </div>
+            </div>
 
-              <div className="text-center mb-16">
-                <h3 className="text-3xl font-bold text-white mb-6">{title}</h3>
-                <p className="text-slate-400 text-base leading-relaxed">{message}</p>
-              </div>
-
-              <div className="flex gap-6">
-                <button
-                  onClick={onClose}
-                  disabled={loading}
-                  style={{ padding: '16px 24px' }}
-                  className="flex-1 rounded-[16px] bg-white/5 border border-white/15 text-slate-300 font-bold uppercase text-sm tracking-wider cursor-pointer hover:bg-white/10 hover:border-white/25 transition-all disabled:opacity-50 shadow-md hover:shadow-lg"
-                >
-                  {cancelText}
-                </button>
-                <button
-                  onClick={onConfirm}
-                  disabled={loading}
-                  style={{ padding: '16px 24px' }}
-                  className={`flex-1 rounded-[16px] bg-gradient-to-r ${cfg.btnGradient} text-white font-black uppercase text-sm tracking-wider cursor-pointer ${cfg.btnHover} transition-all shadow-xl ${cfg.btnShadow} disabled:opacity-50`}
-                >
-                  {loading ? `${confirmText}...` : confirmText}
-                </button>
-              </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={loading}
+                style={{
+                  padding: '11px 18px', borderRadius: 11, fontSize: 14, fontWeight: 600,
+                  background: 'transparent', border: '1px solid var(--db-border)',
+                  color: 'var(--db-text-2)', cursor: 'pointer',
+                }}
+              >
+                {cancelText}
+              </button>
+              <button
+                type="button"
+                onClick={onConfirm}
+                disabled={loading}
+                style={{
+                  padding: '11px 18px', borderRadius: 11, fontSize: 14, fontWeight: 700,
+                  background: cfg.accent, border: 'none', color: '#fff',
+                  cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1,
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                }}
+              >
+                {loading && <span style={{
+                  width: 14, height: 14, borderRadius: '50%',
+                  border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff',
+                  display: 'inline-block',
+                }} className="animate-spin" />}
+                {loading ? 'Working…' : confirmText}
+              </button>
             </div>
           </motion.div>
         </div>

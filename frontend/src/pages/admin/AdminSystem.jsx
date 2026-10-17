@@ -45,7 +45,7 @@ export default function AdminSystem() {
         <div className="db-hero-pad">
             <div className="ad-head-row">
                 <div>
-                    <h1 className="db-title">System</h1>
+                    <h1 className="ad-title">System</h1>
                     <p className="ad-sub">Service health and school data at a glance. Probes run with a 30s cache.</p>
                 </div>
                 <button className="db-btn-primary ad-refresh" onClick={() => refetch()} disabled={isFetching}>

@@ -14,6 +14,10 @@ const CONFIG = {
         label: 'Student LRNs',
         endpoint: 'student-whitelist',
         listKey: 'students',
+        unit: 'LRN(s)',
+        // Q&A: the LRN gate is the "only actually-enrolled kids" rule — the
+        // 12-digit number comes from the school registry.
+        explainer: 'A student registers with their school LRN. If the LRN is on this list, they can create their account; once they do, the LRN is Claimed and nobody can register with it again.',
         placeholder: 'One per line — 137548123456, Juan Dela Cruz, Grade 12 - Sampaguita',
         lineError: 'Each line needs a 12-digit LRN (numbers only). Name, grade level and section are optional.',
         parseLine: (line) => {
@@ -33,6 +37,12 @@ const CONFIG = {
         label: 'Teacher invites',
         endpoint: 'teacher-whitelist',
         listKey: 'teachers',
+        unit: 'invite(s)',
+        // Q&A: an invite is NOT an account. Pre-approving the email is the
+        // school's staff-vetting step; the person still creates their own
+        // password (or uses Google) and the invite becomes Claimed — one
+        // teacher, one email, no reuse.
+        explainer: 'An invite allows one teacher to register — it is not an account yet. Add their DepEd email, they create their own password (or use Google), and the invite flips to Claimed so nobody else can use that email.',
         placeholder: 'One per line — ms.santos@deped.gov.ph, Ana Santos, Master Teacher I',
         lineError: 'Each line needs a valid email address. Name and position are optional.',
         parseLine: (line) => {
@@ -92,19 +102,35 @@ export default function WhitelistManager({ kind }) {
             <div className="db-section-row">
                 <div>
                     <h3 className="db-section-title">{cfg.label}</h3>
-                    <p className="db-section-sub">Claimed = the person registered with it and turned it into an account.</p>
+                    <p className="db-section-sub">{cfg.explainer}</p>
                 </div>
             </div>
 
             <div className="ad-bulk">
-                <textarea
-                    className="ad-bulk-input"
-                    rows={3}
-                    value={bulkText}
-                    onChange={(e) => setBulkText(e.target.value)}
-                    placeholder={cfg.placeholder}
-                    aria-label={`Bulk add ${cfg.label}`}
-                />
+                <div className="ad-bulk-col">
+                    <textarea
+                        className="ad-bulk-input"
+                        rows={3}
+                        value={bulkText}
+                        onChange={(e) => setBulkText(e.target.value)}
+                        placeholder={cfg.placeholder}
+                        aria-label={`Bulk add ${cfg.label}`}
+                    />
+                    {(() => {
+                        const lines = bulkText.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+                        if (lines.length === 0) return null;
+                        const valid = lines.filter(cfg.parseLine).length;
+                        const bad = lines.length - valid;
+                        return (
+                            <p className="ad-bulk-hint">
+                                {valid > 0 && <span className="ok">{valid} valid</span>}
+                                {valid > 0 && bad > 0 ? ' · ' : ''}
+                                {bad > 0 && <span className="bad">{bad} unparseable — {cfg.lineError}</span>}
+                                {bad === 0 && valid > 0 ? ` — ready to add as ${valid} ${cfg.unit}` : ''}
+                            </p>
+                        );
+                    })()}
+                </div>
                 <button className="db-btn-primary" onClick={handleBulkAdd} disabled={addEntries.isPending || !bulkText.trim()}>
                     {addEntries.isPending ? <Loader2 size={15} className="ad-spin" /> : null}
                     {addEntries.isPending ? 'Saving…' : 'Add to whitelist'}

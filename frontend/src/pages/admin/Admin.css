@@ -1,33 +1,59 @@
-/* Admin panel page styles — the db- system covers cards/stats/modals; these
-   are the admin-only surfaces built on top of it (tables, meters, config
-   grid). Page-scoped per the CSS architecture rule. */
+/* Admin panel page styles — the db- system covers tokens/shell/stats; these
+   give the admin pages their breathing room and type scale. Scoped to the
+   .db-hero-pad page container used by every admin page. */
+
+/* ---- Page container rhythm: this is the class every admin page wraps in ---- */
+
+.db-hero-pad {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* Cards in admin pages genuinely hold content — give them real padding. */
+.db-hero-pad .db-card {
+    padding: 24px 26px;
+}
+
+/* ---- Hero ---- */
 
 .ad-kicker {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 0.08em;
+    font-size: 12px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--db-text-3);
-    margin: 0 0 6px;
+    margin: 0 0 8px;
+}
+
+.ad-title {
+    font-family: var(--db-font-display);
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    color: var(--db-text);
+    margin: 0;
 }
 
 .ad-sub {
-    font-size: 14px;
+    font-size: 15.5px;
     color: var(--db-text-2);
-    margin: 6px 0 0;
+    margin: 10px 0 0;
+    max-width: 640px;
 }
 
 .ad-head-row {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 14px;
+    gap: 16px;
 }
 
 .ad-two-col {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px;
+    gap: 24px;
     align-items: start;
 }
 
@@ -37,11 +63,13 @@
     }
 }
 
+/* ---- Links ---- */
+
 .ad-link {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    font-size: 13px;
+    gap: 5px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--db-accent);
     text-decoration: none;
@@ -56,23 +84,30 @@
     font-size: inherit;
 }
 
-/* Rows (newest accounts, biggest classes, services) */
+/* ---- Row lists (newest accounts, biggest classes, services) ---- */
+
 .ad-rows {
     display: flex;
     flex-direction: column;
+    margin: 4px 0 2px;
 }
 
 .ad-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 11px 4px;
-    border-top: 1px solid var(--db-border-soft, var(--db-border));
+    gap: 14px;
+    min-height: 54px;
+    padding: 11px 2px;
+    border-top: 1px solid var(--db-border);
+}
+
+.ad-row:first-child {
+    border-top: none;
 }
 
 .ad-row-title {
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 600;
     color: var(--db-text);
     margin: 0;
@@ -82,9 +117,9 @@
 }
 
 .ad-row-sub {
-    font-size: 12px;
+    font-size: 12.5px;
     color: var(--db-text-3);
-    margin: 1px 0 0;
+    margin: 2px 0 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -92,38 +127,39 @@
 
 .ad-num {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--db-text-2);
     white-space: nowrap;
 }
 
-/* Whitelist meters */
+/* ---- Whitelist meters ---- */
+
 .ad-meter {
-    padding: 10px 0 4px;
+    padding: 12px 0 4px;
 }
 
 .ad-meter-head {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 
 .ad-meter-label {
-    font-size: 13px;
+    font-size: 14.5px;
     font-weight: 600;
     color: var(--db-text);
 }
 
 .ad-meter-value {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px;
+    font-size: 12.5px;
     color: var(--db-text-3);
 }
 
 .ad-meter-track {
-    height: 7px;
+    height: 8px;
     border-radius: 99px;
     background: var(--db-accent-soft);
     overflow: hidden;
@@ -135,13 +171,14 @@
     background: var(--db-accent);
 }
 
-/* Chips */
+/* ---- Chips ---- */
+
 .ad-chip {
     display: inline-flex;
     align-items: center;
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 600;
-    padding: 2px 9px;
+    padding: 3px 10px;
     border-radius: 999px;
     white-space: nowrap;
 }
@@ -178,28 +215,32 @@
     border: 1px solid rgba(248, 113, 113, 0.4);
 }
 
-/* Toolbar: filter + search */
+/* ---- Toolbar: filter + search ---- */
+
 .ad-toolbar {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin: 0 0 14px;
+    gap: 12px;
     flex-wrap: wrap;
 }
 
 .ad-search {
     flex: 1;
-    min-width: 240px;
-    max-width: 420px;
+    min-width: 260px;
+    max-width: 440px;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 0 12px;
-    height: 40px;
-    border-radius: 11px;
+    gap: 9px;
+    padding: 0 14px;
+    height: 44px;
+    border-radius: 12px;
     border: 1px solid var(--db-border);
     background: var(--db-card-2);
     color: var(--db-text-3);
+}
+
+.ad-search:focus-within {
+    border-color: var(--db-accent);
 }
 
 .ad-search input {
@@ -207,61 +248,63 @@
     border: none;
     outline: none;
     background: transparent;
-    font-size: 13.5px;
+    font-size: 14.5px;
     color: var(--db-text);
     min-width: 0;
+}
+
+.ad-search input::placeholder {
+    color: var(--db-text-3);
 }
 
 .ad-clear {
     border: none;
     background: transparent;
     color: var(--db-text-3);
-    font-size: 16px;
+    font-size: 18px;
     cursor: pointer;
     padding: 0 2px;
     line-height: 1;
 }
 
-/* Table */
+/* ---- Table ---- */
+
 .ad-table {
     display: flex;
     flex-direction: column;
-    padding: 6px 14px 12px;
 }
 
 .ad-tr {
     display: grid;
-    grid-template-columns: 2.2fr 0.9fr 1.3fr 0.7fr 1fr 0.9fr 52px;
+    grid-template-columns: 2.2fr 0.9fr 1.3fr 0.7fr 1fr 0.9fr 56px;
     align-items: center;
-    gap: 10px;
-    padding: 10px 6px;
-    border-top: 1px solid var(--db-border-soft, var(--db-border));
+    gap: 12px;
+    padding: 13px 10px;
+    border-top: 1px solid var(--db-border);
+    min-height: 56px;
 }
 
-/* Whitelist + classes tables use fewer trailing columns — let cells flow */
-.ad-tr[role='row']:nth-child(1).ad-th {
-    border-top: none;
-}
-
-.ad-th {
+.ad-tr.ad-th {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
-    letter-spacing: 0.06em;
+    font-size: 11px;
+    letter-spacing: 0.07em;
     text-transform: uppercase;
     color: var(--db-text-3);
-    border-top: none !important;
+    border-top: none;
+    min-height: 0;
+    padding: 6px 10px 10px;
 }
 
 .ad-cell-account {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     min-width: 0;
 }
 
 .ad-cell-title {
     display: block;
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 600;
     color: var(--db-text);
     overflow: hidden;
@@ -271,9 +314,9 @@
 
 .ad-cell-sub {
     display: block;
-    font-size: 12px;
+    font-size: 12.5px;
     color: var(--db-text-3);
-    margin-top: 1px;
+    margin-top: 2px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -285,13 +328,13 @@
 }
 
 .ad-avatar {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     flex-shrink: 0;
 }
@@ -307,17 +350,17 @@
 }
 
 .ad-class-dot {
-    width: 10px;
-    height: 10px;
+    width: 11px;
+    height: 11px;
     border-radius: 50%;
     background: var(--db-accent);
     flex-shrink: 0;
 }
 
 .ad-icon-btn {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -334,60 +377,72 @@
 }
 
 .ad-empty {
-    padding: 26px 16px;
+    padding: 34px 16px;
     text-align: center;
-    font-size: 13.5px;
+    font-size: 14px;
     color: var(--db-text-3);
 }
 
 .ad-foot-note {
-    font-size: 12px;
+    font-size: 12.5px;
     color: var(--db-text-3);
-    margin: 10px 2px 0;
 }
 
-/* Reset-password one-time modal */
+/* ---- Reset-password one-time modal ---- */
+
 .ad-modal-sub {
-    font-size: 13px;
-    line-height: 1.5;
+    font-size: 14px;
+    line-height: 1.55;
     color: var(--db-text-2);
-    margin: 4px 0 14px;
+    margin: 4px 0 16px;
 }
 
 .ad-otp-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
 }
 
 .ad-otp {
     flex: 1;
     display: block;
-    padding: 11px 14px;
-    border-radius: 10px;
-    border: 1px dashed var(--db-accent-border, var(--db-border));
+    padding: 13px 16px;
+    border-radius: 11px;
+    border: 1px dashed var(--db-accent-border);
     background: var(--db-accent-soft);
-    color: var(--db-accent-bright, var(--db-accent));
+    color: var(--db-accent-bright);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 15px;
+    font-size: 16px;
     letter-spacing: 0.12em;
     font-weight: 700;
     text-align: center;
     user-select: all;
 }
 
-/* System page */
+.ad-pw-input {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 15px !important;
+    letter-spacing: 0.06em;
+}
+
+/* ---- System page ---- */
+
 .ad-service {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 11px 4px;
-    border-top: 1px solid var(--db-border-soft, var(--db-border));
+    gap: 14px;
+    min-height: 58px;
+    padding: 12px 2px;
+    border-top: 1px solid var(--db-border);
+}
+
+.ad-service:first-child {
+    border-top: none;
 }
 
 .ad-dot {
-    width: 10px;
-    height: 10px;
+    width: 11px;
+    height: 11px;
     border-radius: 50%;
     flex-shrink: 0;
 }
@@ -406,22 +461,22 @@
 
 @keyframes ad-pulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.35); }
-    50% { box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.08); }
+    50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.08); }
 }
 
 .ad-config-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 4px 18px;
-    padding: 4px 4px 8px;
+    gap: 2px 20px;
+    padding: 8px 2px 2px;
 }
 
 .ad-config-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 2px;
-    font-size: 12.5px;
+    gap: 9px;
+    padding: 7px 2px;
+    font-size: 13px;
 }
 
 .ad-ok {
@@ -434,53 +489,64 @@
 
 .ad-volumes {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 12px;
-    padding: 6px 4px 10px;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 14px;
+    padding: 6px 2px 2px;
 }
 
 .ad-volume {
-    padding: 12px;
-    border-radius: 12px;
+    padding: 14px 16px;
+    border-radius: 13px;
     background: var(--db-card-2);
     border: 1px solid var(--db-border);
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 4px;
 }
 
 .ad-volume-num {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 700;
     color: var(--db-text);
 }
 
 .ad-volume-label {
-    font-size: 11.5px;
+    font-size: 12px;
     color: var(--db-text-3);
 }
 
-/* Bulk paste box */
+/* ---- Bulk paste ---- */
+
 .ad-bulk {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     align-items: stretch;
-    margin: 6px 0 14px;
+    margin: 2px 0 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--db-border);
+}
+
+.ad-bulk-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
 }
 
 .ad-bulk-input {
-    flex: 1;
+    width: 100%;
     resize: vertical;
-    min-height: 64px;
-    padding: 10px 12px;
-    border-radius: 11px;
+    min-height: 78px;
+    padding: 12px 14px;
+    border-radius: 12px;
     border: 1px solid var(--db-border);
     background: var(--db-card-2);
     color: var(--db-text);
-    font-size: 13px;
-    font-family: inherit;
-    line-height: 1.5;
+    font-size: 13.5px;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.6;
     outline: none;
 }
 
@@ -488,19 +554,35 @@
     border-color: var(--db-accent);
 }
 
+.ad-bulk-hint {
+    font-size: 12.5px;
+    color: var(--db-text-3);
+}
+
+.ad-bulk-hint .ok {
+    color: var(--db-green);
+}
+
+.ad-bulk-hint .bad {
+    color: var(--db-danger);
+}
+
 .ad-bulk .db-btn-primary {
     align-self: flex-end;
-    height: 40px;
+    height: 44px;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
+    font-size: 14px;
+    padding: 0 18px;
 }
 
 .ad-refresh {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    height: 40px;
+    gap: 7px;
+    height: 44px;
+    font-size: 14px;
 }
 
 .ad-spin {

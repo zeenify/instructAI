@@ -63,6 +63,17 @@ api.interceptors.response.use(
         return response;
     },
     (error) => {
+        // A revoked session (e.g. the admin disabled this account) shows up as
+        // a 401 on the NEXT request the app makes. End it cleanly instead of
+        // letting the page sit there failing forever.
+        const status = error.response?.status;
+        const url = error.config?.url || '';
+        const isAuthCall = ['/login', '/register', '/user'].some((p) => url.includes(p));
+        if (status === 401 && !isAuthCall && !window.location.pathname.startsWith('/login')) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('role');
+            window.location.assign('/login?expired=1');
+        }
         return Promise.reject(error);
     }
 );

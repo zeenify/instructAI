@@ -16,7 +16,7 @@ export default function AdminWhitelists() {
         <div className="db-hero-pad">
             <div className="ad-head-row">
                 <div>
-                    <h1 className="db-title">Whitelists</h1>
+                    <h1 className="ad-title">Whitelists</h1>
                     <p className="ad-sub">The registration gate: only listed LRNs and emails can create accounts for the school.</p>
                 </div>
             </div>

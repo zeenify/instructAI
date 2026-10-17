@@ -76,7 +76,7 @@ export function useSetUserActive() {
 export function useResetPassword() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (id) => api.post(`/admin/users/${id}/reset-password`),
+        mutationFn: ({ id, password }) => api.post(`/admin/users/${id}/reset-password`, password ? { password } : {}),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
         onError: (e) => reportError(e, 'Could not reset the password.'),
     });

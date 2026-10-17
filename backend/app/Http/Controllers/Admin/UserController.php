@@ -92,21 +92,26 @@ class UserController extends Controller
     }
 
     // No password-reset email exists (mail is log-only), so the admin hands
-    // the temp password over personally; it is returned exactly once.
-    public function resetPassword(User $user): JsonResponse
+    // the password over personally. The admin may type one or take the
+    // generated suggestion; either way it is returned exactly once.
+    public function resetPassword(Request $request, User $user): JsonResponse
     {
         $this->assertNotAdmin($user);
         if ($user->id === auth()->id()) {
             abort(422, 'Use the logout page to change your own password.');
         }
 
-        $temp = Str::upper(Str::random(3)) . '-' . Str::random(7);
+        $validated = $request->validate([
+            'password' => 'sometimes|nullable|string|min:8|max:64',
+        ]);
+
+        $temp = $validated['password'] ?? (Str::upper(Str::random(3)) . '-' . Str::random(7));
 
         $user->update(['password' => $temp]);
         $user->tokens()->delete();
 
         return response()->json([
-            'message' => "Temporary password generated for {$user->accountName()}. They sign in with it and nothing survives from before.",
+            'message' => "New password set for {$user->accountName()}. Their old sessions just ended.",
             'temp_password' => $temp,
         ]);
     }

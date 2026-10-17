@@ -29,7 +29,7 @@ export default function AdminClasses() {
         <div className="db-hero-pad">
             <div className="ad-head-row">
                 <div>
-                    <h1 className="db-title">Classes</h1>
+                    <h1 className="ad-title">Classes</h1>
                     <p className="ad-sub">All {all.length} classes in the school, newest first.</p>
                 </div>
             </div>
