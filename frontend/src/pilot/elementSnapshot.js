@@ -153,7 +153,33 @@ export function buildElementSnapshot() {
     const entries = [];
     const lines = [`Page: ${document.title} — ${window.location.pathname}`];
 
-    for (const el of candidates) {
+    // Cap priority — interaction relevance, not DOM order:
+    //   0. floating portals attached to body (calendars, dropdown menus —
+    //      the freshest interaction surface; they render at the END of the
+    //      DOM and DOM-order truncation cut exactly their day buttons)
+    //   1. inside an open dialog/modal — the covered background is not
+    //      what the teacher can act on right now
+    //   2. the rest of the page (in-viewport before below-fold)
+    const vh = window.innerHeight;
+    const DIALOG_SEL = '[role="dialog"], [class*="modal"], .gen-overlay, [class*="gen-card"]';
+    const rankOf = (el) => {
+        const p = el.parentElement;
+        if (p === document.body && getComputedStyle(el).position === 'fixed') return 0;
+        if (el.closest(DIALOG_SEL)) return 1;
+        return 2;
+    };
+    const ranked = candidates.map((el) => {
+        const rect = el.getBoundingClientRect();
+        return { el, rank: rankOf(el), top: rect.top };
+    });
+    ranked.sort(
+        (a, b) =>
+            a.rank - b.rank ||
+            (a.top <= vh ? 0 : 1) - (b.top <= vh ? 0 : 1)
+    );
+    const ordered = ranked.map((c) => c.el);
+
+    for (const el of ordered) {
         if (entries.length >= MAX_ELEMENTS) {
             // Don't just count the cut — NAME it. A bare "N more truncated"
             // hid exactly the controls the model was hunting for (the

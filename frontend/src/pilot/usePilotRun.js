@@ -49,7 +49,7 @@ const LOOKUP_LABELS = {
 // "make a 5-question quiz" run spends 2-3 batches PER question). Loop
 // protection proper lives in the repeat-guard (identical all-failed batch)
 // and the failed-lookup streak; this only stops degenerate wandering.
-const MAX_TOOL_TURNS = 24;
+const MAX_TOOL_TURNS = 30;
 
 export const PILOT_SUGGESTIONS = [
     'Summarize my classes',
@@ -513,26 +513,29 @@ export function usePilotRun() {
             }
             lastBatchKeyRef.current = batchKey;
 
-            // Read-loop detection: identical read batches don't fail, they
-            // just keep returning the same page. 3× → a warning rides back
-            // to the model; 6× → stop the run the same way the failed-batch
-            // guard does.
+            // Loop detection: identical batches mean the model is stuck —
+            // reads just keep returning the same page; repeated CLICKS can
+            // be worse (a toggle button opens then closes the same popup).
+            // 3× → a warning rides back to the model; 6× → stop the run.
             const isReadBatch = commands.every((c) => SILENT_ACTIONS.has(String(c.action)) || String(c.action) === 'scroll');
-            if (isReadBatch) {
-                if (batchKey === readLoopKeyRef.current) readLoopCountRef.current += 1;
-                else {
-                    readLoopKeyRef.current = batchKey;
-                    readLoopCountRef.current = 1;
-                }
-            } else {
-                readLoopKeyRef.current = null;
-                readLoopCountRef.current = 0;
+            if (batchKey === readLoopKeyRef.current) readLoopCountRef.current += 1;
+            else {
+                readLoopKeyRef.current = batchKey;
+                readLoopCountRef.current = 1;
             }
             if (readLoopCountRef.current >= 6) {
-                push({ kind: 'notice', text: "The same read keeps landing on the same page — I'm stopping rather than spinning. Tell me what I'm missing and I'll pick it up from there." });
+                push({ kind: 'notice', text: "The same steps keep landing in the same place — I'm stopping rather than spinning. Tell me what I'm missing and I'll pick it up from there." });
                 await finalize();
                 return;
             }
+            const loopWarning = readLoopCountRef.current >= 3
+                ? [{
+                    action: 'repeat',
+                    ref: null,
+                    ok: false,
+                    message: `identical batch repeated ${readLoopCountRef.current}× — this exact sequence is not progressing${isReadBatch ? ' and the control you\'re hunting is not appearing in snapshots' : ' (if a click opens then closes the same popup, that\'s why — look at what\'s ALREADY open in the snapshot)'}. Change approach: act on a different ref, scroll or goto somewhere fresh, or tell the teacher this control doesn't exist.`,
+                }]
+                : [];
 
             if (streamingRef.current) updateMessage(streamingRef.current, { streaming: false });
             streamingRef.current = null;
@@ -579,16 +582,7 @@ export function usePilotRun() {
                         ok: r.ok,
                         blocked: r.blocked || undefined,
                         message: r.message,
-                    })).concat(
-                        readLoopCountRef.current >= 3
-                            ? [{
-                                action: 'repeat',
-                                ref: null,
-                                ok: false,
-                                message: `identical read batch repeated ${readLoopCountRef.current}× — the control you're hunting is not appearing in snapshots. Change approach: scroll a different distance, goto the page fresh, or tell the teacher this page doesn't have it.`,
-                            }]
-                            : []
-                    ),
+                    })).concat(loopWarning),
                 },
             });
         },

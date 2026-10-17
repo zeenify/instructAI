@@ -242,7 +242,41 @@ async function runOne(cmd, ctx) {
         if (target) {
             target.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         } else {
-            window.scrollBy({ top: cmd.direction === 'up' ? -420 : 420, behavior: 'smooth' });
+            // Scroll the scrollable container nearest the viewport center —
+            // modals scroll their own body and window.scrollBy never reaches
+            // fields inside them (a whole turn budget died hunting the
+            // points field inside the classwork modal). Popups over the
+            // center are skipped: they are not the surface the model means.
+            const dir = cmd.direction === 'up' ? -420 : 420;
+            const cx = window.innerWidth / 2;
+            const cy = window.innerHeight / 2;
+            let chosen = null;
+            try {
+                const scrollables = [...document.querySelectorAll('*')].filter((el) => {
+                    if (el.closest('[data-euna-ignore]')) return false;
+                    const s = getComputedStyle(el);
+                    return /(auto|scroll)/.test(s.overflowY)
+                        && el.scrollHeight > el.clientHeight + 4
+                        && el.clientHeight > 120;
+                });
+                // The INNERMOST scrollable containing the viewport center —
+                // the page behind a modal is also scrollable and also
+                // contains the center; scrolling it moves nothing the model
+                // can see.
+                let bestArea = Infinity;
+                for (const el of scrollables) {
+                    const r = el.getBoundingClientRect();
+                    if (r.width < 100 || r.height < 100) continue;
+                    if (!(cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom)) continue;
+                    const area = r.width * r.height;
+                    if (area < bestArea) {
+                        bestArea = area;
+                        chosen = el;
+                    }
+                }
+            } catch { /* best effort — fall back to window */ }
+            if (chosen) chosen.scrollBy({ top: dir, behavior: 'smooth' });
+            else window.scrollBy({ top: dir, behavior: 'smooth' });
         }
         await sleep(450);
         throwIfAborted(ctx.signal);
@@ -285,12 +319,37 @@ async function runOne(cmd, ctx) {
         await sleep(180);
         throwIfAborted(ctx.signal);
         overlay.pulseAt(x, y);
+        // Toggle truth: popups (date pickers, dropdown menus) portal to the
+        // body as fixed elements. Clicking a trigger can OPEN one — or CLOSE
+        // the one that was already open — and the model never tracked that,
+        // so it re-clicked triggers and burned the budget re-opening a
+        // calendar it had just closed. State the delta in the result.
+        // Best-effort only: this note must never break the click itself.
+        let portalsBefore = [];
+        let clickedInPortal = false;
+        try {
+            portalsBefore = [...document.body.children].filter((el) => {
+                if (el.closest('[data-euna-ignore]')) return false;
+                return getComputedStyle(el).position === 'fixed';
+            });
+            clickedInPortal = portalsBefore.some((p) => p.contains(target.el));
+        } catch { /* best effort */ }
         target.el.click();
         // The click's result is often a fetch-and-render (route change, modal
         // with its own query) — settle like a goto, or the auto-snapshot is a
         // 13-element shell and the model answers from stale history instead
         await waitForPageSettle(ctx);
-        return { action, ref, ok: true, message: `clicked "${target.entry.name || ref}"` };
+        let portalNote = '';
+        try {
+            const portalsAfter = [...document.body.children].filter((el) => {
+                if (el.closest('[data-euna-ignore]')) return false;
+                return getComputedStyle(el).position === 'fixed';
+            });
+            if (portalsAfter.length > portalsBefore.length) portalNote = ' — a popup/menu OPENED from this click; its controls are in the snapshot, act on them directly (do not click the trigger again)';
+            else if (portalsAfter.length < portalsBefore.length && clickedInPortal) portalNote = ' — the popup closed after your selection; that is normal — the value is set, move on to the next field';
+            else if (portalsAfter.length < portalsBefore.length) portalNote = ' — the popup that was open is now CLOSED (this trigger toggles it)';
+        } catch { /* best effort */ }
+        return { action, ref, ok: true, message: `clicked "${target.entry.name || ref}"${portalNote}` };
     }
 
     if (action === 'input') {

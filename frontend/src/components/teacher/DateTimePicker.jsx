@@ -154,14 +154,14 @@ export default function DateTimePicker({ value, onChange, disabled }) {
                     }}
                 >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                        <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} type="button"
+                        <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} type="button" aria-label="Previous month"
                             style={{ display: 'grid', placeItems: 'center', width: 30, height: 30, background: 'transparent', border: '1px solid var(--db-border)', borderRadius: 9, cursor: 'pointer', color: 'var(--db-text-2)' }}>
                             <ChevronLeft size={16} />
                         </button>
                         <span style={{ fontFamily: 'var(--db-font-display)', fontSize: 15, fontWeight: 700, color: 'var(--db-text)' }}>
                             {format(currentMonth, 'MMMM yyyy')}
                         </span>
-                        <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} type="button"
+                        <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} type="button" aria-label="Next month"
                             style={{ display: 'grid', placeItems: 'center', width: 30, height: 30, background: 'transparent', border: '1px solid var(--db-border)', borderRadius: 9, cursor: 'pointer', color: 'var(--db-text-2)' }}>
                             <ChevronRight size={16} />
                         </button>
@@ -180,6 +180,7 @@ export default function DateTimePicker({ value, onChange, disabled }) {
                             const isToday = isSameDay(day, new Date());
                             return (
                                 <button key={day.toISOString()} onClick={() => selectDay(day)} type="button"
+                                    aria-label={format(day, 'MMMM d, yyyy')}
                                     style={{
                                         padding: '8px 0', borderRadius: 9, border: isSelected ? 'none' : '1px solid transparent',
                                         background: isSelected ? 'var(--db-accent)' : isToday ? 'var(--db-accent-soft)' : 'transparent',
