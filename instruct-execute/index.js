@@ -101,6 +101,32 @@ function probeGpp() {
 }
 RUNTIMES.gpp = probeGpp();
 
+// Same stale-env trap as g++: a spawned engine on Windows often inherits a
+// PATH without the per-user Python install, which silently locks every
+// python coding question. Fall back to the well-known install locations —
+// an absolute path also sidesteps spawn's .exe resolution.
+function probePython() {
+    const fromPath = ['python3', 'python'].find((bin) => probe(bin));
+    if (fromPath) return fromPath;
+    if (process.platform !== 'win32') return null;
+    const known = [];
+    for (const ver of ['313', '312', '311', '310']) {
+        known.push(path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', `Python${ver}`, 'python.exe'));
+        known.push(`C:\\Python${ver}\\python.exe`);
+        known.push(`C:\\Program Files\\Python${ver}\\python.exe`);
+    }
+    for (const exe of known) {
+        try {
+            if (exe && fs.existsSync(exe)) {
+                const r = spawnSync(exe, ['--version'], { stdio: 'ignore', timeout: 8000 });
+                if (!r.error && r.status === 0) return exe;
+            }
+        } catch { /* try the next location */ }
+    }
+    return null;
+}
+RUNTIMES.python = probePython();
+
 // --- PROCESS-TREE KILL ---
 // The direct child is spawned detached (its own process group on POSIX), so a
 // group signal takes grandchildren with it. Windows needs taskkill /T.

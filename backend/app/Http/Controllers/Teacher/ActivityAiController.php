@@ -352,12 +352,29 @@ class ActivityAiController extends Controller
                 $activity->questions()->delete();
             }
 
+            // The AI writes the correct MC answer into the first slot far too
+            // often — a quiz where "A" is always right is a giveaway. Seat
+            // answers along a balanced shuffled plan (0,1,2,3 cycling, then
+            // shuffled) so the distribution looks like a real teacher's.
+            $mcCount = collect($incoming)
+                ->filter(fn ($q) => ($q['type'] ?? '') === 'multiple_choice')
+                ->count();
+            $slotPool = [];
+            for ($i = 0; $i < $mcCount; $i++) {
+                $slotPool[] = $i % 4;
+            }
+            shuffle($slotPool);
+            $mcSeen = 0;
+
             $baseOrder = (int) ($activity->questions()->max('order_index') ?? 0);
             $saved = [];
             $order = $baseOrder;
 
             foreach ($incoming as $q) {
-                $normalized = $this->normalizeQuestion($q, $courseLanguage);
+                $mcSlot = ($q['type'] ?? '') === 'multiple_choice'
+                    ? ($slotPool[$mcSeen++] ?? null)
+                    : null;
+                $normalized = $this->normalizeQuestion($q, $courseLanguage, $mcSlot);
                 if ($normalized === null) {
                     continue; // unfixable shape (e.g. MC answer doesn't match an option)
                 }
@@ -382,8 +399,10 @@ class ActivityAiController extends Controller
      * Map an AI/teacher-reviewed question onto the ActivityQuestion shape.
      * Returns null for shapes that can't be saved safely. $courseLanguage
      * backfills the language for coding questions the client didn't tag.
+     * $mcSlot re-seats the correct MC answer at an assigned position — the
+     * generator's first-slot habit dies here, not in a prompt.
      */
-    private function normalizeQuestion(array $q, ?string $courseLanguage = null): ?array
+    private function normalizeQuestion(array $q, ?string $courseLanguage = null, ?int $mcSlot = null): ?array
     {
         $type = $q['type'];
         $text = trim($q['question_text']);
@@ -395,7 +414,7 @@ class ActivityAiController extends Controller
         $points = max(1, (int) $q['points']);
 
         return match ($type) {
-            'multiple_choice' => (function () use ($text, $options, $answer, $points) {
+            'multiple_choice' => (function () use ($text, $options, $answer, $points, $mcSlot) {
                 if (count($options) < 2) {
                     return null;
                 }
@@ -408,6 +427,15 @@ class ActivityAiController extends Controller
                 }
                 if ($index === null) {
                     return null; // the correct answer must be one of the options
+                }
+                if ($mcSlot !== null) {
+                    $slot = min($mcSlot, count($options) - 1);
+                    if ($index !== $slot) {
+                        $answerOption = $options[$index];
+                        array_splice($options, $index, 1);
+                        array_splice($options, $slot, 0, [$answerOption]);
+                        $index = $slot;
+                    }
                 }
                 return [
                     'type' => 'multiple_choice',

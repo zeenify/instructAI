@@ -321,31 +321,47 @@ async def generate_qa_questions_stream(ai_pool: AIClientPool, context_sources, s
         if recent:
             user_prompt += f"\n\nALREADY WRITTEN (do not repeat):\n{recent}"
 
-        content = None
-        try:
-            async for kind, payload in _run_batch(
-                ai_pool,
-                model=GEN_CONTENT_MODEL,
-                messages=[
-                    {"role": "system", "content": _SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                response_format=qa_questions_format(qtype),
-                temperature=0.6,
-                max_tokens=2400,
-            ):
-                if kind == "heartbeat":
-                    yield ": heartbeat\n\n"
-                elif kind == "status":
-                    yield f"data: {json.dumps({'type': 'status', 'message': payload})}\n\n"
-                else:
-                    content = payload
-        except Exception as e:
-            print(f"[QA] batch {index + 1} failed: {type(e).__name__}: {e}")
-            yield f"data: {json.dumps({'type': 'status', 'message': 'That batch hit a snag — trying the next one…'})}\n\n"
-            continue
+        # Coding batches carry boilerplate + a full reference solution per
+        # question — twice the tokens of an objective batch; a 2400 cap
+        # truncates the JSON mid-string and the batch parses to zero.
+        batch_max_tokens = 4000 if qtype == "coding" else 2400
 
-        questions = _parse_batch(content, qtype, language=language)
+        questions = []
+        for attempt in range(2):  # one quiet retry on an empty parse
+            content = None
+            try:
+                async for kind, payload in _run_batch(
+                    ai_pool,
+                    model=GEN_CONTENT_MODEL,
+                    messages=[
+                        {"role": "system", "content": _SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    response_format=qa_questions_format(qtype),
+                    temperature=0.6,
+                    max_tokens=batch_max_tokens,
+                ):
+                    if kind == "heartbeat":
+                        yield ": heartbeat\n\n"
+                    elif kind == "status":
+                        yield f"data: {json.dumps({'type': 'status', 'message': payload})}\n\n"
+                    else:
+                        content = payload
+            except Exception as e:
+                print(f"[QA] batch {index + 1} failed: {type(e).__name__}: {e}")
+                yield f"data: {json.dumps({'type': 'status', 'message': 'That batch hit a snag — trying the next one…'})}\n\n"
+                break
+
+            questions = _parse_batch(content, qtype, language=language)
+            if questions:
+                break
+            # A structured reply that parses to zero was invisible — log the
+            # head so truncation/shape drift is diagnosable, then retry once.
+            print(f"[QA] batch {index + 1} ({qtype}) parsed 0 questions "
+                  f"(attempt {attempt + 1}/2) — head: {(content or '')[:200]!r}")
+            if attempt == 0:
+                yield f"data: {json.dumps({'type': 'status', 'message': 'That batch came back odd — retrying once…'})}\n\n"
+
         if not questions:
             yield f"data: {json.dumps({'type': 'status', 'message': 'That batch came back empty — trying the next one…'})}\n\n"
             continue
