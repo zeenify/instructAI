@@ -1337,7 +1337,7 @@ class ClassActivityController extends Controller
         $this->authorizeActivity($activityId);
 
         $submissions = ActivitySubmission::where('activity_id', $activityId)
-            ->with(['student.studentProfile', 'answers.question'])
+            ->with(['student.studentProfile', 'answers.question.testCases:id,testable_type,testable_id,order_index'])
             ->orderBy('submitted_at', 'desc')
             ->get();
 

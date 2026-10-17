@@ -18,6 +18,20 @@ function studentAvatar(s) {
   return s?.student?.avatar || s?.avatar || null;
 }
 
+// Mirror of the backend's ActivityGrading::autoGradable — a coding question
+// with test cases (or HTML with page checks) grades itself at submit; without
+// them it needs the teacher. The grading page's grouping must follow this,
+// not the question type.
+function isAutoGradableQuestion(q) {
+  if (!q) return false;
+  if (q.type === 'essay') return false;
+  if (q.type === 'coding') {
+    if ((q.language || 'java') === 'html') return (q.html_checks || []).length > 0;
+    return ((q.test_cases ?? q.testCases)?.length ?? 0) > 0;
+  }
+  return true;
+}
+
 function FilePreview({ file }) {
   const isImage = /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(file.name || file.url);
   const [loaded, setLoaded] = useState(false);
@@ -296,8 +310,8 @@ export default function ActivityGrading() {
 
             {/* Per-answer grading — manual questions first, auto-graded below */}
             {gradingTarget.questions && gradingTarget.questions.length > 0 && (() => {
-              const manual = gradingTarget.questions.filter((q) => q.type === 'essay' || q.type === 'coding');
-              const auto = gradingTarget.questions.filter((q) => q.type !== 'essay' && q.type !== 'coding');
+              const manual = gradingTarget.questions.filter((q) => !isAutoGradableQuestion(q));
+              const auto = gradingTarget.questions.filter((q) => isAutoGradableQuestion(q));
 
               const answerOf = (q) => gradingTarget.answers?.find((a) => a.question_id === q.id);
               const questionNumber = (q) => gradingTarget.questions.indexOf(q) + 1;
@@ -374,22 +388,29 @@ export default function ActivityGrading() {
                               </p>
                               <span className="ag-mq-label" style={{ whiteSpace: 'nowrap' }}>{q.points} pts</span>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                              <span className="ag-aq-answer">
-                                {answerSummary(q, answer)}
-                              </span>
-                              {answer?.is_correct !== null && answer?.is_correct !== undefined && (
-                                <span className={`ag-verdict ${answer?.is_correct ? 'pass' : 'fail'}`}>
-                                  {answer?.is_correct ? 'Correct (auto)' : 'Incorrect (auto)'}
-                                </span>
-                              )}
-                              <div className="ag-score-row" style={{ marginLeft: 'auto' }}>
-                                <input type="number" min={0} max={q.points} step={0.5} className="ag-score-input" style={{ width: 64, fontSize: 13 }}
-                                  title="Override the auto score if needed"
-                                  value={gradingForm.answers?.[q.id]?.score ?? 0}
-                                  onChange={(e) => { const v = Math.min(Math.max(Number(e.target.value) || 0, 0), q.points); setGradingForm((prev) => ({ ...prev, answers: { ...prev.answers, [q.id]: { score: v } } })); }} />
-                                <span className="ag-score-max-label">/ {q.points}</span>
+                            {q.type === 'coding' && answer?.submitted_answer ? (
+                              <div style={{ marginBottom: 10 }}>
+                                <CodingAnswerView language={q.language} code={answer.submitted_answer} htmlChecks={q.html_checks || []} testResults={answer.test_results} />
                               </div>
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                                <span className="ag-aq-answer">
+                                  {answerSummary(q, answer)}
+                                </span>
+                                {answer?.is_correct !== null && answer?.is_correct !== undefined && (
+                                  <span className={`ag-verdict ${answer?.is_correct ? 'pass' : 'fail'}`}>
+                                    {answer?.is_correct ? 'Correct (auto)' : 'Incorrect (auto)'}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            <div className="ag-score-row" style={q.type === 'coding' ? {} : { marginLeft: 'auto' }}>
+                              <label className="ag-score-label">Score:</label>
+                              <input type="number" min={0} max={q.points} step={0.5} className="ag-score-input" style={{ width: 64, fontSize: 13 }}
+                                title="Override the auto score if needed"
+                                value={gradingForm.answers?.[q.id]?.score ?? 0}
+                                onChange={(e) => { const v = Math.min(Math.max(Number(e.target.value) || 0, 0), q.points); setGradingForm((prev) => ({ ...prev, answers: { ...prev.answers, [q.id]: { score: v } } })); }} />
+                              <span className="ag-score-max-label">/ {q.points}</span>
                             </div>
                           </div>
                         );
@@ -577,6 +598,21 @@ function CodingAnswerView({ language, code, htmlChecks: htmlChecksProp = [], tes
 
   return (
     <div className="ag-cv">
+      {/* IO test-case verdicts from submit-time auto-grading — so the teacher
+          sees WHY the score is what it is instead of trusting a number */}
+      {(testResults?.tests?.length ?? 0) > 0 && (
+        <div className="ag-cv-checks" style={{ marginBottom: 8 }}>
+          <div className="ag-cv-checks-title">
+            Test cases — {testResults.passed}/{testResults.total} passed (graded automatically)
+          </div>
+          {testResults.tests.map((t, i) => (
+            <div key={i} className="ag-cv-check-row">
+              <span style={{ color: t.passed ? '#34d399' : '#f87171', flexShrink: 0 }}>{t.passed ? '✓' : '✕'}</span>
+              <span>Test {i + 1}{t.hidden ? ' (hidden)' : ''}</span>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="ag-cv-head">
         <span className="ag-cv-lang" style={{ background: `${lang.color}1f`, border: `1px solid ${lang.color}55`, color: lang.color }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: lang.color }} />

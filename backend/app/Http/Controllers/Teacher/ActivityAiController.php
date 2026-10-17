@@ -237,6 +237,10 @@ class ActivityAiController extends Controller
                 // Coding questions are written in the course's language — the
                 // same convention the studio's lesson-challenge generator uses
                 'language' => $course?->language,
+                // Opt-in: the AI also proposes IO test cases for coding
+                // questions (Python engine-verifies them against the
+                // reference solution before they reach the review)
+                'generate_test_cases' => (bool) ($settings['generate_test_cases'] ?? false),
             ])],
         ];
 
@@ -323,6 +327,12 @@ class ActivityAiController extends Controller
             'questions.*.boilerplate' => 'nullable|string|max:5000',
             'questions.*.reference_code' => 'nullable|string|max:50000',
             'questions.*.language' => 'nullable|string|in:' . implode(',', CodeRunner::LANGUAGES),
+            // Opt-in AI-proposed test cases (already engine-verified in the
+            // Python stream against the question's reference solution)
+            'questions.*.test_cases' => 'nullable|array|max:6',
+            'questions.*.test_cases.*.input' => 'nullable|string|max:2000',
+            'questions.*.test_cases.*.expected_output' => 'required|string|max:2000',
+            'questions.*.test_cases.*.hidden' => 'nullable|boolean',
         ]);
 
         $mode = $validated['mode'];
@@ -370,8 +380,25 @@ class ActivityAiController extends Controller
                 if ($normalized === null) {
                     continue; // unfixable shape (e.g. MC answer doesn't match an option)
                 }
+                // Opt-in AI-proposed test cases for coding questions — already
+                // engine-verified in the Python stream, saved as-first-class
+                // so these questions grade themselves like manual ones.
+                $testCases = $normalized['test_cases'] ?? [];
+                unset($normalized['test_cases']);
+
                 $order++;
-                $saved[] = $activity->questions()->create($normalized + ['order_index' => $order]);
+                $created = $activity->questions()->create($normalized + ['order_index' => $order]);
+                foreach ($testCases as $i => $tc) {
+                    \App\Models\QuestionTestCase::create([
+                        'testable_type' => ActivityQuestion::class,
+                        'testable_id' => $created->id,
+                        'input' => (string) ($tc['input'] ?? ''),
+                        'expected_output' => (string) $tc['expected_output'],
+                        'hidden' => (bool) ($tc['hidden'] ?? false),
+                        'order_index' => $i,
+                    ]);
+                }
+                $saved[] = $created;
             }
 
             return $saved;
@@ -484,6 +511,17 @@ class ActivityAiController extends Controller
                     'reference_code' => trim((string) ($q['reference_code'] ?? '')),
                     'language' => $language,
                     'points' => $points,
+                    // Carried aside for the commit loop to save as
+                    // QuestionTestCase rows (never straight onto the model)
+                    'test_cases' => collect($q['test_cases'] ?? [])
+                        ->filter(fn ($t) => is_array($t) && trim((string) ($t['expected_output'] ?? '')) !== '')
+                        ->values()
+                        ->map(fn ($t) => [
+                            'input' => (string) ($t['input'] ?? ''),
+                            'expected_output' => trim((string) $t['expected_output']),
+                            'hidden' => (bool) ($t['hidden'] ?? false),
+                        ])
+                        ->all(),
                 ];
             })(),
             default => null,

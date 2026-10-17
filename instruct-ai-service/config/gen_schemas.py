@@ -276,9 +276,9 @@ _ESSAY_QUESTION = _question({
     "points": {"type": "integer"},
 }, ["question_text", "type", "points"])
 
-# Activities grade coding against a single expected output (no engine-verified
-# test cases here — that's the lesson-challenge pipeline), so the Q&A coding
-# shape is the studio's minus test_cases.
+# Coding shape carries OPTIONAL test_cases: only present when the teacher
+# opts in (generate_test_cases), and every proposed test is engine-verified
+# against reference_solution before the teacher ever sees it.
 _QA_CODING_QUESTION = _question({
     "question_text": {"type": "string"},
     "type": {"type": "string"},
@@ -287,6 +287,13 @@ _QA_CODING_QUESTION = _question({
     "boilerplate": {"type": "string"},
     "reference_solution": {"type": "string"},
     "expected_output": {"type": "string"},
+    "test_cases": {
+        "type": "array",
+        "items": _obj({
+            "input": {"type": "string"},
+            "expected_output": {"type": "string"},
+        }, ["input", "expected_output"]),
+    },
 }, ["question_text", "type", "language", "points", "boilerplate",
     "reference_solution", "expected_output"])
 

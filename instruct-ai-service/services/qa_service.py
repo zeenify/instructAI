@@ -17,6 +17,8 @@ Event contract (SSE `data: {json}\n\n`, `: heartbeat\n\n` comments):
 
 import asyncio
 import json
+import os
+import urllib.request
 
 from config.gen_schemas import qa_questions_format
 from config.models import GEN_CONTENT_MODEL
@@ -120,18 +122,27 @@ def _build_context_block(context_sources):
     return "\n\n".join(parts) if parts else ""
 
 
-def _build_batch_user_prompt(context_block, qtype, n, difficulty, focus, language=None):
+def _build_batch_user_prompt(context_block, qtype, n, difficulty, focus, language=None, with_test_cases=False):
     focus_line = f"\nTEACHER'S FOCUS (honor it): {focus}" if focus else ""
     # Coding tasks are written in the course's language — the same convention
     # the studio uses so generated code never drifts
     language_line = (
         f"\nCODE LANGUAGE: write every line of code strictly in {language}." if qtype == "coding" and language else ""
     )
+    test_cases_line = (
+        "\nTEST CASES: every coding question MUST also carry a `test_cases` array of 2-3 objects "
+        '`{"input", "expected_output"}` — "input" is the exact stdin fed to the program (may be empty only if '
+        'the program reads nothing), "expected_output" is the exact stdout YOUR reference_solution prints for '
+        "that stdin. Open-ended, no-input programs still get an empty-input test. Copy outputs verbatim; "
+        "cover a normal case and at least one different-value case — the teacher will see these and students "
+        "are auto-graded against them."
+        if qtype == "coding" and with_test_cases else ""
+    )
     return (
         f"CLASS MATERIAL:\n{context_block}\n"
         f"\nTASK: Write {n} new {TYPE_LABELS.get(qtype, qtype)} questions grounded ONLY in the "
         f"material above. Difficulty: {difficulty} — {DIFFICULTY_HINTS.get(difficulty, DIFFICULTY_HINTS['medium'])}"
-        f"{language_line}{focus_line}"
+        f"{language_line}{focus_line}{test_cases_line}"
     )
 
 
@@ -276,12 +287,84 @@ def _parse_batch(content, qtype, language=None):
             item["reference_code"] = str(q.get("reference_solution") or "").strip()
             if language:
                 item["language"] = language
+            # Proposed IO test cases (optional, only requested by the teacher).
+            # They are engine-verified against reference_code AFTER parsing —
+            # anything the reference fails never reaches the review.
+            tcs = []
+            for t in (q.get("test_cases") if isinstance(q.get("test_cases"), list) else []):
+                if not isinstance(t, dict):
+                    continue
+                t_in = str(t.get("input") or "")
+                t_out = str(t.get("expected_output") or "").strip()
+                if not t_out:
+                    continue
+                tcs.append({"input": t_in, "expected_output": t_out, "hidden": bool(t.get("hidden"))})
+            item["test_cases"] = tcs
             # A coding task without starter code or a runnable expectation is
             # unsavable — skip it here so the teacher never reviews a broken card
             if not item["boilerplate"] or not item["expected_output"]:
                 continue
         out.append(item)
     return out
+
+
+# --- Proposed-test-case verification -----------------------------------------
+# The execution engine grades students by running code and comparing stdout;
+# a test case the reference solution itself fails would auto-zero a correct
+# student. Every proposed test is run against reference_code on the engine
+# and only tests the reference passes survive. Engine unreachable -> ship
+# the questions WITHOUT test cases (teacher-graded) rather than blind. The
+# mirrors CodeRunner::normalizeOutput so grading and verification agree.
+
+def _normalize_output(text):
+    text = (text or "").replace("\r\n", "\n")
+    lines = [line.rstrip() for line in text.split("\n")]
+    while lines and lines[-1] == "":
+        lines.pop()
+    return "\n".join(lines)
+
+
+def _engine_exec(language, code, stdin):
+    engine_url = (os.environ.get("EXECUTION_ENGINE_URL") or "http://localhost:3000").rstrip("/")
+    engine_token = os.environ.get("EXECUTION_ENGINE_TOKEN") or ""
+    headers = {"Content-Type": "application/json"}
+    if engine_token:
+        headers["X-Engine-Token"] = engine_token
+    req = urllib.request.Request(
+        engine_url + "/execute",
+        data=json.dumps({"language": language, "code": code, "input": stdin}).encode(),
+        headers=headers,
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        return json.loads(resp.read().decode())
+
+
+def _verify_batch_test_cases(questions, language):
+    """Keeps only test cases the reference solution actually passes; ships
+    questions with zero surviving tests without test cases (teacher-scored)."""
+    for q in questions:
+        tests = q.get("test_cases") or []
+        if not tests or not q.get("reference_code"):
+            q["test_cases"] = []
+            continue
+        kept = []
+        for t in tests:
+            try:
+                run = _engine_exec(language, q["reference_code"], t["input"])
+                failed_on_engine = bool((run.get("stderr") or "").strip() or (run.get("compile_output") or "").strip())
+                ok = (not failed_on_engine) and _normalize_output(run.get("stdout")) == _normalize_output(t["expected_output"])
+            except Exception as e:
+                print(f"[QA] test-case verify skipped — engine unreachable: {type(e).__name__}: {e}")
+                kept = []
+                break
+            if ok:
+                kept.append(t)
+            else:
+                print(f"[QA] dropped a proposed test case the reference solution failed")
+        q["test_cases"] = kept
+        if not kept:
+            q.pop("test_cases", None)
+    return questions
 
 
 async def generate_qa_questions_stream(ai_pool: AIClientPool, context_sources, settings):
@@ -299,6 +382,7 @@ async def generate_qa_questions_stream(ai_pool: AIClientPool, context_sources, s
     focus = _clip(str(settings.get("focus") or ""), 500)
     language = str(settings.get("language") or "").strip() or None
     counts = settings.get("counts") if isinstance(settings.get("counts"), dict) else None
+    generate_test_cases = bool(settings.get("generate_test_cases"))
 
     context_block = _build_context_block(context_sources)
     if not context_block:
@@ -314,17 +398,20 @@ async def generate_qa_questions_stream(ai_pool: AIClientPool, context_sources, s
     for index, (qtype, n) in enumerate(batches):
         done = len(written)
         label = TYPE_LABELS[qtype]
-        yield f"data: {json.dumps({'type': 'status', 'message': f'Writing {label} questions ({done + 1}–{done + n} of {total})…'})}\n\n"
-
-        recent = "\n".join(f"- {q['question_text'][:140]}" for q in written[-10:])
-        user_prompt = _build_batch_user_prompt(context_block, qtype, n, difficulty, focus, language=language)
-        if recent:
-            user_prompt += f"\n\nALREADY WRITTEN (do not repeat):\n{recent}"
-
         # Coding batches carry boilerplate + a full reference solution per
         # question — twice the tokens of an objective batch; a 2400 cap
         # truncates the JSON mid-string and the batch parses to zero.
         batch_max_tokens = 4000 if qtype == "coding" else 2400
+        with_test_cases = qtype == "coding" and generate_test_cases
+        yield f"data: {json.dumps({'type': 'status', 'message': f'Writing {label} questions ({done + 1}–{done + n} of {total})…'})}\n\n"
+
+        recent = "\n".join(f"- {q['question_text'][:140]}" for q in written[-10:])
+        user_prompt = _build_batch_user_prompt(
+            context_block, qtype, n, difficulty, focus,
+            language=language, with_test_cases=with_test_cases,
+        )
+        if recent:
+            user_prompt += f"\n\nALREADY WRITTEN (do not repeat):\n{recent}"
 
         questions = []
         for attempt in range(2):  # one quiet retry on an empty parse
@@ -365,6 +452,14 @@ async def generate_qa_questions_stream(ai_pool: AIClientPool, context_sources, s
         if not questions:
             yield f"data: {json.dumps({'type': 'status', 'message': 'That batch came back empty — trying the next one…'})}\n\n"
             continue
+
+        if with_test_cases and any(q.get("test_cases") for q in questions):
+            yield f"data: {json.dumps({'type': 'status', 'message': 'Verifying proposed test cases on the execution engine…'})}\n\n"
+            questions = await asyncio.to_thread(
+                _verify_batch_test_cases, questions, language or "python"
+            )
+            kept = sum(len(q.get("test_cases") or []) for q in questions)
+            yield f"data: {json.dumps({'type': 'status', 'message': f'{kept} test case(s) survived verification'})}\n\n"
 
         written.extend(questions)
         yield (

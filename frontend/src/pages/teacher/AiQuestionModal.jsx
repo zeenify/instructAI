@@ -73,6 +73,8 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
     const [count, setCount] = useState(10);
     const [difficulty, setDifficulty] = useState('medium');
     const [counts, setCounts] = useState(ZERO_COUNTS);
+    // Opt-in: coding batches also propose IO test cases (engine-verified)
+    const [genTestCases, setGenTestCases] = useState(false);
     const [advancedOpen, setAdvancedOpen] = useState(false);
 
     const [statusLine, setStatusLine] = useState('');
@@ -235,6 +237,7 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
             focus,
             // null = automatic — the backend reads the material and decides
             counts: countsActive ? counts : null,
+            generate_test_cases: genTestCases,
         }));
         files.forEach((f) => form.append('files[]', f));
 
@@ -308,6 +311,11 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                 boilerplate: q.boilerplate ?? '',
                                 reference_code: q.reference_code ?? '',
                                 language: q.language ?? codingMeta?.language ?? '',
+                                test_cases: (q.test_cases ?? []).map((tc) => ({
+                                    input: tc.input ?? '',
+                                    expected_output: tc.expected_output ?? '',
+                                    hidden: !!tc.hidden,
+                                })),
                             };
                         });
                         if (batch.length) {
@@ -337,7 +345,7 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
             if (sawError) toast.message('Heads up', { description: `${sawError} — you can review what was written.` });
             setPhase('review');
         }
-    }, [activityId, selectedLessons, useCurriculum, difficulty, focus, files, counts, countsActive, totalCount, codingMeta]);
+    }, [activityId, selectedLessons, useCurriculum, difficulty, focus, files, counts, countsActive, totalCount, codingMeta, genTestCases]);
 
     const stopGeneration = () => {
         abortRef.current?.abort();
@@ -397,6 +405,7 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                     base.boilerplate = d.boilerplate ?? '';
                     base.reference_code = d.reference_code ?? '';
                     base.language = d.language || undefined;
+                    base.test_cases = (d.test_cases ?? []).filter((tc) => tc.expected_output?.trim());
                 }
                 return base;
             });
@@ -707,6 +716,27 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                                         ))}
                                                     </div>
                                                 </div>
+
+                                                {/* Only meaningful with coding questions in the mix. On =
+                                                    the generator also proposes IO test cases, engine-verifies
+                                                    them against its own solution, and the question grades
+                                                    itself at submit instead of waiting for the teacher. */}
+                                                <div className="aiq-adv-row" title={(counts.coding ?? 0) > 0 ? undefined : 'Add coding questions to the mix first'}>
+                                                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, cursor: (counts.coding ?? 0) > 0 ? 'pointer' : 'not-allowed', opacity: (counts.coding ?? 0) > 0 ? 1 : 0.5 }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={genTestCases}
+                                                            disabled={(counts.coding ?? 0) === 0}
+                                                            onChange={(e) => setGenTestCases(e.target.checked)}
+                                                            style={{ marginTop: 2 }}
+                                                        />
+                                                        <span style={{ fontSize: 13, lineHeight: 1.45 }}>
+                                                            <strong>Generate test cases for coding questions</strong>
+                                                            {' '}— the AI proposes stdin/expected-output checks, verifies them against its own
+                                                            solution on the engine, and these questions grade themselves automatically.
+                                                        </span>
+                                                    </label>
+                                                </div>
                                     </div>
                                 )}
                             </>
@@ -947,6 +977,48 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                                 />
                                             </div>
                                             {d.language && <span className="aiq-lang-chip">{d.language}</span>}
+                                            {/* Test cases — already engine-verified against the
+                                                reference solution at generation; each test is
+                                                one auto-grade probe. Editable + removable. */}
+                                            {(d.test_cases?.length ?? 0) > 0 && (
+                                                <div className="aiq-coding-field">
+                                                    <div className="aiq-rail-label">
+                                                        Test cases <span className="aiq-optional">already verified against the reference solution — with these, the question grades itself</span>
+                                                    </div>
+                                                    {d.test_cases.map((tc, ti) => (
+                                                        <div key={ti} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 10px', border: '1px solid var(--db-border, #333)', borderRadius: 10, marginBottom: 8 }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--db-text-3)' }}>Test {ti + 1} — stdin</span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => patchDraft(d.localId, { test_cases: d.test_cases.filter((_, j) => j !== ti) })}
+                                                                    style={{ background: 'transparent', border: 'none', color: 'var(--db-danger, #f87171)', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            </div>
+                                                            <textarea
+                                                                className="aiq-code"
+                                                                rows={2}
+                                                                value={tc.input}
+                                                                onChange={(e) => patchDraft(d.localId, { test_cases: d.test_cases.map((x, j) => (j === ti ? { ...x, input: e.target.value } : x)) })}
+                                                                aria-label={`Question ${index + 1} test case ${ti + 1} stdin`}
+                                                                spellCheck={false}
+                                                                placeholder="(empty stdin is allowed)"
+                                                            />
+                                                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--db-text-3)' }}>Expected stdout</span>
+                                                            <textarea
+                                                                className="aiq-code"
+                                                                rows={2}
+                                                                value={tc.expected_output}
+                                                                onChange={(e) => patchDraft(d.localId, { test_cases: d.test_cases.map((x, j) => (j === ti ? { ...x, expected_output: e.target.value } : x)) })}
+                                                                aria-label={`Question ${index + 1} test case ${ti + 1} expected output`}
+                                                                spellCheck={false}
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
