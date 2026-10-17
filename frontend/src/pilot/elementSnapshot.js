@@ -128,6 +128,7 @@ function describeElement(el, ref) {
 function entryLine(entry) {
     const parts = [`[${entry.ref}] ${entry.role}`];
     if (entry.name) parts.push(`"${entry.name}"`);
+    if (entry.owner) parts.push(`↳ in "${entry.owner}"`);
     if (entry.href) parts.push(`→ ${entry.href}`);
     if (entry.clickable) parts.push('· clickable');
     if (entry.belowFold) parts.push('· below fold');
@@ -152,6 +153,50 @@ export function buildElementSnapshot() {
 
     const entries = [];
     const lines = [`Page: ${document.title} — ${window.location.pathname}`];
+
+    // Pointer-origin cards are discovered FIRST (before refs are assigned)
+    // so that every control inside them can be annotated with its owner —
+    // with several draft cards on screen, four identical "Publish" buttons
+    // are indistinguishable positions, and the model published the WRONG
+    // draft. "[37] button Publish ↳ in Practice Task" removes the guess.
+    const captured = new Set();
+    const cardOwners = new Map();
+    const declaresPointer = (el) => {
+        try {
+            if (getComputedStyle(el).cursor !== 'pointer') return false;
+            const parent = el.parentElement;
+            return !parent || getComputedStyle(parent).cursor !== 'pointer';
+        } catch {
+            return false;
+        }
+    };
+    const cardNameOf = (el) => {
+        const clone = el.cloneNode(true);
+        clone.querySelectorAll('button,input,textarea,select,svg,[data-euna-ignore]').forEach((x) => x.replaceWith(' '));
+        return (clone.innerHTML.replace(/<[^>]*>/g, ' ') || '')
+            .replace(/\s+/g, ' ').trim().slice(0, NAME_LIMIT);
+    };
+    for (const el of document.querySelectorAll('div,li,tr,td,span,p')) {
+        if (cardOwners.size >= 24) break;
+        if (el.closest('[data-euna-ignore]') || el.closest('[aria-hidden="true"]')) continue;
+        if (el.matches('a,button,input,textarea,select,label,[role="button"],h1,h2,h3,h4')) continue;
+        if (!isVisible(el) || !declaresPointer(el)) continue;
+        // A pointer wrapper around form fields is noise — the field is the
+        // actionable thing
+        if (el.querySelector('input,textarea,select,[contenteditable="true"]')) continue;
+        const name = cardNameOf(el);
+        if (name.length < 2) continue;
+        cardOwners.set(el, name);
+    }
+    const ownerOf = (el) => {
+        let node = el.parentElement;
+        while (node && node !== document.body) {
+            const owner = cardOwners.get(node);
+            if (owner) return owner;
+            node = node.parentElement;
+        }
+        return null;
+    };
 
     // Cap priority — interaction relevance, not DOM order:
     //   0. floating portals attached to body (calendars, dropdown menus —
@@ -185,7 +230,7 @@ export function buildElementSnapshot() {
             // hid exactly the controls the model was hunting for (the
             // add-question palette), sending it into scroll/snapshot loops
             // after a control that was in the DOM but out of its window.
-            const cut = candidates.slice(MAX_ELEMENTS);
+            const cut = ordered.slice(entries.length);
             const names = new Map();
             for (const c of cut) {
                 const n = (
@@ -203,49 +248,22 @@ export function buildElementSnapshot() {
         }
         const entry = describeElement(el, entries.length + 1);
         if (!entry.name && !entry.input && !entry.href) continue; // unnamed, unactionable
+        const owner = ownerOf(el);
+        if (owner) entry.owner = owner;
         entries.push(entry);
+        captured.add(el);
         lines.push(entryLine(entry));
     }
 
-    // Pointer-affordance rows — list rows and cards the UI marks clickable
-    // with cursor:pointer that aren't semantic controls. The module builder's
-    // quiz/lesson rows are the load-bearing case: the ROW opens the item,
-    // while the only buttons inside it are per-item tools ("delete", "Live").
-    // Without a ref for the row itself the pilot can read the row but not
-    // touch it — and reaching for the adjacent Delete button is how the repro
-    // deleted a quiz while trying to open it. Only the element that DECLARES
-    // pointer (its parent doesn't inherit it) is captured, so a row isn't
-    // duplicated by every child span that inherits the cursor.
-    const captured = new Set(entries.map((e) => e.el));
-    const declaresPointer = (el) => {
-        try {
-            if (getComputedStyle(el).cursor !== 'pointer') return false;
-            const parent = el.parentElement;
-            return !parent || getComputedStyle(parent).cursor !== 'pointer';
-        } catch {
-            return false;
-        }
-    };
+    // Pointer-affordance rows get their refs here — the cards were already
+    // discovered above (for owner annotation); the ROW opens the item while
+    // the buttons inside it are per-item tools. Only the element that
+    // DECLARES pointer (its parent doesn't inherit it) is captured, so a row
+    // isn't duplicated by every child span that inherits the cursor.
     let pointerAdded = 0;
-    for (const el of document.querySelectorAll('div,li,tr,td,span,p')) {
+    for (const [el, name] of cardOwners) {
         if (entries.length >= MAX_ELEMENTS || pointerAdded >= 16) break;
-        if (el.closest('[data-euna-ignore]') || el.closest('[aria-hidden="true"]')) continue;
-        if (captured.has(el)) continue;
-        if (el.matches('a,button,input,textarea,select,label,[role="button"],h1,h2,h3,h4')) continue;
-        if (!isVisible(el) || !declaresPointer(el)) continue;
-        // A pointer wrapper around form fields is noise — the field is the
-        // actionable thing and is already captured
-        if (el.querySelector('input,textarea,select,[contenteditable="true"]')) continue;
-        // Name the row by its identity, not its tools — strip control labels,
-        // and put a space at every tag boundary (textContent would
-        // concatenate "03QUIZQuiz 3: Applied Ethics Check2 questionsOpen"
-        // into one unparseable token, which is how the model confused the
-        // quiz it created with a same-named sibling)
-        const clone = el.cloneNode(true);
-        clone.querySelectorAll('button,input,textarea,select,svg,[data-euna-ignore]').forEach((x) => x.replaceWith(' '));
-        const name = (clone.innerHTML.replace(/<[^>]*>/g, ' ') || '')
-            .replace(/\s+/g, ' ').trim().slice(0, NAME_LIMIT);
-        if (name.length < 2) continue;
+        if (captured.has(el) || !isVisible(el)) continue;
         const entry = describeElement(el, entries.length + 1);
         entry.name = name;
         entries.push(entry);

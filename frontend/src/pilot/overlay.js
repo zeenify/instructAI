@@ -87,6 +87,14 @@ function animateCursorTo(x, y, durationMs) {
         const start = performance.now();
 
         if (rafId) cancelAnimationFrame(rafId);
+        let done = false;
+        const finish = () => {
+            if (done) return;
+            done = true;
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = null;
+            resolve();
+        };
         const step = (now) => {
             const t = Math.min(1, (now - start) / dur);
             const e = easeOutCubic(t);
@@ -95,11 +103,15 @@ function animateCursorTo(x, y, durationMs) {
             if (t < 1) {
                 rafId = requestAnimationFrame(step);
             } else {
-                rafId = null;
-                resolve();
+                finish();
             }
         };
         rafId = requestAnimationFrame(step);
+        // rAF is throttled to zero in hidden/backgrounded tabs — without
+        // this wall-clock fallback a hidden pane wedges the entire driving
+        // batch (the glide promise never resolves, and no watchdog covers
+        // batch execution).
+        setTimeout(finish, dur + 400);
     });
 }
 

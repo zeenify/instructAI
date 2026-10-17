@@ -454,7 +454,13 @@ export async function executeBatch(commands, ctx) {
         if (ctx.signal?.aborted) break;
         let result;
         try {
-            result = await runOne(cmd, batchCtx);
+            // A command that never returns must fail the batch, not wedge
+            // the whole run — batch execution has no stream watchdog over
+            // it, and a hung promise here stalls the pilot silently.
+            result = await Promise.race([
+                runOne(cmd, batchCtx),
+                sleep(45000).then(() => ({ action: String(cmd.action || ''), ref: cmd.ref, ok: false, message: 'command timed out after 45s — take a snapshot and try a different approach' })),
+            ]);
         } catch (err) {
             if (err?.name === 'AbortError') break;
             result = { action: String(cmd.action || ''), ref: cmd.ref, ok: false, message: `executor error: ${err?.message || err}` };
