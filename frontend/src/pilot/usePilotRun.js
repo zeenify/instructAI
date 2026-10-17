@@ -164,6 +164,11 @@ export function usePilotRun() {
     // dozen turns without tripping the failed-batch guard
     const readLoopKeyRef = useRef(null);
     const readLoopCountRef = useRef(0);
+    // A-B-A oscillation tracking (toggle flip-flops dodge identical-batch
+    // detection by alternating between two different keys)
+    const prevBatchKeyRef = useRef(null);
+    const twoAgoKeyRef = useRef(null);
+    const oscillationCountRef = useRef(0);
     // A typed-and-committed name whose matching row the model hasn't opened
     // yet — feeds the creation anchor until consumed
     const pendingCreationRef = useRef(null);
@@ -530,17 +535,29 @@ export function usePilotRun() {
                 readLoopKeyRef.current = batchKey;
                 readLoopCountRef.current = 1;
             }
-            if (readLoopCountRef.current >= 6) {
+            // Oscillation (A-B-A): alternating batches — a toggle whose label
+            // swaps with the state it creates, an open/close pair — produce a
+            // DIFFERENT key every turn and dodge the identical-batch guard
+            // entirely. If this batch equals the one from two batches ago,
+            // the run is ping-ponging between two states.
+            const oscillating = batchKey === twoAgoKeyRef.current;
+            twoAgoKeyRef.current = prevBatchKeyRef.current;
+            prevBatchKeyRef.current = batchKey;
+            oscillationCountRef.current = oscillating ? oscillationCountRef.current + 1 : 0;
+            const loopCount = Math.max(readLoopCountRef.current, oscillationCountRef.current * 2);
+            if (loopCount >= 6) {
                 push({ kind: 'notice', text: "The same steps keep landing in the same place — I'm stopping rather than spinning. Tell me what I'm missing and I'll pick it up from there." });
                 await finalize();
                 return;
             }
-            const loopWarning = readLoopCountRef.current >= 3
+            const loopWarning = loopCount >= 3
                 ? [{
                     action: 'repeat',
                     ref: null,
                     ok: false,
-                    message: `identical batch repeated ${readLoopCountRef.current}× — this exact sequence is not progressing${isReadBatch ? ' and the control you\'re hunting is not appearing in snapshots' : ' (if a click opens then closes the same popup, that\'s why — look at what\'s ALREADY open in the snapshot)'}. Change approach: act on a different ref, scroll or goto somewhere fresh, or tell the teacher this control doesn't exist.`,
+                    message: oscillationCountRef.current >= 2
+                        ? `this batch is ping-ponging with the previous one (${oscillationCountRef.current + 1}× A→B→A) — classic toggle flip-flop: a toggle's label describes the action from the CURRENT state, so if the page line already shows the state the teacher asked for (theme: light, the tab you want), that step is DONE. Move to the next part of the task.`
+                        : `identical batch repeated ${readLoopCountRef.current}× — this exact sequence is not progressing${isReadBatch ? ' and the control you\'re hunting is not appearing in snapshots' : ' (if a click opens then closes the same popup, that\'s why — look at what\'s ALREADY open in the snapshot)'}. Change approach: act on a different ref, scroll or goto somewhere fresh, or tell the teacher this control doesn't exist.`,
                 }]
                 : [];
 

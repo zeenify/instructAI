@@ -152,7 +152,13 @@ export function buildElementSnapshot() {
     });
 
     const entries = [];
-    const lines = [`Page: ${document.title} — ${window.location.pathname}`];
+    // The theme lives in data-theme on <html> and is otherwise invisible to
+    // a snapshot — the only theme signal was the toggle's label, which
+    // describes the OPPOSITE state. Naming the state here ends the
+    // switch-to-light-mode flip-flop: the model can see the goal is already
+    // met instead of re-clicking the toggle each turn.
+    const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+    const lines = [`Page: ${document.title} — ${window.location.pathname} (theme: ${theme})`];
 
     // Pointer-origin cards are discovered FIRST (before refs are assigned)
     // so that every control inside them can be annotated with its owner —
