@@ -176,6 +176,9 @@ export function usePilotRun() {
     // back to the model as RECENT ACTIONS so it can't re-ask for data it
     // already has (each stream turn is otherwise stateless)
     const trailRef = useRef([]);
+    // Tool calls the server dropped this turn (one action per turn) — rides
+    // back on the next turn so the model knows what didn't run
+    const droppedToolsRef = useRef(null);
     const lookupCacheRef = useRef(new Map());
     // Consecutive failed lookups — three in a row means the model is
     // thrashing ids/params; the next one is served an error that tells it
@@ -364,6 +367,10 @@ export function usePilotRun() {
                             break;
                         case 'finish':
                             finishReason = ev.reason;
+                            // The server runs ONE tool per turn; extra parallel
+                            // calls are dropped — carry them so the next turn
+                            // tells the model honestly what didn't run
+                            droppedToolsRef.current = ev.dropped?.length ? ev.dropped : null;
                             if (ev.reason === 'error') setStrip('');
                             break;
                         default:
@@ -566,6 +573,8 @@ export function usePilotRun() {
                 }
             }
 
+            const dropped = droppedToolsRef.current;
+            droppedToolsRef.current = null;
             await runTurn('tool-result', {
                 data: {
                     route: window.location.pathname,
@@ -575,6 +584,7 @@ export function usePilotRun() {
                     explain: event.explain,
                     commands,
                     created_hint: createdHint || undefined,
+                    dropped_tools: dropped || undefined,
                     recent_calls: trailRef.current.slice(-10),
                     results: results.map((r) => ({
                         action: r.action,
@@ -643,6 +653,8 @@ export function usePilotRun() {
             if (streamingRef.current) updateMessage(streamingRef.current, { streaming: false });
             streamingRef.current = null;
 
+            const droppedLookup = droppedToolsRef.current;
+            droppedToolsRef.current = null;
             await runTurn('lookup-result', {
                 data: {
                     route: window.location.pathname,
@@ -652,6 +664,7 @@ export function usePilotRun() {
                     result,
                     repeated: isRepeat && !streakBreached ? true : undefined,
                     failed_streak: streakBreached || undefined,
+                    dropped_tools: droppedLookup || undefined,
                     recent_calls: trailRef.current.slice(-10),
                 },
             });

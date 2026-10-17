@@ -225,12 +225,24 @@ def _build_turn_content(payload: dict) -> str:
             if data.get("nudge")
             else ""
         )
+        # Parallel tool calls: only the first runs. The model must know its
+        # second call never executed, or it believes the page already moved.
+        dropped = data.get("dropped_tools")
+        dropped_line = (
+            "NOTE: your previous turn ALSO requested "
+            + ", ".join(f"«{d}»" for d in dropped)
+            + " — only one action runs per turn, so that call was NOT "
+            "executed. Send it again now if the task still needs it.\n"
+            if dropped
+            else ""
+        )
         return (
             "\n".join(lines)
             + ("\n" if results else "")
             + f"{task_line}"
             + f"{hint_line}"
             + f"{nudge_line}"
+            + f"{dropped_line}"
             + _trail_block(data)
             + f"CURRENT PAGE: {data.get('route') or route}{classes_block}\n"
             f"CONSENT STATE: {consent_note}\n\n"
@@ -306,6 +318,15 @@ def _build_turn_content(payload: dict) -> str:
             if data.get("query") == "get_student_grades"
             else ""
         )
+        dropped = data.get("dropped_tools")
+        dropped_line = (
+            "NOTE: your previous turn ALSO requested "
+            + ", ".join(f"«{d}»" for d in dropped)
+            + " — only one action runs per turn, so that call was NOT "
+            "executed. Send it again now if the task still needs it.\n"
+            if dropped
+            else ""
+        )
         return (
             f"{task_line}"
             f"DATA for {data.get('query')} (params: {json.dumps(data.get('params') or {})}) "
@@ -316,6 +337,7 @@ def _build_turn_content(payload: dict) -> str:
             f"{counts_note}"
             f"{perf_note}"
             f"{grades_note}"
+            f"{dropped_line}"
             f"{_trail_block(data)}"
             f"CURRENT PAGE: {data.get('route') or route}{classes_block}\n"
             f"CONSENT STATE: {consent_note}\n\n"
@@ -434,6 +456,7 @@ class PilotService:
 
         if tool_calls:
             emitted = False
+            dropped_names = []
             for idx in sorted(tool_calls):
                 slot = tool_calls[idx]
                 name = slot["name"]
@@ -446,8 +469,10 @@ class PilotService:
                 parsed = _parse_tool_args(name, raw_args)
                 if emitted:
                     # One tool event per turn — the client acts on one batch;
-                    # the trail tells the model to continue with the rest
+                    # the dropped list rides the finish event so the NEXT
+                    # turn's trail tells the model what never ran
                     print(f"[PILOT] dropped extra tool call in same turn: {name}")
+                    dropped_names.append(name)
                     continue
                 if name == "invoke_client":
                     if not parsed["commands"]:
@@ -469,7 +494,10 @@ class PilotService:
                     }
 
             if emitted:
-                yield {"type": "finish", "reason": "tool-calls"}
+                finish_event = {"type": "finish", "reason": "tool-calls"}
+                if dropped_names:
+                    finish_event["dropped"] = dropped_names
+                yield finish_event
             else:
                 # The model meant to act but produced garbage — say so honestly
                 yield {"type": "error", "message": "I couldn't form that action — rephrase and I'll try again."}
