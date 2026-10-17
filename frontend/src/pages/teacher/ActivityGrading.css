@@ -263,6 +263,23 @@
     border: 1px solid rgba(248, 113, 113, 0.4);
 }
 
+/* Informational (not danger) amber hint under the student header in grading
+   detail — tells the teacher how late and that scores are theirs to adjust. */
+.ag-late-note {
+    margin: 0 0 16px;
+    padding: 9px 13px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.32);
+}
+
+.ag-late-note b {
+    font-weight: 700;
+}
+
 .ag-row-date {
     font-family: 'JetBrains Mono', monospace;
     font-size: 12.5px;

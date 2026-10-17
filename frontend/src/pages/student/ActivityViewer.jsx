@@ -373,12 +373,22 @@ export default function ActivityViewer() {
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                 {isGraded ? <CheckCircle2 size={20} color="#10b981" style={{ marginTop: '2px', flexShrink: 0 }} /> : <Hourglass size={20} color="#f59e0b" style={{ marginTop: '2px', flexShrink: 0 }} />}
                 <div>
-                  <p style={{ fontSize: '14px', fontWeight: 700, color: isGraded ? '#10b981' : '#f59e0b', margin: 0 }}>
-                    {isGraded ? `Graded: ${Number(submission.score).toFixed(0)}/${Number(submission.max_score).toFixed(0)}` : 'Submitted — awaiting grade'}
+                  <p style={{ fontSize: '14px', fontWeight: 700, color: isGraded ? '#10b981' : '#f59e0b', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span>{isGraded ? `Graded: ${Number(submission.score).toFixed(0)}/${Number(submission.max_score).toFixed(0)}` : 'Submitted — awaiting grade'}</span>
+                    {submission.is_late && (
+                      <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 9px', borderRadius: '999px', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
+                        Late
+                      </span>
+                    )}
                   </p>
                   {submission.submitted_at && (
                     <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: '2px 0 0 0' }}>
                       Submitted {formatDistanceToNow(parseISO(submission.submitted_at), { addSuffix: true })}
+                    </p>
+                  )}
+                  {submission.is_late && (
+                    <p style={{ fontSize: '12px', color: '#f59e0b', margin: '2px 0 0 0' }}>
+                      Turned in after the deadline — your teacher may score it accordingly.
                     </p>
                   )}
                   {isGraded && submission.teacher_notes && (

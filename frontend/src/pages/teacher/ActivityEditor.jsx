@@ -991,7 +991,7 @@ export default function ActivityEditor() {
                             <p className="ae-seg-hint">
                                 {activity.deadline_behavior === 'hard'
                                     ? 'Submissions close the moment the deadline passes.'
-                                    : 'Students can still submit after the deadline — marked as late.'}
+                                    : 'Students can still submit after the deadline — they’re marked late so you can score them accordingly.'}
                             </p>
                         </div>
                     )}

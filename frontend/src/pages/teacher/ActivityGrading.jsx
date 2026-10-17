@@ -18,6 +18,20 @@ function studentAvatar(s) {
   return s?.student?.avatar || s?.avatar || null;
 }
 
+// Human-readable "how late" — e.g. "3 days, 2 hours" — for late-indicator copy.
+function lateWindowText(submittedAt, deadlineAt) {
+  if (!submittedAt || !deadlineAt) return null;
+  const diff = new Date(submittedAt).getTime() - new Date(deadlineAt).getTime();
+  if (diff <= 0) return null;
+  const minutes = Math.round(diff / 60000);
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const mins = minutes % 60;
+  if (days > 0) return hours > 0 ? `${days} day${days > 1 ? 's' : ''}, ${hours} hr${hours > 1 ? 's' : ''}` : `${days} day${days > 1 ? 's' : ''}`;
+  if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''}`;
+  return `${mins} minute${mins !== 1 ? 's' : ''}`;
+}
+
 // Mirror of the backend's ActivityGrading::autoGradable — a coding question
 // with test cases (or HTML with page checks) grades itself at submit; without
 // them it needs the teacher. The grading page's grouping must follow this,
@@ -239,6 +253,7 @@ export default function ActivityGrading() {
 
   const submittedCount = submissions.filter((s) => s.status === 'submitted' || s.status === 'graded').length;
   const gradedCount = submissions.filter((s) => s.status === 'graded').length;
+  const lateCount = submissions.filter((s) => s.is_late).length;
 
   const kicker = activity.activity_type === 'quiz'
     ? `Quiz · ${activity.pacing_mode === 'teacher' ? 'Teacher-paced' : 'Student-paced'}`
@@ -266,7 +281,7 @@ export default function ActivityGrading() {
               {isMaterial
                 ? <><b>{submissions.length}</b> read · <b>{notSubmitted.length}</b> not read</>
                 : submissions.length > 0
-                  ? <><b>{submittedCount}</b> submitted · <b>{gradedCount}</b> graded · {submissions.length + notSubmitted.length} students</>
+                  ? <><b>{submittedCount}</b> submitted · <b>{gradedCount}</b> graded{lateCount > 0 && <> · <b>{lateCount}</b> late</>} · {submissions.length + notSubmitted.length} students</>
                   : 'No submissions yet'}
             </p>
           </div>
@@ -291,10 +306,19 @@ export default function ActivityGrading() {
                 <p className="ag-student-name">{studentName(gradingTarget)}</p>
                 <p className="ag-student-sub">
                   Submitted {gradingTarget.submitted_at ? new Date(gradingTarget.submitted_at).toLocaleString() : 'N/A'}
-                  {gradingTarget.is_late ? ' · late' : ''}
+                  {gradingTarget.is_late && (
+                    <span className="ag-chip late" style={{ marginLeft: 8, verticalAlign: 'middle' }}>Late</span>
+                  )}
                 </p>
               </div>
             </div>
+
+            {gradingTarget.is_late && lateWindowText(gradingTarget.submitted_at, activity.deadline_at) && (
+              <p className="ag-late-note">
+                Submitted <b>{lateWindowText(gradingTarget.submitted_at, activity.deadline_at)}</b> after the deadline —
+                adjust any score below as you see fit to account for lateness.
+              </p>
+            )}
 
             {/* File attachments */}
             {gradingTarget.attachments && gradingTarget.attachments.length > 0 && (
@@ -525,7 +549,12 @@ export default function ActivityGrading() {
                           <span className={`ag-chip ${isMaterial || s.status === 'graded' ? 'graded' : 'submitted'}`}>
                             {isMaterial ? 'Read' : (s.status === 'graded' ? 'Graded' : 'Submitted')}
                           </span>
-                          {s.is_late && <span className="ag-chip late">Late</span>}
+                          {s.is_late && (
+                            <span className="ag-chip late"
+                              title={`Submitted ${lateWindowText(s.submitted_at, activity.deadline_at) || 'after the deadline'}`}>
+                              Late
+                            </span>
+                          )}
                           {s.submitted_at && (
                             <span className="ag-row-date">{new Date(s.submitted_at).toLocaleDateString()}</span>
                           )}

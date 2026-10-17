@@ -1412,6 +1412,7 @@ class ClassActivityController extends Controller
                     'submission_id' => $s?->id,
                     'submission_status' => $s?->status ?? 'none',
                     'submitted_at' => $s?->submitted_at,
+                    'is_late' => $s?->is_late ?? false,
                     'score' => $s?->score,
                     'max_score' => $s?->max_score,
                 ];
@@ -1461,7 +1462,7 @@ class ClassActivityController extends Controller
 
         $submissions = ActivitySubmission::whereIn('activity_id', $activities->pluck('id'))
             ->whereIn('student_id', $students->pluck('id'))
-            ->get(['id', 'student_id', 'activity_id', 'score', 'max_score', 'status', 'submitted_at']);
+            ->get(['id', 'student_id', 'activity_id', 'score', 'max_score', 'status', 'submitted_at', 'is_late']);
 
         $grades = [];
         foreach ($submissions as $s) {
@@ -1470,6 +1471,7 @@ class ClassActivityController extends Controller
                 'max_score' => $s->max_score,
                 'status' => $s->status,
                 'submitted_at' => $s->submitted_at,
+                'is_late' => (bool) $s->is_late,
             ];
         }
 
