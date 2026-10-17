@@ -21,9 +21,10 @@ use Illuminate\Support\Facades\DB;
  * reviewed set into the activity — append or replace.
  *
  * The question mix is decided here, not by the teacher: with no explicit
- * per-type counts the controller reads the material (code-block share, the
- * course's language) and writes a sensible plan — coding questions only ever
- * appear for coding material that the execution engine can actually run.
+ * per-type counts the default is multiple choice only — clean and
+ * auto-gradable; other types are a deliberate Advanced choice (exact
+ * per-type counts), and coding additionally requires the execution engine
+ * to be able to run the course's language.
  *
  * Streaming follows the studio's contract: browser → Laravel (Sanctum) →
  * Python (X-Internal-Auth), SSE pumped byte-for-byte.
@@ -157,11 +158,6 @@ class ActivityAiController extends Controller
             ->filter(fn ($v) => is_numeric($v))->map(fn ($v) => (int) $v)->unique()->values();
         $useCurriculum = (bool) ($context['use_curriculum'] ?? false);
 
-        // Code-block share of the selected lesson text — the signal that
-        // decides whether coding questions belong in an automatic mix
-        $textChars = 0;
-        $codeChars = 0;
-
         if ($lessonIds->isNotEmpty()) {
             $lessons = Lesson::whereIn('id', $lessonIds)
                 ->whereHas('module.course', fn ($q) => $q->where('class_id', $activity->class_id)->where('teacher_id', $request->user()->id))
@@ -173,8 +169,6 @@ class ActivityAiController extends Controller
                 if (mb_strlen(trim($text)) < 40) {
                     continue; // image/video-only lesson — nothing to ground on
                 }
-                $textChars += mb_strlen($text);
-                $codeChars += $this->lessonCodeChars($lesson);
                 $contextSources[] = [
                     'source' => 'lesson',
                     'title' => ($lesson->module?->title ? $lesson->module->title . ' — ' : '') . $lesson->title,
@@ -218,12 +212,10 @@ class ActivityAiController extends Controller
                 ], 422);
             }
         } else {
-            $codeRatio = $textChars > 0 ? $codeChars / $textChars : 0.0;
-            $engineLangs = self::engineLanguages();
-            $codingEligible = $course && $course->language
-                && ($engineLangs[$course->language] ?? false)
-                && $codeRatio >= 0.15;
-            $counts = collect(self::autoMix((int) ($settings['count'] ?? 10), $codingEligible));
+            // Default mix: multiple choice only — clean, auto-gradable, and
+            // never a surprise. Other types (TF, coding, essays) are a
+            // deliberate Advanced choice with exact counts.
+            $counts = collect(['multiple_choice' => max(1, (int) ($settings['count'] ?? 10))]);
         }
 
         $count = $counts->sum();
@@ -499,48 +491,6 @@ class ActivityAiController extends Controller
     }
 
     /**
-     * The automatic question mix for $count questions. Coding takes ~20% and
-     * only for coding material; essays appear once there's room to think
-     * (8+); everything else splits across the always-safe objective types.
-     * Explicit per-type counts (Advanced) never go through here.
-     */
-    private static function autoMix(int $count, bool $codingEligible): array
-    {
-        $coding = 0;
-        if ($codingEligible) {
-            $coding = $count >= 8 ? (int) ceil($count * 0.2) : ($count >= 5 ? 1 : 0);
-        }
-        $essay = $count >= 8 ? max(1, (int) floor($count * 0.1)) : 0;
-
-        $rem = max(0, $count - $coding - $essay);
-        if ($rem >= 4) {
-            $mc = (int) ceil($rem * 0.5);
-            $tf = (int) floor($rem * 0.25);
-            $id = (int) floor($rem * 0.15);
-            $sa = $rem - $mc - $tf - $id;
-        } elseif ($rem >= 2) {
-            $mc = $rem - 1;
-            $tf = 1;
-            $id = 0;
-            $sa = 0;
-        } else {
-            $mc = max(1, $rem);
-            $tf = 0;
-            $id = 0;
-            $sa = 0;
-        }
-
-        return array_filter([
-            'multiple_choice' => $mc,
-            'true_false' => $tf,
-            'identification' => $id,
-            'short_answer' => $sa,
-            'coding' => $coding,
-            'essay' => $essay,
-        ]);
-    }
-
-    /**
      * Plain-text extraction from a lesson's block array (h1/text carry
      * data.text; code blocks carry data.code or data.text).
      */
@@ -559,21 +509,6 @@ class ActivityAiController extends Controller
             }
         }
         return implode("\n\n", $parts);
-    }
-
-    /**
-     * Characters of real code blocks in a lesson — the "is this coding
-     * material" signal behind the automatic mix.
-     */
-    private function lessonCodeChars(Lesson $lesson): int
-    {
-        $sum = 0;
-        foreach ($lesson->content ?? [] as $block) {
-            if (($block['type'] ?? '') === 'code') {
-                $sum += mb_strlen(trim((string) ($block['data']['code'] ?? $block['data']['text'] ?? '')));
-            }
-        }
-        return $sum;
     }
 
     private function authorizeActivity($id)

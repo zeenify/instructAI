@@ -35,8 +35,8 @@ const AI_TYPES = [
     { id: 'coding', label: 'Coding' },
 ];
 
-// Every type at 0 = "automatic" — Laravel picks a sensible mix from the
-// material (coding only for coding material, essays only when there's room)
+// Every type at 0 = "automatic" — Laravel generates multiple choice only;
+// other types are a deliberate Advanced choice with exact counts
 const ZERO_COUNTS = Object.fromEntries(AI_TYPES.map((t) => [t.id, 0]));
 
 const MAX_FILES = 4;
@@ -657,7 +657,7 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                                     <p className="aiq-mix-note">
                                                         {countsActive
                                                             ? <>Exact mix — the total above follows it. <button type="button" className="aiq-mix-reset" onClick={() => setCounts(ZERO_COUNTS)}>Back to automatic</button></>
-                                                            : 'Automatic — we pick a sensible mix from your material (coding only for coding material). Set a number to choose exactly.'}
+                                                            : 'Automatic — multiple choice only. Set a number here to choose other types exactly.'}
                                                     </p>
                                                     <div className="aiq-mix-grid">
                                                         {AI_TYPES.map((t) => {
