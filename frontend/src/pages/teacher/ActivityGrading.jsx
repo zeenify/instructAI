@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Loader2, CheckSquare, Download, MessageSquare, Search, Edit3, FileText, ImageIcon, CheckCircle, Play, Eye, Code2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
 import CodeMirror from '@uiw/react-codemirror';
 import { cmExtension, languageOf, normalizeHtmlChecks, injectPreviewBridge } from '../../utils/codeLanguages';
+import InteractiveTerminal from '../../components/student/InteractiveTerminal';
 import './ActivityGrading.css';
 
 function studentName(s) {
@@ -545,8 +546,9 @@ export default function ActivityGrading() {
 
 // Teacher-side view of a student's code: syntax highlighted in the question's
 // language, a sandboxed live preview for HTML submissions (graded against the
-// question's page checks, same harness students see), and a run-it-yourself
-// pane (with stdin) so the teacher sees what the code actually did.
+// question's page checks, same harness students see), and the same interactive
+// terminal students get — the program pauses on input and the teacher types
+// into it, exactly like the student's own run.
 function CodingAnswerView({ language, code, htmlChecks: htmlChecksProp = [], testResults = null }) {
   const lang = languageOf(language);
   const isHtml = lang.preview;
@@ -554,9 +556,7 @@ function CodingAnswerView({ language, code, htmlChecks: htmlChecksProp = [], tes
   const [tab, setTab] = useState('code');
   const [previewDoc, setPreviewDoc] = useState('');
   const [previewResults, setPreviewResults] = useState(null);
-  const [stdin, setStdin] = useState('');
-  const [runOutput, setRunOutput] = useState('');
-  const [runError, setRunError] = useState(false);
+  const termRef = useRef(null);
   const [running, setRunning] = useState(false);
 
   useEffect(() => {
@@ -575,37 +575,6 @@ function CodingAnswerView({ language, code, htmlChecks: htmlChecksProp = [], tes
     setTab('preview');
   };
 
-  const runCode = async () => {
-    if (running) return;
-    setRunning(true);
-    setRunOutput('');
-    setRunError(false);
-    setTab('output');
-    try {
-      const res = await api.post('/teacher/run-code', {
-        language: lang.id,
-        code,
-        input: stdin || undefined,
-      }, { timeout: 45000 });
-      const data = res.data;
-      if (data.compile_output) {
-        setRunOutput(data.compile_output);
-        setRunError(true);
-      } else if (data.stderr) {
-        setRunOutput(data.stderr);
-        setRunError(true);
-      } else {
-        const clean = (data.stdout || '').trim().replace(/\r\n/g, '\n');
-        setRunOutput(clean || '> Program executed successfully (No output).');
-      }
-    } catch {
-      setRunOutput('Could not reach the execution engine.');
-      setRunError(true);
-    } finally {
-      setRunning(false);
-    }
-  };
-
   return (
     <div className="ag-cv">
       <div className="ag-cv-head">
@@ -618,7 +587,7 @@ function CodingAnswerView({ language, code, htmlChecks: htmlChecksProp = [], tes
             <Code2 size={11} /> Code
           </button>
           {!isHtml && (
-            <button onClick={() => setTab('output')} type="button" className={`ag-cv-tab ${tab === 'output' ? 'on' : ''}`}>
+            <button onClick={() => setTab('run')} type="button" className={`ag-cv-tab ${tab === 'run' ? 'on' : ''}`}>
               <Play size={11} /> Run
             </button>
           )}
@@ -658,20 +627,19 @@ function CodingAnswerView({ language, code, htmlChecks: htmlChecksProp = [], tes
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="ag-cv-stdin">
             <div className="ag-cv-stdin-head">
-              <span className="ag-cv-stdin-label">Input (stdin)</span>
-              <button onClick={runCode} type="button" disabled={running} className="ag-cv-run-btn">
+              <span className="ag-cv-stdin-label">Interactive terminal — when the program asks for input, just type here</span>
+              <button
+                onClick={() => termRef.current?.triggerRun()}
+                type="button"
+                disabled={running}
+                className="ag-cv-run-btn"
+              >
                 {running ? 'Running…' : 'Run student code'}
               </button>
             </div>
-            <textarea
-              value={stdin}
-              onChange={(e) => setStdin(e.target.value)}
-              rows={2}
-              placeholder="Lines fed to the program (one per read)..."
-            />
           </div>
-          <div className={`ag-cv-terminal ${runError ? 'err' : ''}`}>
-            {runOutput || (running ? 'Running…' : 'Click "Run student code" to execute with the input above.')}
+          <div style={{ height: 320, background: '#050120', borderBottomLeftRadius: 10, borderBottomRightRadius: 10, overflow: 'hidden' }}>
+            <InteractiveTerminal compact ref={termRef} code={code} language={lang.id} onRunningChange={setRunning} />
           </div>
         </div>
       )}
