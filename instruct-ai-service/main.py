@@ -69,7 +69,7 @@ async def internal_auth_middleware(request: Request, call_next):
         # CORS preflight must pass through untouched
         if request.method == "OPTIONS":
             return await call_next(request)
-        if path in ("/ai/tutor-chat-stream", "/ai/pilot-stream"):
+        if path in ("/ai/tutor-chat-stream", "/ai/pilot-stream", "/ai/course-content-stream"):
             return await call_next(request)  # HMAC verified inside the handler
         if not INTERNAL_SECRET or request.headers.get("X-Internal-Auth") != INTERNAL_SECRET:
             return JSONResponse(status_code=401, content={"error": "unauthorized"})
@@ -123,7 +123,7 @@ def health_check():
     return {
         "status": "healthy",
         "service": "InstructAI",
-        "version": "2.4.0"
+        "version": "2.5.0"
     }
 
 
@@ -278,9 +278,96 @@ async def content_stream_endpoint(
             question_type_distribution=question_type_distribution,
             include_images=include_images,
             include_videos=include_videos,
-            is_coding=is_coding.lower() == 'true'
+            is_coding=is_coding.lower() == 'true',
+            language=language
         ),
         media_type="text/event-stream"
+    )
+
+
+# ===== CONTENT GENERATION - SIGNED BROWSER STREAM =====
+
+class CourseContentStreamEnvelope(BaseModel):
+    """HMAC-authenticated envelope, minted by Laravel's ai-prepare-stream."""
+    payload_json: str
+    auth_sig: str
+    auth_ts: int
+
+
+@app.post("/ai/course-content-stream")
+async def course_content_stream_signed(request: Request):
+    """Teacher content generation, streamed straight to the studio.
+
+    The old path relayed this stream through PHP (browser -> Cloudflare ->
+    Laravel -> Render edge -> this service) and that chain silently drops
+    minutes-long SSE responses (~2 min in, clean EOF, no error frame) —
+    every real full-course generation crossed that wall. The AI Tutor and
+    EUNA pilot streams already bypass it; this endpoint gives generation
+    the same direct path.
+
+    Auth mirrors tutor-chat-stream: HMAC over payload_json + timestamp,
+    single-use not required (a replay only reruns the teacher's own
+    generation within the 10-minute window).
+    """
+    try:
+        body = await request.json()
+        envelope = CourseContentStreamEnvelope(**body)
+    except Exception as e:
+        print(f"[Content Stream Error] bad request: {str(e)}")
+        return JSONResponse(status_code=400, content={"error": "bad request"})
+
+    if not verify_stream_signature(envelope.payload_json, envelope.auth_sig, envelope.auth_ts):
+        print("[Content Stream Error] invalid or expired stream signature")
+        return JSONResponse(status_code=401, content={"error": "invalid or expired stream signature"})
+
+    try:
+        payload = json.loads(envelope.payload_json)
+        structure = payload["curriculum_structure"]
+        if isinstance(structure, str):
+            structure = json.loads(structure)
+        if not isinstance(structure, list) or not structure:
+            raise ValueError("curriculum_structure must be a non-empty list")
+    except Exception as e:
+        print(f"[Content Stream Error] bad payload: {str(e)}")
+        return JSONResponse(status_code=400, content={"error": "bad payload"})
+
+    item_count = sum(
+        len(m.get('lessons', []) or []) + len(m.get('quizzes', []) or [])
+        for m in structure
+    )
+    print(
+        f"[Content Stream] course={payload.get('course_id')} "
+        f"teacher={payload.get('teacher_id')} items={item_count}"
+    )
+
+    async def generate():
+        try:
+            async for frame in generate_content_stream(
+                ai_pool=gen_pool,
+                curriculum_structure=structure,
+                curriculum_context=(payload.get("curriculum_text") or "")[:30000],
+                difficulty=payload.get("difficulty", "beginner"),
+                content_depth=payload.get("content_depth", "standard"),
+                code_examples_per_lesson=payload.get("code_examples_per_lesson", "3-4"),
+                writing_style=payload.get("writing_style", "conversational"),
+                question_type_distribution=payload.get("question_type_distribution", "balanced"),
+                include_images="true" if str(payload.get("include_images", "true")).lower() == "true" else "false",
+                include_videos="true" if str(payload.get("include_videos", "true")).lower() == "true" else "false",
+                is_coding=str(payload.get("is_coding", "false")).lower() == "true",
+                language=payload.get("language", "")
+            ):
+                yield frame
+        except asyncio.CancelledError:
+            # Browser aborted or server is shutting down. Everything the
+            # stream already reported is either saved by the studio (per-item
+            # save endpoint) or still in its resume state — nothing lost.
+            print(f"[Content Stream] course={payload.get('course_id')} stream cancelled mid-run")
+            raise
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
     )
 
 

@@ -119,6 +119,8 @@ Route::middleware(['auth:sanctum', 'role:teacher'])->group(function () {
     Route::delete('/teacher/quizzes/{id}', [QuizController::class, 'destroy']);
     // ai
     Route::post('/teacher/courses/{id}/ai-commit', [CourseController::class, 'aiCommit']);
+    Route::post('/teacher/courses/{id}/ai-prepare-stream', [CourseController::class, 'aiPrepareStream']);
+    Route::post('/teacher/courses/{id}/ai-save-item', [CourseController::class, 'aiSaveItem']);
     Route::delete('/teacher/courses/{id}', [CourseController::class, 'destroy']);
 
     // Stats for Overview

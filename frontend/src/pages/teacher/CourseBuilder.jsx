@@ -1023,6 +1023,30 @@ export default function CourseBuilder({
         await new Promise(resolve => setTimeout(resolve, 800));
 
         try {
+            // Stream generation DIRECTLY from the AI service: the old path
+            // relayed SSE through PHP, and that chain silently drops
+            // minutes-long streams ~2 min in — the "stops after a lesson or
+            // two" bug. Laravel mints an HMAC ticket (ai-prepare-stream) and
+            // the browser holds the one long connection itself; the AI Tutor
+            // and EUNA pilot streams already use this exact pattern. If
+            // minting or the direct connect fails, fall back to the legacy
+            // relay so a run is never lost.
+            const saveStreamItem = (kind, itemData) => {
+                if (!itemData) return;
+                api.post(`/teacher/courses/${id}/ai-save-item`, {
+                    kind,
+                    data: itemData,
+                    settings: {
+                        quizTimeLimit: params?.quizTimeLimit,
+                        quizTimerMode: params?.quizTimerMode,
+                        passingPercentage: params?.passingPercentage,
+                        allowAIAssistance: params?.allowAIAssistance,
+                    },
+                }).catch(() => {
+                    console.warn(`[AI studio] auto-save failed for ${kind} — Continue generation will refill it`);
+                });
+            };
+
             const mainBase = import.meta.env.VITE_API_URL || 'http://instructai.test/api';
             const streamBase = import.meta.env.VITE_AI_RELAY_URL || mainBase;
             const streamPost = (base, signal) => fetch(`${base}/teacher/courses/${id}/ai-generate-content`, {
@@ -1038,17 +1062,30 @@ export default function CourseBuilder({
                 })
             });
 
-            // Relay server first (keeps saves fast during generation); if it is
-            // down or errors, fall back to the main API automatically
             let fetchResponse;
             try {
+                const prep = await api.post(`/teacher/courses/${id}/ai-prepare-stream`, {
+                    curriculum_structure: JSON.stringify(structure),
+                    content_params: params
+                });
+                fetchResponse = await fetch(`${prep.data.ai_url}/ai/course-content-stream`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: controller.signal,
+                    body: JSON.stringify({
+                        payload_json: prep.data.payload_json,
+                        auth_sig: prep.data.auth_sig,
+                        auth_ts: prep.data.auth_ts
+                    })
+                });
+                if (!fetchResponse.ok || !fetchResponse.body) throw new Error(`AI stream HTTP ${fetchResponse.status}`);
+            } catch (directErr) {
+                if (directErr?.name === 'AbortError') throw directErr;
+                console.warn('Direct AI stream unavailable — using the legacy relay:', directErr?.message);
                 fetchResponse = await streamPost(streamBase, controller.signal);
                 if (!fetchResponse.ok && streamBase !== mainBase) {
                     fetchResponse = await streamPost(mainBase, controller.signal);
                 }
-            } catch (err) {
-                if (err?.name === 'AbortError') throw err;
-                fetchResponse = await streamPost(mainBase, controller.signal);
             }
 
             const reader = fetchResponse.body.getReader();
@@ -1118,6 +1155,9 @@ export default function CourseBuilder({
                             } else if (data.type === 'lesson_complete') {
                                 lessonsCompleted++;
                                 const lessonData = data.data;
+                                // The direct stream bypasses PHP — persist each
+                                // finished lesson here, as its frame arrives
+                                saveStreamItem('lesson', lessonData);
                                 addLog('complete', `✓ Lesson "${lessonData.lesson_title}" complete`, logDelayOffset);
                                 logDelayOffset += 60;
                                 setGeneratedContent(prev => ({
@@ -1142,6 +1182,8 @@ export default function CourseBuilder({
                                 }));
                             } else if (data.type === 'quiz_complete') {
                                 const quizData = data.data;
+                                // Same for the quiz's questions/test cases
+                                saveStreamItem('quiz', quizData);
                                 addLog('complete', `✓ Quiz "${quizData.quiz_title}" complete`, logDelayOffset);
                                 logDelayOffset += 60;
 
