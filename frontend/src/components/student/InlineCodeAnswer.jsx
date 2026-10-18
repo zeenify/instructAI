@@ -113,13 +113,13 @@ export default function InlineCodeAnswer({
 
             if (data.compile_output) {
                 setErrorType('compile');
-                setOutput(data.compile_output);
+                setOutput(data.compile_output);
             } else if (data.timed_out) {
                 setErrorType('timeout');
-                setOutput(data.stderr || 'Execution Timed Out');
+                setOutput(data.stderr || 'Execution Timed Out');
             } else if (data.stderr) {
                 setErrorType('runtime');
-                setOutput(data.stderr);
+                setOutput(data.stderr);
             } else {
                 const clean = (data.stdout || '').trim().replace(/\r\n/g, '\n');
                 setOutput(clean || '> Program executed successfully (No output).');
@@ -132,8 +132,8 @@ export default function InlineCodeAnswer({
                 }
                 // Results first, then the live terminal right below — the
                 // student can keep interacting without any pre-typed input.
-                setTab('terminal');
-                if (challengeExpected) {
+                setTab('terminal');
+                if (challengeExpected) {
                 }
             }
         } catch {
@@ -355,7 +355,7 @@ export default function InlineCodeAnswer({
                     )}
                     {/* The live terminal — run again here and type while the
                         program asks, exactly like the real thing */}
-                    <div style={{ height }}>
+                    <div style={{ height, width: '100%', maxWidth: '100%', minWidth: 0, overflow: 'hidden' }}>
                         <InteractiveTerminal
                             ref={liveTermRef}
                             code={value || boilerplate}

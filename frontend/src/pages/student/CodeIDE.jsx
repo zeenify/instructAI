@@ -622,11 +622,11 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 )}
 
                 {!isHtml && activeTab === 'terminal' && (
-                    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ flex: 1, minHeight: 0, width: '100%', maxWidth: '100%', minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                         {/* The live terminal — run here and type while the
                             program asks, exactly like the real thing. Run (or
                             ⌘/Ctrl+Enter) plays the latest editor code. */}
-                        <div style={{ flex: 1, minHeight: 0 }}>
+                        <div style={{ flex: 1, minHeight: 0, width: '100%', minWidth: 0, overflow: 'hidden' }}>
                             <InteractiveTerminal
                                 ref={liveTermRef}
                                 code={code}
