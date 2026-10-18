@@ -18,6 +18,10 @@ export function useStudentClass(id, options = {}) {
         staleTime: 60 * 1000,
         // Returning students paint the last-known class instantly; the fetch confirms.
         initialData: readCache(`sv:class:${id}`) ?? undefined,
+        // The seed MUST be born stale — otherwise it counts as fresh data and
+        // the real fetch never runs, freezing a just-published class on the
+        // seed's (possibly empty) snapshot indefinitely.
+        initialDataUpdatedAt: readCache(`sv:class:${id}`) ? 0 : undefined,
         queryFn: async () => {
             // bypassCache: the seed paints yesterday's snapshot, and the legacy
             // axios cache then re-served it — a just-published class stayed
