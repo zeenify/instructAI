@@ -48,6 +48,14 @@ export default function InlineCodeAnswer({
     // The Terminal tab hosts the LIVE interactive terminal — input is typed
     // while the program runs, never preemptively.
     const liveTermRef = useRef(null);
+    // A run requested before the terminal mounts fires right after it does.
+    const pendingTerminalRunRef = useRef(false);
+    useEffect(() => {
+        if (tab === 'terminal' && pendingTerminalRunRef.current && liveTermRef.current) {
+            pendingTerminalRunRef.current = false;
+            liveTermRef.current.triggerRun();
+        }
+    }, [tab]);
     // HTML page checks: explicit structured checks win; a legacy expected-text
     // string is synthesized into a single page-text check.
     const htmlChecks = isHtml ? normalizeHtmlChecks(htmlChecksProp, challengeExpected) : [];
@@ -103,6 +111,17 @@ export default function InlineCodeAnswer({
             return;
         }
 
+        // The exact-output REST run grades the submission; the live terminal
+        // ALSO plays the program interactively right below the results —
+        // stdin is typed while it runs, like a real terminal.
+        setTab('terminal');
+        if (liveTermRef.current) {
+            liveTermRef.current.triggerRun();
+            pendingTerminalRunRef.current = false;
+        } else {
+            pendingTerminalRunRef.current = true;
+        }
+
         try {
             const res = await api.post('/student/execute', {
                 code: value || boilerplate,
@@ -129,11 +148,6 @@ export default function InlineCodeAnswer({
                     : false;
                 if (challengeExpected) {
                     setPassed(isMatch);
-                }
-                // Results first, then the live terminal right below — the
-                // student can keep interacting without any pre-typed input.
-                setTab('terminal');
-                if (challengeExpected) {
                 }
             }
         } catch {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
-import { Play, CheckCircle, CheckCircle2, XCircle, AlertCircle, RefreshCw, Terminal as TerminalIcon, Eye, Code2 } from 'lucide-react';
+import { Play, CheckCircle, CheckCircle2, XCircle, AlertCircle, RefreshCw, Terminal as TerminalIcon, Eye, Code2, Loader2 } from 'lucide-react';
 import api from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -95,6 +95,9 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
     // The Terminal tab hosts the LIVE interactive terminal — run and type
     // while the program asks; no pre-typed stdin anywhere.
     const liveTermRef = useRef(null);
+    // The terminal tab mounts lazily — a run requested before the interactive
+    // terminal exists fires the moment it mounts.
+    const pendingTerminalRunRef = useRef(false);
     // Challenges for HTML pages grade against structured checks (element /
     // attribute / style / text assertions) run inside the preview iframe.
     const htmlChecks = isHtml && mode === 'challenge'
@@ -210,8 +213,6 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         setOutput('');
         setResultMeta(null);
         setCaseResults(null);
-        // Running shows the terminal — like a real editor's run button
-        if (!isHtml) setActiveTab('terminal');
 
         try {
             if (challengeCases.length > 0) {
@@ -223,7 +224,6 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 for (let i = 0; i < challengeCases.length; i += 1) {
                     const c = challengeCases[i];
                     setRunningCase(i + 1);
-                    setOutput(`Running case ${i + 1} of ${challengeCases.length}…`);
 
                     const res = await api.post('/student/execute', {
                         code,
@@ -242,6 +242,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         setErrorType('compile');
                         setOutput(data.compile_output);
                         setIsCorrect(false);
+                        if (results.length > 0) setCaseResults([...results]);
 
                         return;
                     }
@@ -249,6 +250,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         setErrorType('timeout');
                         setOutput(data.stderr || 'Execution Timed Out');
                         setIsCorrect(false);
+                        if (results.length > 0) setCaseResults([...results]);
 
                         return;
                     }
@@ -256,6 +258,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         setErrorType('runtime');
                         setOutput(data.stderr);
                         setIsCorrect(false);
+                        if (results.length > 0) setCaseResults([...results]);
 
                         return;
                     }
@@ -267,6 +270,8 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         actual: cleanOutput,
                         passed: cleanOutput === c.expected_output.replace(/\r\n/g, '\n'),
                     });
+                    // Land each verdict as it completes so the section fills live
+                    setCaseResults([...results]);
 
                 }
 
@@ -356,6 +361,25 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         }
     };
 
+    // The Terminal tab mounts lazily: remember a run requested before the
+    // interactive terminal exists and fire it the moment it mounts.
+    useEffect(() => {
+        if (activeTab === 'terminal' && pendingTerminalRunRef.current && liveTermRef.current) {
+            pendingTerminalRunRef.current = false;
+            liveTermRef.current.triggerRun();
+        }
+    }, [activeTab]);
+
+    const runInLiveTerminal = () => {
+        setActiveTab('terminal');
+        if (liveTermRef.current) {
+            liveTermRef.current.triggerRun();
+            pendingTerminalRunRef.current = false;
+        } else {
+            pendingTerminalRunRef.current = true;
+        }
+    };
+
     // Latest run logic lives in a ref so the Ctrl+Enter listener below can
     // bind once without going stale.
     const runRef = useRef(null);
@@ -365,15 +389,12 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             handleHtmlRun();
             return;
         }
-        if (mode !== 'challenge') {
-            // Playground: run live in the terminal — type while the program asks
-            setActiveTab('terminal');
-            liveTermRef.current?.triggerRun();
-            return;
+        // The terminal always plays the current code live — in a playground
+        // that IS the run; in a challenge it runs WHILE the test cases grade.
+        runInLiveTerminal();
+        if (mode === 'challenge') {
+            handleCodeRun();
         }
-        // Challenge: deterministic test-case grading; the summary lands in the
-        // terminal scrollback, which stays live underneath it.
-        handleCodeRun();
     };
 
     const handleRun = () => runRef.current();
@@ -406,6 +427,8 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
     };
 
     const colors = getModeColor();
+    // Challenge with real test cases: Run grades the code — show that clearly
+    const isChecking = !isHtml && mode === 'challenge' && challengeCases.length > 0 && isRunning;
     const tabs = isHtml
         ? [{ id: 'editor', label: 'Code', icon: Code2 }, { id: 'preview', label: 'Preview', icon: Eye }, { id: 'console', label: 'Console', icon: TerminalIcon }]
         : [
@@ -668,10 +691,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         Reset
                     </button>
                     <button
-                        onClick={() => {
-                            if (!isHtml) setActiveTab('terminal');
-                            handleRun();
-                        }}
+                        onClick={handleRun}
                         disabled={isRunning}
                         style={{
                             padding: '12px 28px',
@@ -701,8 +721,8 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                             e.currentTarget.style.boxShadow = '0 10px 30px rgba(10, 132, 255, 0.2)';
                         }}
                     >
-                        <Play size={16} fill="currentColor" />
-                        {isHtml ? 'Run Page' : 'Run Program'}
+                        {isChecking ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />}
+                        {isHtml ? 'Run Page' : isChecking ? 'Checking…' : 'Run Program'}
                     </button>
                 </div>
             </div>
@@ -716,6 +736,15 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                     <p style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 900, textTransform: 'uppercase', margin: '0 0 12px 0' }}>
                         Test Cases — all must pass
                     </p>
+                    {/* Live checking status — grading is running, shown outside the terminal */}
+                    {isChecking && runningCase > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', padding: '10px 14px', borderRadius: '12px', background: 'rgba(10, 132, 255, 0.08)', border: '1px solid rgba(10, 132, 255, 0.3)' }}>
+                            <Loader2 size={14} className="animate-spin" style={{ color: '#0a84ff', flexShrink: 0 }} />
+                            <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.05em', color: '#0a84ff' }}>
+                                Checking your code with the test cases — running case {runningCase} of {challengeCases.length}…
+                            </span>
+                        </div>
+                    )}
                     {/* Confirmation summary + errors live HERE (outside the
                         terminal — the terminal stays a plain interactive one) */}
                     {errorType && output && (
@@ -762,6 +791,27 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                                                 {passed ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
                                                 {passed ? 'Passed' : 'Failed'}
                                             </span>
+                                        )}
+                                        {!r && isChecking && runningCase > 0 && (
+                                            runningCase === i + 1 ? (
+                                                <span style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                                    fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em',
+                                                    padding: '3px 10px', borderRadius: '999px',
+                                                    background: 'rgba(10, 132, 255, 0.12)', color: '#0a84ff',
+                                                }}>
+                                                    <Loader2 size={11} className="animate-spin" /> Checking…
+                                                </span>
+                                            ) : (
+                                                <span style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                                    fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em',
+                                                    padding: '3px 10px', borderRadius: '999px',
+                                                    background: 'rgba(148, 163, 184, 0.12)', color: 'var(--text-tertiary)',
+                                                }}>
+                                                    <span style={{ width: '11px', height: '11px', borderRadius: '50%', border: '1.5px dashed var(--border-color)' }} /> Waiting
+                                                </span>
+                                            )
                                         )}
                                     </div>
                                     <pre style={CASE_PRE_STYLE}>{`expected output:\n${c.expected_output}`}</pre>
