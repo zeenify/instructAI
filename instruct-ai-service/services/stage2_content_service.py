@@ -118,8 +118,8 @@ async def generate_section_content(
     while attempt_count < max_attempts and not response:
         try:
             client, key_num = ai_pool.get_available_client()
-            model_short = model.split('/')[-1] if '/' in model else model
-            print(f"[STAGE2-CONTENT] Using API key {key_num}, model {model_short} (attempt {attempt_count + 1}/{max_attempts})")
+            model = ai_pool.model_for(key_num)
+            print(f"[STAGE2-CONTENT] Using lane {key_num}, model {model} (attempt {attempt_count + 1}/{max_attempts})")
 
             response = client.chat.completions.create(
                 messages=messages,

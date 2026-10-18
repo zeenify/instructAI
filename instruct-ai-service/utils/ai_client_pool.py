@@ -1,15 +1,19 @@
 """
-Google AI Studio (Gemini) client pool with round-robin cycling and rate-limit handling.
+AI client pool with round-robin cycling and rate-limit handling.
 
-Talks to Gemini through Google's OpenAI-compatible endpoint so every call site
-keeps using the familiar client.chat.completions.create(...) interface. The
-generation model lives in config/models.py — swap it there, not here.
+Default pool = Google AI Studio (Gemini) keys via the OpenAI-compatible
+endpoint. With river_first=True the pool gains a River lane (paid, no
+burst-rate stall) ahead of the Gemini keys, so a 429 storm on one provider
+falls through to the other instead of stalling the run. The generation
+model lives in config/models.py — swap it there, not here.
 """
 import os
 import time
 from itertools import cycle
 
 from openai import OpenAI
+
+from config.models import GEN_CONTENT_MODEL, PILOT_MODEL, RIVER_BASE_URL
 
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
@@ -31,13 +35,30 @@ def is_rate_limit_error(error: Exception) -> bool:
 
 
 class AIClientPool:
-    """Manages multiple Gemini API keys with round-robin cycling and backoff"""
+    """Manages API-key lanes with round-robin cycling and backoff.
 
-    def __init__(self):
+    river_first=True prepends a River lane (PILOT_MODEL) ahead of the Gemini
+    keys — used by the teacher content-generation pools. key_num 1 is the
+    River lane when present; Gemini keys follow.
+    """
+
+    def __init__(self, river_first=False):
         self.keys = []
         self.clients = []
+        self.models = {}
         self.key_states = {}
         self.current_index = 0
+
+        if river_first and os.getenv("RIVER_API_KEY"):
+            client = OpenAI(api_key=os.getenv("RIVER_API_KEY"), base_url=RIVER_BASE_URL, timeout=120, max_retries=1)
+            self.clients.append(client)
+            self.models[len(self.clients)] = PILOT_MODEL
+            self.key_states[len(self.clients)] = {
+                'backoff_until': 0,
+                'rate_limited': False,
+                'last_error': None
+            }
+            print(f"[AI POOL] Lane 1: River ({PILOT_MODEL}) — teacher generation primary")
 
         for env_var in _KEY_VARS:
             key = os.getenv(env_var)
@@ -45,6 +66,7 @@ class AIClientPool:
                 self.keys.append(key)
                 client = OpenAI(api_key=key, base_url=GEMINI_BASE_URL, timeout=120, max_retries=1)
                 self.clients.append(client)
+                self.models[len(self.clients)] = GEN_CONTENT_MODEL
                 self.key_states[len(self.clients)] = {
                     'backoff_until': 0,
                     'rate_limited': False,
@@ -53,9 +75,12 @@ class AIClientPool:
 
         self.cycle_iter = cycle(range(len(self.clients)))
 
-        print(f"[AI POOL] Initialized with {len(self.clients)} Gemini API key(s) via {GEMINI_BASE_URL}")
-        for i, key in enumerate(self.keys, 1):
-            print(f"  Key {i}: {key[:12]}...")
+        gemini_count = len(self.clients) - (1 if river_first and os.getenv("RIVER_API_KEY") else 0)
+        print(f"[AI POOL] Initialized with {gemini_count} Gemini API key(s) via {GEMINI_BASE_URL}")
+
+    def model_for(self, key_num):
+        """Model name for the lane that get_available_client returned."""
+        return self.models.get(key_num, GEN_CONTENT_MODEL)
 
     def get_available_client(self):
         """
@@ -117,16 +142,17 @@ class AIClientPool:
         return available
 
     def get_status(self):
-        """Get status of all keys"""
+        """Get status of all lanes"""
         status = {}
         now = time.time()
-        for i, key in enumerate(self.keys, 1):
+        for i in range(1, len(self.clients) + 1):
             state = self.key_states[i]
             backoff_remaining = max(0, state['backoff_until'] - now)
             status[f"key_{i}"] = {
                 'available': backoff_remaining == 0,
                 'backoff_remaining_s': round(backoff_remaining, 1),
-                'rate_limited': state['rate_limited']
+                'rate_limited': state['rate_limited'],
+                'model': self.models.get(i),
             }
         return status
 

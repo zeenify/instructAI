@@ -60,11 +60,11 @@ async def generate_lesson_outline(
         )
 
         client, key_num = ai_pool.get_available_client()
-        print(f"[STAGE1-OUTLINE] Using API key {key_num}")
+        print(f"[STAGE1-OUTLINE] Using lane {key_num} (model {ai_pool.model_for(key_num)})")
 
         response = client.chat.completions.create(
             messages=messages,
-            model=GEN_CONTENT_MODEL,
+            model=ai_pool.model_for(key_num),
             response_format=OUTLINE_FORMAT,
             temperature=0.5
         )

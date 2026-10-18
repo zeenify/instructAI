@@ -537,13 +537,13 @@ async def generate_content_stream(
                     while attempt_count < max_attempts and not response:
                         try:
                             client, key_num = ai_pool.get_available_client()
-                            print(f"[QUIZ-{quiz_id}] Using API key {key_num}")
+                            print(f"[QUIZ-{quiz_id}] Using lane {key_num} (model {ai_pool.model_for(key_num)})")
                             # Thread + heartbeat: the quiz LLM call can stay silent
                             # for a minute+, which no proxy in the chain tolerates.
                             call_task = asyncio.create_task(asyncio.to_thread(
                                 lambda: client.chat.completions.create(
                                     messages=messages,
-                                    model=GEN_CONTENT_MODEL,
+                                    model=ai_pool.model_for(key_num),
                                     response_format=QUIZ_FORMAT,
                                     temperature=0.7
                                 )

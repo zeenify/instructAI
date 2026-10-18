@@ -186,8 +186,9 @@ async def _run_batch(ai_pool: AIClientPool, **call_kwargs):
             client = key_num = None
             try:
                 client, key_num = ai_pool.get_available_client()
+                lane_kwargs = {**call_kwargs, "model": ai_pool.model_for(key_num)}
                 response = await asyncio.to_thread(
-                    lambda c=client: c.chat.completions.create(**call_kwargs)
+                    lambda c=client, kw=lane_kwargs: c.chat.completions.create(**kw)
                 )
                 ai_pool.mark_success(key_num)
                 await queue.put(("result", (response.choices[0].message.content or "").strip()))

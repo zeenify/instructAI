@@ -105,8 +105,15 @@ def payload_is_replay(payload_json: str) -> bool:
     _seen_stream_payloads[key] = now + 660
     return False
 
-# Initialize AI client pool (Gemini via OpenAI-compatible endpoint, round-robin + backoff)
+# Initialize AI client pools:
+# - ai_pool: Gemini-only — student-runtime calls (AI Tutor, quiz answer
+#   checking) where free-tier request shapes fit and River credits must not
+#   be spent per student action.
+# - gen_pool: River lane first with every Gemini key as automatic fallback —
+#   teacher content generation (architect, sections, quizzes, Q&A batches)
+#   is a huge call burst that stalls a free Gemini key in 429 cooldowns.
 ai_pool = AIClientPool()
+gen_pool = AIClientPool(river_first=True)
 
 
 # ===== HEALTH CHECK ENDPOINT =====
@@ -116,7 +123,7 @@ def health_check():
     return {
         "status": "healthy",
         "service": "InstructAI",
-        "version": "2.0.0"
+        "version": "2.1.0"
     }
 
 
@@ -140,10 +147,10 @@ async def detect_programming_content_endpoint(data: DetectionRequest):
         if not curriculum_text:
             return {"is_coding": False}
 
-        client, key_num = ai_pool.get_available_client()
+        client, key_num = gen_pool.get_available_client()
 
         response = client.chat.completions.create(
-            model=GEN_CONTENT_MODEL,
+            model=gen_pool.model_for(key_num),
             messages=[
                 {
                     "role": "system",
@@ -158,7 +165,7 @@ async def detect_programming_content_endpoint(data: DetectionRequest):
             max_tokens=10
         )
 
-        ai_pool.mark_success(key_num)
+        gen_pool.mark_success(key_num)
         answer = response.choices[0].message.content.strip().lower()
         is_coding = answer == "true"
 
@@ -199,7 +206,7 @@ async def curriculum_stream_endpoint(
 
     return StreamingResponse(
         generate_curriculum_stream(
-            ai_pool=ai_pool,
+            ai_pool=gen_pool,
             context_text=context_text,
             prompt=prompt,
             difficulty=difficulty,
@@ -229,7 +236,7 @@ async def curriculum_legacy_endpoint(
         context_text = f"Context from uploaded file: {extract_text(file)[:4000]}"
 
     result = await generate_curriculum_legacy(
-        ai_pool=ai_pool,
+        ai_pool=gen_pool,
         context_text=context_text,
         prompt=prompt
     )
@@ -261,7 +268,7 @@ async def content_stream_endpoint(
 
     return StreamingResponse(
         generate_content_stream(
-            ai_pool=ai_pool,
+            ai_pool=gen_pool,
             curriculum_structure=structure,
             curriculum_context=curriculum_context,
             difficulty=difficulty,
@@ -315,7 +322,7 @@ async def qa_questions_stream_endpoint(
             print(f"[QA] no text extracted from {file.filename}")
 
     return StreamingResponse(
-        generate_qa_questions_stream(ai_pool=ai_pool, context_sources=sources, settings=qa_settings),
+        generate_qa_questions_stream(ai_pool=gen_pool, context_sources=sources, settings=qa_settings),
         media_type="text/event-stream",
     )
 
@@ -343,7 +350,7 @@ async def test_outline_endpoint(
     curriculum_context = curriculum_text[:30000] if curriculum_text else ""
 
     outline = await generate_lesson_outline(
-        ai_pool=ai_pool,
+        ai_pool=gen_pool,
         curriculum_context=curriculum_context,
         module_title=module_title,
         lesson_title=lesson_title,
@@ -371,7 +378,7 @@ async def test_full_lesson_endpoint(
     try:
         # Stage 1: Generate outline
         outline = await generate_lesson_outline(
-            ai_pool=ai_pool,
+            ai_pool=gen_pool,
             curriculum_context=curriculum_context,
             module_title=module_title,
             lesson_title=lesson_title,
@@ -380,7 +387,7 @@ async def test_full_lesson_endpoint(
 
         # Stage 2: Generate content for each section
         section_contents = await generate_all_section_contents(
-            ai_pool=ai_pool,
+            ai_pool=gen_pool,
             curriculum_context=curriculum_context,
             module_title=module_title,
             lesson_title=lesson_title,

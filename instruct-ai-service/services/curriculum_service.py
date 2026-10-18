@@ -81,10 +81,10 @@ async def generate_curriculum_stream(
         while attempt_count < max_attempts and not stream:
             try:
                 client, key_num = ai_pool.get_available_client()
-                print(f"[CURRICULUM] Using API key {key_num}")
+                print(f"[CURRICULUM] Using lane {key_num} (model {ai_pool.model_for(key_num)})")
                 stream = client.chat.completions.create(
                     messages=messages,
-                    model=GEN_CONTENT_MODEL,
+                    model=ai_pool.model_for(key_num),
                     response_format=CURRICULUM_FORMAT,
                     stream=True
                 )
@@ -217,11 +217,11 @@ async def generate_curriculum_legacy(
         )
 
         client, key_num = ai_pool.get_available_client()
-        print(f"[CURRICULUM-LEGACY] Using API key {key_num}")
+        print(f"[CURRICULUM-LEGACY] Using lane {key_num} (model {ai_pool.model_for(key_num)})")
 
         chat_completion = client.chat.completions.create(
             messages=messages,
-            model=GEN_CONTENT_MODEL,
+            model=ai_pool.model_for(key_num),
             response_format=CURRICULUM_FORMAT
         )
 
