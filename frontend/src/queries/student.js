@@ -19,7 +19,11 @@ export function useStudentClass(id, options = {}) {
         // Returning students paint the last-known class instantly; the fetch confirms.
         initialData: readCache(`sv:class:${id}`) ?? undefined,
         queryFn: async () => {
-            const res = await api.get(`/student/classes/${id}`);
+            // bypassCache: the seed paints yesterday's snapshot, and the legacy
+            // axios cache then re-served it — a just-published class stayed
+            // "No lessons yet" across reloads for 5+ minutes. The refetch must
+            // always hit the network; the seed is only the instant paint.
+            const res = await api.get(`/student/classes/${id}`, { bypassCache: true });
             writeCache(`sv:class:${id}`, res.data);
             return res.data;
         },
@@ -48,7 +52,9 @@ export function useStudentActivities(id, { poll = false } = {}, options = {}) {
         refetchInterval: poll ? 15_000 : false,
         initialData: readCache(`sv:activities:${id}`) ?? undefined,
         queryFn: async () => {
-            const res = await api.get(`/student/classes/${id}/activities`);
+            // bypassCache: polls must never be served a 5-minute-old copy
+            // (same rule as queries/classwork.js).
+            const res = await api.get(`/student/classes/${id}/activities`, { bypassCache: true });
             writeCache(`sv:activities:${id}`, res.data);
             return res.data;
         },
