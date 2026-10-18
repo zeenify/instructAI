@@ -48,6 +48,8 @@ class AIClientPool:
         self.models = {}
         self.key_states = {}
         self.current_index = 0
+        self.river_lane = 0
+        self.gemini_cycle_start = 0
 
         if river_first and os.getenv("RIVER_API_KEY"):
             client = OpenAI(api_key=os.getenv("RIVER_API_KEY"), base_url=RIVER_BASE_URL, timeout=120, max_retries=1)
@@ -58,7 +60,9 @@ class AIClientPool:
                 'rate_limited': False,
                 'last_error': None
             }
-            print(f"[AI POOL] Lane 1: River ({PILOT_MODEL}) — teacher generation primary")
+            self.river_lane = len(self.clients)      # lane 1
+            self.gemini_cycle_start = len(self.clients)  # round-robin begins after it
+            print(f"[AI POOL] Lane 1: River ({PILOT_MODEL}) — STRICT priority; Gemini keys only fill its gaps")
 
         for env_var in _KEY_VARS:
             key = os.getenv(env_var)
@@ -73,7 +77,13 @@ class AIClientPool:
                     'last_error': None
                 }
 
-        self.cycle_iter = cycle(range(len(self.clients)))
+        if not river_first:
+            # Gemini-only pool: round-robin over everything
+            self.cycle_iter = cycle(range(len(self.clients)))
+        else:
+            # River pool: round-robin spans only the Gemini fallback lanes
+            fallback = range(self.gemini_cycle_start, len(self.clients))
+            self.cycle_iter = cycle(fallback if fallback else range(1))
 
         gemini_count = len(self.clients) - (1 if river_first and os.getenv("RIVER_API_KEY") else 0)
         print(f"[AI POOL] Initialized with {gemini_count} Gemini API key(s) via {GEMINI_BASE_URL}")
@@ -85,16 +95,27 @@ class AIClientPool:
     def get_available_client(self):
         """
         Get next available client, respecting backoff for rate-limited keys.
-        Returns the next available key that's NOT in backoff.
-        If all are in backoff, returns the one closest to recovery.
+
+        Rivers pools are STRICT priority: the River lane serves every call
+        until it is itself rate-limited; only then do the Gemini keys fill
+        the gap (round-robin). A plain Gemini pool round-robins everything.
+
+        Returns (client, key_num). If everything is in backoff, returns the
+        lane closest to recovery.
         """
         now = time.time()
+
+        if self.river_lane:
+            state = self.key_states[self.river_lane]
+            if state['backoff_until'] <= now:
+                return self.clients[self.river_lane - 1], self.river_lane
+
         best_available = None
         best_available_idx = None
         best_backoff = None
         best_backoff_idx = None
 
-        # Check all clients in round-robin order
+        # Check round-robin lanes in cycling order
         for _ in range(len(self.clients)):
             idx = next(self.cycle_iter)
             key_num = idx + 1
