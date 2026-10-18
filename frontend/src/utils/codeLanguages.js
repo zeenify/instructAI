@@ -8,6 +8,30 @@ import { python } from '@codemirror/lang-python';
 import { javascript } from '@codemirror/lang-javascript';
 import { html } from '@codemirror/lang-html';
 import { cpp } from '@codemirror/lang-cpp';
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { tags } from '@lezer/highlight';
+
+// Vivid One-Dark-Pro token colors — attached inside cmExtension so EVERY
+// editor surface (student IDEs, quiz answers, teacher builders) highlights
+// with the same lively palette instead of the pale default dark theme.
+export const vividHighlight = syntaxHighlighting(HighlightStyle.define([
+    { tag: [tags.keyword, tags.modifier, tags.controlKeyword, tags.moduleKeyword, tags.operatorKeyword], color: '#c678dd' },
+    { tag: [tags.typeName, tags.className, tags.namespace], color: '#e5c07b' },
+    { tag: [tags.number, tags.bool, tags.null, tags.atom], color: '#d19a66' },
+    { tag: [tags.string, tags.special(tags.string), tags.character], color: '#98c379' },
+    { tag: [tags.function(tags.variableName), tags.function(tags.propertyName), tags.macroName, tags.meta, tags.processingInstruction], color: '#61afef' },
+    { tag: [tags.definition(tags.variableName), tags.variableName, tags.propertyName], color: '#e06c75' },
+    { tag: [tags.operator], color: '#56b6c2' },
+    { tag: [tags.comment, tags.lineComment, tags.blockComment], color: '#7f848e', fontStyle: 'italic' },
+    { tag: [tags.tagName, tags.self], color: '#e06c75' },
+    { tag: [tags.attributeName], color: '#d19a66' },
+    { tag: [tags.attributeValue], color: '#98c379' },
+    { tag: [tags.punctuation, tags.bracket, tags.paren, tags.separator], color: '#abb2bf' },
+    { tag: [tags.heading, tags.strong], color: '#61afef', fontWeight: 'bold' },
+    { tag: [tags.link, tags.url], color: '#56b6c2', textDecoration: 'underline' },
+    { tag: [tags.strikethrough], color: '#7f848e', textDecoration: 'line-through' },
+    { tag: [tags.invalid], color: '#f44747' },
+]));
 
 export const CODE_LANGUAGES = {
     java: {
@@ -75,7 +99,7 @@ export function resolveLanguage(languageId, code) {
 }
 
 export function cmExtension(languageId) {
-    return languageOf(languageId).extension();
+    return [languageOf(languageId).extension(), vividHighlight];
 }
 
 // Heuristic: does this program read from stdin? Used to auto-open the input

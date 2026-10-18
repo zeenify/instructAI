@@ -632,6 +632,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                                 language={languageId}
                                 mode={mode}
                                 compact
+                                onExited={mode === 'challenge' ? () => setActiveTab('editor') : undefined}
                             />
                         </div>
                     </div>

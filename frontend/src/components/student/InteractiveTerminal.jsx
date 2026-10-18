@@ -7,7 +7,7 @@ import { languageOf } from '../../utils/codeLanguages';
 
 const TERMINAL_BG = '#0d0d1a';
 
-const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code, language = 'java', onComplete, lessonId, blockId, mode, expected, compact = false, onRun, onRunningChange }, ref) {
+const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code, language = 'java', onComplete, onExited, lessonId, blockId, mode, expected, compact = false, onRun, onRunningChange }, ref) {
     const terminalRef = useRef(null);
     const wsRef = useRef(null);
     const termRef = useRef(null);
@@ -188,6 +188,9 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
                         if (mode === 'challenge' && onComplete) {
                             onComplete();
                         }
+                        // Surfaces that only visit the terminal for the live run
+                        // (challenges) flip back to the code editor on exit.
+                        onExited?.();
 
                         ws.close();
                         wsRef.current = null;
