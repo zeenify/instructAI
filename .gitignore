@@ -4,7 +4,6 @@
 
 # Root
 node_modules/
-cognify.png
 proxy.js
 opencode.json
 TOOLKIT.md
