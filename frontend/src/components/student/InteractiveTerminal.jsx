@@ -1,13 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { Play, Loader2, Square } from 'lucide-react';
 import { languageOf } from '../../utils/codeLanguages';
+
+const TERMINAL_BG = '#0d0d1a';
 
 const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code, language = 'java', onComplete, lessonId, blockId, mode, expected, compact = false, onRun, onRunningChange }, ref) {
     const terminalRef = useRef(null);
     const wsRef = useRef(null);
     const termRef = useRef(null);
+    const fitRef = useRef(null);
     const [isRunning, setIsRunning] = useState(false);
     const isRunningRef = useRef(false);
     // Single choke point so external listeners (e.g. a grading pane's Run
@@ -21,21 +25,36 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
 
     useEffect(() => {
         const term = new Terminal({
-            cols: 80,
+            // rows/cols come from the FitAddon — the terminal fills its panel
             rows: 24,
             theme: {
-                background: '#050120',
+                background: TERMINAL_BG,
                 foreground: '#cbd5e1',
                 cursor: '#0a84ff',
             },
             fontFamily: 'Courier New, monospace',
             fontSize: 13,
             cursorBlink: true,
-            scrollback: 1000
+            scrollback: 1000,
+            convertEol: true,
         });
 
         term.open(terminalRef.current);
         termRef.current = term;
+
+        // Resize to the panel — the terminal always fills what it's given
+        const fit = new FitAddon();
+        term.loadAddon(fit);
+        fitRef.current = fit;
+        const fitNow = () => {
+            try {
+                if (terminalRef.current && terminalRef.current.clientWidth > 0) fit.fit();
+            } catch { /* container hidden — next resize retries */ }
+        };
+        fitNow();
+        const observer = new ResizeObserver(fitNow);
+        observer.observe(terminalRef.current);
+        window.addEventListener('resize', fitNow);
 
         let inputBuffer = '';
         term.onData((data) => {
@@ -76,6 +95,8 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
         });
 
         return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', fitNow);
             if (termRef.current) {
                 termRef.current.dispose();
             }
@@ -189,7 +210,7 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
             borderRadius: compact ? '0' : '24px',
             border: compact ? 'none' : '1.5px solid rgba(10, 132, 255, 0.3)',
             overflow: 'hidden',
-            background: compact ? 'transparent' : '#050120',
+            background: compact ? 'transparent' : TERMINAL_BG,
             boxShadow: compact ? 'none' : '0 0 30px rgba(10, 132, 255, 0.1)',
         }}>
             {/* Header */}
@@ -230,8 +251,8 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
 
             {/* Terminal - stays dark per spec */}
             <div style={{
-                background: '#050120',
-                padding: '16px',
+                background: TERMINAL_BG,
+                padding: compact ? '8px 10px' : '16px',
                 flex: 1,
                 overflow: 'auto'
             }} ref={terminalRef}></div>

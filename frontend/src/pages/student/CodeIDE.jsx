@@ -212,7 +212,6 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         setCaseResults(null);
         // Running shows the terminal — like a real editor's run button
         if (!isHtml) setActiveTab('terminal');
-        const term = (t) => liveTermRef.current?.write(t);
 
         try {
             if (challengeCases.length > 0) {
@@ -243,21 +242,21 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         setErrorType('compile');
                         setOutput(data.compile_output);
                         setIsCorrect(false);
-                        term(`\r\n[COMPILE ERROR]\r\n${data.compile_output}\r\n`);
+
                         return;
                     }
                     if (data.timed_out || (data.stderr && data.stderr.includes('Execution Timed Out'))) {
                         setErrorType('timeout');
                         setOutput(data.stderr || 'Execution Timed Out');
                         setIsCorrect(false);
-                        term(`\r\n[EXECUTION TIMED OUT]\r\n${data.stderr || ''}\r\n`);
+
                         return;
                     }
                     if (data.stderr) {
                         setErrorType('runtime');
                         setOutput(data.stderr);
                         setIsCorrect(false);
-                        term(`\r\n[RUNTIME ERROR]\r\n${data.stderr}\r\n`);
+
                         return;
                     }
 
@@ -268,14 +267,14 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         actual: cleanOutput,
                         passed: cleanOutput === c.expected_output.replace(/\r\n/g, '\n'),
                     });
-                    term(`\r\n> Case ${i + 1}: ${results[results.length - 1].passed ? 'PASSED' : 'FAILED'}${c.input ? ` (input: ${c.input})` : ''}`);
+
                 }
 
                 setRunningCase(0);
                 setOutput((results[results.length - 1]?.actual) || '');
                 setCaseResults(results);
                 const passedCount = results.filter((r) => r.passed).length;
-                term(`\r\n> Test cases: ${passedCount}/${results.length} passed — full details below. The terminal stays LIVE: run here and type while the program asks.\r\n`);
+
 
                 if (results.every((r) => r.passed) && results.length > 0) {
                     await markSolved();
@@ -306,7 +305,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 setErrorType('compile');
                 setOutput(data.compile_output);
                 setIsCorrect(false);
-                term(`\r\n[COMPILE ERROR]\r\n${data.compile_output}\r\n`);
+
                 return;
             }
 
@@ -314,7 +313,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 setErrorType('timeout');
                 setOutput(data.stderr || 'Execution Timed Out');
                 setIsCorrect(false);
-                term(`\r\n[EXECUTION TIMED OUT]\r\n${data.stderr || ''}\r\n`);
+
                 return;
             }
 
@@ -322,7 +321,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 setErrorType('runtime');
                 setOutput(data.stderr);
                 setIsCorrect(false);
-                term(`[RUNTIME ERROR] ${data.stderr}\r\n`);
+
                 return;
             }
 
@@ -331,16 +330,16 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
 
             setErrorType(null);
             setOutput(cleanOutput || '> Program executed successfully (No output).');
-            term(`\r\n${rawOutput || '(no output)'}\r\n`);
+
 
             if (mode === 'challenge') {
                 const expected = (block.data.expected || '').trim().replace(/\r\n/g, '\n');
 
                 if (cleanOutput === expected && expected !== '') {
-                    term('> Output matches — challenge passed!\r\n');
+
                     await markSolved();
                 } else {
-                    term(`\r\n[EXPECTED]\r\n${expected}\r\n\r\n[YOURS]\r\n${cleanOutput}\r\n`);
+
                     setIsCorrect(false);
                     setIsWrong(true);
                     toast.error('Incorrect. Look closely at the expected output.');
@@ -717,6 +716,25 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                     <p style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 900, textTransform: 'uppercase', margin: '0 0 12px 0' }}>
                         Test Cases — all must pass
                     </p>
+                    {/* Confirmation summary + errors live HERE (outside the
+                        terminal — the terminal stays a plain interactive one) */}
+                    {errorType && output && (
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '12px', padding: '12px 16px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                            <AlertCircle size={16} style={{ color: '#f87171', flexShrink: 0, marginTop: 2 }} />
+                            <div>
+                                <span style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#f87171' }}>
+                                    {OUTPUT_COLORS[errorType]?.label || 'ERROR'}
+                                </span>
+                                <pre style={{ margin: '6px 0 0', fontFamily: 'monospace', fontSize: '11.5px', color: '#fca5a5', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{output}</pre>
+                            </div>
+                        </div>
+                    )}
+                    {caseResults && (
+                        <p style={{ fontSize: '11px', fontWeight: 900, letterSpacing: '0.08em', color: caseResults.every((r) => r.passed) ? '#10b981' : '#ef4444', margin: '0 0 12px 0' }}>
+                            Result: {caseResults.filter((r) => r.passed).length} of {caseResults.length} test cases passed
+                            {caseResults.every((r) => r.passed) ? ' — challenge complete!' : ' — fix your program and run again.'}
+                        </p>
+                    )}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         {challengeCases.map((c, i) => {
                             const r = caseResults?.[i];

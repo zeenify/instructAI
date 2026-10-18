@@ -113,16 +113,13 @@ export default function InlineCodeAnswer({
 
             if (data.compile_output) {
                 setErrorType('compile');
-                setOutput(data.compile_output);
-                liveTermRef.current?.write(`\r\n[COMPILE ERROR]\r\n${data.compile_output}\r\n`);
+                setOutput(data.compile_output);
             } else if (data.timed_out) {
                 setErrorType('timeout');
-                setOutput(data.stderr || 'Execution Timed Out');
-                liveTermRef.current?.write(`\r\n[EXECUTION TIMED OUT]\r\n${data.stderr || ''}\r\n`);
+                setOutput(data.stderr || 'Execution Timed Out');
             } else if (data.stderr) {
                 setErrorType('runtime');
-                setOutput(data.stderr);
-                liveTermRef.current?.write(`[RUNTIME ERROR] ${data.stderr}\r\n`);
+                setOutput(data.stderr);
             } else {
                 const clean = (data.stdout || '').trim().replace(/\r\n/g, '\n');
                 setOutput(clean || '> Program executed successfully (No output).');
@@ -135,14 +132,8 @@ export default function InlineCodeAnswer({
                 }
                 // Results first, then the live terminal right below — the
                 // student can keep interacting without any pre-typed input.
-                setTab('terminal');
-                liveTermRef.current?.write(`\r\n${clean || '(no output)'}\r\n`);
-                if (challengeExpected) {
-                    liveTermRef.current?.write(
-                        isMatch
-                            ? '> Output matches — passed!\r\n'
-                            : `\r\n[EXPECTED]\r\n${String(challengeExpected).trim().replace(/\r\n/g, '\n')}\r\n`,
-                    );
+                setTab('terminal');
+                if (challengeExpected) {
                 }
             }
         } catch {
