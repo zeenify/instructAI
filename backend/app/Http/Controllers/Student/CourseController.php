@@ -95,10 +95,23 @@ class CourseController extends Controller
             ->whereIn('lesson_id', $lessonIds)
             ->pluck('lesson_id');
 
+        // Per-quiz pass flags (the class page locks items in course order,
+        // same as the lesson viewer — a quiz counts as done when passed)
+        $quizIds = $classroom->courses->flatMap->modules->flatMap->quizzes->pluck('id');
+        $passedQuizIds = DB::table('quiz_attempts')
+            ->where('student_id', $studentId)
+            ->where('status', 'completed')
+            ->whereIn('quiz_id', $quizIds)
+            ->whereColumn('total_score', '>=', 'passing_score')
+            ->pluck('quiz_id');
+
         foreach ($classroom->courses as $course) {
             foreach ($course->modules as $module) {
                 foreach ($module->lessons as $lesson) {
                     $lesson->is_completed = $completedLessonIds->contains($lesson->id);
+                }
+                foreach ($module->quizzes as $quiz) {
+                    $quiz->is_passed = $passedQuizIds->contains($quiz->id);
                 }
             }
         }

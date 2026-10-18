@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { BookOpen, Check, ChevronRight, ClipboardList, Layers, Radio } from 'lucide-react';
+import { BookOpen, Check, ChevronRight, ClipboardList, Layers, Lock, Radio } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import StudentActivityCard from '../../components/student/StudentActivityCard';
@@ -65,6 +65,28 @@ export default function ClassView() {
     // Strict 1:1 — the class's single published course IS the content
     const course = classroom.courses?.[0] ?? null;
     const modules = course?.modules ?? [];
+
+    // Progress lock — same rule as the lesson viewer's sidebar: the course is
+    // one linear sequence, item N stays locked until item N-1 is done (a
+    // lesson by completion, a quiz by passing). Without this, the module list
+    // let students jump to any item while the viewer locked the same content.
+    const flat = useMemo(() => modules
+        .slice()
+        .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+        .flatMap(mod => [
+            ...(mod.lessons || []).map(l => ({ ...l, kind: 'lesson' })),
+            ...(mod.quizzes || []).map(q => ({ ...q, kind: 'quiz' })),
+        ].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))), [modules]);
+    const lockByKey = useMemo(() => {
+        const map = {};
+        flat.forEach((item, index) => {
+            if (index === 0) { map[`${item.kind}-${item.id}`] = false; return; }
+            const prev = flat[index - 1];
+            const prevDone = prev.kind === 'lesson' ? prev.is_completed : prev.is_passed;
+            map[`${item.kind}-${item.id}`] = !prevDone;
+        });
+        return map;
+    }, [flat]);
 
     // Due-soon strip: upcoming classwork deadlines (existing activities data)
     const now = Date.now();
@@ -170,12 +192,18 @@ export default function ClassView() {
                                 <div className="sv-group-list">
                                     {[...(mod.lessons || []).map(l => ({ ...l, kind: 'lesson' })), ...(mod.quizzes || []).map(q => ({ ...q, kind: 'quiz' }))]
                                         .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
-                                        .map((item) => (
+                                        .map((item) => {
+                                            const isLocked = !!lockByKey[`${item.kind}-${item.id}`];
+                                            const isDone = item.kind === 'lesson' ? item.is_completed : item.is_passed;
+                                            return (
                                             <button
                                                 key={`${item.kind}-${item.id}`}
                                                 type="button"
                                                 className="sv-row"
                                                 onClick={() => navigate(`/dashboard/student/course/${course.id}/${item.kind}/${item.id}`)}
+                                                disabled={isLocked}
+                                                title={isLocked ? 'Finish the previous item to unlock this' : undefined}
+                                                style={isLocked ? { opacity: 0.55, cursor: 'not-allowed' } : undefined}
                                             >
                                                 <span className={`sv-row-icon ${item.kind}`}>
                                                     {item.kind === 'lesson' ? <BookOpen size={16} /> : <ClipboardList size={16} />}
@@ -189,12 +217,18 @@ export default function ClassView() {
                                                         ~{Math.max(5, Math.round((item.content?.length || 0) * 0.75))} min
                                                     </span>
                                                 )}
-                                                {item.kind === 'lesson' && item.is_completed && (
+                                                {isDone && (
                                                     <span className="sv-row-done"><Check size={13} /> Done</span>
                                                 )}
-                                                <ChevronRight size={15} className="sv-row-chevron" />
+                                                {isLocked && (
+                                                    <span className="sv-row-meta" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                                        <Lock size={12} /> Locked
+                                                    </span>
+                                                )}
+                                                {!isLocked && <ChevronRight size={15} className="sv-row-chevron" />}
                                             </button>
-                                        ))}
+                                            );
+                                        })}
                                 </div>
                             </div>
                         ))}
