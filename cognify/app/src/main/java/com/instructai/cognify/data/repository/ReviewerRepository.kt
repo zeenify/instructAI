@@ -369,6 +369,18 @@ class ReviewerRepository @Inject constructor(
         avoidItems: List<String> = emptyList(),
     ): Flow<ReviewerEvent> = flow {
         val mode = tokenManager.apiMode.first()
+        // School Server calls are authenticated server-side — a guest has no
+        // token, and a doomed request would surface as Laravel's raw
+        // "Unauthenticated." 401
+        if (mode != ApiMode.GEMINI && !tokenManager.hasTokenSync()) {
+            emit(
+                ReviewerEvent.Error(
+                    "auth",
+                    "Sign in first to generate reviewers with the School Server — open the profile icon to log in.",
+                )
+            )
+            return@flow
+        }
         val flow = when (mode) {
             ApiMode.GEMINI -> generateViaGeminiDirect(
                 lessonContent, lessonTitle, reviewerTypes, counts, difficulty, extraInstruction, avoidItems

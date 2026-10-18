@@ -685,7 +685,7 @@ function CognifySection() {
             <a className="cognify-dl-btn" href={COGNIFY_APK_URL} download="Cognify.apk">
               <Download size={19} strokeWidth={2.5} />
               <span className="cognify-dl-main">Download for Android</span>
-              <span className="cognify-dl-sub">.apk · v1.0</span>
+              <span className="cognify-dl-sub">.apk · v1.0.1</span>
             </a>
             <div className="cognify-qr" aria-label={`QR code linking to ${COGNIFY_APK_URL}`}>
               <div className="cognify-qr-card">

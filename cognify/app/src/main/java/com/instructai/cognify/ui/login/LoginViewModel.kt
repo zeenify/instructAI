@@ -122,10 +122,18 @@ class LoginViewModel @Inject constructor(
                     )
                 }
             } catch (e: ApiException) {
-                logger.log("LoginViewModel", "Google sign-in cancelled/user cancelled", e)
+                logger.log("LoginViewModel", "Google sign-in failed: code=${e.statusCode}", e)
+                val message = when (e.statusCode) {
+                    12501 -> "Google sign-in was cancelled — try again and pick an account"
+                    10 -> "This app isn't registered with Google yet (developer configuration) — use your school email and password for now"
+                    7 -> "Google sign-in needs an internet connection"
+                    8 -> "Google sign-in failed on Google's side — try again"
+                    13 -> "Google sign-in was interrupted — try again"
+                    else -> "Google sign-in failed (code ${e.statusCode})"
+                }
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Google sign-in cancelled",
+                    errorMessage = message,
                 )
             }
         }
