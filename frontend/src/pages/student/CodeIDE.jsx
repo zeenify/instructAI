@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
-import { Play, CheckCircle, CheckCircle2, XCircle, AlertCircle, RefreshCw, Terminal as TerminalIcon, Eye, Code2, Loader2 } from 'lucide-react';
+import { Play, CheckCircle2, XCircle, AlertCircle, RefreshCw, Terminal as TerminalIcon, Eye, Code2, Loader2 } from 'lucide-react';
 import api from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -50,6 +50,26 @@ const OUTPUT_COLORS = {
     timeout: { bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.3)', text: '#ef4444', label: '⏱️ EXECUTION TIMED OUT' },
     system: { bg: 'rgba(10, 132, 255, 0.1)', border: 'rgba(10, 132, 255, 0.3)', text: '#0a84ff', label: '⚠️ SYSTEM ERROR' },
 };
+
+// Header tab pills — same look as the quiz/activity inline code editor
+function ideTabStyle(active) {
+    return {
+        padding: '6px 12px',
+        borderRadius: '8px',
+        border: 'none',
+        background: active ? 'rgba(10, 132, 255, 0.14)' : 'transparent',
+        color: active ? '#0066cc' : 'var(--text-tertiary)',
+        cursor: 'pointer',
+        fontWeight: 800,
+        fontSize: '10px',
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '5px',
+        transition: 'all 0.2s',
+    };
+}
 
 export default function CodeIDE({ block, onSolve, lessonId }) {
     const { mode, code: initialCode } = block.data;
@@ -419,14 +439,6 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         toast.info('Code reset');
     };
 
-    const getModeColor = () => {
-        if (isCorrect) return { bg: 'rgba(16, 185, 129, 0.1)', border: '#10b981', text: '#10b981' };
-        if (isWrong) return { bg: 'rgba(239, 68, 68, 0.1)', border: '#ef4444', text: '#ef4444' };
-        if (mode === 'challenge') return { bg: 'rgba(34, 211, 238, 0.08)', border: '#22d3ee', text: '#22d3ee' };
-        return { bg: 'rgba(10, 132, 255, 0.08)', border: '#0a84ff', text: '#0a84ff' };
-    };
-
-    const colors = getModeColor();
     // Challenge with real test cases: Run grades the code — show that clearly
     const isChecking = !isHtml && mode === 'challenge' && challengeCases.length > 0 && isRunning;
     const tabs = isHtml
@@ -444,89 +456,53 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             transition={{ duration: 0.4 }}
             style={{
                 margin: '32px 0',
-                borderRadius: '24px',
-                border: `1.5px solid ${colors.border}`,
+                borderRadius: '14px',
+                border: '1px solid var(--border-color)',
                 overflow: 'hidden',
                 background: 'var(--bg-secondary)',
-                boxShadow: `0 0 30px ${colors.border}20`,
                 transition: 'all 0.5s ease',
                 outline: 'none',
             }}
         >
-            {/* Header */}
-            <div style={{ padding: '20px 24px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ padding: '8px 10px', borderRadius: '10px', background: `${colors.bg}`, color: colors.text, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.5s' }}>
-                        <Play size={14} />
-                    </div>
-                    <span style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: colors.text, transition: 'all 0.5s' }}>
-                        {isWrong ? 'Logic Error' : `${mode.toUpperCase()} Mode`}
-                    </span>
+            {/* Header — same single row as the quiz editor: language pill +
+                mode on the left, tab pills on the right */}
+            <div style={{ padding: '10px 16px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                     <span style={{
                         display: 'inline-flex', alignItems: 'center', gap: '6px',
-                        padding: '5px 12px', borderRadius: '999px',
+                        padding: '4px 10px', borderRadius: '999px',
                         background: `${lang.color}1f`, border: `1px solid ${lang.color}55`,
-                        fontSize: '10px', fontWeight: 900, letterSpacing: '0.1em',
+                        fontSize: '10.5px', fontWeight: 900, letterSpacing: '0.1em',
                         textTransform: 'uppercase', color: lang.color,
                     }}>
-                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: lang.color, boxShadow: `0 0 6px ${lang.color}` }} />
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: lang.color }} />
                         {lang.label}
                     </span>
+                    <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-tertiary)' }}>
+                        {mode === 'challenge' ? 'Challenge' : 'Playground'}
+                    </span>
+                    <AnimatePresence mode="wait">
+                        {isCorrect ? (
+                            // initial={false}: blocks mounting already-solved must render at full size
+                            <motion.span key="success" initial={false} animate={{ scale: 1 }} exit={{ scale: 0 }} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10.5px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '4px 10px', borderRadius: '999px' }}>
+                                ✓ Challenge Solved
+                            </motion.span>
+                        ) : isWrong ? (
+                            <motion.span key="error" initial={false} animate={{ scale: 1 }} exit={{ scale: 0 }} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10.5px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '4px 10px', borderRadius: '999px' }}>
+                                <AlertCircle size={11} /> Incorrect Output
+                            </motion.span>
+                        ) : null}
+                    </AnimatePresence>
                 </div>
-
-                <AnimatePresence mode="wait">
-                    {isCorrect ? (
-                        // initial={false}: the badge must render at full size when the
-                        // block mounts already-solved (hydration), not stuck at scale 0.
-                        <motion.div key="success" initial={false} animate={{ scale: 1 }} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                            <CheckCircle size={14} /> Challenge Solved
-                        </motion.div>
-                    ) : isWrong ? (
-                        // initial={false}: scale-0 enter animations don't run reliably in
-                        // this tree — render the badge at full size immediately.
-                        <motion.div key="error" initial={false} animate={{ scale: 1 }} exit={{ scale: 0 }} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                            <AlertCircle size={14} /> Incorrect Output
-                        </motion.div>
-                    ) : null}
-                </AnimatePresence>
-            </div>
-
-            {/* Tab Switcher */}
-            <div style={{
-                display: 'flex',
-                borderBottom: '1px solid var(--border-color)',
-                background: 'var(--bg-tertiary)',
-            }}>
-                {tabs.map((tab) => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        style={{
-                            flex: 1,
-                            padding: tab.id === 'editor' ? '16px 24px' : '16px 24px',
-                            fontSize: '10px',
-                            fontWeight: 900,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.1em',
-                            border: 'none',
-                            background: activeTab === tab.id ? 'rgba(10, 132, 255, 0.1)' : 'transparent',
-                            color: activeTab === tab.id ? '#0a84ff' : 'var(--text-tertiary)',
-                            cursor: 'pointer',
-                            transition: 'all 0.3s',
-                            borderBottom: activeTab === tab.id ? '2px solid #0a84ff' : 'none',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                        }}
-                    >
-                        <tab.icon size={13} />
-                        {tab.label}
-                        {tab.id === 'console' && consoleLines.length > 0 && (
-                            <span style={{ background: '#0a84ff', color: '#fff', borderRadius: '999px', fontSize: '9px', padding: '1px 7px', fontWeight: 900 }}>{consoleLines.length}</span>
-                        )}
-                    </button>
-                ))}
+                <div style={{ display: 'flex', gap: '6px' }}>
+                    {tabs.map((tab) => (
+                        <button key={tab.id} onClick={() => setActiveTab(tab.id)} type="button" style={ideTabStyle(activeTab === tab.id)}>
+                            <tab.icon size={11} />
+                            {tab.label}
+                            {tab.id === 'console' && consoleLines.length > 0 ? ` (${consoleLines.length})` : ''}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Tab Content */}
@@ -662,67 +638,29 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 )}
             </div>
 
-            {/* Run Button Footer */}
-            <div style={{
-                padding: '16px 24px',
-                background: 'var(--bg-tertiary)',
-                borderTop: '1px solid var(--border-color)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: '12px',
-                flexWrap: 'wrap',
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
-                        ⌘/Ctrl + Enter to run
-                    </span>
-                </div>
-
-                <div style={{ display: 'flex', gap: '12px' }}>
+            {/* Run Button Footer — same compact style as the quiz editor */}
+            <div style={{ padding: '10px 16px', background: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.12em', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
+                    ⌘/Ctrl + Enter to run — type input while it runs
+                </span>
+                <div style={{ display: 'flex', gap: '8px' }}>
                     <button
                         onClick={handleReset}
-                        style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '10px', color: 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '10px', fontWeight: 900 }}
-                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.color = 'var(--accent)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
+                        type="button"
                         title="Reset Code"
+                        style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.3)', background: 'rgba(59, 130, 246, 0.08)', color: '#60a5fa', cursor: 'pointer', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', gap: '5px', transition: 'all 0.2s' }}
                     >
-                        <RefreshCw size={14} />
+                        <RefreshCw size={11} />
                         Reset
                     </button>
                     <button
                         onClick={handleRun}
                         disabled={isRunning}
-                        style={{
-                            padding: '12px 28px',
-                            borderRadius: '14px',
-                            fontWeight: 900,
-                            fontSize: '10px',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.2em',
-                            border: 'none',
-                            cursor: isRunning ? 'not-allowed' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            background: 'rgba(10, 132, 255, 0.15)',
-                            color: '#0a84ff',
-                            boxShadow: '0 10px 30px rgba(10, 132, 255, 0.2)',
-                            transition: 'all 0.3s',
-                            opacity: isRunning ? 0.6 : 1,
-                        }}
-                        onMouseEnter={(e) => {
-                            if (isRunning) return;
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 15px 40px rgba(10, 132, 255, 0.3)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 10px 30px rgba(10, 132, 255, 0.2)';
-                        }}
+                        type="button"
+                        style={{ padding: '8px 18px', borderRadius: '8px', border: 'none', background: isChecking ? '#0a84ff' : '#10b981', color: 'white', cursor: isRunning ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px', opacity: isRunning ? 0.6 : 1, transition: 'all 0.2s' }}
                     >
-                        {isChecking ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />}
-                        {isHtml ? 'Run Page' : isChecking ? 'Checking…' : 'Run Program'}
+                        {isChecking ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} fill="currentColor" />}
+                        {isHtml ? 'Run Page' : isChecking ? 'Checking…' : 'Run'}
                     </button>
                 </div>
             </div>
