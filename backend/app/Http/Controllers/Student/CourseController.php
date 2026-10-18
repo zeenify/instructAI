@@ -99,11 +99,12 @@ class CourseController extends Controller
         // same as the lesson viewer — a quiz counts as done when passed)
         $quizIds = $classroom->courses->flatMap->modules->flatMap->quizzes->pluck('id');
         $passedQuizIds = DB::table('quiz_attempts')
-            ->where('student_id', $studentId)
-            ->where('status', 'completed')
-            ->whereIn('quiz_id', $quizIds)
-            ->whereColumn('total_score', '>=', 'passing_score')
-            ->pluck('quiz_id');
+            ->join('quizzes', 'quizzes.id', '=', 'quiz_attempts.quiz_id')
+            ->where('quiz_attempts.student_id', $studentId)
+            ->where('quiz_attempts.status', 'completed')
+            ->whereIn('quiz_attempts.quiz_id', $quizIds)
+            ->whereColumn('quiz_attempts.total_score', '>=', 'quizzes.passing_score')
+            ->pluck('quiz_attempts.quiz_id');
 
         foreach ($classroom->courses as $course) {
             foreach ($course->modules as $module) {
