@@ -226,6 +226,14 @@ export default function CourseBuilder({
     const [isGeneratingContent, setIsGeneratingContent] = useState(false);
     const [generationLogs, setGenerationLogs] = useState([]);
     const contentAbortRef = useRef(null);
+    // Auto-resume: when the generation stream dies mid-run (proxy wall, LLM
+    // stall), the same top-up flow replays itself — up to twice per run.
+    const autoResumeRef = useRef(0);
+    // Latest outline mirror for the resume computation (state closures go
+    // stale across a long-running stream).
+    const latestOutlineRef = useRef(null);
+    // A deliberate pause/close cancels any scheduled auto-resume.
+    const contentStoppedRef = useRef(false);
     const [structureError, setStructureError] = useState(null);
     const [contentStartedAt, setContentStartedAt] = useState(null);
     const [contentPaused, setContentPaused] = useState(false);
@@ -784,6 +792,8 @@ export default function CourseBuilder({
     // Pause: stop streaming now; the teacher can resume with the missing
     // items later (everything finished is already saved server-side)
     const handlePauseGeneration = () => {
+        // A deliberate pause also cancels any scheduled auto-resume
+        contentStoppedRef.current = true;
         if (contentAbortRef.current) {
             contentAbortRef.current.abort();
         }
@@ -814,6 +824,12 @@ export default function CourseBuilder({
             }));
         } catch { /* storage full — the run simply won't survive a refresh */ }
     }, [generatedContent, generationLogs, contentStartedAt, id]);
+
+    // Mirror the outline for the auto-resume computation: state closures go
+    // stale across a minutes-long stream.
+    useEffect(() => {
+        if (generatedContent) latestOutlineRef.current = generatedContent;
+    }, [generatedContent]);
 
     // Reopen an interrupted run after a refresh
     useEffect(() => {
@@ -941,6 +957,30 @@ export default function CourseBuilder({
 
     const generateLessonContent = async (modules, params, baseModules = null) => {
         lastContentParamsRef.current = params;
+        // A fresh run gets a clean auto-resume budget; continuations keep
+        // whatever budget the current page session still has.
+        if (!baseModules) autoResumeRef.current = 0;
+        contentStoppedRef.current = false;
+        // Restart the same top-up flow when the stream dies mid-run (proxy
+        // wall, LLM stall, network blip) — it only covers the missing items,
+        // so a resume is cheap and never touches finished lessons.
+        const tryAutoResume = (logOffset = 0) => {
+            const current = latestOutlineRef.current;
+            const modulesSrc = current?.modules || modules;
+            const remaining = modulesSrc.map(m => ({
+                ...m,
+                lessons: (m.lessons || []).filter(l => !l.generated).map(({ id, title }) => ({ id, title })),
+                quizzes: (m.quizzes || []).filter(q => !q.generated).map(({ id, title }) => ({ id, title })),
+            })).filter(m => m.lessons.length || m.quizzes.length);
+            if (!remaining.length || autoResumeRef.current >= 2) return false;
+            autoResumeRef.current += 1;
+            addLog('warn', `⚠ Connection dropped mid-generation — auto-continuing (attempt ${autoResumeRef.current}/2)…`, logOffset);
+            setTimeout(() => {
+                if (contentStoppedRef.current) return; // teacher paused/closed meanwhile
+                generateLessonContent(remaining, params, current?.modules || null);
+            }, 1500);
+            return true;
+        };
         setContentStartedAt(Date.now());
         setContentPaused(false);
         setIsGeneratingContent(true);
@@ -1019,16 +1059,22 @@ export default function CourseBuilder({
             let logDelayOffset = 0;
             const totalLessons = structure.reduce((sum, m) => sum + m.lessons.length, 0);
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) {
-                    // Stream ended - check if all lessons were completed
-                    if (lessonsCompleted < totalLessons) {
-                        console.warn(`Stream ended early: ${lessonsCompleted}/${totalLessons} lessons completed`);
-                        toast.warning(`Content partially generated (${lessonsCompleted}/${totalLessons} lessons)`);
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        // Stream ended - check if all lessons were completed
+                        if (lessonsCompleted < totalLessons) {
+                            console.warn(`Stream ended early: ${lessonsCompleted}/${totalLessons} lessons completed`);
+                            if (!tryAutoResume(logDelayOffset)) {
+                                // Resume budget spent — release the running state
+                                // so the Continue button is usable without a refresh
+                                toast.warning(`Content partially generated (${lessonsCompleted}/${totalLessons} lessons)`);
+                                setIsGeneratingContent(false);
+                                contentAbortRef.current = null;
+                            }
+                        }
+                        break;
                     }
-                    break;
-                }
 
                 buffer += decoder.decode(value, { stream: true });
                 const lines = buffer.split('\n');
@@ -1187,6 +1233,10 @@ export default function CourseBuilder({
             if (err?.name === 'AbortError') {
                 addLog('info', 'Generation stopped by teacher — anything already finished stays saved.', 0);
                 toast.info('Content generation stopped');
+            } else if (tryAutoResume(0)) {
+                // The new stream takes over — keep the studio in its running
+                // state so the handoff is seamless.
+                return;
             } else {
                 toast.error('Failed to generate content');
             }
@@ -1804,6 +1854,7 @@ if (loading || !course) return (
                     // version of the old "waste your AI tokens" warning
                     if (isGeneratingContent && contentAbortRef.current) {
                         contentAbortRef.current.abort();
+                        contentStoppedRef.current = true;
                     }
                     setIsContentModalOpen(false);
                     contentAbortRef.current = null;

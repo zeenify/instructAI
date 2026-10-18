@@ -661,8 +661,12 @@ class CourseController extends Controller
 
     public function generateContent(Request $request, $id)
     {
-        // Increase timeout for 3-stage AI pipeline (outline + content + formatting)
-        set_time_limit(900); // 15 minutes
+        // The AI pipeline for a full course (13+ lessons and quizzes through a
+        // slow provider) legitimately runs LONGER than 15 minutes — a fixed
+        // wall here killed the stream mid-generation (the "partially generated"
+        // toast at 1/13). No PHP cap; hang protection stays in the per-read
+        // timeout + the browser-initiated resume.
+        set_time_limit(0);
 
         $course = Course::where('id', $id)
             ->where('teacher_id', auth()->id())
@@ -712,7 +716,7 @@ class CourseController extends Controller
                 'headers' => \App\Services\AiService::authHeader(),
                     'multipart' => $multipart,
                     'stream' => true,
-                    'timeout' => 600, // 10 minutes for 3-stage pipeline
+                    'timeout' => 0, // NO total wall — a full-course run outlives any fixed limit; only the read timeout below aborts a genuinely silent stream
                     'read_timeout' => 300, // a section-level LLM call may legitimately run up to 240s silently (capped in stage2) — 45s used to abort the relay mid-lesson
                     'connect_timeout' => 30,
                 ]);
