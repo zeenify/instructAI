@@ -16,7 +16,7 @@ load_dotenv()
 from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 # Import modular components
 from schemas import CurriculumResponse
@@ -841,6 +841,15 @@ class PilotStreamPayload(BaseModel):
     history: list = []
     consent: bool = False
     data: dict = {}
+
+    @field_validator("data", mode="before")
+    @classmethod
+    def _php_empty_list_to_dict(cls, v):
+        # PHP json_encode turns an empty assoc array into []; Laravel's
+        # (array) cast does it whenever the request carries no tool data.
+        if v is None or v == []:
+            return {}
+        return v
 
 
 @app.post("/ai/pilot-stream")

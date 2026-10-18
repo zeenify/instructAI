@@ -37,9 +37,9 @@ class SystemController extends Controller
 
     private function ping(string $label, string $url, ?array $headers = null): array
     {
-        if ($headers === null && str_contains($label, 'engine') && !filled(env('EXECUTION_ENGINE_TOKEN'))) {
-            return ['label' => $label, 'url' => $url, 'ok' => false, 'note' => 'EXECUTION_ENGINE_TOKEN is not configured on the backend'];
-        }
+        // The engine is open-access unless IT was given an ENGINE_TOKEN; a
+        // tokenless backend header set is valid and must still be probed, so
+        // the only refusal is a real connectivity failure below.
 
         $start = microtime(true);
         try {

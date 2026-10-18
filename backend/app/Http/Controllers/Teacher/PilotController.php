@@ -89,7 +89,10 @@ class PilotController extends Controller
             'snapshot' => (string) ($data['snapshot'] ?? ''),
             'history' => $history,
             'consent' => (bool) ($data['consent'] ?? false),
-            'data' => $data,
+            // (object) keeps json_encode emitting {} — PHP's default array cast
+            // encodes an empty tool-data map as [], which the signed consumer
+            // (Python pydantic) rejects: dict expected, list received
+            'data' => (object) $data,
         ];
 
         // Only the teacher's own request enters the thread; intra-run tool
