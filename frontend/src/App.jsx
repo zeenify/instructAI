@@ -56,22 +56,44 @@ function LogoutRoute() {
   return null;
 }
 
-// Safety net: a render crash used to white-screen the whole app with no
-// message. Now the error is visible on the page instead of a silent void.
+// Safety net: a render crash shows a friendly, recoverable screen — the raw
+// stack goes to the console for debugging, never to a student's face.
 class RootErrorBoundary extends React.Component {
   state = { error: null };
   static getDerivedStateFromError(error) {
     return { error };
   }
+  componentDidCatch(error, info) {
+    console.error('[InstructAI] render crash:', error, info?.componentStack);
+  }
   render() {
     if (this.state.error) {
       return (
-        <pre style={{
-          padding: 24, whiteSpace: 'pre-wrap', fontFamily: 'JetBrains Mono, monospace',
-          fontSize: 12.5, color: '#b91c1c', background: '#fef2f2', minHeight: '100vh',
+        <div style={{
+          minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'Inter, system-ui, sans-serif', background: '#faf6ef', padding: 24,
         }}>
-          {'ROOT ERROR\n\n' + String(this.state.error?.stack || this.state.error)}
-        </pre>
+          <div style={{ maxWidth: 460, textAlign: 'center' }}>
+            <div style={{ fontSize: 44, marginBottom: 14 }}>📋</div>
+            <h1 style={{ fontSize: 20, fontWeight: 800, color: '#16130e', margin: '0 0 8px' }}>
+              Something went wrong
+            </h1>
+            <p style={{ fontSize: 13.5, color: '#57503f', margin: '0 0 20px', lineHeight: 1.6 }}>
+              This page hit an unexpected error. Reloading usually fixes it —
+              your recent work is saved.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                padding: '11px 26px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                background: '#16130e', color: '#faf6ef', fontSize: 12, fontWeight: 800,
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+              }}
+            >
+              Reload the page
+            </button>
+          </div>
+        </div>
       );
     }
     return this.props.children;
