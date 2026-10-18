@@ -46,30 +46,17 @@ export default function ClassView() {
         }
     }, [classroom, id]);
 
-    if (isLoading || !classroom) {
-        return (
-            <div>
-                <div className="sv-class-head">
-                    <SkeletonBlock style={{ width: 52, height: 12, marginBottom: 12 }} />
-                    <SkeletonBlock style={{ width: 340, height: 42, borderRadius: 12 }} />
-                    <SkeletonBlock style={{ width: 420, height: 14, marginTop: 14 }} />
-                </div>
-                <div className="sv-seg" style={{ marginBottom: 22 }}>
-                    <SkeletonBlock style={{ width: 92, height: 15 }} />
-                </div>
-                <ContentSkeleton />
-            </div>
-        );
-    }
-
     // Strict 1:1 — the class's single published course IS the content
-    const course = classroom.courses?.[0] ?? null;
+    const course = classroom?.courses?.[0] ?? null;
     const modules = course?.modules ?? [];
 
     // Progress lock — same rule as the lesson viewer's sidebar: the course is
     // one linear sequence, item N stays locked until item N-1 is done (a
     // lesson by completion, a quiz by passing). Without this, the module list
     // let students jump to any item while the viewer locked the same content.
+    // These memos MUST run on every render (always before any early return)
+    // or the hook count changes once data arrives — React #310 on a fresh
+    // login where the first render is still loading.
     const flat = useMemo(() => modules
         .slice()
         .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
@@ -87,6 +74,22 @@ export default function ClassView() {
         });
         return map;
     }, [flat]);
+
+    if (isLoading || !classroom) {
+        return (
+            <div>
+                <div className="sv-class-head">
+                    <SkeletonBlock style={{ width: 52, height: 12, marginBottom: 12 }} />
+                    <SkeletonBlock style={{ width: 340, height: 42, borderRadius: 12 }} />
+                    <SkeletonBlock style={{ width: 420, height: 14, marginTop: 14 }} />
+                </div>
+                <div className="sv-seg" style={{ marginBottom: 22 }}>
+                    <SkeletonBlock style={{ width: 92, height: 15 }} />
+                </div>
+                <ContentSkeleton />
+            </div>
+        );
+    }
 
     // Due-soon strip: upcoming classwork deadlines (existing activities data)
     const now = Date.now();
