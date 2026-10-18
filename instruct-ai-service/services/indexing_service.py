@@ -83,10 +83,10 @@ class IndexingService:
                     print(f"[Indexing] Lesson {lesson_id} cleared (no chunks)")
                     return
 
-                # Insert new chunks
-                for chunk in chunks:
-                    embedding = embedding_service.embed_text(chunk)
-                    metadata = json.dumps({"source": "lesson"})
+                # One batched embed call for the whole lesson, then insert
+                embeddings = embedding_service.embed_batch(chunks)
+                metadata = json.dumps({"source": "lesson"})
+                for chunk, embedding in zip(chunks, embeddings):
                     cur.execute(
                         """
                         INSERT INTO document_chunks (class_id, course_id, lesson_id, chunk_text, embedding, metadata, created_at, updated_at)
@@ -114,9 +114,9 @@ class IndexingService:
                 # Delete existing curriculum chunks for this course
                 cur.execute("DELETE FROM document_chunks WHERE course_id = %s AND lesson_id IS NULL", (course_id,))
 
-                # Insert new chunks
-                for i, chunk in enumerate(chunks):
-                    embedding = embedding_service.embed_text(chunk)
+                # One batched embed call, then insert
+                embeddings = embedding_service.embed_batch(chunks)
+                for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
                     metadata = json.dumps({"source": "curriculum", "chunk_index": i})
                     cur.execute(
                         """
@@ -145,9 +145,9 @@ class IndexingService:
                 # Delete ALL existing chunks for this course (both curriculum and lessons)
                 cur.execute("DELETE FROM document_chunks WHERE course_id = %s", (course_id,))
 
-                # Insert new unified chunks (no lesson_id, all in one pool)
-                for i, chunk in enumerate(chunks):
-                    embedding = embedding_service.embed_text(chunk)
+                # One batched embed call, then insert unified chunks (no lesson_id)
+                embeddings = embedding_service.embed_batch(chunks)
+                for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
                     metadata = json.dumps({"source": "combined", "chunk_index": i})
                     cur.execute(
                         """

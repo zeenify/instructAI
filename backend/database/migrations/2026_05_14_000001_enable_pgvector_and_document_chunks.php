@@ -24,7 +24,8 @@ return new class extends Migration
             $table->foreignId('lesson_id')->nullable()->constrained('lessons')->onDelete('cascade');
             $table->text('chunk_text');
             if ($isPgsql) {
-                $table->vector('embedding', 384);
+                // 768 = Gemini text-embedding-004 (the service's embedding model)
+                $table->vector('embedding', 768);
             } else {
                 // SQLite fallback (local dev / tests): plain column
                 $table->binary('embedding')->nullable();
