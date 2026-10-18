@@ -121,11 +121,21 @@ async def generate_section_content(
             model = ai_pool.model_for(key_num)
             print(f"[STAGE2-CONTENT] Using lane {key_num}, model {model} (attempt {attempt_count + 1}/{max_attempts})")
 
-            response = client.chat.completions.create(
-                messages=messages,
-                model=model,
-                response_format=section_format(section_type, is_programming),
-                temperature=0.7
+            # to_thread: sections of one lesson run concurrently, not stacked
+            # back-to-back; wait_for: a runaway generation (a slow-streaming
+            # body outlives client timeouts) caps at 240s and falls back
+            # instead of freezing the whole lesson.
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    lambda c=client, m=model: c.chat.completions.create(
+                        messages=messages,
+                        model=m,
+                        response_format=section_format(section_type, is_programming),
+                        temperature=0.7,
+                        timeout=230,
+                    )
+                ),
+                timeout=240,
             )
 
             ai_pool.mark_success(key_num)

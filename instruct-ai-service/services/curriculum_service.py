@@ -86,7 +86,8 @@ async def generate_curriculum_stream(
                     messages=messages,
                     model=ai_pool.model_for(key_num),
                     response_format=CURRICULUM_FORMAT,
-                    stream=True
+                    stream=True,
+                    timeout=230,
                 )
                 ai_pool.mark_success(key_num)
             except Exception as e:
@@ -222,7 +223,8 @@ async def generate_curriculum_legacy(
         chat_completion = client.chat.completions.create(
             messages=messages,
             model=ai_pool.model_for(key_num),
-            response_format=CURRICULUM_FORMAT
+            response_format=CURRICULUM_FORMAT,
+            timeout=230,
         )
 
         ai_pool.mark_success(key_num)

@@ -66,7 +66,8 @@ async def generate_lesson_outline(
             messages=messages,
             model=ai_pool.model_for(key_num),
             response_format=OUTLINE_FORMAT,
-            temperature=0.5
+            temperature=0.5,
+            timeout=230,
         )
 
         ai_pool.mark_success(key_num)
