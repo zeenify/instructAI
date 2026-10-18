@@ -713,7 +713,7 @@ class CourseController extends Controller
                     'multipart' => $multipart,
                     'stream' => true,
                     'timeout' => 600, // 10 minutes for 3-stage pipeline
-                    'read_timeout' => 45, // heartbeats arrive every 12s — 45s of silence means the AI service is gone
+                    'read_timeout' => 300, // a section-level LLM call may legitimately run up to 240s silently (capped in stage2) — 45s used to abort the relay mid-lesson
                     'connect_timeout' => 30,
                 ]);
 

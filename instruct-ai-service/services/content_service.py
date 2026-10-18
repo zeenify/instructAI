@@ -482,8 +482,11 @@ async def generate_content_stream(
                 yield f"data: {json.dumps({'type': 'status', 'message': f'Generating: {quiz_title}'})}\n\n"
                 time.sleep(0.1)  # Delay to separate quiz start messages
 
-                # Auto-detect if course is programming-related
-                is_programming_course = any(
+                # Auto-detect if course is programming-related. The endpoint's
+                # is_coding flag is authoritative — on a continue-run the
+                # in-session summaries are empty (lessons generated in an
+                # earlier stream), so the derived flag alone blocks coding.
+                is_programming_course = is_coding or any(
                     summary.get('has_coding', False)
                     for summary in all_lesson_summaries
                 )
