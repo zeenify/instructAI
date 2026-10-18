@@ -42,13 +42,24 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
         term.open(terminalRef.current);
         termRef.current = term;
 
-        // Resize to the panel — the terminal always fills what it's given
+        // Resize to the panel — the terminal always fills what it's given.
+        // Guarded: during layout transitions a container can report absurd
+        // sizes (a 43k-wide mount was observed) — retry instead of trusting.
         const fit = new FitAddon();
         term.loadAddon(fit);
         fitRef.current = fit;
+        let fitRetries = 0;
         const fitNow = () => {
             try {
-                if (terminalRef.current && terminalRef.current.clientWidth > 0) fit.fit();
+                if (!terminalRef.current || terminalRef.current.clientWidth === 0) return;
+                const dims = fit.proposeDimensions();
+                if (dims && dims.cols && dims.rows && dims.cols >= 5 && dims.cols <= 400 && dims.rows >= 3 && dims.rows <= 160) {
+                    fit.fit();
+                    fitRetries = 0;
+                } else if (fitRetries < 12) {
+                    fitRetries += 1;
+                    requestAnimationFrame(fitNow);
+                }
             } catch { /* container hidden — next resize retries */ }
         };
         fitNow();
