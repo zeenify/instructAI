@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+**/__pycache__/
+.env
+*.md
+test_service.py
+test_full_lesson.html
