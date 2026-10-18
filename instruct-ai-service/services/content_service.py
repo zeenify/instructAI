@@ -98,6 +98,19 @@ def harden_coding_questions(quiz_data: dict, language_lock: str = "") -> None:
 HEARTBEAT_INTERVAL_S = 12
 
 
+def _rss_mb():
+    """Resident memory in MB (Linux /proc) — surfaces OOM pressure in the SSE
+    heartbeat trail so a mid-generation kill is attributable."""
+    try:
+        with open('/proc/self/status') as f:
+            for line in f:
+                if line.startswith('VmRSS:'):
+                    return f"{int(line.split()[1]) // 1024}MB"
+    except Exception:
+        pass
+    return '?'
+
+
 async def run_with_heartbeat(fn, *args, **kwargs):
     """
     Run blocking pipeline work in a worker thread while the async generator
@@ -106,7 +119,7 @@ async def run_with_heartbeat(fn, *args, **kwargs):
     (nginx fastcgi_read_timeout) and kill the stream mid-generation with
     ERR_INCOMPLETE_CHUNKED_ENCODING in the browser.
 
-    Yields {'heartbeat': True} while waiting, then {'result': <return value>}.
+    Yields {'heartbeat': True, 'rss': <mem>} while waiting, then {'result': <return value>}.
     """
     def _call():
         result = fn(*args, **kwargs)
@@ -123,7 +136,7 @@ async def run_with_heartbeat(fn, *args, **kwargs):
             return_data = task.result()
             yield {'result': return_data}
             return
-        yield {'heartbeat': True}
+        yield {'heartbeat': True, 'rss': _rss_mb()}
 
 
 def extract_lesson_summary(formatted_lesson: dict, lesson_title: str, module_title: str) -> dict:
@@ -323,7 +336,7 @@ async def generate_content_stream(
                         if 'result' in msg:
                             outline = msg['result']
                         else:
-                            yield ': heartbeat' + chr(10) + chr(10)
+                            yield ': heartbeat rss=' + str(msg.get('rss', '?')) + chr(10) + chr(10)
 
                     sections = outline.get('sections', [])
                     yield f"data: {json.dumps({'type': 'status', 'message': f'✍️ Writing {len(sections)} sections: {lesson_title}'})}\n\n"
@@ -356,7 +369,7 @@ async def generate_content_stream(
                             if 'result' in msg:
                                 content = msg['result']
                             else:
-                                yield ': heartbeat' + chr(10) + chr(10)
+                                yield ': heartbeat rss=' + str(msg.get('rss', '?')) + chr(10) + chr(10)
 
                         # Check if rate limit was hit
                         if content.get('rate_limit_error'):
@@ -440,7 +453,7 @@ async def generate_content_stream(
                         if 'result' in msg:
                             formatted_lesson = msg['result']
                         else:
-                            yield ': heartbeat' + chr(10) + chr(10)
+                            yield ': heartbeat rss=' + str(msg.get('rss', '?')) + chr(10) + chr(10)
 
                     lesson_content = {
                         "lesson_id": lesson_id,
@@ -555,7 +568,7 @@ async def generate_content_stream(
                             while not call_task.done():
                                 await asyncio.sleep(HEARTBEAT_INTERVAL_S)
                                 if not call_task.done():
-                                    yield ': heartbeat' + chr(10) + chr(10)
+                                    yield ': heartbeat rss=' + str(msg.get('rss', '?')) + chr(10) + chr(10)
                             response = call_task.result()
                             ai_pool.mark_success(key_num)
                         except Exception as e:
@@ -604,7 +617,7 @@ async def generate_content_stream(
                     # cases on the real engine before publishing anything.
                     async for msg in run_with_heartbeat(harden_coding_questions, quiz_data, language):
                         if 'result' not in msg:
-                            yield ': heartbeat' + chr(10) + chr(10)
+                            yield ': heartbeat rss=' + str(msg.get('rss', '?')) + chr(10) + chr(10)
 
                     # Pass full quiz data (includes grouped questions + timer settings)
                     quiz_content = {
