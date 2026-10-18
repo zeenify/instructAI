@@ -84,6 +84,12 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
 
     React.useImperativeHandle(ref, () => ({
         triggerRun: handleRun,
+        // External surfaces (challenge results, summaries) write straight into
+        // the same scrollback the live session uses — one continuous terminal.
+        write: (text) => {
+            termRef.current?.write(String(text).replace(/\n/g, '\r\n'));
+        },
+        clear: () => termRef.current?.clear(),
         stop: () => {
             try {
                 wsRef.current?.send(JSON.stringify({ type: 'stop' }));
@@ -105,7 +111,12 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
         const compiling = ['java', 'cpp'].includes(language);
         termRef.current?.write(`> ${compiling ? 'Compiling' : 'Starting'} ${langLabel} program...\r\n`);
 
-        const wsBase = import.meta.env.VITE_WS_URL || 'ws://localhost:3000';
+        // localhost defaults (committed .env, dev engines) must never leak into
+        // a hosted build — fall back to the deployed engine there.
+        let wsBase = import.meta.env.VITE_WS_URL || 'ws://localhost:3000';
+        if (wsBase.includes('localhost') && !window.location.hostname.includes('localhost')) {
+            wsBase = 'wss://instruct-execute.onrender.com';
+        }
         const wsToken = import.meta.env.VITE_WS_TOKEN;
         const wsUrl = wsToken ? `${wsBase}${wsBase.includes('?') ? '&' : '?'}token=${encodeURIComponent(wsToken)}` : wsBase;
         const ws = new WebSocket(wsUrl);

@@ -4,15 +4,15 @@
 // richer CodeIDE instead; this one is trimmed to fit inside question cards.
 import { useState, useEffect, useRef } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
-import { Play, Loader2, RotateCcw, Eye, Code2, Terminal as TerminalIcon, AlertCircle, ChevronUp, ArrowRight } from 'lucide-react';
+import { Play, Loader2, RotateCcw, Eye, Code2, Terminal as TerminalIcon, AlertCircle, ArrowRight } from 'lucide-react';
 import api from '../../services/api';
+import InteractiveTerminal from './InteractiveTerminal';
 import {
     languageOf,
     cmExtension,
     injectPreviewBridge,
     htmlCheckLabel,
     normalizeHtmlChecks,
-    detectStdinUsage,
 } from '../../utils/codeLanguages';
 
 const ERROR_STYLES = {
@@ -41,12 +41,13 @@ export default function InlineCodeAnswer({
     const [errorType, setErrorType] = useState(null);
     const [meta, setMeta] = useState(null);
     const [tab, setTab] = useState('code');
-    const [stdin, setStdin] = useState('');
-    const [showStdin, setShowStdin] = useState(false);
     const [previewDoc, setPreviewDoc] = useState('');
     const [consoleLines, setConsoleLines] = useState([]);
     const [passed, setPassed] = useState(false);
     const [actualOutput, setActualOutput] = useState(null); // for expected-vs-actual display
+    // The Terminal tab hosts the LIVE interactive terminal — input is typed
+    // while the program runs, never preemptively.
+    const liveTermRef = useRef(null);
     // HTML page checks: explicit structured checks win; a legacy expected-text
     // string is synthesized into a single page-text check.
     const htmlChecks = isHtml ? normalizeHtmlChecks(htmlChecksProp, challengeExpected) : [];
@@ -56,15 +57,6 @@ export default function InlineCodeAnswer({
     const containerRef = useRef(null);
 
     useEffect(() => { setPassed(false); setActualOutput(null); setCheckResults(null); }, [language]);
-
-    // Auto-open the stdin box when the code reads input — a bare EOFError
-    // traceback teaches a beginner nothing.
-    useEffect(() => {
-        if (!isHtml && detectStdinUsage(language, value || boilerplate)) {
-            setShowStdin(true);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
     useEffect(() => {
         if (!isHtml) return undefined;
@@ -115,7 +107,6 @@ export default function InlineCodeAnswer({
             const res = await api.post('/student/execute', {
                 code: value || boilerplate,
                 language: lang.id,
-                input: stdin || undefined,
             }, { timeout: 45000 });
             const data = res.data;
             setMeta({ duration_ms: data.duration_ms, exit_code: data.exit_code });
@@ -123,20 +114,36 @@ export default function InlineCodeAnswer({
             if (data.compile_output) {
                 setErrorType('compile');
                 setOutput(data.compile_output);
+                liveTermRef.current?.write(`\r\n[COMPILE ERROR]\r\n${data.compile_output}\r\n`);
             } else if (data.timed_out) {
                 setErrorType('timeout');
                 setOutput(data.stderr || 'Execution Timed Out');
+                liveTermRef.current?.write(`\r\n[EXECUTION TIMED OUT]\r\n${data.stderr || ''}\r\n`);
             } else if (data.stderr) {
                 setErrorType('runtime');
                 setOutput(data.stderr);
+                liveTermRef.current?.write(`[RUNTIME ERROR] ${data.stderr}\r\n`);
             } else {
                 const clean = (data.stdout || '').trim().replace(/\r\n/g, '\n');
                 setOutput(clean || '> Program executed successfully (No output).');
                 setActualOutput(clean);
+                const isMatch = challengeExpected
+                    ? clean === String(challengeExpected).trim().replace(/\r\n/g, '\n')
+                    : false;
                 if (challengeExpected) {
-                    setPassed(clean === String(challengeExpected).trim().replace(/\r\n/g, '\n'));
+                    setPassed(isMatch);
                 }
-                setTab('output');
+                // Results first, then the live terminal right below — the
+                // student can keep interacting without any pre-typed input.
+                setTab('terminal');
+                liveTermRef.current?.write(`\r\n${clean || '(no output)'}\r\n`);
+                if (challengeExpected) {
+                    liveTermRef.current?.write(
+                        isMatch
+                            ? '> Output matches — passed!\r\n'
+                            : `\r\n[EXPECTED]\r\n${String(challengeExpected).trim().replace(/\r\n/g, '\n')}\r\n`,
+                    );
+                }
             }
         } catch {
             setErrorType('system');
@@ -161,7 +168,6 @@ export default function InlineCodeAnswer({
     });
 
     const headerLabel = isHtml ? 'Web Page' : `${lang.label} Source Code`;
-    const readsInput = !isHtml && detectStdinUsage(language, value || boilerplate);
 
     return (
         <div ref={containerRef} tabIndex={-1} style={{ borderRadius: '14px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', overflow: 'hidden', outline: 'none' }}>
@@ -199,7 +205,7 @@ export default function InlineCodeAnswer({
                     ) : (
                         <>
                             <button onClick={() => setTab('code')} type="button" style={tabBtnStyle(tab === 'code')}><Code2 size={11} /> Code</button>
-                            <button onClick={() => setTab('output')} type="button" style={tabBtnStyle(tab === 'output')}><TerminalIcon size={11} /> Output</button>
+                            <button onClick={() => setTab('terminal')} type="button" style={tabBtnStyle(tab === 'terminal')}><TerminalIcon size={11} /> Terminal</button>
                         </>
                     )}
                 </div>
@@ -305,99 +311,75 @@ export default function InlineCodeAnswer({
                 </div>
             )}
 
-            {!isHtml && tab === 'output' && (
-                <div style={{ height, overflow: 'auto', padding: '12px 16px', background: '#0d0d1a', fontFamily: 'monospace', fontSize: '12.5px', lineHeight: '1.6', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                    {errorType && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', padding: '8px 12px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
-                            <AlertCircle size={14} style={{ color: ERROR_STYLES[errorType].color }} />
-                            <span style={{ color: ERROR_STYLES[errorType].color, fontWeight: 900, textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.1em' }}>
-                                {ERROR_STYLES[errorType].label}
-                            </span>
-                            {errorType === 'system' && (
-                                <button onClick={handleRun} type="button" style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid rgba(125, 211, 168, 0.4)', borderRadius: '6px', color: '#7dd3a8', cursor: 'pointer', fontSize: '10.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '3px 8px' }}>
-                                    Retry
-                                </button>
-                            )}
-                        </div>
-                    )}
-                    {meta && (
-                        <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-                            {meta.duration_ms != null && (
-                                <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#94a3b8', background: 'rgba(148, 163, 184, 0.12)', padding: '2px 8px', borderRadius: '999px' }}>
-                                    {(meta.duration_ms / 1000).toFixed(2)}s
-                                </span>
-                            )}
-                            {meta.exit_code != null && meta.exit_code !== 0 && (
-                                <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#f87171', background: 'rgba(248, 113, 113, 0.12)', padding: '2px 8px', borderRadius: '999px' }}>
-                                    EXIT {meta.exit_code}
-                                </span>
-                            )}
-                        </div>
-                    )}
-                    {/* Expected vs actual when the teacher defined an output contract */}
-                    {challengeExpected != null && actualOutput !== null && !errorType && (
-                        <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                            <div style={{ flex: 1, minWidth: '45%' }}>
-                                <p style={{ fontSize: '10.5px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', margin: '0 0 4px 0' }}>Expected</p>
-                                <div style={{ background: '#111127', border: '1px solid rgba(134, 239, 172, 0.3)', borderRadius: '8px', padding: '8px 10px', color: '#86efac', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-                                    {String(challengeExpected)}
+            {!isHtml && tab === 'terminal' && (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    {/* Run results — shown first, above the live terminal */}
+                    {(errorType || meta || (challengeExpected != null && actualOutput !== null && !errorType)) && (
+                        <div style={{ padding: '12px 16px', background: '#0d0d1a', borderBottom: '1px solid rgba(148, 163, 184, 0.15)' }}>
+                            {errorType && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', padding: '8px 12px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
+                                    <AlertCircle size={14} style={{ color: ERROR_STYLES[errorType].color }} />
+                                    <span style={{ color: ERROR_STYLES[errorType].color, fontWeight: 900, textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.1em' }}>
+                                        {ERROR_STYLES[errorType].label}
+                                    </span>
+                                    {errorType === 'system' && (
+                                        <button onClick={handleRun} type="button" style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid rgba(125, 211, 168, 0.4)', borderRadius: '6px', color: '#7dd3a8', cursor: 'pointer', fontSize: '10.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '3px 8px' }}>
+                                            Retry
+                                        </button>
+                                    )}
                                 </div>
-                            </div>
-                            <div style={{ flex: 1, minWidth: '45%' }}>
-                                <p style={{ fontSize: '10.5px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', margin: '0 0 4px 0' }}>Your output</p>
-                                <div style={{ background: '#111127', border: `1px solid ${passed ? 'rgba(134, 239, 172, 0.3)' : 'rgba(248, 113, 113, 0.3)'}`, borderRadius: '8px', padding: '8px 10px', color: passed ? '#86efac' : '#fca5a5', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-                                    {actualOutput || '(no output)'}
+                            )}
+                            {meta && (
+                                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                                    {meta.duration_ms != null && (
+                                        <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#94a3b8', background: 'rgba(148, 163, 184, 0.12)', padding: '2px 8px', borderRadius: '999px' }}>
+                                            {(meta.duration_ms / 1000).toFixed(2)}s
+                                        </span>
+                                    )}
+                                    {meta.exit_code != null && meta.exit_code !== 0 && (
+                                        <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#f87171', background: 'rgba(248, 113, 113, 0.12)', padding: '2px 8px', borderRadius: '999px' }}>
+                                            EXIT {meta.exit_code}
+                                        </span>
+                                    )}
                                 </div>
-                            </div>
+                            )}
+                            {/* Expected vs actual when the teacher defined an output contract */}
+                            {challengeExpected != null && actualOutput !== null && !errorType && (
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                    <div style={{ flex: 1, minWidth: '45%' }}>
+                                        <p style={{ fontSize: '10.5px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', margin: '0 0 4px 0' }}>Expected</p>
+                                        <div style={{ background: '#111127', border: '1px solid rgba(134, 239, 172, 0.3)', borderRadius: '8px', padding: '8px 10px', color: '#86efac', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                                            {String(challengeExpected)}
+                                        </div>
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: '45%' }}>
+                                        <p style={{ fontSize: '10.5px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', margin: '0 0 4px 0' }}>Your output</p>
+                                        <div style={{ background: '#111127', border: `1px solid ${passed ? 'rgba(134, 239, 172, 0.3)' : 'rgba(248, 113, 113, 0.3)'}`, borderRadius: '8px', padding: '8px 10px', color: passed ? '#86efac' : '#fca5a5', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                                            {actualOutput || '(no output)'}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
-                    <span style={{ color: errorType ? ERROR_STYLES[errorType].color : '#a5f3fc' }}>
-                        {output || (isRunning ? 'Running...' : 'Click "Run" to see the output...')}
-                    </span>
-                </div>
-            )}
-
-            {/* Stdin panel */}
-            {!isHtml && showStdin && tab === 'code' && (
-                <div style={{ borderTop: '1px solid var(--border-color)', background: '#0d0d1a' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 16px 2px' }}>
-                        <span style={{ fontSize: '10.5px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#94a3b8' }}>
-                            {readsInput ? 'This program reads input — one line per read:' : 'Input (stdin) — one line per read:'}
-                        </span>
-                        <button onClick={() => setShowStdin(false)} type="button" style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '10.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                            Hide
-                        </button>
+                    {/* The live terminal — run again here and type while the
+                        program asks, exactly like the real thing */}
+                    <div style={{ height }}>
+                        <InteractiveTerminal
+                            ref={liveTermRef}
+                            code={value || boilerplate}
+                            language={lang.id}
+                            compact
+                        />
                     </div>
-                    <textarea
-                        value={stdin}
-                        onChange={(e) => setStdin(e.target.value)}
-                        placeholder={readsInput ? 'e.g. first input, second input...' : 'Lines fed to your program...'}
-                        rows={3}
-                        style={{
-                            width: 'calc(100% - 32px)', margin: '4px 16px 12px', boxSizing: 'border-box',
-                            background: '#111127', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '8px',
-                            color: '#e2e8f0', fontFamily: 'monospace', fontSize: '12px', padding: '8px 10px', resize: 'vertical', outline: 'none',
-                        }}
-                    />
                 </div>
             )}
 
             {/* Footer */}
             <div style={{ padding: '10px 16px', background: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {!isHtml && !showStdin && (
-                        <button
-                            onClick={() => { setShowStdin(true); setTab('code'); }}
-                            type="button"
-                            style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: readsInput ? '#7dd3a8' : 'var(--text-tertiary)', cursor: 'pointer', fontWeight: 800, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                            title="Provide standard input"
-                        >
-                            <ChevronUp size={12} />
-                            {readsInput ? 'Input needed' : 'Stdin'}
-                        </button>
-                    )}
                     <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.12em', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
-                        {isHtml ? 'Renders in a sandboxed preview' : '⌘/Ctrl + Enter to run'}
+                        {isHtml ? 'Renders in a sandboxed preview' : '⌘/Ctrl + Enter to run — type input while it runs'}
                     </span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>

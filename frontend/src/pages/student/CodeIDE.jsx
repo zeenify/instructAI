@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
-import { Play, CheckCircle, CheckCircle2, XCircle, AlertCircle, RefreshCw, Terminal as TerminalIcon, Eye, Code2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Play, CheckCircle, CheckCircle2, XCircle, AlertCircle, RefreshCw, Terminal as TerminalIcon, Eye, Code2 } from 'lucide-react';
 import api from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import InteractiveTerminal from '../../components/student/InteractiveTerminal';
 import {
     injectPreviewBridge,
     languageOf,
@@ -12,7 +13,6 @@ import {
     normalizeHtmlChecks,
     normalizeChallengeCases,
     htmlCheckLabel,
-    detectStdinUsage,
     composeWebProject,
     normalizeFiles,
     parseStoredFiles,
@@ -82,12 +82,8 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
     const setActiveFileContent = (value) => {
         setFiles((prev) => prev.map((f, i) => (i === safeActiveFileIdx ? { ...f, content: value } : f)));
     };
-    // Reads stdin? Drives the interactive-first defaults below. Must come
-    // after `code` — it reads it.
-    const readsInput = !isHtml && detectStdinUsage(languageId, code);
     const isMultiFileHtml = isHtml && files.length > 1;
     const [output, setOutput] = useState('');
-    const [stdin, setStdin] = useState('');
     const [resultMeta, setResultMeta] = useState(null);
     const [isRunning, setIsRunning] = useState(false);
     const [isCorrect, setIsCorrect] = useState(false);
@@ -96,9 +92,9 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
     const [errorType, setErrorType] = useState(null);
     const [previewSrcDoc, setPreviewSrcDoc] = useState('');
     const [consoleLines, setConsoleLines] = useState([]);
-    const [showStdin, setShowStdin] = useState(false);
-    // Playground: the stdin line lives inside the Terminal tab, collapsible
-    const [terminalInputOpen, setTerminalInputOpen] = useState(true);
+    // The Terminal tab hosts the LIVE interactive terminal — run and type
+    // while the program asks; no pre-typed stdin anywhere.
+    const liveTermRef = useRef(null);
     // Challenges for HTML pages grade against structured checks (element /
     // attribute / style / text assertions) run inside the preview iframe.
     const htmlChecks = isHtml && mode === 'challenge'
@@ -122,21 +118,6 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             setIsCorrect(true);
         }
     }, [block.data.is_solved]);
-
-    // Interactive-first: playground code that reads stdin surfaces the input
-    // line inside the Terminal tab (like typing into a real terminal).
-    // Challenges keep the deterministic batch path with the stdin box opened
-    // above the editor.
-    useEffect(() => {
-        if (!isHtml && detectStdinUsage(languageId, code)) {
-            if (mode === 'challenge') {
-                setShowStdin(true);
-            } else {
-                setTerminalInputOpen(true);
-            }
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
     // Persist drafts so a refresh never loses a student's work
     useEffect(() => {
@@ -231,6 +212,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         setCaseResults(null);
         // Running shows the terminal — like a real editor's run button
         if (!isHtml) setActiveTab('terminal');
+        const term = (t) => liveTermRef.current?.write(t);
 
         try {
             if (challengeCases.length > 0) {
@@ -261,18 +243,21 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         setErrorType('compile');
                         setOutput(data.compile_output);
                         setIsCorrect(false);
+                        term(`\r\n[COMPILE ERROR]\r\n${data.compile_output}\r\n`);
                         return;
                     }
                     if (data.timed_out || (data.stderr && data.stderr.includes('Execution Timed Out'))) {
                         setErrorType('timeout');
                         setOutput(data.stderr || 'Execution Timed Out');
                         setIsCorrect(false);
+                        term(`\r\n[EXECUTION TIMED OUT]\r\n${data.stderr || ''}\r\n`);
                         return;
                     }
                     if (data.stderr) {
                         setErrorType('runtime');
                         setOutput(data.stderr);
                         setIsCorrect(false);
+                        term(`\r\n[RUNTIME ERROR]\r\n${data.stderr}\r\n`);
                         return;
                     }
 
@@ -283,11 +268,14 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         actual: cleanOutput,
                         passed: cleanOutput === c.expected_output.replace(/\r\n/g, '\n'),
                     });
+                    term(`\r\n> Case ${i + 1}: ${results[results.length - 1].passed ? 'PASSED' : 'FAILED'}${c.input ? ` (input: ${c.input})` : ''}`);
                 }
 
                 setRunningCase(0);
                 setOutput((results[results.length - 1]?.actual) || '');
                 setCaseResults(results);
+                const passedCount = results.filter((r) => r.passed).length;
+                term(`\r\n> Test cases: ${passedCount}/${results.length} passed — full details below. The terminal stays LIVE: run here and type while the program asks.\r\n`);
 
                 if (results.every((r) => r.passed) && results.length > 0) {
                     await markSolved();
@@ -305,7 +293,6 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             const res = await api.post('/student/execute', {
                 code,
                 language: languageId,
-                input: stdin || undefined,
             });
 
             const data = res.data;
@@ -319,6 +306,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 setErrorType('compile');
                 setOutput(data.compile_output);
                 setIsCorrect(false);
+                term(`\r\n[COMPILE ERROR]\r\n${data.compile_output}\r\n`);
                 return;
             }
 
@@ -326,6 +314,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 setErrorType('timeout');
                 setOutput(data.stderr || 'Execution Timed Out');
                 setIsCorrect(false);
+                term(`\r\n[EXECUTION TIMED OUT]\r\n${data.stderr || ''}\r\n`);
                 return;
             }
 
@@ -333,6 +322,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 setErrorType('runtime');
                 setOutput(data.stderr);
                 setIsCorrect(false);
+                term(`[RUNTIME ERROR] ${data.stderr}\r\n`);
                 return;
             }
 
@@ -341,13 +331,16 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
 
             setErrorType(null);
             setOutput(cleanOutput || '> Program executed successfully (No output).');
+            term(`\r\n${rawOutput || '(no output)'}\r\n`);
 
             if (mode === 'challenge') {
                 const expected = (block.data.expected || '').trim().replace(/\r\n/g, '\n');
 
                 if (cleanOutput === expected && expected !== '') {
+                    term('> Output matches — challenge passed!\r\n');
                     await markSolved();
                 } else {
+                    term(`\r\n[EXPECTED]\r\n${expected}\r\n\r\n[YOURS]\r\n${cleanOutput}\r\n`);
                     setIsCorrect(false);
                     setIsWrong(true);
                     toast.error('Incorrect. Look closely at the expected output.');
@@ -373,6 +366,14 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             handleHtmlRun();
             return;
         }
+        if (mode !== 'challenge') {
+            // Playground: run live in the terminal — type while the program asks
+            setActiveTab('terminal');
+            liveTermRef.current?.triggerRun();
+            return;
+        }
+        // Challenge: deterministic test-case grading; the summary lands in the
+        // terminal scrollback, which stays live underneath it.
         handleCodeRun();
     };
 
@@ -412,52 +413,6 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             { id: 'editor', label: 'Code Editor', icon: Code2 },
             { id: 'terminal', label: 'Terminal', icon: TerminalIcon },
         ];
-
-    const renderOutput = () => (
-        <div style={{
-            flex: 1,
-            overflow: 'auto',
-            padding: '20px 24px',
-            fontFamily: 'monospace',
-            fontSize: '13px',
-            lineHeight: '1.6',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-            background: '#0d0d1a',
-        }}>
-            {errorType && (
-                <div style={{
-                    display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px',
-                    padding: '12px 16px', borderRadius: '12px',
-                    background: OUTPUT_COLORS[errorType].bg,
-                    border: `1px solid ${OUTPUT_COLORS[errorType].border}`,
-                    color: OUTPUT_COLORS[errorType].text,
-                }}>
-                    <AlertCircle size={18} />
-                    <span style={{ fontWeight: 900, textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.1em' }}>
-                        {OUTPUT_COLORS[errorType].label}
-                    </span>
-                </div>
-            )}
-            {resultMeta && (
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
-                    {resultMeta.duration_ms != null && (
-                        <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '0.1em', color: '#94a3b8', background: 'rgba(148, 163, 184, 0.12)', padding: '4px 10px', borderRadius: '999px' }}>
-                            {(resultMeta.duration_ms / 1000).toFixed(2)}s
-                        </span>
-                    )}
-                    {resultMeta.exit_code != null && (
-                        <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '0.1em', color: resultMeta.exit_code === 0 ? '#34d399' : '#f87171', background: resultMeta.exit_code === 0 ? 'rgba(52, 211, 153, 0.12)' : 'rgba(248, 113, 113, 0.12)', padding: '4px 10px', borderRadius: '999px' }}>
-                            EXIT {resultMeta.exit_code}
-                        </span>
-                    )}
-                </div>
-            )}
-            <div style={{ color: errorType ? OUTPUT_COLORS[errorType].text : 'var(--accent)' }}>
-                {output || (isRunning ? 'Running...' : 'Click "Run Program" to see output...')}
-            </div>
-        </div>
-    );
 
     return (
         <motion.div
@@ -668,59 +623,19 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 )}
 
                 {!isHtml && activeTab === 'terminal' && (
-                    <>
-                        {/* Terminal-style input line — the program's stdin lives
-                            here, like typing into a real terminal before it runs */}
-                        {!isHtml && mode !== 'challenge' && (readsInput || stdin) && terminalInputOpen && (
-                            <div style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.18)', background: '#0d0d1a', padding: '10px 24px 2px', flexShrink: 0 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                                    <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#38bdf8' }}>
-                                        $ program input — one line per input()
-                                    </span>
-                                    <button onClick={() => setTerminalInputOpen(false)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                                        Hide
-                                    </button>
-                                </div>
-                                <textarea
-                                    value={stdin}
-                                    onChange={(e) => setStdin(e.target.value)}
-                                    placeholder="Type what the program should read — each line is one input()"
-                                    rows={2}
-                                    style={{
-                                        width: '100%', boxSizing: 'border-box',
-                                        background: 'transparent', border: 'none', borderBottom: '1px dashed rgba(148, 163, 184, 0.25)',
-                                        color: '#a7f3d0', fontFamily: 'monospace', fontSize: '12px', padding: '6px 0 8px', resize: 'vertical',
-                                        outline: 'none',
-                                    }}
-                                />
-                            </div>
-                        )}
-                        {renderOutput()}
-                    </>
-                )}
-
-                {!isHtml && mode === 'challenge' && activeTab === 'editor' && showStdin && (
-                    <div style={{ borderTop: '1px solid var(--border-color)', background: '#0d0d1a' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 20px 4px' }}>
-                            <span style={{ fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: readsInput ? '#38bdf8' : '#94a3b8' }}>
-                                {readsInput ? 'This program reads input — one line per read:' : 'Stdin — text fed to your program'}
-                            </span>
-                            <button onClick={() => setShowStdin(false)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                                Hide <ChevronDown size={12} />
-                            </button>
+                    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                        {/* The live terminal — run here and type while the
+                            program asks, exactly like the real thing. Run (or
+                            ⌘/Ctrl+Enter) plays the latest editor code. */}
+                        <div style={{ flex: 1, minHeight: 0 }}>
+                            <InteractiveTerminal
+                                ref={liveTermRef}
+                                code={code}
+                                language={languageId}
+                                mode={mode}
+                                compact
+                            />
                         </div>
-                        <textarea
-                            value={stdin}
-                            onChange={(e) => setStdin(e.target.value)}
-                            placeholder="Lines of input for your program (e.g. answers to input()/Scanner)..."
-                            rows={3}
-                            style={{
-                                width: 'calc(100% - 40px)', margin: '4px 20px 14px', boxSizing: 'border-box',
-                                background: '#111127', border: '1px solid rgba(10, 132, 255, 0.25)', borderRadius: '10px',
-                                color: '#e2e8f0', fontFamily: 'monospace', fontSize: '12px', padding: '10px 12px', resize: 'vertical',
-                                outline: 'none',
-                            }}
-                        />
                     </div>
                 )}
             </div>
@@ -737,16 +652,6 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 flexWrap: 'wrap',
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                    {!isHtml && mode !== 'challenge' && (readsInput || stdin) && (
-                        <button
-                            onClick={() => { setTerminalInputOpen(true); setActiveTab('terminal'); }}
-                            style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '10px', color: 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', transition: 'all 0.3s' }}
-                            title="Edit the input the program reads"
-                        >
-                            <ChevronUp size={13} />
-                            Input
-                        </button>
-                    )}
                     <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
                         ⌘/Ctrl + Enter to run
                     </span>
