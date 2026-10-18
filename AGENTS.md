@@ -245,6 +245,28 @@ on student Modules tab already shipped.
   backend `.env`: FISH_API_KEY / FISH_MODEL_ID) → mp3 → Web Audio analyser drives
   mouth visemes. Reply text shows instantly; chip shows warming/speaking phases.
 
+## Production (the deployed stack — all four live here)
+
+Frontend **Vercel** `instruct-ai-topaz.vercel.app` (build-time VITE_ envs:
+VITE_API_URL=https://instructai-backend.onrender.com/api, VITE_AI_SERVICE_URL,
+VITE_WS_URL=wss://instruct-execute.onrender.com) · Backend **Render**
+`instructai-backend.onrender.com` (env: AI_SERVICE_URL, AI_SERVICE_SECRET,
+EXECUTION_ENGINE_URL, GEMINI_API_KEY — EUNA chatbot, FISH_*, CLOUDINARY) ·
+AI service **Render** `instruct-ai-pnqz.onrender.com` (env: DATABASE_URL w/
+sslmode=require, GEMINI_API, RIVER_API_KEY, AI_SERVICE_SECRET — must MATCH the
+backend's, EXECUTION_ENGINE_URL bare no /execute) · Execution engine **Render**
+`instruct-execute.onrender.com` (tokenless by design — the AI service's verify
+client sends no engine token; ENGINE_TOKEN must stay unset until that client
+learns it). All on Render's **free** tier: instances sleep after ~15 min idle
+and take ~1 min to wake — run `node tools/keep-awake.mjs` during testing /
+pilot / defense days (STOPS itself after 12h; don't run 24/7, the free
+instance-hour pool is shared across the workspace). Embeddings are remote:
+Gemini `gemini-embedding-001`, 768-dim (document_chunks migration matches) —
+no local torch model anywhere; `document_chunks.embedding` changed 384→768, so
+old vectors only match after a wipe/reindex. `migrate:fresh` on the shared
+Neon DB = wipe prod (local .env points at the SAME Neon database — there is
+only one).
+
 ## Environment gotchas
 
 - Backend needs **PHP 8.4+** — use Herd (`C:/Users/EDRICK/.config/herd/bin/php.bat`);
