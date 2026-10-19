@@ -1,7 +1,18 @@
 # Smoke Test Accounts
 
-QA accounts for testing the InstructAI platform. All accounts live on the shared
-Neon Postgres database (same DB the deployed Render backend uses).
+**⚠️ STATE CHANGE (2026-10-19): the production database was wiped to a clean
+slate before the real pilot. Every account below was deleted, along with all
+classes, courses, activities, quizzes and chats. Only `admin@instructai.dev`
+survived (its password is unchanged). A JSON backup of the deleted content
+lives in `%TEMP%/instructai-db-backup-final/` on the dev machine.**
+
+To seed real accounts: log in as admin → Whitelists → add real student LRNs
+and the real teacher email — whitelisted emails/LRNs are the only people who
+can register.
+
+QA accounts for testing the InstructAI platform (pre-wipe — historical). All
+accounts lived on the shared Neon Postgres database (same DB the deployed
+Render backend uses).
 
 ## Credentials
 
