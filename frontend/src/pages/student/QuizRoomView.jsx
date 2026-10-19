@@ -1364,7 +1364,10 @@ export default function QuizRoomView() {
     );
   }
 
-  if (!payload || !currentQuestion) return null;
+  if (!payload) return null;
+  // Teacher-paced lobbies have no open question yet — the "Waiting for the
+  // teacher" overlay below must still render instead of a blank screen.
+  if (!currentQuestion && !(teacherPacing && (teacherPhase === "waiting" || teacherPhase === "paused"))) return null;
 
   const isPerQuestion = timerMode === "per_question";
   const isLast = currentIdx === questionCount - 1;
