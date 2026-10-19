@@ -34,7 +34,13 @@ function cmExtensionForFile(name, languageId) {
     const kind = webFileKind(name);
     if (kind === 'css') return cssExt();
     if (kind === 'js') return jsExt();
-    if (kind === 'html') return htmlExt();
+    if (kind === 'html') {
+        // Legacy blocks of real code languages kept the default index.html
+        // name — the block's language outranks the file name here
+        const lang = languageOf(languageId);
+        if (!lang.preview) return cmExtension(languageId);
+        return htmlExt();
+    }
     return cmExtension(languageId);
 }
 

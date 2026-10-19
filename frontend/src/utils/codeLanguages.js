@@ -80,6 +80,9 @@ export const CODE_LANGUAGES = {
 
 export const LANGUAGE_IDS = Object.keys(CODE_LANGUAGES);
 
+// Starter-file name per language (single-file blocks)
+const LANG_FILENAMES = { python: 'main.py', java: 'Main.java', cpp: 'main.cpp', javascript: 'main.js', html: 'index.html' };
+
 export function languageOf(id) {
     return CODE_LANGUAGES[id] || CODE_LANGUAGES.java;
 }
@@ -146,17 +149,26 @@ export function isMultiFile(files) {
     return Array.isArray(files) && files.length > 0;
 }
 
-export function normalizeFiles(files, fallbackCode = '') {
+export function normalizeFiles(files, fallbackCode = '', languageHint = '') {
     if (isMultiFile(files)) {
         return files.map((f) => ({ name: String(f.name || 'index.html'), content: String(f.content || '') }));
     }
-    return [{ name: 'index.html', content: String(fallbackCode || '') }];
+    // A single file is named after its language so the editor opens it with
+    // the right parser and tab look — a Python block named index.html used
+    // to be parsed as HTML, which rendered every token the same grey.
+    const defaultName = LANG_FILENAMES[languageHint]
+        || LANG_FILENAMES[inferLanguage(String(fallbackCode || ''))]
+        || 'index.html';
+    return [{ name: defaultName, content: String(fallbackCode || '') }];
 }
 
 export function webFileKind(name) {
     if (/\.css$/i.test(name)) return 'css';
-    if (/\.js$/i.test(name)) return 'js';
-    return 'html';
+    if (/\.(js|mjs)$/i.test(name)) return 'js';
+    if (/\.html?$/i.test(name)) return 'html';
+    // Not a web file (.py, .java, .cpp, .txt…) — callers fall back to the
+    // block's own language instead of pretending it is HTML
+    return '';
 }
 
 // Parses a stored `code` string back into a files array when it holds a

@@ -10,6 +10,7 @@ import {
     languageOf,
     resolveLanguage,
     cmExtension,
+    detectStdinUsage,
     normalizeHtmlChecks,
     normalizeChallengeCases,
     htmlCheckLabel,
@@ -26,22 +27,38 @@ function cmExtensionForFile(name, languageId) {
     const kind = webFileKind(name);
     if (kind === 'css') return cssExt();
     if (kind === 'js') return jsExt();
-    if (kind === 'html') return htmlExt();
+    if (kind === 'html') {
+        // Legacy blocks of real code languages kept the default index.html
+        // name — the block's language outranks the file name here, so Python
+        // never gets parsed (and greyed out) as HTML
+        const lang = languageOf(languageId);
+        if (!lang.preview) return cmExtension(languageId);
+        return htmlExt();
+    }
     return cmExtension(languageId);
 }
 
 const CASE_PRE_STYLE = {
-    margin: '0 0 8px',
+    margin: 0,
     padding: '10px 12px',
-    borderRadius: '9px',
-    background: 'rgba(13, 13, 26, 0.55)',
-    border: '1px solid var(--accent-glow)',
+    borderRadius: '10px',
+    background: 'rgba(2, 6, 23, 0.72)',
+    border: '1px solid rgba(148, 163, 184, 0.18)',
     fontFamily: 'Courier New, monospace',
-    fontSize: '12.5px',
-    lineHeight: 1.55,
+    fontSize: '12px',
+    lineHeight: 1.6,
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
-    color: 'var(--text-primary)',
+    color: '#e2e8f0',
+};
+
+const CASE_LABEL_STYLE = {
+    margin: '0 0 5px',
+    fontSize: '9px',
+    fontWeight: 800,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    color: 'var(--text-tertiary)',
 };
 
 const OUTPUT_COLORS = {
@@ -118,6 +135,11 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
     // The terminal tab mounts lazily — a run requested before the interactive
     // terminal exists fires the moment it mounts.
     const pendingTerminalRunRef = useRef(false);
+    // Terminal-graded challenges (stdin programs whose cases carry no stored
+    // input — generated before inputs were verified): the terminal's printed
+    // output IS the graded run
+    const terminalOutputRef = useRef('');
+    const terminalGradeRef = useRef(null);
     // Challenges for HTML pages grade against structured checks (element /
     // attribute / style / text assertions) run inside the preview iframe.
     const htmlChecks = isHtml && mode === 'challenge'
@@ -390,6 +412,34 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         }
     }, [activeTab]);
 
+    // Terminal exit: challenges visit the terminal for the live run — a clean
+    // exit returns to the editor, a crash stays so the traceback stays
+    // readable. When the run is terminal-graded (see runRef), the collected
+    // output is compared with the expected text and the case panel fills in.
+    const handleTerminalExit = (exitCode) => {
+        if (terminalGradeRef.current) {
+            const grade = terminalGradeRef.current;
+            terminalGradeRef.current = null;
+            if (block.data.is_solved || isCorrect) return;
+            const actual = String(terminalOutputRef.current || '').replace(/\r\n/g, '\n').trim();
+            const expected = String(grade.expected || '').replace(/\r\n/g, '\n').trim();
+            const passed = Boolean(actual) && exitCode === 0 && actual === expected;
+            const c = challengeCases[0] || { id: 'terminal', input: '', expected_output: expected };
+            setCaseResults([{ ...c, actual, passed }]);
+            if (passed) {
+                markSolved();
+            } else {
+                setIsWrong(true);
+                toast.error('The program finished but the output did not match the expected output — compare it in the case below.');
+                setTimeout(() => setIsWrong(false), 8000);
+            }
+            return;
+        }
+        if (exitCode === 0) {
+            setActiveTab('editor');
+        }
+    };
+
     const runInLiveTerminal = () => {
         setActiveTab('terminal');
         if (liveTermRef.current) {
@@ -407,6 +457,21 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         if (isRunning) return;
         if (isHtml) {
             handleHtmlRun();
+            return;
+        }
+        // A challenge whose program reads input can't be auto-checked when
+        // its cases carry no stored stdin — the run would EOF instantly and
+        // the student would never type anything. Grade the LIVE terminal's
+        // output instead: run here, type while the program asks, and when
+        // the process exits cleanly the printed output is compared with the
+        // expected text.
+        if (mode === 'challenge' && challengeCases.length > 0 && detectStdinUsage(languageId, code)
+            && challengeCases.every((c) => !c.input)) {
+            terminalOutputRef.current = '';
+            terminalGradeRef.current = { expected: challengeCases[0].expected_output || block.data.expected || '' };
+            setCaseResults(null);
+            runInLiveTerminal();
+            toast.info('This program reads input — type while it runs in the Terminal; the run is graded when the program finishes.');
             return;
         }
         // The terminal always plays the current code live — in a playground
@@ -476,7 +541,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         textTransform: 'uppercase', color: lang.color,
                     }}>
                         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: lang.color }} />
-                        {lang.label}
+                        {lang.label.replace(/\s*3$/, '')}
                     </span>
                     <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-tertiary)' }}>
                         {mode === 'challenge' ? 'Challenge' : 'Playground'}
@@ -508,7 +573,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             {/* Tab Content */}
             <div style={{ display: 'flex', flexDirection: 'column', height: '500px' }}>
                 {(activeTab === 'editor' || (!isHtml && activeTab === 'preview') || (!isHtml && activeTab === 'console')) && (
-                    <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', background: '#0d0d1a' }}>
                         {isMultiFileHtml && (
                             <div style={{ display: 'flex', gap: '2px', padding: '8px 12px 0', background: '#0d0d1a', flexWrap: 'wrap' }}>
                                 {files.map((f, i) => (
@@ -535,7 +600,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         )}
                         <CodeMirror
                             value={activeFile ? activeFile.content : ''}
-                            height={isMultiFileHtml ? 'calc(100% - 37px)' : '100%'}
+                            height={isMultiFileHtml ? 'calc(100% - 37px)' : '500px'}
                             theme="dark"
                             extensions={[cmExtensionForFile(activeFile ? activeFile.name : 'index.html', languageId)]}
                             onChange={(value) => setActiveFileContent(value)}
@@ -632,7 +697,8 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                                 language={languageId}
                                 mode={mode}
                                 compact
-                                onExited={mode === 'challenge' ? () => setActiveTab('editor') : undefined}
+                                onOutput={(chunk) => { terminalOutputRef.current += String(chunk); }}
+                                onExited={handleTerminalExit}
                             />
                         </div>
                     </div>
@@ -710,16 +776,33 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                             const failed = Boolean(r && !r.passed);
                             return (
                                 <div key={c.id || i} style={{
-                                    background: 'var(--accent-light)',
-                                    border: `1px solid ${r ? (passed ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)') : 'var(--accent-glow)'}`,
+                                    background: 'var(--bg-secondary)',
+                                    border: `1px solid ${r ? (passed ? 'rgba(16, 185, 129, 0.45)' : 'rgba(239, 68, 68, 0.45)') : 'var(--border-color)'}`,
                                     borderRadius: '12px',
-                                    padding: '12px 16px',
+                                    padding: '12px 14px',
+                                    boxShadow: '0 1px 3px rgba(2, 6, 23, 0.06)',
                                 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
                                         <span style={{ fontSize: '10px', fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                                            Case {i + 1}{c.input ? ` — reads: ${c.input}` : ' — no input'}
+                                            Case {i + 1}
                                         </span>
-                                        {r && (
+                                        {c.input ? (
+                                            <span style={{
+                                                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                                fontSize: '10.5px', fontWeight: 700, fontFamily: 'monospace',
+                                                padding: '3px 10px', borderRadius: '999px',
+                                                background: 'rgba(10, 132, 255, 0.1)', color: '#60a5fa',
+                                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%',
+                                            }}>
+                                                ⌨ input: {c.input}
+                                            </span>
+                                        ) : (
+                                            <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>
+                                                · no input
+                                            </span>
+                                        )}
+                                        <span style={{ flex: 1 }} />
+                                        {r ? (
                                             <span style={{
                                                 display: 'inline-flex', alignItems: 'center', gap: '5px',
                                                 fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em',
@@ -730,8 +813,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                                                 {passed ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
                                                 {passed ? 'Passed' : 'Failed'}
                                             </span>
-                                        )}
-                                        {!r && isChecking && runningCase > 0 && (
+                                        ) : isChecking && runningCase > 0 ? (
                                             runningCase === i + 1 ? (
                                                 <span style={{
                                                     display: 'inline-flex', alignItems: 'center', gap: '5px',
@@ -751,11 +833,15 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                                                     <span style={{ width: '11px', height: '11px', borderRadius: '50%', border: '1.5px dashed var(--border-color)' }} /> Waiting
                                                 </span>
                                             )
-                                        )}
+                                        ) : null}
                                     </div>
-                                    <pre style={CASE_PRE_STYLE}>{`expected output:\n${c.expected_output}`}</pre>
+                                    <p style={CASE_LABEL_STYLE}>Expected output</p>
+                                    <pre style={CASE_PRE_STYLE}>{c.expected_output || '(nothing)'}</pre>
                                     {r && failed && (
-                                        <pre style={{ ...CASE_PRE_STYLE, color: '#f87171' }}>{`your output:\n${r.actual || '(no output)'}`}</pre>
+                                        <>
+                                            <p style={{ ...CASE_LABEL_STYLE, color: '#f87171', margin: '10px 0 5px' }}>Your output</p>
+                                            <pre style={{ ...CASE_PRE_STYLE, color: '#fca5a5', borderColor: 'rgba(239, 68, 68, 0.3)' }}>{r.actual || '(no output)'}</pre>
+                                        </>
                                     )}
                                 </div>
                             );

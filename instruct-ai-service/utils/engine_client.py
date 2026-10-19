@@ -8,6 +8,7 @@ output (uncompilable code, wrong expected results) out of the platform.
 """
 import os
 import re
+import time
 
 import requests
 
@@ -41,12 +42,7 @@ def strip_markdown_fence(text: str) -> str:
     return text
 
 
-def execute_code(language: str, code: str, stdin: str = None) -> dict:
-    """
-    Run code on the execution engine. Always returns a dict with stdout,
-    stderr, compile_output, timed_out, engine_error keys — engine_error marks
-    infrastructure problems (engine down/busy) rather than bad student code.
-    """
+def _execute_once(language: str, code: str, stdin: str = None) -> dict:
     try:
         response = requests.post(
             f"{ENGINE_URL}/execute",
@@ -69,6 +65,25 @@ def execute_code(language: str, code: str, stdin: str = None) -> dict:
     except Exception as e:
         return {"stdout": "", "stderr": "", "compile_output": "",
                 "timed_out": False, "engine_error": True, "error": str(e)}
+
+
+def execute_code(language: str, code: str, stdin: str = None) -> dict:
+    """
+    Run code on the execution engine. Always returns a dict with stdout,
+    stderr, compile_output, timed_out, engine_error keys — engine_error marks
+    infrastructure problems (engine down/busy) rather than bad student code.
+    """
+    run = _execute_once(language, code, stdin)
+    if run.get("engine_error"):
+        # The engine sleeps on Render's free tier — a cold container rejects
+        # the first call in about a second while a boot takes 30-50s. Without
+        # this retry, every challenge generated right after a quiet stretch
+        # silently lost its verified test cases (and degraded to an ungraded
+        # block). Runs inside a worker thread, so SSE heartbeats keep flowing
+        # while we wait.
+        time.sleep(25)
+        run = _execute_once(language, code, stdin)
+    return run
 
 
 def verify_test_cases(language: str, reference_code: str, test_cases: list) -> list:

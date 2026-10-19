@@ -172,7 +172,7 @@ export default function InlineCodeAnswer({
         return () => el.removeEventListener('keydown', onKey);
     });
 
-    const headerLabel = isHtml ? 'Web Page' : `${lang.label} Source Code`;
+    const headerLabel = isHtml ? 'Web Page' : `${lang.label.replace(/\s*3$/, '')} Source Code`;
 
     return (
         <div ref={containerRef} tabIndex={-1} style={{ borderRadius: '14px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', overflow: 'hidden', outline: 'none' }}>
@@ -187,7 +187,7 @@ export default function InlineCodeAnswer({
                         textTransform: 'uppercase', color: lang.color,
                     }}>
                         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: lang.color }} />
-                        {lang.label}
+                        {lang.label.replace(/\s*3$/, '')}
                     </span>
                     <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-tertiary)' }}>
                         {headerLabel}

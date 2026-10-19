@@ -7,7 +7,7 @@ import { languageOf } from '../../utils/codeLanguages';
 
 const TERMINAL_BG = '#0d0d1a';
 
-const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code, language = 'java', onComplete, onExited, lessonId, blockId, mode, expected, compact = false, onRun, onRunningChange }, ref) {
+const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code, language = 'java', onComplete, onExited, lessonId, blockId, mode, expected, compact = false, onRun, onRunningChange, onOutput }, ref) {
     const terminalRef = useRef(null);
     const wsRef = useRef(null);
     const termRef = useRef(null);
@@ -22,6 +22,8 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
         onRunningChange?.(v);
     };
     const [hasError, setHasError] = useState(false);
+    // Increments per Run — last writer wins, superseded sockets go silent
+    const runSessionRef = useRef(0);
 
     useEffect(() => {
         const term = new Terminal({
@@ -151,68 +153,103 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
         }
         const wsToken = import.meta.env.VITE_WS_TOKEN;
         const wsUrl = wsToken ? `${wsBase}${wsBase.includes('?') ? '&' : '?'}token=${encodeURIComponent(wsToken)}` : wsBase;
-        const ws = new WebSocket(wsUrl);
 
-        wsRef.current = ws;
+        // The engine sleeps on Render's free tier — a cold first connection
+        // fails in about a second while the container takes ~30-50s to boot.
+        // Retry with backoff and keep the student informed; a session token
+        // keeps stale sockets silent after a retry supersedes them.
+        const session = ++runSessionRef.current;
 
-        ws.onopen = () => {
-            ws.send(JSON.stringify({
-                type: 'execute',
-                language: language,
-                code: code
-            }));
-        };
+        const connect = (attempt) => {
+            const ws = new WebSocket(wsUrl);
+            wsRef.current = ws;
+            let opened = false;
 
-        ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-
-                switch (data.type) {
-                    case 'ready':
-                        termRef.current?.write('\r\n> Ready for input\r\n');
-                        break;
-
-                    case 'output':
-                        termRef.current?.write(data.data);
-                        break;
-
-                    case 'error':
-                        setHasError(true);
-                        termRef.current?.write(`\r\n[ERROR] ${data.data || data.message}\r\n`);
-                        break;
-
-                    case 'exit':
-                        termRef.current?.write(`\r\n> Process exited with code ${data.code}\r\n`);
-                        setRunning(false);
-
-                        if (mode === 'challenge' && onComplete) {
-                            onComplete();
-                        }
-                        // Surfaces that only visit the terminal for the live run
-                        // (challenges) flip back to the code editor on exit.
-                        onExited?.();
-
-                        ws.close();
-                        wsRef.current = null;
-                        break;
+            ws.onopen = () => {
+                opened = true;
+                if (runSessionRef.current !== session) {
+                    ws.close();
+                    return;
                 }
-            } catch (err) {
-                console.error('Parse error:', err);
-            }
+                ws.send(JSON.stringify({
+                    type: 'execute',
+                    language: language,
+                    code: code
+                }));
+            };
+
+            ws.onmessage = (event) => {
+                if (runSessionRef.current !== session) return;
+                try {
+                    const data = JSON.parse(event.data);
+
+                    switch (data.type) {
+                        case 'ready':
+                            termRef.current?.write('\r\n> Ready for input\r\n');
+                            break;
+
+                        case 'output':
+                            onOutput?.(data.data);
+                            termRef.current?.write(data.data);
+                            break;
+
+                        case 'error':
+                            setHasError(true);
+                            termRef.current?.write(`\r\n[ERROR] ${data.data || data.message}\r\n`);
+                            break;
+
+                        case 'exit':
+                            termRef.current?.write(`\r\n> Process exited with code ${data.code}\r\n`);
+                            setRunning(false);
+
+                            if (mode === 'challenge' && onComplete) {
+                                onComplete();
+                            }
+                            // Surfaces that only visit the terminal for the live
+                            // run flip back to the code editor on a clean exit;
+                            // crashes stay so the traceback stays readable.
+                            onExited?.(data.code);
+
+                            ws.close();
+                            if (wsRef.current === ws) wsRef.current = null;
+                            break;
+                    }
+                } catch (err) {
+                    console.error('Parse error:', err);
+                }
+            };
+
+            ws.onerror = () => {
+                if (opened) {
+                    setHasError(true);
+                    termRef.current?.write('\r\n[CONNECTION ERROR] Lost the execution engine mid-run.\r\n');
+                    setRunning(false);
+                    return;
+                }
+                // Never reached a session — wake the engine and retry
+                if (attempt < 2 && runSessionRef.current === session) {
+                    termRef.current?.write(`\r\n> The execution engine is waking up — retrying in a few seconds (attempt ${attempt + 2}/3)...\r\n`);
+                    setTimeout(() => {
+                        if (runSessionRef.current === session) connect(attempt + 1);
+                    }, 6000);
+                    return;
+                }
+                setHasError(true);
+                if (runSessionRef.current === session) {
+                    termRef.current?.write('\r\n[CONNECTION ERROR] The execution engine did not wake up — try again in a minute.\r\n');
+                    setRunning(false);
+                }
+            };
+
+            ws.onclose = () => {
+                if (opened && runSessionRef.current === session && isRunningRef.current) {
+                    termRef.current?.write('\r\n> Connection closed\r\n');
+                    setRunning(false);
+                }
+            };
         };
 
-        ws.onerror = (err) => {
-            setHasError(true);
-            termRef.current?.write(`\r\n[CONNECTION ERROR] ${err.message}\r\n`);
-            setRunning(false);
-        };
-
-        ws.onclose = () => {
-            if (isRunningRef.current) {
-                termRef.current?.write('\r\n> Connection closed\r\n');
-                setRunning(false);
-            }
-        };
+        connect(0);
     };
 
     return (
