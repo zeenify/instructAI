@@ -37,7 +37,9 @@ export default function StudentActivityCard({ activity, classId, isActive }) {
   const typeInfo = typeConfig[typeKey] || typeConfig.quiz;
   const TypeIcon = typeInfo.icon;
 
-  const state = deriveState(activity);
+  let state = deriveState(activity);
+  // Materials are read-and-acknowledge work — "Pending grade" never applies.
+  if (typeKey === 'material' && (state === 'submitted' || state === 'graded')) state = 'graded';
   const stateInfo = stateConfig[state];
   const StateIcon = stateInfo.icon;
 
