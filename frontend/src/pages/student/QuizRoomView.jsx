@@ -1431,16 +1431,18 @@ export default function QuizRoomView() {
               {payload.activity.title}
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <p
-                style={{
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  color: "var(--text-secondary)",
-                  margin: 0,
-                }}
-              >
-                Question {currentIdx + 1} of {questionCount}
-              </p>
+              {currentQuestion && (
+                <p
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    color: "var(--text-secondary)",
+                    margin: 0,
+                  }}
+                >
+                  Question {currentIdx + 1} of {questionCount}
+                </p>
+              )}
               {offline && (
                 <span
                   style={{
