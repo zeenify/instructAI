@@ -496,14 +496,35 @@ class CourseController extends Controller
             set_time_limit(600); // structure generation streams for minutes
             $client = new \GuzzleHttp\Client();
             try {
-                $response = $client->post($aiUrl, [
-                'headers' => \App\Services\AiService::authHeader(),
-                    'multipart' => $multipart,
-                    'stream' => true,
-                    'timeout' => 120,
-                    'read_timeout' => 300, // gaps between chunks (LLM thinking) can be long
-                    'connect_timeout' => 30,
-                ]);
+                // The AI service sleeps on Render's free tier — the first request
+                // after an idle stretch can bounce off the edge with a 502 while
+                // the container boots. Wait-and-retry a few times before giving
+                // up, keeping the teacher informed between attempts.
+                $response = null;
+                $attempts = 3;
+                for ($try = 1; $try <= $attempts; $try++) {
+                    try {
+                        $response = $client->post($aiUrl, [
+                        'headers' => \App\Services\AiService::authHeader(),
+                            'multipart' => $multipart,
+                            'stream' => true,
+                            'timeout' => 120,
+                            'read_timeout' => 300, // gaps between chunks (LLM thinking) can be long
+                            'connect_timeout' => 30,
+                        ]);
+                        break;
+                    } catch (\GuzzleHttp\Exception\ServerException | \GuzzleHttp\Exception\ConnectException $wakeError) {
+                        if ($try === $attempts) {
+                            throw $wakeError;
+                        }
+                        echo "data: " . json_encode(['type' => 'status', 'message' => 'The AI service is waking up — retrying in a few seconds (attempt ' . ($try + 1) . ' of ' . $attempts . ')…']) . "\n\n";
+                        if (ob_get_level() > 0) {
+                            ob_flush();
+                        }
+                        flush();
+                        sleep(5 * $try);
+                    }
+                }
 
                 $body = $response->getBody();
                 while (!$body->eof()) {
@@ -515,7 +536,11 @@ class CourseController extends Controller
                     flush();
                 }
             } catch (\Exception $e) {
-                echo "data: " . json_encode(['type' => 'error', 'message' => $e->getMessage()]) . "\n\n";
+                $message = $e->getMessage();
+                if ($e instanceof \GuzzleHttp\Exception\ServerException || $e instanceof \GuzzleHttp\Exception\ConnectException) {
+                    $message = 'The AI service is waking up (it sleeps between sessions) — give it about 30 seconds, then press Try again.';
+                }
+                echo "data: " . json_encode(['type' => 'error', 'message' => $message]) . "\n\n";
                 if (ob_get_level() > 0) {
                     ob_flush();
                 }
