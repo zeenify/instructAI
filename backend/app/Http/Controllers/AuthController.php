@@ -119,15 +119,35 @@ class AuthController extends Controller
     public function loginWithGoogle(Request $request)
     {
         try {
-            $idToken = $request->id_token;
             $chosenRole = $request->role; // 'student' or 'teacher'
             $lrnNumber = $request->lrn_number;
 
-            $client = new \Google_Client(['client_id' => env('GOOGLE_CLIENT_ID')]);
-            $payload = $client->verifyIdToken($idToken);
+            // The frontend's implicit OAuth flow only yields an access_token;
+            // an id_token may arrive when other clients use the JWT flow.
+            $payload = null;
+            if ($request->id_token) {
+                $client = new \Google_Client(['client_id' => env('GOOGLE_CLIENT_ID')]);
+                $payload = $client->verifyIdToken($request->id_token);
+            } elseif ($request->access_token) {
+                try {
+                    $client = new \Google_Client();
+                    $client->setClientId(env('GOOGLE_CLIENT_ID'));
+                    $client->setAccessToken($request->access_token);
+                    $me = (new \Google_Service_Oauth2($client))->userinfo->get();
+                    $payload = [
+                        'email' => $me->email,
+                        'sub' => $me->id,
+                        'picture' => $me->picture,
+                        'given_name' => $me->givenName,
+                        'family_name' => $me->familyName,
+                    ];
+                } catch (\Exception $e) {
+                    return response()->json(['message' => 'Google verification failed'], 401);
+                }
+            }
 
             if (!$payload) {
-                return response()->json(['message' => 'Google verification failed'], 401);
+                return response()->json(['message' => 'Google sign-in did not return a token'], 401);
             }
 
             $email = $payload['email'];
