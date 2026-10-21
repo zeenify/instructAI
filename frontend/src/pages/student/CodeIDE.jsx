@@ -68,6 +68,40 @@ const OUTPUT_COLORS = {
     system: { bg: 'rgba(10, 132, 255, 0.1)', border: 'rgba(10, 132, 255, 0.3)', text: '#0a84ff', label: '⚠️ SYSTEM ERROR' },
 };
 
+// The scaffold's prompt lines (System.out.print("Enter a number: ")) are
+// boilerplate noise, not student logic — AI-generated expected outputs
+// sometimes bake them in and sometimes don't. After an exact match fails,
+// compare again with every printed literal removed from BOTH sides so a
+// correct solution doesn't fail over prompt-echo disagreement.
+function extractPrintedLiterals(boilerplate) {
+    if (!boilerplate) return [];
+    const found = new Set();
+    for (const re of [
+        /System\.out\.print(?:ln)?\(\s*"((?:[^"\\]|\\.)*)"/g,
+        /printf?\(\s*"((?:[^"\\]|\\.)*)"/g,
+        /cout\s*<<\s*"((?:[^"\\]|\\.)*)"/g,
+    ]) {
+        let m;
+        while ((m = re.exec(boilerplate)) !== null) {
+            try {
+                // source escapes (\n, \t, \") decode to their real characters
+                found.add(JSON.parse(`"${m[1]}"`));
+            } catch { /* malformed escape — skip that literal */ }
+        }
+    }
+    return [...found].filter((s) => s.trim().length > 0);
+}
+
+function outputsMatch(actual, expected, promptLiterals) {
+    if (!promptLiterals || promptLiterals.length === 0) return false;
+    const strip = (s) => {
+        let out = s;
+        for (const lit of promptLiterals) out = out.split(lit).join('');
+        return out.trim();
+    };
+    return strip(actual) === strip(expected) && strip(actual).length > 0;
+}
+
 // Header tab pills — same look as the quiz/activity inline code editor
 function ideTabStyle(active) {
     return {
@@ -152,6 +186,11 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         ? normalizeChallengeCases(block.data.test_cases, block.data.expected)
         : [];
     const [caseResults, setCaseResults] = useState(null);
+    // Set when a grading run stops before every case ran (engine unreachable,
+    // compile/timeout/runtime mid-loop) — the summary must never present a
+    // partial run as "challenge complete!"
+    const [abortedRun, setAbortedRun] = useState(null);
+    const promptLiterals = extractPrintedLiterals(block.data.boilerplate || '');
     const [runningCase, setRunningCase] = useState(0);
     const [checkResults, setCheckResults] = useState(null);
     const pendingCheckRef = useRef(null);
@@ -195,8 +234,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         return () => window.removeEventListener('message', handler);
     }, [isHtml]);
 
-    const markSolved = async () => {
-        setIsCorrect(true);
+    const markSolved = async () => {        setIsCorrect(true);
         setIsWrong(false);
         try {
             await api.post(`/student/lessons/${lessonId}/submit-code`, {
@@ -248,6 +286,26 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         }, 3500);
     };
 
+    // One engine call per test case, with a single retry for transient
+    // failures (cold free-tier engine, dropped request). Deterministic 4xx
+    // answers surface immediately — retrying bad code is just a slower no.
+    const executeCaseWithRetry = async (payload, attempts = 2) => {
+        let lastErr;
+        for (let attempt = 0; attempt < attempts; attempt += 1) {
+            try {
+                return await api.post('/student/execute', payload);
+            } catch (err) {
+                lastErr = err;
+                const status = err?.response?.status;
+                if (status && status < 500 && status !== 503) throw err;
+            }
+            if (attempt + 1 < attempts) {
+                await new Promise((resolve) => setTimeout(resolve, 1500));
+            }
+        }
+        throw lastErr;
+    };
+
     const handleCodeRun = async () => {
         setIsRunning(true);
         setIsWrong(false);
@@ -255,25 +313,25 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         setOutput('');
         setResultMeta(null);
         setCaseResults(null);
+        setAbortedRun(null);
 
         try {
+            let casesRan = 0;
             if (challengeCases.length > 0) {
                 // Multi-case challenge: run the program once per case with the
                 // case's stdin, then compare console output exactly.
                 const results = [];
-                let lastData = null;
 
                 for (let i = 0; i < challengeCases.length; i += 1) {
                     const c = challengeCases[i];
                     setRunningCase(i + 1);
 
-                    const res = await api.post('/student/execute', {
+                    const res = await executeCaseWithRetry({
                         code,
                         language: languageId,
                         input: c.input || undefined,
                     });
                     const data = res.data;
-                    lastData = data;
                     setResultMeta({
                         duration_ms: data.duration_ms,
                         exit_code: data.exit_code,
@@ -285,6 +343,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         setOutput(data.compile_output);
                         setIsCorrect(false);
                         if (results.length > 0) setCaseResults([...results]);
+                        setAbortedRun({ ran: results.length, total: challengeCases.length, reason: 'compilation failed' });
 
                         return;
                     }
@@ -293,6 +352,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         setOutput(data.stderr || 'Execution Timed Out');
                         setIsCorrect(false);
                         if (results.length > 0) setCaseResults([...results]);
+                        setAbortedRun({ ran: results.length, total: challengeCases.length, reason: 'the program exceeded its time limit' });
 
                         return;
                     }
@@ -301,17 +361,20 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         setOutput(data.stderr);
                         setIsCorrect(false);
                         if (results.length > 0) setCaseResults([...results]);
+                        setAbortedRun({ ran: results.length, total: challengeCases.length, reason: 'a runtime error' });
 
                         return;
                     }
 
                     const cleanOutput = (data.stdout || '').trim().replace(/\r\n/g, '\n');
+                    const expectedNorm = (c.expected_output || '').replace(/\r\n/g, '\n');
                     // An empty expected output means the program must print nothing
                     results.push({
                         ...c,
                         actual: cleanOutput,
-                        passed: cleanOutput === c.expected_output.replace(/\r\n/g, '\n'),
+                        passed: cleanOutput === expectedNorm || outputsMatch(cleanOutput, expectedNorm, promptLiterals),
                     });
+                    casesRan = results.length;
                     // Land each verdict as it completes so the section fills live
                     setCaseResults([...results]);
 
@@ -382,7 +445,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             if (mode === 'challenge') {
                 const expected = (block.data.expected || '').trim().replace(/\r\n/g, '\n');
 
-                if (cleanOutput === expected && expected !== '') {
+                if ((cleanOutput === expected || outputsMatch(cleanOutput, expected, promptLiterals)) && expected !== '') {
 
                     await markSolved();
                 } else {
@@ -396,7 +459,10 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         } catch (err) {
             console.error(err);
             setErrorType('system');
-            setOutput('System Error: Could not reach the execution engine. Please check your internet.');
+            setOutput('System Error: Could not reach the execution engine. Please check your internet — the engine may still be waking up.');
+            if (challengeCases.length > 0) {
+                setAbortedRun({ ran: casesRan, total: challengeCases.length, reason: 'the engine stopped responding' });
+            }
         } finally {
             setIsRunning(false);
             setRunningCase(0);
@@ -423,7 +489,8 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             if (block.data.is_solved || isCorrect) return;
             const actual = String(terminalOutputRef.current || '').replace(/\r\n/g, '\n').trim();
             const expected = String(grade.expected || '').replace(/\r\n/g, '\n').trim();
-            const passed = Boolean(actual) && exitCode === 0 && actual === expected;
+            const passed = Boolean(actual) && exitCode === 0
+                && (actual === expected || outputsMatch(actual, expected, promptLiterals));
             const c = challengeCases[0] || { id: 'terminal', input: '', expected_output: expected };
             setCaseResults([{ ...c, actual, passed }]);
             if (passed) {
@@ -476,10 +543,15 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         }
         // The terminal always plays the current code live — in a playground
         // that IS the run; in a challenge it runs WHILE the test cases grade.
-        runInLiveTerminal();
+        // Grading goes first and on its own: the interactive terminal rides a
+        // separate websocket that can stall, and a stalled terminal must never
+        // stop the cases from being graded.
         if (mode === 'challenge') {
             handleCodeRun();
         }
+        try {
+            runInLiveTerminal();
+        } catch { /* terminal is a live view only — grading already started */ }
     };
 
     const handleRun = () => runRef.current();
@@ -763,12 +835,23 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                             </div>
                         </div>
                     )}
-                    {caseResults && (
-                        <p style={{ fontSize: '11px', fontWeight: 900, letterSpacing: '0.08em', color: caseResults.every((r) => r.passed) ? '#10b981' : '#ef4444', margin: '0 0 12px 0' }}>
-                            Result: {caseResults.filter((r) => r.passed).length} of {caseResults.length} test cases passed
-                            {caseResults.every((r) => r.passed) ? ' — challenge complete!' : ' — fix your program and run again.'}
-                        </p>
-                    )}
+                    {caseResults && (() => {
+                        const allRan = caseResults.length === challengeCases.length;
+                        const allPassed = allRan && caseResults.every((r) => r.passed);
+                        if (abortedRun && !allRan) {
+                            return (
+                                <p style={{ fontSize: '11px', fontWeight: 900, letterSpacing: '0.08em', color: '#f59e0b', margin: '0 0 12px 0' }}>
+                                    Result: {caseResults.filter((r) => r.passed).length} of {challengeCases.length} test cases passed — the run stopped early ({abortedRun.reason}) after case {abortedRun.ran} of {challengeCases.length}. Press Run again to grade the rest.
+                                </p>
+                            );
+                        }
+                        return (
+                            <p style={{ fontSize: '11px', fontWeight: 900, letterSpacing: '0.08em', color: allPassed ? '#10b981' : '#ef4444', margin: '0 0 12px 0' }}>
+                                Result: {caseResults.filter((r) => r.passed).length} of {caseResults.length} test cases passed
+                                {allPassed ? ' — challenge complete!' : ' — fix your program and run again.'}
+                            </p>
+                        );
+                    })()}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         {challengeCases.map((c, i) => {
                             const r = caseResults?.[i];

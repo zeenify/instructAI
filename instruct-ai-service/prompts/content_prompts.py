@@ -107,7 +107,7 @@ CODING RULES:
 - boilerplate = starter code for student
 - reference_solution = the COMPLETE working solution (no TODOs, never prints the expected output directly). It is executed on the real compiler to verify the test cases.
 - expected_output = ACTUAL console output of reference_solution with no input (e.g., "42\\n", NOT "prints 42")
-- test_cases = array of 2-4 objects {{"input", "expected_output", "hidden"}}. "input" is the exact stdin fed to the program ("" when it reads nothing); "expected_output" is the EXACT full stdout for that stdin; the first test must have hidden=false and at least one other test hidden=true. For html questions omit test_cases and reference_solution entirely.
+- test_cases = array of 2-4 objects {{"input", "expected_output", "hidden"}}. "input" is the exact stdin fed to the program ("" when it reads nothing); "expected_output" is the EXACT full stdout for that stdin — every line the boilerplate or the solution prints (input prompts included), in order, and NEVER lines the program would not print; the first test must have hidden=false and at least one other test hidden=true. For html questions omit test_cases and reference_solution entirely.
 - points = 3-5 based on complexity
 
 GROUPING REQUIREMENT - JSON STRUCTURE ENFORCES THIS:

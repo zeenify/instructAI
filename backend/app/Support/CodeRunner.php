@@ -100,7 +100,10 @@ class CodeRunner
 
         $token = (string) env('EXECUTION_ENGINE_TOKEN', '');
         $withToken = function (string $url, array $payload) use ($token) {
-            $request = Http::timeout(25)->asJson();
+            // Cold Java compiles on the free-tier engine routinely exceed 25s —
+            // a tight timeout here reads to the student as "engine unreachable"
+            // mid-challenge, so grade-grade calls get a generous ceiling.
+            $request = Http::timeout(60)->asJson();
             if ($token !== '') {
                 $request = $request->withHeaders(['X-Engine-Token' => $token]);
             }
