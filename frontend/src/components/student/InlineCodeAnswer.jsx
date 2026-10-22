@@ -7,6 +7,7 @@ import CodeMirror from '@uiw/react-codemirror';
 import { Play, Loader2, RotateCcw, Eye, Code2, Terminal as TerminalIcon, AlertCircle, ArrowRight } from 'lucide-react';
 import api from '../../services/api';
 import InteractiveTerminal from './InteractiveTerminal';
+import TerminalOutput from './TerminalOutput';
 import {
     languageOf,
     cmExtension,
@@ -322,17 +323,13 @@ export default function InlineCodeAnswer({
                     {(errorType || meta || (challengeExpected != null && actualOutput !== null && !errorType)) && (
                         <div style={{ padding: '12px 16px', background: '#0d0d1a', borderBottom: '1px solid rgba(148, 163, 184, 0.15)' }}>
                             {errorType && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', padding: '8px 12px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
-                                    <AlertCircle size={14} style={{ color: ERROR_STYLES[errorType].color }} />
-                                    <span style={{ color: ERROR_STYLES[errorType].color, fontWeight: 900, textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.1em' }}>
-                                        {ERROR_STYLES[errorType].label}
-                                    </span>
-                                    {errorType === 'system' && (
-                                        <button onClick={handleRun} type="button" style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid rgba(125, 211, 168, 0.4)', borderRadius: '6px', color: '#7dd3a8', cursor: 'pointer', fontSize: '10.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '3px 8px' }}>
-                                            Retry
-                                        </button>
-                                    )}
-                                </div>
+                                <TerminalOutput
+                                    language={lang.id}
+                                    kind={errorType}
+                                    errorText={output}
+                                    meta={meta}
+                                    onRetry={handleRun}
+                                />
                             )}
                             {meta && (
                                 <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>

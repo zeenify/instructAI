@@ -5,6 +5,7 @@ import api from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import InteractiveTerminal from '../../components/student/InteractiveTerminal';
+import TerminalOutput from '../../components/student/TerminalOutput';
 import {
     injectPreviewBridge,
     languageOf,
@@ -357,8 +358,9 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         setCaseResults(null);
         setAbortedRun(null);
 
+        // Counted at try scope: the catch below reports how far the run got
+        let casesRan = 0;
         try {
-            let casesRan = 0;
             if (challengeCases.length > 0) {
                 // Multi-case challenge: run the program once per case with the
                 // case's stdin, then compare console output exactly.
@@ -425,7 +427,6 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 setRunningCase(0);
                 setOutput((results[results.length - 1]?.actual) || '');
                 setCaseResults(results);
-                const passedCount = results.filter((r) => r.passed).length;
 
 
                 if (results.every((r) => r.passed) && results.length > 0) {
@@ -766,7 +767,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                                     {r.passed === null || r.passed === undefined ? (
                                         <span style={{ width: '14px', height: '14px', borderRadius: '50%', border: '1.5px dashed #475569', flexShrink: 0 }} />
                                     ) : r.passed ? (
-                                        <CheckCircle size={14} color="#34d399" style={{ flexShrink: 0 }} />
+                                        <CheckCircle2 size={14} color="#34d399" style={{ flexShrink: 0 }} />
                                     ) : (
                                         <AlertCircle size={14} color="#f87171" style={{ flexShrink: 0 }} />
                                     )}
@@ -873,16 +874,14 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                     )}
                     {/* Confirmation summary + errors live HERE (outside the
                         terminal — the terminal stays a plain interactive one) */}
+                    {/* Real compiler/runtime output — verbatim from the engine */}
                     {errorType && output && (
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '12px', padding: '12px 16px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-                            <AlertCircle size={16} style={{ color: '#f87171', flexShrink: 0, marginTop: 2 }} />
-                            <div>
-                                <span style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#f87171' }}>
-                                    {OUTPUT_COLORS[errorType]?.label || 'ERROR'}
-                                </span>
-                                <pre style={{ margin: '6px 0 0', fontFamily: 'monospace', fontSize: '11.5px', color: '#fca5a5', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{output}</pre>
-                            </div>
-                        </div>
+                        <TerminalOutput
+                            language={languageId}
+                            kind={errorType}
+                            errorText={output}
+                            meta={resultMeta}
+                        />
                     )}
                     {caseResults && (() => {
                         const allRan = caseResults.length === challengeCases.length;
