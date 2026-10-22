@@ -33,5 +33,6 @@
 
 /* Progress bar fill */
 .qz-progress-fill {
+    height: 100%;
     background: var(--accent);
 }
