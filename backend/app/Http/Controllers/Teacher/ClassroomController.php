@@ -166,10 +166,14 @@ class ClassroomController extends Controller
             return response()->json(['message' => 'Class not found or unauthorized'], 403);
         }
 
-        // Teacher signal: submitted classwork waiting to be graded
+        // Teacher signal: submitted classwork waiting to be graded. Materials
+        // are read-tracked (opening one writes a 'submitted' row) but can
+        // never be graded — they don't count here.
         $classroom->to_grade_count = \App\Models\ActivitySubmission::whereIn(
             'activity_id',
-            \App\Models\ClassActivity::where('class_id', $classroom->id)->pluck('id')
+            \App\Models\ClassActivity::where('class_id', $classroom->id)
+                ->where(fn ($q) => $q->whereNull('submission_type')->orWhere('submission_type', '!=', 'material'))
+                ->pluck('id')
         )->where('status', 'submitted')->count();
 
         return response()->json($classroom);

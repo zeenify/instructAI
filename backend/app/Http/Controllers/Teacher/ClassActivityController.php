@@ -26,7 +26,13 @@ class ClassActivityController extends Controller
         $classIds = Classroom::where('teacher_id', auth()->id())->pluck('id');
 
         $submissions = ActivitySubmission::whereIn('activity_id',
-                ClassActivity::whereIn('class_id', $classIds)->where('is_published', true)->pluck('id'))
+                // Materials are read-tracked (opening one writes a 'submitted'
+                // row) but can never be graded — their open events must not
+                // register as work waiting for the teacher.
+                ClassActivity::whereIn('class_id', $classIds)
+                    ->where('is_published', true)
+                    ->where(fn ($q) => $q->whereNull('submission_type')->orWhere('submission_type', '!=', 'material'))
+                    ->pluck('id'))
             ->where('status', 'submitted')
             ->with([
                 'activity:id,class_id,title,activity_type,submission_type,deadline_at',
