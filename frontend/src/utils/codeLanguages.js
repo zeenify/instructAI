@@ -122,6 +122,11 @@ export function detectStdinUsage(languageId, code = '') {
     }
 }
 
+// stderr signatures for a program that asked for input and reached
+// end-of-input (Java's Scanner, Python's input()) — an artifact of the run
+// having nothing to feed it, not a bug in the student's code.
+export const READS_CLOSED_STDIN = /NoSuchElementException|EOFError|EOF when reading a line/;
+
 // Normalize rendered/expected text for HTML challenge matching: collapse all
 // whitespace runs and case-fold, so <h1> HELLO </h1> matches "hello".
 export function normalizePageText(text) {

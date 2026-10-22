@@ -19,6 +19,7 @@ import {
     normalizeFiles,
     parseStoredFiles,
     webFileKind,
+    READS_CLOSED_STDIN,
 } from '../../utils/codeLanguages';
 import { html as htmlExt } from '@codemirror/lang-html';
 import { css as cssExt } from '@codemirror/lang-css';
@@ -470,6 +471,19 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 return;
             }
 
+            if (data.stderr && READS_CLOSED_STDIN.test(data.stderr)) {
+                // The quick check run feeds no stdin — an input-reading
+                // program always reaches end-of-input here. That is not a
+                // bug in the code; the terminal tab is where they interact.
+                setErrorType('noinput');
+                setOutput(
+                    'This program reads input before it can print anything, and this quick run has nothing to feed it — so it stops right at the first read. That part is not a bug in your code.\n\nPress Run in the Terminal tab and type your input there while the program waits, like a real console.'
+                );
+                setIsCorrect(false);
+
+                return;
+            }
+
             if (data.stderr) {
                 setErrorType('runtime');
                 setOutput(data.stderr);
@@ -521,10 +535,11 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
         }
     }, [activeTab]);
 
-    // Terminal exit: challenges visit the terminal for the live run — a clean
-    // exit returns to the editor, a crash stays so the traceback stays
-    // readable. When the run is terminal-graded (see runRef), the collected
-    // output is compared with the expected text and the case panel fills in.
+    // Terminal exit: challenges visit the terminal for the live run; when the
+    // run is terminal-graded (see runRef), the collected output is compared
+    // with the expected text and the case panel fills in. Exit itself never
+    // moves tabs — the student may have just typed input here and the result
+    // is what they came to see; going back to the editor is their click.
     const handleTerminalExit = (exitCode) => {
         if (terminalGradeRef.current) {
             const grade = terminalGradeRef.current;
@@ -545,14 +560,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             }
             return;
         }
-    // Challenges stay in the terminal after a clean exit — the student just
-    // typed input there and the result is what they came to see; the case
-    // panel below carries the verdicts. Only playgrounds auto-return to the
-    // editor (and a crash keeps the traceback visible in both modes).
-    if (exitCode === 0 && mode !== 'challenge') {
-        setActiveTab('editor');
-    }
-};
+    };
 
     const runInLiveTerminal = () => {
         setActiveTab('terminal');

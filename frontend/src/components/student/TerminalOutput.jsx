@@ -98,7 +98,7 @@ export default function TerminalOutput({ language = 'java', kind, errorText, out
                         ))}
                         <span style={{ color: '#64748b' }}>
                             {kind === 'noinput'
-                                ? '> Automatic check skipped — type input in the terminal below.\n'
+                                ? '> Automatic check skipped — this program needs typed input.\n'
                                 : `> Process exited with code ${meta?.exit_code ?? 1}\n`}
                             {kind === 'compile' ? '> Fix the error(s) above, then run again.\n' : ''}
                         </span>

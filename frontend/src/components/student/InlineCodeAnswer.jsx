@@ -14,6 +14,7 @@ import {
     injectPreviewBridge,
     htmlCheckLabel,
     normalizeHtmlChecks,
+    READS_CLOSED_STDIN,
 } from '../../utils/codeLanguages';
 
 const ERROR_STYLES = {
@@ -33,10 +34,6 @@ function normOutput(s) {
         .join('\n')
         .replace(/\n+$/, '');
 }
-
-// stderr signatures for a program that asked for input and reached
-// end-of-input (Java's Scanner, Python's input()) — not a bug in the code.
-const READS_CLOSED_STDIN = /NoSuchElementException|EOFError|EOF when reading a line/;
 
 export default function InlineCodeAnswer({
     language,
