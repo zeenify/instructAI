@@ -38,10 +38,8 @@ export default function StudentActivityCard({ activity, classId, isActive }) {
   const TypeIcon = typeInfo.icon;
 
   let state = deriveState(activity);
-  // Materials are read-and-acknowledge work — "Pending grade" never applies.
-  if (typeKey === 'material' && (state === 'submitted' || state === 'graded')) state = 'graded';
-  const stateInfo = stateConfig[state];
-  const StateIcon = stateInfo.icon;
+  const stateInfo = stateConfig[state]; // undefined for materials — they render no state chip
+  const StateIcon = stateInfo ? stateInfo.icon : null;
 
   const graded = state === 'graded' && activity.submission_summary;
   const scorePill = graded
@@ -115,8 +113,9 @@ export default function StudentActivityCard({ activity, classId, isActive }) {
             {scorePill}
           </span>
         )}
-        <span
-          style={{
+        {stateInfo && (
+          <span
+            style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
@@ -144,7 +143,8 @@ export default function StudentActivityCard({ activity, classId, isActive }) {
           )}
           <StateIcon size={12} />
           {stateInfo.label}
-        </span>
+          </span>
+        )}
       </div>
     </div>
   );

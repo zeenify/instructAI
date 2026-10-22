@@ -265,10 +265,11 @@ export default function ClassView() {
                         )}
 
                         {(() => {
-                            const buckets = { live: [], todo: [], done: [], missed: [] };
+                            const buckets = { live: [], todo: [], done: [], missed: [], materials: [] };
                             activities.forEach((a) => {
                                 const st = activityCardState(a);
-                                if (st === 'live' || st === 'in_progress') buckets.live.push(a);
+                                if (st === 'material') buckets.materials.push(a);
+                                else if (st === 'live' || st === 'in_progress') buckets.live.push(a);
                                 else if (st === 'waiting' || st === 'todo') buckets.todo.push(a);
                                 else if (st === 'graded' || st === 'submitted') buckets.done.push(a);
                                 else buckets.missed.push(a);
@@ -278,6 +279,7 @@ export default function ClassView() {
                                 todo: { title: 'To do' },
                                 done: { title: 'Completed' },
                                 missed: { title: 'Missed' },
+                                materials: { title: 'Materials' },
                             };
                             const renderSection = (key, list) => {
                                 if (!list.length) return null;
@@ -302,6 +304,7 @@ export default function ClassView() {
                                     {renderSection('todo', buckets.todo)}
                                     {renderSection('done', buckets.done)}
                                     {renderSection('missed', buckets.missed)}
+                                    {renderSection('materials', buckets.materials)}
                                 </>
                             );
                         })()}

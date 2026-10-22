@@ -29,6 +29,9 @@ function quizState(a) {
 
 function activityState(a) {
     if (!a.is_published) return 'draft';
+    // Materials are reference reading — published ones carry no state chip
+    // (there is nothing to transition to; the type row already says Material).
+    if (a.activity_type === 'activity' && a.submission_type === 'material') return 'material';
     if (a.deadline_at && new Date(a.deadline_at) < new Date()) return 'closed';
     return 'ready';
 }
@@ -69,6 +72,7 @@ export default function ActivityCard({ activity, classId, onDelete }) {
     const isQuiz = activity.activity_type === 'quiz';
     const state = isQuiz ? quizState(activity) : activityState(activity);
     const stateInfo = stateLabels[state] || stateLabels.draft;
+    const isMaterial = !isQuiz && activity.submission_type === 'material';
 
     const typeLabel = isQuiz
         ? `Quiz · ${activity.pacing_mode === 'teacher' ? 'Teacher-paced' : 'Student-paced'}`
@@ -245,10 +249,12 @@ export default function ActivityCard({ activity, classId, onDelete }) {
                         <TypeIcon size={12} style={{ color: style.tint }} />
                         {typeLabel}
                     </span>
-                    <span className={`cw-state ${stateInfo.cls}`}>
-                        <span className={`cw-state-dot ${stateInfo.pulse ? 'pulse' : ''}`} />
-                        {stateInfo.label}
-                    </span>
+                    {!isMaterial && (
+                        <span className={`cw-state ${stateInfo.cls}`}>
+                            <span className={`cw-state-dot ${stateInfo.pulse ? 'pulse' : ''}`} />
+                            {stateInfo.label}
+                        </span>
+                    )}
                 </div>
 
                 <h4 className="cw-card-title">{activity.title}</h4>

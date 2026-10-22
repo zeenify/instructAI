@@ -9,14 +9,20 @@ import DeleteModal from '../../components/ui/DeleteModal';
 import Gradebook from '../../components/teacher/Gradebook';
 import './Classwork.css';
 
-const GROUP_ORDER = ['live', 'open', 'draft', 'closed'];
+const GROUP_ORDER = ['live', 'open', 'material', 'draft', 'closed'];
 
 function groupActivities(activities) {
-    const groups = { live: [], open: [], draft: [], closed: [] };
+    const groups = { live: [], open: [], material: [], draft: [], closed: [] };
 
     activities.forEach((a) => {
         if (!a.is_published) {
             groups.draft.push(a);
+            return;
+        }
+        // Materials are reference reading — their own section, never in the
+        // task lifecycles (they have no deadline and never close).
+        if (a.activity_type !== 'quiz' && a.submission_type === 'material') {
+            groups.material.push(a);
             return;
         }
         if (a.activity_type === 'quiz') {
@@ -42,6 +48,7 @@ function groupActivities(activities) {
 const groupMeta = {
     live: { label: 'Live now', color: 'var(--db-danger)', pulse: true, hint: 'Students are in the room right now' },
     open: { label: 'Open now', color: 'var(--db-green)', hint: 'Published and accepting work' },
+    material: { label: 'Materials', color: 'var(--db-green)', hint: 'Reference reading — no due date' },
     draft: { label: 'Drafts', color: 'var(--db-amber)', hint: 'Only you can see these until you publish' },
     closed: { label: 'Closed', color: 'var(--db-text-3)', hint: 'Past the deadline or ended — results still available' },
 };
