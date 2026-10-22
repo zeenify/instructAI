@@ -102,6 +102,32 @@ function outputsMatch(actual, expected, promptLiterals) {
     return strip(actual) === strip(expected) && strip(actual).length > 0;
 }
 
+// Expected/actual stdout includes the scaffold's input prompt glued to the
+// result line ("Enter a number: The number is positive.") — true output, but
+// reading it as one string hides what the student is actually asked to
+// produce. The prompt part renders dimmed so the required result stands out.
+function OutputWithDimmedPrompt({ text, promptLiterals, error }) {
+    const style = error
+        ? { ...CASE_PRE_STYLE, color: '#fca5a5', borderColor: 'rgba(239, 68, 68, 0.3)' }
+        : CASE_PRE_STYLE;
+    let litIndex = -1;
+    let lit = '';
+    for (const candidate of promptLiterals || []) {
+        const at = text.indexOf(candidate);
+        if (at !== -1 && (litIndex === -1 || at < litIndex)) {
+            litIndex = at;
+            lit = candidate;
+        }
+    }
+    if (litIndex === -1) return <pre style={style}>{text}</pre>;
+    return (
+        <pre style={style}>
+            <span style={{ color: error ? '#94a3b8' : '#94a3b8' }} title="printed by the starter code before your input">{text.slice(0, litIndex + lit.length)}</span>
+            {text.slice(litIndex + lit.length)}
+        </pre>
+    );
+}
+
 // Header tab pills — same look as the quiz/activity inline code editor
 function ideTabStyle(active) {
     return {
@@ -502,10 +528,14 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             }
             return;
         }
-        if (exitCode === 0) {
-            setActiveTab('editor');
-        }
-    };
+    // Challenges stay in the terminal after a clean exit — the student just
+    // typed input there and the result is what they came to see; the case
+    // panel below carries the verdicts. Only playgrounds auto-return to the
+    // editor (and a crash keeps the traceback visible in both modes).
+    if (exitCode === 0 && mode !== 'challenge') {
+        setActiveTab('editor');
+    }
+};
 
     const runInLiveTerminal = () => {
         setActiveTab('terminal');
@@ -919,11 +949,11 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                                         ) : null}
                                     </div>
                                     <p style={CASE_LABEL_STYLE}>Expected output</p>
-                                    <pre style={CASE_PRE_STYLE}>{c.expected_output || '(nothing)'}</pre>
+                                    <OutputWithDimmedPrompt text={c.expected_output || '(nothing)'} promptLiterals={promptLiterals} />
                                     {r && failed && (
                                         <>
                                             <p style={{ ...CASE_LABEL_STYLE, color: '#f87171', margin: '10px 0 5px' }}>Your output</p>
-                                            <pre style={{ ...CASE_PRE_STYLE, color: '#fca5a5', borderColor: 'rgba(239, 68, 68, 0.3)' }}>{r.actual || '(no output)'}</pre>
+                                            <OutputWithDimmedPrompt text={r.actual || '(no output)'} promptLiterals={promptLiterals} error />
                                         </>
                                     )}
                                 </div>
