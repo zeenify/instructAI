@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import FormattedText from '../ui/FormattedText';
 import { motion } from 'framer-motion';
 import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronRight, FlaskConical, Loader2, Pencil, Plus, Play, Trash2, TriangleAlert, X } from 'lucide-react';
 import api from '../../services/api';
@@ -541,7 +542,7 @@ function QuestionCard({ question, index, total, onChange, onMove, onDelete }) {
       ) : (
         <>
           <p style={{ marginTop: '4px', paddingRight: '60px' }} className="text-[color:var(--db-text)] font-semibold text-lg">
-            {question.question_text || question.question}
+            <FormattedText text={question.question_text || question.question} />
           </p>
 
           {options.length > 0 && (

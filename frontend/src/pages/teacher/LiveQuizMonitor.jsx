@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import FormattedText from '../../components/ui/FormattedText';
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Activity,
@@ -313,7 +314,7 @@ function TeacherPacingControls({
               whiteSpace: "nowrap",
             }}
           >
-            {question?.question_text || "—"}{" "}
+            <FormattedText text={question?.question_text || "—"} />{" "}
             {question?.points != null ? `(${question.points} pts)` : ""}
           </p>
           {deadlineText && (

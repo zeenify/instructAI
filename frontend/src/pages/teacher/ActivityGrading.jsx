@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import FormattedText from '../../components/ui/FormattedText';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Loader2, CheckSquare, Download, MessageSquare, Search, Edit3, FileText, ImageIcon, CheckCircle, Play, Eye, Code2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -367,7 +368,7 @@ export default function ActivityGrading() {
                               <span className="ag-mq-label">Question {questionNumber(q)} · {code ? 'Coding' : 'Essay'}</span>
                               <span className="ag-mq-label">{q.points} pts</span>
                             </div>
-                            <p className="ag-mq-text">{q.question_text}</p>
+                            <p className="ag-mq-text"><FormattedText text={q.question_text} /></p>
                             {code && q.boilerplate && (
                               <div style={{ marginBottom: 11 }}>
                                 <p className="ag-section-label" style={{ fontSize: 11 }}>Starter code</p>
@@ -408,7 +409,7 @@ export default function ActivityGrading() {
                             <div className="ag-aq-head">
                               <p className="ag-aq-text">
                                 <span className="ag-qnum">Q{questionNumber(q)} · </span>
-                                {q.question_text}
+                                <FormattedText text={q.question_text} />
                               </p>
                               <span className="ag-mq-label" style={{ whiteSpace: 'nowrap' }}>{q.points} pts</span>
                             </div>

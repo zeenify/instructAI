@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import InlineCodeAnswer from "../../components/student/InlineCodeAnswer";
+import FormattedText from "../../components/ui/FormattedText";
 import ConfirmModal from "../../components/ui/ConfirmModal";
 import "../../pages/student/Student.css";
 
@@ -1798,7 +1799,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
               lineHeight: 1.45,
             }}
           >
-            {question.question_text}
+            <FormattedText text={question.question_text} />
           </h2>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -1851,7 +1852,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
                     flex: 1,
                   }}
                 >
-                  {opt}
+                  <FormattedText text={opt} />
                 </span>
               </button>
             );
@@ -1894,7 +1895,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
               lineHeight: 1.45,
             }}
           >
-            {question.question_text}
+            <FormattedText text={question.question_text} />
           </h2>
         </div>
         <div
@@ -1968,7 +1969,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
               lineHeight: 1.45,
             }}
           >
-            {question.question_text}
+            <FormattedText text={question.question_text} />
           </h2>
         </div>
         <textarea
@@ -2028,7 +2029,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
               lineHeight: 1.45,
             }}
           >
-            {question.question_text}
+            <FormattedText text={question.question_text} />
           </h2>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -2149,7 +2150,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
               whiteSpace: "pre-wrap",
             }}
           >
-            {question.question_text}
+            <FormattedText text={question.question_text} />
           </h2>
         </div>
         <InlineCodeAnswer
@@ -2187,7 +2188,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
             lineHeight: 1.45,
           }}
         >
-          {question.question_text}
+          <FormattedText text={question.question_text} />
         </h2>
       </div>
       <textarea

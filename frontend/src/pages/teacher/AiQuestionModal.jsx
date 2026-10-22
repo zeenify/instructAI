@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import FormattedText from '../../components/ui/FormattedText';
 import { useQuery } from '@tanstack/react-query';
 import {
     ArrowRight,
@@ -776,7 +777,7 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                             {drafts.map((d) => (
                                 <div key={d.localId} className="aiq-preview-card">
                                     <span className={`aiq-type-badge is-${d.type}`}>{labelFor(d.type)}</span>
-                                    <span className="aiq-preview-text">{d.question_text}</span>
+                                    <span className="aiq-preview-text"><FormattedText text={d.question_text} /></span>
                                 </div>
                             ))}
                             {drafts.length === 0 && (

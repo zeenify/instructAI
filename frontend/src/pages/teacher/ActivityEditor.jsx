@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import FormattedText from '../../components/ui/FormattedText';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Reorder, useDragControls } from 'framer-motion';
 import {
@@ -482,7 +483,7 @@ function QuestionBlock({ question, index, onUpdate, onDelete, onEdit, disabled, 
                     onBlur={() => { setIsEditing(false); save('text'); }} />
             ) : (
                 <p className="ae-q-text" onClick={() => !question.is_temp && setIsEditing(true)}>
-                    {question.question_text}
+                    <FormattedText text={question.question_text} />
                 </p>
             )}
 

@@ -9,6 +9,7 @@ import {
 import { toast } from 'sonner';
 import { formatDistanceToNow, parseISO, isPast, format } from 'date-fns';
 import InlineCodeAnswer from '../../components/student/InlineCodeAnswer';
+import FormattedText from '../../components/ui/FormattedText';
 import StudentActivityCard from '../../components/student/StudentActivityCard';
 import { deriveState as activityCardState } from '../../utils/activityState';
 import ConfirmModal from '../../components/ui/ConfirmModal';
@@ -408,7 +409,7 @@ export default function ActivityViewer() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
                           <div style={{ flex: 1 }}>
                             <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
-                              {idx + 1}. {q.question_text}
+                              {idx + 1}. <FormattedText text={q.question_text} />
                             </p>
                             <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: 0 }}>
                               Your answer: {ans?.submitted_answer
@@ -570,14 +571,14 @@ function QuestionRenderer({ question, index, value, onChange, onCheckResults }) 
   if (question.type === 'multiple_choice') {
     return (
       <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
-        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. {question.question_text}</p>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. <FormattedText text={question.question_text} /></p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {(question.options || []).map((opt, i) => (
             <label key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '10px', border: `1px solid ${value === String(i) ? 'var(--accent)' : 'var(--border-color)'}`, background: value === String(i) ? 'var(--accent-light)' : 'var(--bg-primary)', cursor: 'pointer', transition: 'all 0.2s' }}>
               <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: `2px solid ${value === String(i) ? 'var(--accent)' : 'var(--border-color)'}`, background: value === String(i) ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 {value === String(i) && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'white' }} />}
               </div>
-              <span style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{opt}</span>
+              <span style={{ fontSize: '14px', color: 'var(--text-primary)' }}><FormattedText text={opt} /></span>
               <input type="radio" name={`q_${question.id}`} checked={value === String(i)} onChange={() => onChange(String(i))} style={{ display: 'none' }} />
             </label>
           ))}
@@ -589,7 +590,7 @@ function QuestionRenderer({ question, index, value, onChange, onCheckResults }) 
   if (question.type === 'true_false') {
     return (
       <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
-        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. {question.question_text}</p>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. <FormattedText text={question.question_text} /></p>
         <div style={{ display: 'flex', gap: '12px' }}>
           {['True', 'False'].map(opt => {
             const sel = value === opt;
@@ -597,7 +598,7 @@ function QuestionRenderer({ question, index, value, onChange, onCheckResults }) 
             return (
               <button key={opt} onClick={() => onChange(opt)}
                 style={{ flex: 1, padding: '14px', borderRadius: '12px', cursor: 'pointer', fontWeight: 700, fontSize: '14px', border: `2px solid ${sel ? clr : 'var(--border-color)'}`, background: sel ? `${clr}1a` : 'var(--bg-primary)', color: sel ? clr : 'var(--text-secondary)' }}>
-                {opt}
+                <FormattedText text={opt} />
               </button>
             );
           })}
@@ -609,7 +610,7 @@ function QuestionRenderer({ question, index, value, onChange, onCheckResults }) 
   if (question.type === 'identification' || question.type === 'short_answer') {
     return (
       <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
-        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. {question.question_text}</p>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. <FormattedText text={question.question_text} /></p>
         <input type="text" value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder="Type your answer..."
           style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
       </div>
@@ -623,7 +624,7 @@ function QuestionRenderer({ question, index, value, onChange, onCheckResults }) 
     const removeItem = (i) => onChange(items.filter((_, idx) => idx !== i));
     return (
       <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
-        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. {question.question_text}</p>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. <FormattedText text={question.question_text} /></p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {items.map((item, i) => (
             <div key={i} style={{ display: 'flex', gap: '8px' }}>
@@ -652,7 +653,7 @@ function QuestionRenderer({ question, index, value, onChange, onCheckResults }) 
   if (question.type === 'coding') {
     return (
       <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
-        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. {question.question_text}</p>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. <FormattedText text={question.question_text} /></p>
         <InlineCodeAnswer
           language={question.language}
           value={value}
@@ -668,7 +669,7 @@ function QuestionRenderer({ question, index, value, onChange, onCheckResults }) 
   if (question.type === 'essay') {
     return (
       <div style={{ padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
-        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. {question.question_text}</p>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>{index + 1}. <FormattedText text={question.question_text} /></p>
         <textarea value={value || ''} onChange={(e) => onChange(e.target.value)} rows={5} placeholder="Write your response..."
           style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
       </div>

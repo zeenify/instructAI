@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import InlineCodeAnswer from '../../components/student/InlineCodeAnswer';
+import FormattedText from '../../components/ui/FormattedText';
 import { motion, AnimatePresence } from 'framer-motion';
 import AITutor from '../../components/student/AITutor';
 import './QuizDisplay.css';
@@ -255,7 +256,7 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
                                 <div style={{ gap: '16px', display: 'flex', flex: 1 }}>
                                     <span style={{ padding: '10px 12px', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, border: `1.5px solid ${detail.is_correct ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`, color: detail.is_correct ? '#10b981' : '#ef4444', background: detail.is_correct ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', flexShrink: 0 }}>{i + 1}</span>
                                     <div style={{ gap: '16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                                        <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', margin: '0', lineHeight: '1.5' }}>{detail.question_text}</p>
+                                        <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', margin: '0', lineHeight: '1.5' }}><FormattedText text={detail.question_text} /></p>
 
                                         {/* TEST-CASE RESULT (coding questions graded by tests) */}
                                         {detail.test_results && (
@@ -473,7 +474,7 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
                 >
                     <div style={{ gap: '16px' }} className="flex flex-col">
                         <span style={{ fontSize: '13px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, color: 'var(--accent)' }} >Question {currentIdx + 1}</span>
-                        <h3 style={{ fontSize: '36px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: '1.2', margin: '0' }}>{q.question_text}</h3>
+                        <h3 style={{ fontSize: '36px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: '1.2', margin: '0' }}><FormattedText text={q.question_text} /></h3>
                     </div>
 
                     <div style={{ gap: '16px' }} className="flex flex-col">
@@ -483,7 +484,7 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
                                 <button key={i} onClick={() => saveAnswer(q.id, String(i))} style={{ padding: '16px 20px', gap: '12px', borderRadius: '16px', border: answers[q.id] === String(i) ? '1.5px solid var(--accent)' : '1px solid var(--border-color)', background: answers[q.id] === String(i) ? 'var(--accent-light)' : 'var(--bg-secondary)', color: answers[q.id] === String(i) ? 'var(--accent)' : 'var(--text-secondary)', cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', textAlign: 'left', width: '100%', boxShadow: answers[q.id] === String(i) ? '0 4px 12px var(--accent-glow)' : 'none' }}
                                     className="hover:border-[var(--accent-glow)]">
                                     <div style={{ padding: '8px', width: '24px', height: '24px', borderRadius: '50%', border: `2px solid ${answers[q.id] === String(i) ? 'var(--accent)' : 'var(--border-color)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: answers[q.id] === String(i) ? 'var(--accent)' : 'transparent' }}>{answers[q.id] === String(i) && <Check size={14} style={{ color: '#fff', fontWeight: 700 }} />}</div>
-                                    <span style={{ fontWeight: 700, fontSize: '16px' }}>{opt}</span>
+                                    <span style={{ fontWeight: 700, fontSize: '16px' }}><FormattedText text={opt} /></span>
                                 </button>
                             ))}
                         </div>
