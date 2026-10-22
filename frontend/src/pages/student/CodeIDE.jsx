@@ -227,7 +227,12 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
     // compile/timeout/runtime mid-loop) — the summary must never present a
     // partial run as "challenge complete!"
     const [abortedRun, setAbortedRun] = useState(null);
-    const promptLiterals = extractPrintedLiterals(block.data.boilerplate || '');
+    // Lesson blocks keep the starter in `code`; activity-style blocks use
+    // `boilerplate` — read prompts from both so the mirror display and the
+    // prompt-tolerant compare always have the literals.
+    const promptLiterals = extractPrintedLiterals(
+        [block.data.boilerplate, block.data.code, initialCode].filter(Boolean).join('\n')
+    );
     const [runningCase, setRunningCase] = useState(0);
     const [checkResults, setCheckResults] = useState(null);
     const pendingCheckRef = useRef(null);
