@@ -434,7 +434,23 @@ class ActivityAiController extends Controller
 
         return match ($type) {
             'multiple_choice' => (function () use ($text, $options, $answer, $points, $mcSlot) {
-                if (count($options) < 2) {
+                // MC ships exactly 4 options — trim model overshoot to the
+                // first 4, pulling the correct answer into the cut if it
+                // landed beyond it. Under-filled sets are dropped: a 3-option
+                // MC is not what the generator contract promises.
+                if (count($options) > 4) {
+                    $trimmed = array_slice($options, 0, 4);
+                    foreach ($options as $i => $option) {
+                        if (strcasecmp($option, $answer) === 0) {
+                            if ($i > 3) {
+                                $trimmed[3] = $options[$i];
+                            }
+                            break;
+                        }
+                    }
+                    $options = $trimmed;
+                }
+                if (count($options) !== 4) {
                     return null;
                 }
                 $index = null;

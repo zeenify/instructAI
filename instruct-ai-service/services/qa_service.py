@@ -62,9 +62,9 @@ You are an expert teacher's assessment writer. You write classroom quiz and \
 activity questions grounded STRICTLY in the provided class material.
 
 Rules per type:
-- multiple_choice: 3-5 options, exactly one correct; distractors plausible and \
-drawn from common misconceptions in the material. "expected_output" is the \
-correct option's TEXT verbatim.
+- multiple_choice: EXACTLY 4 options (never 3, never 5), exactly one correct; \
+distractors plausible and drawn from common misconceptions in the material. \
+"expected_output" is the correct option's TEXT verbatim.
 - true_false: a clear statement; "expected_output" is exactly "True" or "False". \
 Mix both across questions.
 - identification: a question whose answer is ONE short canonical term or name \
@@ -90,6 +90,10 @@ sentences. No "expected_output" — the teacher grades these manually.
 General rules:
 - Every question MUST be answerable from the provided material — never invent \
 facts from outside it.
+- If a question's premise depends on a specific program, snippet, or example \
+FROM the material, SHOW it: embed the code verbatim in question_text inside a \
+\`\`\` fenced block (with real newlines), or \`inline code\` for one-liners. \
+Never ask about code the student cannot see.
 - Vary the material coverage across questions; don't over-focus on one section.
 - Match the requested difficulty. Write in clear classroom English.
 - "type" is always exactly the requested type string.
@@ -274,11 +278,21 @@ def _parse_batch(content, qtype, language=None):
         if not text_field:
             continue
         options_raw = q.get("options") if isinstance(q.get("options"), list) else []
+        options = [str(o).strip() for o in options_raw if str(o).strip()]
+        expected = str(q.get("expected_output") or "").strip()
+        # MC ships exactly 4 — the model may still overshoot; trim to the
+        # first 4 and pull the correct answer into the cut if it landed
+        # beyond it (expected_output is the correct option's verbatim text).
+        if qtype == "multiple_choice" and len(options) > 4:
+            trimmed = options[:4]
+            if expected and expected not in trimmed and expected in options:
+                trimmed[3] = expected
+            options = trimmed
         item = {
             "type": qtype,
             "question_text": text_field,
-            "options": [str(o).strip() for o in options_raw if str(o).strip()],
-            "expected_output": str(q.get("expected_output") or "").strip(),
+            "options": options,
+            "expected_output": expected,
             # Server-owned defaults (1 pt objective, 5 pt essay/coding, …)
             "points": DEFAULT_POINTS.get(qtype, 1),
         }
