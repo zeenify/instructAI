@@ -23,6 +23,21 @@ const ERROR_STYLES = {
     system: { color: '#7dd3a8', label: 'SYSTEM ERROR' },
 };
 
+// Mirrors CodeRunner::normalizeOutput on the server so the run-here verdict
+// never disagrees with the grade the submit path records.
+function normOutput(s) {
+    return String(s ?? '')
+        .replace(/\r\n/g, '\n')
+        .split('\n')
+        .map((l) => l.replace(/\s+$/, ''))
+        .join('\n')
+        .replace(/\n+$/, '');
+}
+
+// stderr signatures for a program that asked for input and reached
+// end-of-input (Java's Scanner, Python's input()) — not a bug in the code.
+const READS_CLOSED_STDIN = /NoSuchElementException|EOFError|EOF when reading a line/;
+
 export default function InlineCodeAnswer({
     language,
     value,
@@ -46,6 +61,9 @@ export default function InlineCodeAnswer({
     const [consoleLines, setConsoleLines] = useState([]);
     const [passed, setPassed] = useState(false);
     const [actualOutput, setActualOutput] = useState(null); // for expected-vs-actual display
+    // Per-sample-test verdicts from the check run (input-reading programs get
+    // one engine run per visible test, stdin fed from the test's input).
+    const [caseResults, setCaseResults] = useState(null);
     // The Terminal tab hosts the LIVE interactive terminal — input is typed
     // while the program runs, never preemptively.
     const liveTermRef = useRef(null);
@@ -65,7 +83,7 @@ export default function InlineCodeAnswer({
     const runCountRef = useRef(0);
     const containerRef = useRef(null);
 
-    useEffect(() => { setPassed(false); setActualOutput(null); setCheckResults(null); }, [language]);
+    useEffect(() => { setPassed(false); setActualOutput(null); setCheckResults(null); setCaseResults(null); }, [language]);
 
     useEffect(() => {
         if (!isHtml) return undefined;
@@ -97,6 +115,7 @@ export default function InlineCodeAnswer({
         setMeta(null);
         setPassed(false);
         setActualOutput(null);
+        setCaseResults(null);
 
         if (isHtml) {
             setConsoleLines([]);
@@ -123,12 +142,77 @@ export default function InlineCodeAnswer({
             pendingTerminalRunRef.current = true;
         }
 
+        // One engine run, retried once — cold starts on the free engine fail
+        // mid-run too often to trust a single attempt.
+        const restRun = async (input) => {
+            let lastErr;
+            for (let attempt = 0; attempt < 2; attempt += 1) {
+                if (attempt > 0) await new Promise((r) => setTimeout(r, 1500));
+                try {
+                    const res = await api.post('/student/execute', {
+                        code: value || boilerplate,
+                        language: lang.id,
+                        ...(input === undefined ? {} : { input }),
+                    }, { timeout: 45000 });
+                    return res.data;
+                } catch (err) {
+                    lastErr = err;
+                }
+            }
+            throw lastErr;
+        };
+
         try {
-            const res = await api.post('/student/execute', {
-                code: value || boilerplate,
-                language: lang.id,
-            }, { timeout: 45000 });
-            const data = res.data;
+            // Sample tests are the visible I/O contract; feed each one's stdin
+            // so input-reading programs (Scanner/input()) stop crashing on the
+            // check run. Mirrors what the server grades on submit.
+            if (sampleTests.length > 0) {
+                const results = [];
+                for (let i = 0; i < sampleTests.length; i += 1) {
+                    const t = sampleTests[i];
+                    let data;
+                    try {
+                        data = await restRun(t.input ?? '');
+                    } catch {
+                        setErrorType('system');
+                        setOutput(`The execution engine dropped after ${results.length} of ${sampleTests.length} test cases. Press Run to retry.`);
+                        return;
+                    }
+                    setMeta({ duration_ms: data.duration_ms, exit_code: data.exit_code });
+                    if (data.compile_output) {
+                        setErrorType('compile');
+                        setOutput(data.compile_output);
+                        return;
+                    }
+                    if (data.timed_out) {
+                        setErrorType('timeout');
+                        setOutput(data.stderr || 'Execution Timed Out');
+                        return;
+                    }
+                    if (data.stderr) {
+                        setErrorType('runtime');
+                        setOutput(data.stderr);
+                        return;
+                    }
+                    const actual = normOutput(data.stdout);
+                    results.push({
+                        n: i + 1,
+                        input: t.input ?? '',
+                        expected: t.expected_output ?? '',
+                        actual,
+                        passed: actual === normOutput(t.expected_output),
+                    });
+                    setCaseResults([...results]);
+                }
+                setPassed(results.every((r) => r.passed));
+                setActualOutput(results[results.length - 1]?.actual ?? null);
+                return;
+            }
+
+            // No sample tests: legacy single run. Nothing feeds stdin, so an
+            // input-reading program reaching its first read is expected —
+            // explain that instead of showing a scary crash.
+            const data = await restRun(undefined);
             setMeta({ duration_ms: data.duration_ms, exit_code: data.exit_code });
 
             if (data.compile_output) {
@@ -138,17 +222,21 @@ export default function InlineCodeAnswer({
                 setErrorType('timeout');
                 setOutput(data.stderr || 'Execution Timed Out');
             } else if (data.stderr) {
-                setErrorType('runtime');
-                setOutput(data.stderr);
+                if (READS_CLOSED_STDIN.test(data.stderr)) {
+                    setErrorType('noinput');
+                    setOutput(
+                        'This program reads input before it can print anything, and this exercise has no sample input to feed the automatic check — so it stops right at the first read. That part is not a bug in your code.\n\nPress Run below and type your input in the terminal while the program waits, like a real console. Your submission is graded when you submit.'
+                    );
+                } else {
+                    setErrorType('runtime');
+                    setOutput(data.stderr);
+                }
             } else {
-                const clean = (data.stdout || '').trim().replace(/\r\n/g, '\n');
+                const clean = normOutput(data.stdout);
                 setOutput(clean || '> Program executed successfully (No output).');
                 setActualOutput(clean);
-                const isMatch = challengeExpected
-                    ? clean === String(challengeExpected).trim().replace(/\r\n/g, '\n')
-                    : false;
-                if (challengeExpected) {
-                    setPassed(isMatch);
+                if (challengeExpected != null) {
+                    setPassed(clean === normOutput(challengeExpected));
                 }
             }
         } catch {
@@ -195,7 +283,7 @@ export default function InlineCodeAnswer({
                     </span>
                     {passed && (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10.5px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '4px 10px', borderRadius: '999px' }}>
-                            ✓ Output matches
+                            {caseResults ? `✓ All ${caseResults.length} sample tests pass` : '✓ Output matches'}
                         </span>
                     )}
                 </div>
@@ -345,8 +433,34 @@ export default function InlineCodeAnswer({
                                     )}
                                 </div>
                             )}
+                            {/* Per-case verdicts for the sample-test contract */}
+                            {caseResults && caseResults.length > 0 && (
+                                <div style={{ marginBottom: '10px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                                        <span style={{ fontSize: '10.5px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#7dd3a8' }}>
+                                            Sample tests
+                                        </span>
+                                        <span style={{
+                                            fontSize: '10.5px', fontWeight: 800, padding: '2px 8px', borderRadius: '999px',
+                                            color: caseResults.every((r) => r.passed) ? '#34d399' : '#fbbf24',
+                                            background: caseResults.every((r) => r.passed) ? 'rgba(16,185,129,.12)' : 'rgba(245,158,11,.12)',
+                                        }}>
+                                            {caseResults.filter((r) => r.passed).length}/{caseResults.length} passing
+                                        </span>
+                                    </div>
+                                    {caseResults.map((r) => (
+                                        <div key={r.n} style={{ display: 'flex', alignItems: 'baseline', gap: '8px', fontSize: '11.5px', padding: '3px 0', fontFamily: 'monospace', flexWrap: 'wrap' }}>
+                                            <span style={{ color: r.passed ? '#34d399' : '#f87171', flexShrink: 0 }}>{r.passed ? '✓' : '✕'}</span>
+                                            <span style={{ color: '#94a3b8' }}>Case {r.n}{r.input ? ` — input ${r.input}` : ''}</span>
+                                            <span style={{ color: r.passed ? '#86efac' : '#fca5a5', overflowWrap: 'anywhere' }}>
+                                                {r.passed ? `→ ${r.expected}` : `→ expected ${r.expected || '(nothing)'}, your program printed ${r.actual || '(nothing)'}`}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                             {/* Expected vs actual when the teacher defined an output contract */}
-                            {challengeExpected != null && actualOutput !== null && !errorType && (
+                            {challengeExpected != null && actualOutput !== null && !errorType && !caseResults && (
                                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                     <div style={{ flex: 1, minWidth: '45%' }}>
                                         <p style={{ fontSize: '10.5px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', margin: '0 0 4px 0' }}>Expected</p>

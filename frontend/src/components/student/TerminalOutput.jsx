@@ -17,6 +17,7 @@ const KIND_LABELS = {
     runtime: 'PROGRAM CRASHED',
     timeout: 'TIMED OUT',
     system: 'ENGINE UNREACHABLE',
+    noinput: 'NO SAMPLE INPUT',
 };
 
 function lineColor(line) {
@@ -59,8 +60,8 @@ export default function TerminalOutput({ language = 'java', kind, errorText, out
                     <span style={{
                         fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em',
                         padding: '2px 8px', borderRadius: '999px', whiteSpace: 'nowrap',
-                        color: isOk ? '#4ade80' : kind === 'timeout' ? '#fbbf24' : '#f87171',
-                        background: isOk ? 'rgba(74, 222, 128, 0.12)' : kind === 'timeout' ? 'rgba(251, 191, 36, 0.12)' : 'rgba(248, 113, 113, 0.12)',
+                        color: isOk ? '#4ade80' : kind === 'timeout' ? '#fbbf24' : kind === 'noinput' ? '#93c5fd' : '#f87171',
+                        background: isOk ? 'rgba(74, 222, 128, 0.12)' : kind === 'timeout' ? 'rgba(251, 191, 36, 0.12)' : kind === 'noinput' ? 'rgba(147, 197, 253, 0.12)' : 'rgba(248, 113, 113, 0.12)',
                     }}>
                         {KIND_LABELS[kind]}
                     </span>
@@ -93,10 +94,12 @@ export default function TerminalOutput({ language = 'java', kind, errorText, out
                 ) : (
                     <>
                         {lines.map((line, i) => (
-                            <span key={i} style={{ color: kind === 'timeout' || kind === 'system' ? '#93c5fd' : lineColor(line) }}>{line}{'\n'}</span>
+                            <span key={i} style={{ color: kind === 'timeout' || kind === 'system' || kind === 'noinput' ? '#93c5fd' : lineColor(line) }}>{line}{'\n'}</span>
                         ))}
                         <span style={{ color: '#64748b' }}>
-                            {`> Process exited with code ${meta?.exit_code ?? 1}\n`}
+                            {kind === 'noinput'
+                                ? '> Automatic check skipped — type input in the terminal below.\n'
+                                : `> Process exited with code ${meta?.exit_code ?? 1}\n`}
                             {kind === 'compile' ? '> Fix the error(s) above, then run again.\n' : ''}
                         </span>
                     </>
