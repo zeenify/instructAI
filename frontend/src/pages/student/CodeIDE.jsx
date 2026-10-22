@@ -106,7 +106,12 @@ function outputsMatch(actual, expected, promptLiterals) {
 // result line ("Enter a number: The number is positive.") — true output, but
 // reading it as one string hides what the student is actually asked to
 // produce. The prompt part renders dimmed so the required result stands out.
-function OutputWithDimmedPrompt({ text, promptLiterals, error }) {
+// Expected/actual stdout includes the scaffold's input prompt glued to the
+// result line — the ENGINE doesn't echo typed keys, but the student's
+// TERMINAL does (they see their own input, then the result on a new line).
+// Render the same picture: dimmed prompt + the typed input echoed + the
+// result starting on its own line, so the two views are comparable.
+function OutputWithDimmedPrompt({ text, promptLiterals, echoInput, error }) {
     const style = error
         ? { ...CASE_PRE_STYLE, color: '#fca5a5', borderColor: 'rgba(239, 68, 68, 0.3)' }
         : CASE_PRE_STYLE;
@@ -120,10 +125,16 @@ function OutputWithDimmedPrompt({ text, promptLiterals, error }) {
         }
     }
     if (litIndex === -1) return <pre style={style}>{text}</pre>;
+    const promptPart = text.slice(0, litIndex + lit.length);
+    const afterPrompt = text.slice(litIndex + lit.length);
+    const hasEcho = typeof echoInput === 'string' && echoInput.trim().length > 0
+        && !afterPrompt.startsWith(echoInput);
     return (
         <pre style={style}>
-            <span style={{ color: error ? '#94a3b8' : '#94a3b8' }} title="printed by the starter code before your input">{text.slice(0, litIndex + lit.length)}</span>
-            {text.slice(litIndex + lit.length)}
+            <span style={{ color: '#94a3b8' }} title="printed by the starter code before your input">{promptPart}</span>
+            {hasEcho ? echoInput : null}
+            {hasEcho ? '\n' : ''}
+            {afterPrompt}
         </pre>
     );
 }
@@ -840,8 +851,11 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 each shows what the student's program actually printed. */}
             {mode === 'challenge' && !isHtml && challengeCases.length > 0 && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ padding: '20px 24px', borderTop: '1px solid var(--accent-glow)', background: 'var(--accent-light)' }}>
-                    <p style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 900, textTransform: 'uppercase', margin: '0 0 12px 0' }}>
+                    <p style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 900, textTransform: 'uppercase', margin: '0 0 6px 0' }}>
                         Test Cases — all must pass
+                    </p>
+                    <p style={{ fontSize: '10.5px', color: 'var(--text-tertiary)', margin: '0 0 12px 0' }}>
+                        Gray text is the starter code's prompt. What you <em>type</em> in the terminal isn't part of the graded output — only what the program prints is.
                     </p>
                     {/* Live checking status — grading is running, shown outside the terminal */}
                     {isChecking && runningCase > 0 && (
@@ -948,14 +962,14 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                                             )
                                         ) : null}
                                     </div>
-                                    <p style={CASE_LABEL_STYLE}>Expected output</p>
-                                    <OutputWithDimmedPrompt text={c.expected_output || '(nothing)'} promptLiterals={promptLiterals} />
-                                    {r && failed && (
-                                        <>
-                                            <p style={{ ...CASE_LABEL_STYLE, color: '#f87171', margin: '10px 0 5px' }}>Your output</p>
-                                            <OutputWithDimmedPrompt text={r.actual || '(no output)'} promptLiterals={promptLiterals} error />
-                                        </>
-                                    )}
+                                                    <p style={{ ...CASE_LABEL_STYLE, marginTop: 10 }}>Expected output</p>
+                                                    <OutputWithDimmedPrompt text={c.expected_output || '(nothing)'} promptLiterals={promptLiterals} echoInput={c.input || ''} />
+                                                    {r && failed && (
+                                                        <>
+                                                            <p style={{ ...CASE_LABEL_STYLE, color: '#f87171', margin: '10px 0 5px' }}>Your output</p>
+                                                            <OutputWithDimmedPrompt text={r.actual || '(no output)'} promptLiterals={promptLiterals} echoInput={c.input || ''} error />
+                                                        </>
+                                                    )}
                                 </div>
                             );
                         })}
