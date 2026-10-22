@@ -233,22 +233,27 @@ export default function AITutor({
         }
 
         const clean = full.replace(STREAM_END, '').trim();
-        // Gemini occasionally returns zero content (heavily constrained
-        // prompts); never dead-end the conversation on it
-        updateLastAi(clean || '(I drew a blank there — mind rephrasing, or asking about a specific part of your lesson?)', true);
+        // A failure inside any upstream layer can land raw machine error text
+        // (Python/JS exception strings, JSON error bodies) in the stream. The
+        // student never needs to read one — swap in the friendly retry line.
+        const machineError = /^\{"?error|Traceback \(most recent call last\)|^\s*[A-Za-z_.]+(Error|Exception)\s*:/.test(clean);
+        const finalText = machineError
+            ? '(I hit a technical snag mid-answer — please send that again.)'
+            : (clean || '(I drew a blank there — mind rephrasing, or asking about a specific part of your lesson?)');
+        updateLastAi(finalText, true);
 
         // 3. Persist the AI turn (single-use token; empty answers are skipped
         //    server-side so connection-drop notices never enter history)
         try {
             await api.post('/student/ai/chat-commit', {
                 turn_token: prep.data.turn_token,
-                answer: clean,
+                answer: finalText,
             });
         } catch (commitErr) {
             console.warn('Tutor commit failed', commitErr);
         }
 
-        return clean;
+        return finalText;
     };
 
     const sendFallback = async (userMessage) => {

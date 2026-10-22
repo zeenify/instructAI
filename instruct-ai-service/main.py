@@ -845,7 +845,7 @@ def tutor_chat(data: TutorChatRequest):
         print(f"[Tutor Chat Error] {type(e).__name__}: {str(e)}")
         import traceback
         traceback.print_exc()
-        return {"error": str(e), "answer": "I'm having trouble accessing the tutoring system right now. Please try again."}
+        return {"error": "I'm having trouble accessing the tutoring system right now. Please try again.", "answer": "I'm having trouble accessing the tutoring system right now. Please try again."}
 
 
 class TutorChatStreamEnvelope(BaseModel):
@@ -868,7 +868,9 @@ async def tutor_chat_stream(request: Request):
         envelope = TutorChatStreamEnvelope(**body)
     except Exception as e:
         print(f"[Tutor Chat Stream Error] bad request: {str(e)}")
-        return {"error": str(e)}
+        # str(e) can carry pydantic/http internals — the browser renders the
+        # response body in the tutor bubble, so only a generic message leaves
+        return JSONResponse(status_code=400, content={"error": "bad request"})
 
     if not verify_stream_signature(envelope.payload_json, envelope.auth_sig, envelope.auth_ts):
         print("[Tutor Chat Stream Error] invalid or expired stream signature")
@@ -878,7 +880,7 @@ async def tutor_chat_stream(request: Request):
         data = TutorChatRequest(**json.loads(envelope.payload_json))
     except Exception as e:
         print(f"[Tutor Chat Stream Error] bad payload: {str(e)}")
-        return {"error": str(e)}
+        return JSONResponse(status_code=400, content={"error": "bad payload"})
 
     # Sync generator: Starlette iterates it in a threadpool, so the blocking
     # Gemini calls never freeze the event loop for every other request
