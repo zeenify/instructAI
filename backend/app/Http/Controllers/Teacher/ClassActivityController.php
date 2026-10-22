@@ -193,7 +193,11 @@ class ClassActivityController extends Controller
                 'material' => 'none',
                 default => null,
             },
-            'max_points' => $validated['max_points'] ?? null,
+            // A file submission is graded out of something — default to 100
+            // when the teacher never sets a max (the grading screen already
+            // assumed /100 for null). Quiz/question activities compute their
+            // own maxes; those stay null.
+            'max_points' => $validated['max_points'] ?? (($validated['activity_type'] === 'activity' && $validated['submission_type'] === 'file') ? 100 : null),
             // Teacher-paced quizzes run on the room's own lifecycle, but a
             // student-paced quiz can be due Friday like any assignment — the
             // student submit paths enforce deadline_at + hard/soft the same
