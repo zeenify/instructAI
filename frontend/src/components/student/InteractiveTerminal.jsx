@@ -160,13 +160,49 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
         // keeps stale sockets silent after a retry supersedes them.
         const session = ++runSessionRef.current;
 
+        const failConnect = (attempt) => {
+            // Same wake-retry flow the onerror path uses — shared so the
+            // connect-timeout guard degrades identically to a network error.
+            if (attempt < 2 && runSessionRef.current === session) {
+                termRef.current?.write(`\r\n> The execution engine is waking up — retrying in a few seconds (attempt ${attempt + 2}/3)...\r\n`);
+                setTimeout(() => {
+                    if (runSessionRef.current === session) connect(attempt + 1);
+                }, 6000);
+                return;
+            }
+            setHasError(true);
+            if (runSessionRef.current === session) {
+                termRef.current?.write('\r\n[CONNECTION ERROR] The execution engine did not wake up — try again in a minute.\r\n');
+                setRunning(false);
+            }
+        };
+
         const connect = (attempt) => {
             const ws = new WebSocket(wsUrl);
             wsRef.current = ws;
             let opened = false;
 
+            // A WebSocket that neither opens NOR errors (black-holed route,
+            // an instance mid-restart) strands the Run button forever — no
+            // browser event ever fires. A client-side connect clock is the
+            // only guard; it feeds the same wake-retry flow as onerror.
+            const connectTimer = setTimeout(() => {
+                if (opened || runSessionRef.current !== session) return;
+                try { ws.close(); } catch { /* already dead */ }
+                failConnect(attempt);
+            }, 30000);
+
+            // Opened but silent for 2 minutes: could still be a long cold
+            // compile OR a program waiting on input — never kill the session,
+            // just leave a hint so the student knows the way out.
+            const silenceTimer = setTimeout(() => {
+                if (runSessionRef.current !== session) return;
+                termRef.current?.write('\r\n> Still nothing from the engine — if nothing shows up soon, press Run to start a fresh session.\r\n');
+            }, 120000);
+
             ws.onopen = () => {
                 opened = true;
+                clearTimeout(connectTimer);
                 if (runSessionRef.current !== session) {
                     ws.close();
                     return;
@@ -180,6 +216,7 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
 
             ws.onmessage = (event) => {
                 if (runSessionRef.current !== session) return;
+                clearTimeout(silenceTimer);
                 try {
                     const data = JSON.parse(event.data);
 
@@ -205,9 +242,9 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
                             if (mode === 'challenge' && onComplete) {
                                 onComplete();
                             }
-                            // Surfaces that only visit the terminal for the live
-                            // run flip back to the code editor on a clean exit;
-                            // crashes stay so the traceback stays readable.
+                            // Exit itself never moves tabs — the student may
+                            // have just typed input here and the result is
+                            // what they came to see.
                             onExited?.(data.code);
 
                             ws.close();
@@ -226,22 +263,12 @@ const InteractiveTerminal = React.forwardRef(function InteractiveTerminal({ code
                     setRunning(false);
                     return;
                 }
-                // Never reached a session — wake the engine and retry
-                if (attempt < 2 && runSessionRef.current === session) {
-                    termRef.current?.write(`\r\n> The execution engine is waking up — retrying in a few seconds (attempt ${attempt + 2}/3)...\r\n`);
-                    setTimeout(() => {
-                        if (runSessionRef.current === session) connect(attempt + 1);
-                    }, 6000);
-                    return;
-                }
-                setHasError(true);
-                if (runSessionRef.current === session) {
-                    termRef.current?.write('\r\n[CONNECTION ERROR] The execution engine did not wake up — try again in a minute.\r\n');
-                    setRunning(false);
-                }
+                clearTimeout(connectTimer);
+                failConnect(attempt);
             };
 
             ws.onclose = () => {
+                clearTimeout(connectTimer);
                 if (opened && runSessionRef.current === session && isRunningRef.current) {
                     termRef.current?.write('\r\n> Connection closed\r\n');
                     setRunning(false);
