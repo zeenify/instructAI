@@ -19,7 +19,7 @@ Difficulty labels (user-defined):
 
 | Label | Bugs |
 |---|---|
-| **EASY** | #4 max-points default 100 · #7 MC exactly 4 options · #2 material status chip · #10 materials out of To-grade · #11-L leftover: wss connect timeout |
+| **EASY** | #4 max-points default 100 · #7 MC exactly 4 options · #2 material status chip · #10 materials out of To-grade · #11-L leftover: wss connect timeout · #14 join-refresh + empty state |
 | **MEDIUM** | #1 gen-studio quiz/lesson tab collision · #9 embed referenced code in questions · #8 code formatting in questions · #12 verify Render CACHE_STORE |
 | **HARD** | #3 AiQuestionModal UI/UX redesign · #5 quiz lifecycle redesign (no dates — Close/Reopen) · #6 raise the AI 20-question cap · #13 per-case results in the quiz review screen |
 
@@ -223,4 +223,15 @@ Difficulty labels (user-defined):
 
 ---
 
+## 14. Student: joining a class needs a manual refresh; zero-class home looks empty
+
+- **Status:** FIXED & VERIFIED (2ef0748, 2026-10-23) · **Label: EASY**
+- **Reported:** 2026-10-23, during pre-pilot testing — joining a class only showed up after a refresh, and the home page looked bare/broken for a student with no classes.
+- **Root causes:**
+  1. `StudentLayout.fetchClasses(true)` skipped the local cache read but still went through the legacy axios GET cache (5-min TTL) — the forced refetch after a successful join was served the PRE-join class list.
+  2. `StudentOverview` rendered the heading + a "0 classes · 0 courses" line + an empty grid — no empty-state content at all.
+- **Fix:** forced refreshes pass `bypassCache: true`; the overview renders a dashed empty panel (icon, "No classes yet", guidance, "Join a class" CTA wired through the outlet context to the layout's modal) and hides the stats line when empty.
+- **Verified on dev AND prod:** joined a real throwaway class in-app — sidebar + grid updated instantly with no reload; a zero-enrollment test student saw the empty state, and its CTA opened the join modal. All fixtures (classes, courses, test user) deleted afterwards.
+
+---
 *Closed/mostly-closed history kept for context: #11's original challenge-engine failure chain and its shipped fixes are documented under 11-L above; the legacy-era lesson challenges (22/24/25/27) whose blocks have no stored test cases were explicitly left as-is per user decision ("let's just move on") on 2026-10-22 — options (surgical backfill vs studio regeneration) remain available if revisited.*
