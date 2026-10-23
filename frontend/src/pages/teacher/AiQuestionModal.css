@@ -592,6 +592,13 @@
     color: var(--db-text-3);
 }
 
+.aiq-eta {
+    font-size: 11.5px;
+    color: var(--db-text-3);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
 .aiq-progress-bar {
     height: 6px;
     border-radius: 999px;

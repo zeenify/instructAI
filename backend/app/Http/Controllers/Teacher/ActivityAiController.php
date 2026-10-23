@@ -36,6 +36,14 @@ class ActivityAiController extends Controller
         'enumeration', 'short_answer', 'essay', 'coding',
     ];
 
+    /**
+     * Ceiling for a single generation run. The Python service writes in
+     * batches of five and streams each batch, so a 100-question run is long
+     * but observable and stoppable — it is a wait-time ceiling, not a
+     * capability one. Keep this in sync with the modal and qa_service.
+     */
+    private const MAX_QUESTIONS = 100;
+
     /** Human labels for the "Plan: …" status line. */
     private const PLAN_LABELS = [
         'multiple_choice' => 'multiple choice',
@@ -203,8 +211,8 @@ class ActivityAiController extends Controller
             ->map(fn ($n) => (int) $n);
 
         if ($counts->isNotEmpty()) {
-            if ($counts->sum() > 20) {
-                return response()->json(['message' => 'Question counts add up to more than 20.'], 422);
+            if ($counts->sum() > self::MAX_QUESTIONS) {
+                return response()->json(['message' => 'Question counts add up to more than '.self::MAX_QUESTIONS.'.'], 422);
             }
             if (($counts['coding'] ?? 0) > 0 && (!$course || !$course->language)) {
                 return response()->json([
@@ -215,7 +223,7 @@ class ActivityAiController extends Controller
             // Default mix: multiple choice only — clean, auto-gradable, and
             // never a surprise. Other types (TF, coding, essays) are a
             // deliberate Advanced choice with exact counts.
-            $counts = collect(['multiple_choice' => max(1, (int) ($settings['count'] ?? 10))]);
+            $counts = collect(['multiple_choice' => max(1, min(self::MAX_QUESTIONS, (int) ($settings['count'] ?? 10)))]);
         }
 
         $count = $counts->sum();

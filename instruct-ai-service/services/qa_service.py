@@ -25,6 +25,9 @@ from config.models import GEN_CONTENT_MODEL
 from utils.ai_client_pool import AIClientPool, is_rate_limit_error
 
 BATCH_SIZE = 5
+# Keep in sync with ActivityAiController::MAX_QUESTIONS and the modal. Batches
+# stream as they finish, so this is a wait-time ceiling, not a hard capability.
+MAX_QUESTIONS = 100
 HEARTBEAT_INTERVAL_S = 12
 MAX_SOURCE_CHARS = 8000    # per source (lesson / file)
 MAX_CONTEXT_CHARS = 30000  # total, matching the studio's context budget
@@ -390,7 +393,7 @@ async def generate_qa_questions_stream(ai_pool: AIClientPool, context_sources, s
     it never invents one."""
     types = [t for t in (settings.get("types") or []) if t in TYPE_LABELS] or ["multiple_choice"]
     try:
-        count = max(1, min(int(settings.get("count", 10)), 20))
+        count = max(1, min(int(settings.get("count", 10)), MAX_QUESTIONS))
     except (TypeError, ValueError):
         count = 10
     difficulty = settings.get("difficulty", "medium")

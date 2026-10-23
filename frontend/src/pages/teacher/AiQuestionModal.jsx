@@ -41,6 +41,10 @@ const ZERO_COUNTS = Object.fromEntries(AI_TYPES.map((t) => [t.id, 0]));
 
 const MAX_FILES = 4;
 const MAX_FILE_MB = 10;
+// One run cap. Batches stream in fives, so long runs show progress as they go
+// and Stop keeps everything already written; the ceiling is about the wait, not
+// about what the system can hold.
+const MAX_QUESTIONS = 100;
 // Above the EUNA FAB (9985) — its portrait otherwise sits on top of the
 // Generate / commit buttons on narrow screens.
 const MODAL_Z = 9990;
@@ -51,6 +55,12 @@ const nextLocalId = () => `aiq${++localId}`;
 const fmtWords = (chars) => {
     const words = Math.max(1, Math.round(chars / 5.5));
     return words >= 1000 ? `${(words / 1000).toFixed(1)}k words` : `${words} words`;
+};
+
+// Long runs (up to 100 questions) need a honest sense of time left.
+const fmtDuration = (seconds) => {
+    const s = Math.max(0, Math.round(seconds));
+    return s >= 60 ? `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s` : `${s}s`;
 };
 
 const plural = (n, word, pluralWord) => `${n} ${n === 1 ? word : (pluralWord ?? word + 's')}`;
@@ -88,6 +98,9 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
     const abortRef = useRef(null);
     const fileInputRef = useRef(null);
     const headRef = useRef(null);
+    const genStartedAtRef = useRef(null);
+    // Re-render once a second while generating so the elapsed/ETA line moves.
+    const [, setGenTick] = useState(0);
 
     const {
         data: context,
@@ -149,6 +162,13 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
 
     // An in-flight generation must not outlive the modal
     useEffect(() => () => abortRef.current?.abort(), []);
+
+    // Keep the elapsed/ETA line ticking during a long run
+    useEffect(() => {
+        if (phase !== 'generating') return undefined;
+        const id = setInterval(() => setGenTick((t) => t + 1), 1000);
+        return () => clearInterval(id);
+    }, [phase]);
 
     const attemptClose = useCallback(() => {
         if (phase === 'generating' || committing) return;
@@ -222,6 +242,7 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
         setDrafts([]);
         setProgress({ done: 0, total: totalCount });
         setStatusLine('Connecting to AI service…');
+        genStartedAtRef.current = Date.now();
 
         const controller = new AbortController();
         abortRef.current = controller;
@@ -650,7 +671,7 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                                 <div className="aiq-stepper">
                                                     <button type="button" aria-label="Fewer questions" onClick={() => setCount((c) => Math.max(1, c - 1))} disabled={countsActive || totalCount <= 1}>−</button>
                                                     <span>{totalCount}</span>
-                                                    <button type="button" aria-label="More questions" onClick={() => setCount((c) => Math.min(20, c + 1))} disabled={countsActive || totalCount >= 20}>+</button>
+                                                    <button type="button" aria-label="More questions" onClick={() => setCount((c) => Math.min(MAX_QUESTIONS, c + 1))} disabled={countsActive || totalCount >= MAX_QUESTIONS}>+</button>
                                                 </div>
                                                 <span className="aiq-count-note">
                                                     {countsActive ? 'set by your mix' : 'multiple choice'}
@@ -704,7 +725,7 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                                     aria-pressed={countsActive}
                                                     onClick={() => {
                                                         if (countsActive) return;
-                                                        setCounts({ ...ZERO_COUNTS, multiple_choice: Math.max(1, Math.min(20, count)) });
+                                                        setCounts({ ...ZERO_COUNTS, multiple_choice: Math.max(1, Math.min(MAX_QUESTIONS, count)) });
                                                     }}
                                                 >
                                                     Custom
@@ -728,8 +749,8 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                                                     <button
                                                                         type="button"
                                                                         aria-label={`More ${t.label}`}
-                                                                        onClick={() => setCounts((c) => ({ ...c, [t.id]: Math.min(20, Number(c[t.id]) + 1) }))}
-                                                                        disabled={locked || countsSum >= 20}
+                                                                        onClick={() => setCounts((c) => ({ ...c, [t.id]: Math.min(MAX_QUESTIONS, Number(c[t.id]) + 1) }))}
+                                                                        disabled={locked || countsSum >= MAX_QUESTIONS}
                                                                         title={locked ? codingBlocked : undefined}
                                                                     >+</button>
                                                                 </div>
@@ -794,6 +815,13 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                         <div className="aiq-progress-head">
                             <Loader2 size={16} className="aiq-spin" />
                             <span className="aiq-status">{statusLine || 'Working…'}</span>
+                            {genStartedAtRef.current && (
+                                <span className="aiq-eta">
+                                    {progress.done > 0 && progress.total > progress.done
+                                        ? `≈ ${fmtDuration(((Date.now() - genStartedAtRef.current) / 1000 / progress.done) * (progress.total - progress.done))} left`
+                                        : `${fmtDuration((Date.now() - genStartedAtRef.current) / 1000)} elapsed`}
+                                </span>
+                            )}
                             <span className="aiq-progress-count">{progress.done}/{progress.total}</span>
                         </div>
                         <div className="aiq-progress-bar">
