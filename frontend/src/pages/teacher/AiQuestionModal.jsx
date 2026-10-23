@@ -5,7 +5,6 @@ import {
     ArrowRight,
     BookOpen,
     Check,
-    ChevronDown,
     FileText,
     HelpCircle,
     Layers,
@@ -42,7 +41,9 @@ const ZERO_COUNTS = Object.fromEntries(AI_TYPES.map((t) => [t.id, 0]));
 
 const MAX_FILES = 4;
 const MAX_FILE_MB = 10;
-const MODAL_Z = 1000;
+// Above the EUNA FAB (9985) — its portrait otherwise sits on top of the
+// Generate / commit buttons on narrow screens.
+const MODAL_Z = 9990;
 
 let localId = 0;
 const nextLocalId = () => `aiq${++localId}`;
@@ -76,7 +77,6 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
     const [counts, setCounts] = useState(ZERO_COUNTS);
     // Opt-in: coding batches also propose IO test cases (engine-verified)
     const [genTestCases, setGenTestCases] = useState(false);
-    const [advancedOpen, setAdvancedOpen] = useState(false);
 
     const [statusLine, setStatusLine] = useState('');
     const [progress, setProgress] = useState({ done: 0, total: 0 });
@@ -112,7 +112,6 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
     const countsActive = Object.values(counts).some((n) => n > 0);
     const countsSum = Object.values(counts).reduce((a, b) => a + Number(b || 0), 0);
     const totalCount = countsActive ? countsSum : count;
-    const advDirty = focus.trim() !== '' || files.length > 0 || countsActive || difficulty !== 'medium';
     const codingBlocked =
         codingMeta && (!codingMeta.language || !codingMeta.engine_ok)
             ? (!codingMeta.language
@@ -477,39 +476,21 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                             </div>
                         ) : (
                             <>
-                                {/* One control lives outside the scroll: how many.
-                                    Everything else is Advanced. */}
-                                <div className="aiq-topbar">
-                                    <div className="aiq-setting">
-                                        <div className="aiq-rail-label">How many</div>
-                                        <div className="aiq-stepper">
-                                            <button type="button" aria-label="Fewer questions" onClick={() => setCount((c) => Math.max(1, c - 1))} disabled={countsActive || totalCount <= 1}>−</button>
-                                            <span>{totalCount}</span>
-                                            <button type="button" aria-label="More questions" onClick={() => setCount((c) => Math.min(20, c + 1))} disabled={countsActive || totalCount >= 20}>+</button>
-                                        </div>
-                                    </div>
-                                    {countsActive && (
-                                        <p className="aiq-mix-note">Set by your exact mix in Advanced</p>
-                                    )}
-                                    <div className="aiq-advanced">
-                                        <button
-                                            type="button"
-                                            className="aiq-adv-toggle"
-                                            aria-expanded={advancedOpen}
-                                            onClick={() => setAdvancedOpen((o) => !o)}
-                                        >
-                                            <ChevronDown size={14} className={advancedOpen ? 'is-open' : ''} />
-                                            Advanced
-                                            {advDirty && <span className="aiq-adv-dot" aria-label="has custom settings" />}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="aiq-setup aiq-setup--single">
-                                    <div className="aiq-tree-col">
-                                        <div className="aiq-rail-label">
-                                            <Layers size={13} />
-                                            Class material
+                                <div className="aiq-setup">
+                                    {/* LEFT — the material the AI reads. The tree is a
+                                        bounded scroll box, so a 40-lesson course can
+                                        never stretch the modal. */}
+                                    <section className="aiq-pane aiq-source">
+                                        <div className="aiq-pane-head">
+                                            <div className="aiq-rail-label">
+                                                <Layers size={13} />
+                                                Class material
+                                            </div>
+                                            <span className="aiq-source-count">
+                                                {selectedLessons.size > 0 ? plural(selectedLessons.size, 'lesson') : 'none selected'}
+                                                {useCurriculum && ' · curriculum'}
+                                                {files.length > 0 && ` · ${plural(files.length, 'file')}`}
+                                            </span>
                                         </div>
 
                                         {contextLoading ? (
@@ -606,140 +587,189 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                                 )}
                                             </>
                                         )}
-                                    </div>
-                                </div>
 
-                                {advancedOpen && (
-                                    <div className="aiq-adv-body">
-                                                <div className="aiq-adv-row">
-                                                    <div className="aiq-rail-label">Custom prompt <span className="aiq-optional">optional</span></div>
-                                                    <textarea
-                                                        className="aiq-focus"
-                                                        rows={2}
-                                                        maxLength={500}
-                                                        value={focus}
-                                                        onChange={(e) => setFocus(e.target.value)}
-                                                        placeholder="e.g. focus on recursion, avoid definitions, make it word-problem heavy…"
-                                                    />
-                                                </div>
-
-                                                <div className="aiq-adv-row">
-                                                    <div className="aiq-rail-label">Reference files <span className="aiq-optional">optional</span></div>
-                                                    <div
-                                                        className={`aiq-dropzone ${files.length > 0 ? 'has-files' : ''}`}
-                                                        onDragOver={(e) => e.preventDefault()}
-                                                        onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}
-                                                        onClick={() => fileInputRef.current?.click()}
-                                                        onKeyDown={dropzoneKeyDown}
-                                                        role="button"
-                                                        tabIndex={0}
-                                                        aria-label="Upload reference files"
-                                                    >
-                                                        <Upload size={16} />
-                                                        <span>Drop PDF, DOCX, PPTX or TXT — or click to browse</span>
-                                                    </div>
-                                                    <input
-                                                        ref={fileInputRef}
-                                                        type="file"
-                                                        accept=".pdf,.doc,.docx,.ppt,.pptx,.txt"
-                                                        multiple
-                                                        hidden
-                                                        onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }}
-                                                    />
-                                                    {files.length > 0 && (
-                                                        <ul className="aiq-files">
-                                                            {files.map((f, i) => (
-                                                                <li key={`${f.name}-${i}`} className="aiq-file">
-                                                                    <FileText size={12} />
-                                                                    <span className="aiq-file-name">{f.name}</span>
-                                                                    <span className="aiq-file-size">{(f.size / 1024 / 1024).toFixed(1)}MB</span>
-                                                                    <button type="button" className="aiq-file-remove" onClick={(e) => { e.stopPropagation(); setFiles((prev) => prev.filter((_, j) => j !== i)); }}>
-                                                                        <X size={12} />
-                                                                    </button>
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                    )}
-                                                </div>
-
-                                                <div className="aiq-adv-row">
-                                                    <div className="aiq-rail-label">Question mix</div>
-                                                    <p className="aiq-mix-note">
-                                                        {countsActive
-                                                            ? <>Exact mix — the total above follows it. <button type="button" className="aiq-mix-reset" onClick={() => setCounts(ZERO_COUNTS)}>Back to automatic</button></>
-                                                            : 'Automatic — multiple choice only. Set a number here to choose other types exactly.'}
-                                                    </p>
-                                                    <div className="aiq-mix-grid">
-                                                        {AI_TYPES.map((t) => {
-                                                            const locked = t.id === 'coding' && codingBlocked;
-                                                            return (
-                                                                <div key={t.id} className={`aiq-mix-row ${locked ? 'is-locked' : ''}`}>
-                                                                    <span className="aiq-mix-label" title={locked ? codingBlocked : undefined}>{t.label}</span>
-                                                                    <div className="aiq-stepper aiq-stepper--sm">
-                                                                        <button
-                                                                            type="button"
-                                                                            aria-label={`Fewer ${t.label}`}
-                                                                            onClick={() => setCounts((c) => ({ ...c, [t.id]: Math.max(0, Number(c[t.id]) - 1) }))}
-                                                                            disabled={locked || Number(counts[t.id]) <= 0}
-                                                                        >−</button>
-                                                                        <span>{counts[t.id]}</span>
-                                                                        <button
-                                                                            type="button"
-                                                                            aria-label={`More ${t.label}`}
-                                                                            onClick={() => setCounts((c) => ({ ...c, [t.id]: Math.min(20, Number(c[t.id]) + 1) }))}
-                                                                            disabled={locked || countsSum >= 20}
-                                                                            title={locked ? codingBlocked : undefined}
-                                                                        >+</button>
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                    <p className="aiq-hint">
-                                                        <TriangleAlert size={11} />
-                                                        Identification and short answer are graded by exact match — the AI writes a canonical answer, but review them.
-                                                    </p>
-                                                </div>
-
-                                                <div className="aiq-adv-row">
-                                                    <div className="aiq-rail-label">Difficulty</div>
-                                                    <div className="aiq-seg" role="group" aria-label="Difficulty">
-                                                        {['easy', 'medium', 'hard'].map((d) => (
-                                                            <button
-                                                                key={d}
-                                                                type="button"
-                                                                className={`aiq-seg-btn ${difficulty === d ? 'is-active' : ''}`}
-                                                                aria-pressed={difficulty === d}
-                                                                onClick={() => setDifficulty(d)}
-                                                            >
-                                                                {d[0].toUpperCase() + d.slice(1)}
+                                        {/* Files are a source too — they live with the
+                                            tree, not buried in settings, and can
+                                            satisfy the Generate gate on their own. */}
+                                        <div className="aiq-source-files">
+                                            <div className="aiq-rail-label">
+                                                Reference files <span className="aiq-optional">optional</span>
+                                            </div>
+                                            <div
+                                                className={`aiq-dropzone ${files.length > 0 ? 'has-files' : ''}`}
+                                                onDragOver={(e) => e.preventDefault()}
+                                                onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}
+                                                onClick={() => fileInputRef.current?.click()}
+                                                onKeyDown={dropzoneKeyDown}
+                                                role="button"
+                                                tabIndex={0}
+                                                aria-label="Upload reference files"
+                                            >
+                                                <Upload size={16} />
+                                                <span>Drop PDF, DOCX, PPTX or TXT — or click to browse</span>
+                                            </div>
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                accept=".pdf,.doc,.docx,.ppt,.pptx,.txt"
+                                                multiple
+                                                hidden
+                                                onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }}
+                                            />
+                                            {files.length > 0 && (
+                                                <ul className="aiq-files">
+                                                    {files.map((f, i) => (
+                                                        <li key={`${f.name}-${i}`} className="aiq-file">
+                                                            <FileText size={12} />
+                                                            <span className="aiq-file-name">{f.name}</span>
+                                                            <span className="aiq-file-size">{(f.size / 1024 / 1024).toFixed(1)}MB</span>
+                                                            <button type="button" className="aiq-file-remove" onClick={(e) => { e.stopPropagation(); setFiles((prev) => prev.filter((_, j) => j !== i)); }}>
+                                                                <X size={12} />
                                                             </button>
-                                                        ))}
-                                                    </div>
-                                                </div>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </div>
+                                    </section>
 
-                                                {/* Only meaningful with coding questions in the mix. On =
-                                                    the generator also proposes IO test cases, engine-verifies
-                                                    them against its own solution, and the question grades
-                                                    itself at submit instead of waiting for the teacher. */}
-                                                <div className="aiq-adv-row" title={(counts.coding ?? 0) > 0 ? undefined : 'Add coding questions to the mix first'}>
-                                                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, cursor: (counts.coding ?? 0) > 0 ? 'pointer' : 'not-allowed', opacity: (counts.coding ?? 0) > 0 ? 1 : 0.5 }}>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={genTestCases}
-                                                            disabled={(counts.coding ?? 0) === 0}
-                                                            onChange={(e) => setGenTestCases(e.target.checked)}
-                                                            style={{ marginTop: 2 }}
-                                                        />
-                                                        <span style={{ fontSize: 13, lineHeight: 1.45 }}>
-                                                            <strong>Generate test cases for coding questions</strong>
-                                                            {' '}— the AI proposes stdin/expected-output checks, verifies them against its own
-                                                            solution on the engine, and these questions grade themselves automatically.
-                                                        </span>
-                                                    </label>
+                                    {/* RIGHT — how the run is shaped. A stable rail:
+                                        nothing here pushes the tree or hides at the
+                                        bottom of the modal. */}
+                                    <aside className="aiq-pane aiq-shape">
+                                        <div className="aiq-pane-head">
+                                            <div className="aiq-rail-label">
+                                                <Sparkles size={13} />
+                                                Question settings
+                                            </div>
+                                        </div>
+
+                                        <div className="aiq-setting-row">
+                                            <div className="aiq-rail-label">How many</div>
+                                            <div className="aiq-count-row">
+                                                <div className="aiq-stepper">
+                                                    <button type="button" aria-label="Fewer questions" onClick={() => setCount((c) => Math.max(1, c - 1))} disabled={countsActive || totalCount <= 1}>−</button>
+                                                    <span>{totalCount}</span>
+                                                    <button type="button" aria-label="More questions" onClick={() => setCount((c) => Math.min(20, c + 1))} disabled={countsActive || totalCount >= 20}>+</button>
                                                 </div>
-                                    </div>
-                                )}
+                                                <span className="aiq-count-note">
+                                                    {countsActive ? 'set by your mix' : 'multiple choice'}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="aiq-setting-row">
+                                            <div className="aiq-rail-label">Difficulty</div>
+                                            <div className="aiq-seg" role="group" aria-label="Difficulty">
+                                                {['easy', 'medium', 'hard'].map((d) => (
+                                                    <button
+                                                        key={d}
+                                                        type="button"
+                                                        className={`aiq-seg-btn ${difficulty === d ? 'is-active' : ''}`}
+                                                        aria-pressed={difficulty === d}
+                                                        onClick={() => setDifficulty(d)}
+                                                    >
+                                                        {d[0].toUpperCase() + d.slice(1)}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="aiq-setting-row">
+                                            <div className="aiq-rail-label">Custom prompt <span className="aiq-optional">optional</span></div>
+                                            <textarea
+                                                className="aiq-focus"
+                                                rows={2}
+                                                maxLength={500}
+                                                value={focus}
+                                                onChange={(e) => setFocus(e.target.value)}
+                                                placeholder="e.g. focus on recursion, avoid definitions, make it word-problem heavy…"
+                                            />
+                                        </div>
+
+                                        <div className="aiq-setting-row">
+                                            <div className="aiq-rail-label">Question mix</div>
+                                            <div className="aiq-seg aiq-seg--full" role="group" aria-label="Question mix">
+                                                <button
+                                                    type="button"
+                                                    className={`aiq-seg-btn ${!countsActive ? 'is-active' : ''}`}
+                                                    aria-pressed={!countsActive}
+                                                    onClick={() => setCounts(ZERO_COUNTS)}
+                                                >
+                                                    Automatic
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={`aiq-seg-btn ${countsActive ? 'is-active' : ''}`}
+                                                    aria-pressed={countsActive}
+                                                    onClick={() => {
+                                                        if (countsActive) return;
+                                                        setCounts({ ...ZERO_COUNTS, multiple_choice: Math.max(1, Math.min(20, count)) });
+                                                    }}
+                                                >
+                                                    Custom
+                                                </button>
+                                            </div>
+                                            {countsActive ? (
+                                                <div className="aiq-mix-grid">
+                                                    {AI_TYPES.map((t) => {
+                                                        const locked = t.id === 'coding' && codingBlocked;
+                                                        return (
+                                                            <div key={t.id} className={`aiq-mix-row ${locked ? 'is-locked' : ''}`}>
+                                                                <span className="aiq-mix-label" title={locked ? codingBlocked : undefined}>{t.label}</span>
+                                                                <div className="aiq-stepper aiq-stepper--sm">
+                                                                    <button
+                                                                        type="button"
+                                                                        aria-label={`Fewer ${t.label}`}
+                                                                        onClick={() => setCounts((c) => ({ ...c, [t.id]: Math.max(0, Number(c[t.id]) - 1) }))}
+                                                                        disabled={locked || Number(counts[t.id]) <= 0}
+                                                                    >−</button>
+                                                                    <span>{counts[t.id]}</span>
+                                                                    <button
+                                                                        type="button"
+                                                                        aria-label={`More ${t.label}`}
+                                                                        onClick={() => setCounts((c) => ({ ...c, [t.id]: Math.min(20, Number(c[t.id]) + 1) }))}
+                                                                        disabled={locked || countsSum >= 20}
+                                                                        title={locked ? codingBlocked : undefined}
+                                                                    >+</button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <p className="aiq-mix-note">Multiple choice only. Pick Custom to choose other types and exact counts.</p>
+                                            )}
+                                            {countsActive && (
+                                                <p className="aiq-hint">
+                                                    <TriangleAlert size={11} />
+                                                    Identification and short answer are graded by exact match — the AI writes a canonical answer, but review them.
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {/* Only meaningful with coding questions in the mix. On =
+                                            the generator also proposes IO test cases, engine-verifies
+                                            them against its own solution, and the question grades
+                                            itself at submit instead of waiting for the teacher. */}
+                                        {(counts.coding ?? 0) > 0 && (
+                                            <div className="aiq-setting-row">
+                                                <label className="aiq-check-line">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={genTestCases}
+                                                        onChange={(e) => setGenTestCases(e.target.checked)}
+                                                    />
+                                                    <span>
+                                                        <strong>Generate test cases for coding questions</strong>
+                                                        {' '}— the AI proposes stdin/expected-output checks, verifies them against its own
+                                                        solution on the engine, and these questions grade themselves automatically.
+                                                    </span>
+                                                </label>
+                                            </div>
+                                        )}
+                                    </aside>
+                                </div>
                             </>
                         )}
 
