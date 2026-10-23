@@ -23,7 +23,7 @@ class CodingQuestionGrader
      * the submission to teacher review instead of scoring a silent zero.
      *
      * @param  Collection<int, QuestionTestCase>|array  $testCases
-     * @return array{earned: float, passed: int, total: int, is_correct: bool, tests: array<int, array{passed: bool, hidden: bool}>, engine_error: bool}
+     * @return array{earned: float, passed: int, total: int, is_correct: bool, tests: array<int, array{passed: bool, hidden: bool, timed_out?: bool, engine_error?: bool, input?: string, expected_output?: string, actual_output?: string, stderr?: string}>, engine_error: bool}
      */
     public static function gradeTestCases(string $language, string $code, $testCases, float $points, bool $partialCredit = false): array
     {
@@ -40,15 +40,37 @@ class CodingQuestionGrader
                 ($testCase->input ?? '') !== '' ? $testCase->input : null
             );
 
-            if (! empty($run['engine_error'])) {
+            $runEngineError = ! empty($run['engine_error']);
+            if ($runEngineError) {
                 $engineError = true;
             }
 
-            $ok = empty($run['engine_error'])
-                && ! $run['timed_out']
-                && CodeRunner::normalizeOutput($run['stdout']) === CodeRunner::normalizeOutput((string) $testCase->expected_output);
+            $expected = CodeRunner::normalizeOutput((string) $testCase->expected_output);
+            $actual = CodeRunner::normalizeOutput((string) ($run['stdout'] ?? ''));
 
-            $tests[] = ['passed' => $ok, 'hidden' => (bool) $testCase->hidden];
+            $ok = ! $runEngineError
+                && ! $run['timed_out']
+                && $actual === $expected;
+
+            $entry = [
+                'passed' => $ok,
+                'hidden' => (bool) $testCase->hidden,
+                'timed_out' => (bool) ($run['timed_out'] ?? false),
+                'engine_error' => $runEngineError,
+            ];
+
+            // Hidden cases are verdict-only. Quizzes can be retaken after a
+            // failed attempt, so their inputs/expected/outputs must never
+            // travel to the student — this array is persisted AND rendered by
+            // the review screen, redacting later would be too easy to miss.
+            if (! $testCase->hidden) {
+                $entry['input'] = self::clip((string) ($testCase->input ?? ''));
+                $entry['expected_output'] = self::clip($expected);
+                $entry['actual_output'] = self::clip($actual);
+                $entry['stderr'] = self::clip((string) ($run['stderr'] ?? ''));
+            }
+
+            $tests[] = $entry;
             if ($ok) {
                 $passed++;
             }
@@ -209,5 +231,18 @@ class CodingQuestionGrader
             'all_passed' => $total > 0 && $passed === $total,
             'results' => $results,
         ];
+    }
+
+    /**
+     * Per-case snapshots ride inside a JSON column and are shown in a review
+     * table — keep one runaway program from storing megabytes of stdout.
+     */
+    private static function clip(string $value, int $limit = 2000): string
+    {
+        if (mb_strlen($value) <= $limit) {
+            return $value;
+        }
+
+        return mb_substr($value, 0, $limit) . '…';
     }
 }

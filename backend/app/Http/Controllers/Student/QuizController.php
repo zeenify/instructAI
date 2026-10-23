@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\Question;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\StudentAnswer;
@@ -66,16 +67,24 @@ class QuizController extends Controller
                 ->get()
                 ->keyBy('question_id');
 
+            // The question select above deliberately omits expected_output so a
+            // live attempt can't read answers from the network tab. The review
+            // screen of a COMPLETED attempt does show correct answers, so pull
+            // them in a separate query that only runs in this branch.
+            $expectedById = Question::whereIn('id', $quiz->questions->pluck('id'))
+                ->pluck('expected_output', 'id');
+
             $existingResult = [
                 'score' => $completedAttempt->total_score,
                 'max_score' => $completedAttempt->max_score,
-                'details' => $quiz->questions->map(function ($q) use ($allAnswers) {
+                'details' => $quiz->questions->map(function ($q) use ($allAnswers, $expectedById) {
                     $ans = $allAnswers->get($q->id);
+                    $expected = $expectedById->get($q->id);
                     $correctAnswer = $q->type === 'multiple_choice'
-                        ? ($q->options[$q->expected_output] ?? 'N/A')
+                        ? ($q->options[$expected] ?? 'N/A')
                         : ($q->type === 'enumeration'
                             ? json_encode($q->options)
-                            : $q->expected_output
+                            : $expected
                         );
 
                     // For multiple choice, get the student's answer text
@@ -303,7 +312,10 @@ class QuizController extends Controller
                     'score' => round($earned, 2),
                     'correct_answer' => $correctAnswer,
                     'student_answer_text' => $studentAnswerText, // For multiple choice display
-                    'test_results' => $testResults ? ['passed' => $testResults['passed'], 'total' => $testResults['total']] : null,
+                    // Full snapshot (per-case detail for visible tests,
+                    // verdict-only for hidden ones) — same shape the attempt
+                    // stores, so the submit response and a later reload agree.
+                    'test_results' => $testResults,
                     'ai_unavailable' => $aiUnavailable,
                     'engine_unavailable' => $engineUnavailable,
                 ];

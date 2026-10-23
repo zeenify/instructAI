@@ -250,6 +250,13 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
 
                     const indexToLetter = (idx) => String.fromCharCode(65 + parseInt(idx));
 
+                    // Newer attempts store per-case snapshots (input, expected,
+                    // actual) for visible tests; older ones only have the count
+                    // chip, so the table is gated on the new shape.
+                    const hasCaseDetail = detail.type === 'coding'
+                        && Array.isArray(detail.test_results?.tests)
+                        && detail.test_results.tests.some((t) => 'timed_out' in t || 'engine_error' in t || 'input' in t);
+
                     return (
                         <div key={i} style={{ padding: '28px 32px', borderRadius: '18px', border: '1px solid', transition: 'all 0.3s', background: detail.is_correct ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)', borderColor: detail.is_correct ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)' }}>
                             <div style={{ gap: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -276,6 +283,12 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
                                                 </div>
                                             </div>
                                         )}
+
+                                        {/* PER-CASE BREAKDOWN — visible tests show the
+                                            full comparison; hidden ones stay verdict-only
+                                            so a failed attempt cannot be mined for retakes. */}
+                                        {hasCaseDetail && <TestCaseTable results={detail.test_results} />}
+
                                         {detail.engine_unavailable && (
                                             <div style={{ paddingTop: '8px' }}>
                                                 <span style={{ fontSize: '11px', fontWeight: 700, color: '#f59e0b', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '6px 12px', borderRadius: '10px', display: 'inline-block' }}>
@@ -317,8 +330,11 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
                                             )}
                                         </div>
 
-                                        {/* CORRECT ANSWER - Only show if incorrect */}
-                                        {!detail.is_correct && (
+                                        {/* CORRECT ANSWER - Only show if incorrect.
+                                            Test-case-graded coding questions skip the
+                                            single question-level expected output — it was
+                                            case 1's answer and contradicted the verdict. */}
+                                        {!detail.is_correct && !hasCaseDetail && (
                                             <div style={{ gap: '8px', display: 'flex', flexDirection: 'column', paddingTop: '8px' }}>
                                                 <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'none', letterSpacing: 0, margin: '0' }}>Expected Answer:</p>
                                                 {correctAnswerArray ? (
@@ -897,6 +913,62 @@ function QuizSkeleton() {
 
             {/* Button */}
             <div style={{ height: '48px', width: '200px', borderRadius: '12px', background: 'var(--accent-light)', margin: '40px auto 0', border: '1px solid var(--border-color)' }} className="qz-shimmer" />
+        </div>
+    );
+}
+
+// Per-test breakdown for coding questions. Hidden cases intentionally render
+// only their verdict — the grader never sends their input/expected/output.
+function TestCaseTable({ results }) {
+    const tests = results?.tests;
+    if (!Array.isArray(tests) || tests.length === 0) return null;
+
+    const hiddenFailures = tests.filter((t) => t.hidden && !t.passed).length;
+    const hasVisibleDetail = tests.some((t) => !t.hidden && 'input' in t);
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '10px' }}>
+            {tests.map((t, idx) => (
+                <div key={idx} style={{ border: '1px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden', background: 'var(--bg-secondary)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderBottom: (!t.hidden && hasVisibleDetail) ? '1px solid var(--border-color)' : 'none' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>
+                            {t.hidden ? `Hidden test ${idx + 1}` : `Test ${idx + 1}`}
+                        </span>
+                        <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 800, color: t.passed ? '#10b981' : t.engine_error ? '#f59e0b' : '#ef4444' }}>
+                            {t.passed ? 'Passed' : t.engine_error ? 'Engine error' : t.timed_out ? 'Timed out' : 'Failed'}
+                        </span>
+                    </div>
+                    {!t.hidden && hasVisibleDetail && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '10px', padding: '10px 12px' }}>
+                            <CaseField label="Input" value={t.input} empty="(no input)" />
+                            <CaseField label="Expected" value={t.expected_output} empty="(empty)" />
+                            <CaseField label="Your output" value={t.actual_output} empty="(no output)" color={t.passed ? '#10b981' : '#ef4444'} />
+                        </div>
+                    )}
+                    {!t.hidden && !t.passed && String(t.stderr ?? '').trim() !== '' && (
+                        <div style={{ padding: '0 12px 10px' }}>
+                            <CaseField label="Error output" value={t.stderr} empty="" color="#ef4444" />
+                        </div>
+                    )}
+                </div>
+            ))}
+            {hiddenFailures > 0 && (
+                <p style={{ margin: 0, fontSize: '11.5px', lineHeight: 1.5, color: 'var(--text-tertiary)' }}>
+                    {hiddenFailures === 1 ? 'One hidden test failed' : `${hiddenFailures} hidden tests failed`} — hidden inputs stay hidden so a failed attempt can't be used to game a retake. Ask your teacher to walk through them with you.
+                </p>
+            )}
+        </div>
+    );
+}
+
+function CaseField({ label, value, empty, color }) {
+    const text = String(value ?? '');
+    return (
+        <div style={{ minWidth: 0 }}>
+            <p style={{ margin: '0 0 4px', fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-tertiary)' }}>{label}</p>
+            <pre style={{ margin: 0, padding: '8px 10px', borderRadius: '8px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', fontFamily: "'JetBrains Mono', monospace", fontSize: '11.5px', lineHeight: 1.5, color: color || 'var(--text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '120px', overflow: 'auto' }}>
+                {text.trim() === '' ? empty : text}
+            </pre>
         </div>
     );
 }
