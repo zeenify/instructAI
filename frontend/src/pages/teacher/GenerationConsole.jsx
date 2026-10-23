@@ -117,6 +117,10 @@ export default function GenerationConsole({
       module.lessons?.forEach(lesson => {
         if (lesson.blocks && lesson.blocks.length > 0) {
           lessons.push({
+            // Lessons and quizzes live in separate id tables — their numeric
+            // ids collide, so selection/keys must be namespaced by type or a
+            // quiz click highlights (and opens) a same-numbered lesson.
+            key: `lesson-${lesson.id}`,
             id: lesson.id,
             title: lesson.title,
             blocks: lesson.blocks || [],
@@ -135,6 +139,7 @@ export default function GenerationConsole({
       module.quizzes?.forEach(quiz => {
         if (quiz.generated || (quiz.questions && quiz.questions.length > 0)) {
           lessons.push({
+            key: `quiz-${quiz.id}`,
             id: quiz.id,
             title: quiz.title,
             questions: quiz.questions || [],
@@ -154,7 +159,7 @@ export default function GenerationConsole({
     setCompletedLessonsList(lessons);
     // Auto-select first lesson as soon as it appears
     if (lessons.length > 0 && !selectedLessonId) {
-      setSelectedLessonId(lessons[0].id);
+      setSelectedLessonId(lessons[0].key);
     }
     // Jump to the content tab the moment there is something to look at,
     // unless the teacher deliberately chose the activity feed
@@ -168,8 +173,8 @@ export default function GenerationConsole({
   // Auto-select first lesson when lessons list changes
   useEffect(() => {
     if (completedLessonsList.length > 0) {
-      if (!selectedLessonId || !completedLessonsList.find(l => l.id === selectedLessonId)) {
-        setSelectedLessonId(completedLessonsList[0].id);
+      if (!selectedLessonId || !completedLessonsList.find(l => l.key === selectedLessonId)) {
+        setSelectedLessonId(completedLessonsList[0].key);
       }
     }
   }, [completedLessonsList]);
@@ -178,7 +183,7 @@ export default function GenerationConsole({
   useEffect(() => {
     if (!selectedLessonId || completedLessonsList.length === 0) return;
 
-    const lesson = completedLessonsList.find(l => l.id === selectedLessonId);
+    const lesson = completedLessonsList.find(l => l.key === selectedLessonId);
     if (!lesson) return;
 
     const blockCount = lesson.blocks?.length || 0;
@@ -220,13 +225,13 @@ export default function GenerationConsole({
   // "minutes remaining" was always wrong the moment an LLM call varied)
   const elapsedMin = startedAt ? Math.max(1, Math.round((Date.now() - startedAt) / 60000)) : 0;
 
-  const selectedLesson = completedLessonsList.find(l => l.id === selectedLessonId);
+  const selectedLesson = completedLessonsList.find(l => l.key === selectedLessonId);
   const visibleBlockCount = displayedBlocks[selectedLessonId] || 0;
 
   // Auto-scroll lesson content to bottom when new blocks appear — but only
   // for lessons still streaming. A completed lesson may be open for inline
   // editing and must never be yanked around.
-  const selectedLessonForScroll = completedLessonsList.find(l => l.id === selectedLessonId);
+  const selectedLessonForScroll = completedLessonsList.find(l => l.key === selectedLessonId);
   useEffect(() => {
     if (!isGenerating) return;
     if (selectedLessonForScroll?.generated) return;
@@ -465,12 +470,12 @@ export default function GenerationConsole({
             <div style={{ gap: 8 }} className="flex">
               {completedLessonsList.map((lesson) => {
                 const isLesson = lesson.type === 'lesson';
-                const isSelected = selectedLessonId === lesson.id;
+                const isSelected = selectedLessonId === lesson.key;
 
                 return (
                   <button
-                    key={lesson.id}
-                    onClick={() => setSelectedLessonId(lesson.id)}
+                    key={lesson.key}
+                    onClick={() => setSelectedLessonId(lesson.key)}
                     style={{
                       padding: '9px 14px', gap: 7, borderRadius: 10, fontSize: 13, fontWeight: 600,
                       whiteSpace: 'nowrap', cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
