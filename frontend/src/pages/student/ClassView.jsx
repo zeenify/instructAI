@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { BookOpen, Check, ChevronRight, ClipboardList, Layers, Lock, Radio } from 'lucide-react';
+import { BookOpen, Check, ChevronRight, ClipboardList, Layers, Lock, Radio, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import StudentActivityCard from '../../components/student/StudentActivityCard';
@@ -251,24 +251,40 @@ export default function ClassView() {
                     </div>
                 ) : (
                     <div>
-                        {activities.some(a => a.is_live) && (
-                            <div className="sv-live-banner">
-                                <span className="sv-live-dot" />
-                                <div style={{ flex: 1 }}>
-                                    <p style={{ fontSize: 15, fontWeight: 800, color: '#ef4444', margin: 0 }}>Quiz in progress</p>
-                                    <p style={{ fontSize: 12, color: 'var(--db-text-2)', margin: '4px 0 0 0' }}>
-                                        {activities.filter(a => a.is_live).map(a => a.title).join(', ')} — tap "Join now" to start.
-                                    </p>
+                        {(() => {
+                            const liveNow = activities.filter((a) => ['live', 'in_progress'].includes(activityCardState(a)));
+                            const reopenedNow = activities.filter((a) => activityCardState(a) === 'reopened');
+                            const list = liveNow.length ? liveNow : reopenedNow;
+                            if (!list.length) return null;
+                            const isReopened = liveNow.length === 0;
+                            const accent = isReopened ? 'var(--accent)' : '#ef4444';
+                            return (
+                                <div className="sv-live-banner">
+                                    <span className="sv-live-dot" style={isReopened ? { background: accent } : undefined} />
+                                    <div style={{ flex: 1 }}>
+                                        <p style={{ fontSize: 15, fontWeight: 800, color: accent, margin: 0 }}>
+                                            {isReopened ? 'Quiz reopened' : 'Quiz in progress'}
+                                        </p>
+                                        <p style={{ fontSize: 12, color: 'var(--db-text-2)', margin: '4px 0 0 0' }}>
+                                            {list.map(a => a.title).join(', ')}
+                                            {isReopened
+                                                ? ' — take it at your own pace.'
+                                                : ' — tap "Join now" to start.'}
+                                        </p>
+                                    </div>
+                                    {isReopened
+                                        ? <RotateCcw size={20} color={accent} style={{ flexShrink: 0 }} />
+                                        : <Radio size={20} color={accent} style={{ flexShrink: 0 }} />}
                                 </div>
-                                <Radio size={20} color="#ef4444" style={{ flexShrink: 0 }} />
-                            </div>
-                        )}
+                            );
+                        })()}
 
                         {(() => {
-                            const buckets = { live: [], todo: [], done: [], missed: [], materials: [] };
+                            const buckets = { live: [], reopened: [], todo: [], done: [], missed: [], materials: [] };
                             activities.forEach((a) => {
                                 const st = activityCardState(a);
                                 if (st === 'material') buckets.materials.push(a);
+                                else if (st === 'reopened') buckets.reopened.push(a);
                                 else if (st === 'live' || st === 'in_progress') buckets.live.push(a);
                                 else if (st === 'waiting' || st === 'todo') buckets.todo.push(a);
                                 else if (st === 'graded' || st === 'submitted') buckets.done.push(a);
@@ -276,9 +292,10 @@ export default function ClassView() {
                             });
                             const sectionMeta = {
                                 live: { title: 'Live now' },
+                                reopened: { title: 'Reopened' },
                                 todo: { title: 'To do' },
                                 done: { title: 'Completed' },
-                                missed: { title: 'Missed' },
+                                missed: { title: 'Closed / missed' },
                                 materials: { title: 'Materials' },
                             };
                             const renderSection = (key, list) => {
@@ -287,7 +304,7 @@ export default function ClassView() {
                                     <div key={key} style={{ marginBottom: 30 }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                                             {key === 'live' && <span className="sv-live-dot" style={{ width: 9, height: 9 }} />}
-                                            <h3 style={{ fontSize: 14, fontWeight: 700, letterSpacing: 0, color: key === 'live' || key === 'missed' ? 'var(--db-danger)' : 'var(--db-text-2)', margin: 0 }}>{sectionMeta[key].title}</h3>
+                                            <h3 style={{ fontSize: 14, fontWeight: 700, letterSpacing: 0, color: key === 'live' || key === 'missed' ? 'var(--db-danger)' : key === 'reopened' ? 'var(--db-accent)' : 'var(--db-text-2)', margin: 0 }}>{sectionMeta[key].title}</h3>
                                             <span className="cd-tab-count">{list.length}</span>
                                         </div>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -301,6 +318,7 @@ export default function ClassView() {
                             return (
                                 <>
                                     {renderSection('live', buckets.live)}
+                                    {renderSection('reopened', buckets.reopened)}
                                     {renderSection('todo', buckets.todo)}
                                     {renderSection('done', buckets.done)}
                                     {renderSection('missed', buckets.missed)}

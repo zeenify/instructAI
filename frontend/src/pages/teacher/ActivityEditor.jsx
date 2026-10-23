@@ -815,6 +815,7 @@ export default function ActivityEditor() {
     // One canonical header state (mirrors the card logic on the Classwork tab)
     const headerState = (() => {
         if (!activity.is_published) return 'draft';
+        if (isLive && activity.close_room_at) return 'reopened';
         if (isLive && activity.live_status === 'paused') return 'paused';
         if (isLive) return 'live';
         if (isPastDue || activity.live_status === 'completed' || activity.close_room_at) return 'closed';
@@ -826,6 +827,7 @@ export default function ActivityEditor() {
         published: { label: 'Published', cls: 'published' },
         live: { label: 'Live', cls: 'live', pulse: true },
         paused: { label: 'Paused', cls: 'live' },
+        reopened: { label: 'Reopened', cls: 'closed' },
         closed: { label: 'Closed', cls: 'closed' },
     }[headerState];
 
@@ -866,7 +868,7 @@ export default function ActivityEditor() {
                                 activity.submissions_count !== undefined
                                     ? `${activity.submissions_count} submission${activity.submissions_count !== 1 ? 's' : ''}`
                                     : null,
-                                (!isQuiz || activity.pacing_mode === 'student') && activity.deadline_at && (
+                                !isQuiz && activity.deadline_at && (
                                     <span key="due" style={{ color: isPastDue ? 'var(--db-danger)' : undefined }}>
                                         due {format(new Date(activity.deadline_at), 'MMM d, h:mm a')}
                                         {activity.deadline_behavior === 'soft' ? ' · late OK' : ' · closes at deadline'}
@@ -964,10 +966,10 @@ export default function ActivityEditor() {
                         )}
                     </div>
 
-                    {/* Deadline (activities with something to submit, and
-                        student-paced quizzes — teacher-paced quizzes run on
-                        the room's own lifecycle instead) */}
-                    {activity.submission_type !== 'material' && (!isQuiz || activity.pacing_mode === 'student') && (
+                    {/* Deadline (activities with something to submit).
+                        Quizzes have no wall-clock deadline in either pacing
+                        mode — the room's Close/Reopen lifecycle owns it. */}
+                    {activity.submission_type !== 'material' && !isQuiz && (
                         <div className="ae-card">
                             <h4 className="ae-card-label"><Clock size={13} /> Deadline</h4>
                             <DateTimePicker value={activity.deadline_at} onChange={(val) => handleFieldChange('deadline_at', val)} />

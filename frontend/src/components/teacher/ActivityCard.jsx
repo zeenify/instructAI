@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Trash2, Eye, EyeOff, Users, Clock, Upload, HelpCircle, BookOpen, Zap,
-    Radio, BarChart3, Play, Timer, Copy, Loader2, X,
+    Radio, BarChart3, Play, Timer, Copy, Loader2, X, Square, RotateCcw, CheckCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -21,6 +21,9 @@ const typeStyles = {
 // all derive from this so a card can never show contradictory states.
 function quizState(a) {
     if (!a.is_published) return 'draft';
+    // A reopened room stays live but carries its previous close time — it is
+    // self-serve, not a live run.
+    if (a.is_live && a.close_room_at) return 'reopened';
     if (a.is_live && a.live_status === 'paused') return 'paused';
     if (a.is_live) return 'live';
     if (a.close_room_at || a.live_status === 'completed') return 'closed';
@@ -40,6 +43,7 @@ const stateLabels = {
     draft: { label: 'Draft', cls: 'draft' },
     ready: { label: 'Ready', cls: 'ready' },
     live: { label: 'Live', cls: 'live', pulse: true },
+    reopened: { label: 'Reopened', cls: 'reopened' },
     paused: { label: 'Paused', cls: 'paused' },
     closed: { label: 'Closed', cls: 'closed' },
 };
@@ -60,9 +64,19 @@ export default function ActivityCard({ activity, classId, onDelete }) {
     const [repostingTo, setRepostingTo] = useState(null);
     const [busy, setBusy] = useState(false);
     const [confirmUnpublish, setConfirmUnpublish] = useState(false);
+    const [confirmClose, setConfirmClose] = useState(false);
 
     const refresh = () => {
         queryClient.invalidateQueries({ queryKey: classActivitiesKey(classId) });
+    };
+
+    // Live lifecycle flips should not wait for the 15s poll to repaint.
+    const patchCachedActivity = (patch) => {
+        queryClient.setQueryData(classActivitiesKey(classId), (old) => (
+            Array.isArray(old)
+                ? old.map((a) => (a.id === activity.id ? { ...a, ...patch } : a))
+                : old
+        ));
     };
 
     const typeKey = activity.activity_type === 'quiz' ? 'quiz' : activity.submission_type || 'file';
@@ -150,6 +164,47 @@ export default function ActivityCard({ activity, classId, onDelete }) {
         }, 'Could not resume the quiz');
     };
 
+    const handleCloseRoom = (e) => {
+        e.stopPropagation();
+        // Closing changes what every student sees — two-step on the card.
+        if (!confirmClose) {
+            setConfirmClose(true);
+            toast('Click the stop icon again to close the quiz', { duration: 3500 });
+            setTimeout(() => setConfirmClose(false), 3500);
+            return;
+        }
+        setConfirmClose(false);
+        withBusy(async () => {
+            const res = await api.post(`/teacher/activities/${activity.id}/end-live`);
+            patchCachedActivity({
+                is_live: false,
+                live_status: 'completed',
+                close_room_at: new Date().toISOString(),
+            });
+            refresh();
+            toast.success(res.data?.message || 'Quiz closed');
+        }, 'Could not close the quiz');
+    };
+
+    const handleReopen = (e) => {
+        e.stopPropagation();
+        withBusy(async () => {
+            const res = await api.post(`/teacher/activities/${activity.id}/reopen-live`);
+            if (res.data?.activity) patchCachedActivity(res.data.activity);
+            refresh();
+            toast.success(res.data?.message || 'Quiz reopened');
+        }, 'Could not reopen the quiz');
+    };
+
+    const handleFinalize = (e) => {
+        e.stopPropagation();
+        withBusy(async () => {
+            const res = await api.post(`/teacher/activities/${activity.id}/finalize-live`);
+            refresh();
+            toast.success(res.data?.message || 'Finalized the remaining attempts');
+        }, 'Could not finalize the remaining attempts');
+    };
+
     const openRepost = async (e) => {
         e.stopPropagation();
         setRepostOpen(true);
@@ -206,9 +261,10 @@ export default function ActivityCard({ activity, classId, onDelete }) {
                 </button>
             );
         }
-        if (state === 'live') {
+        if (state === 'live' || state === 'reopened') {
             return (
-                <button className="cw-btn-live" onClick={goMonitor} type="button" title="Open the live monitor">
+                <button className="cw-btn-live" onClick={goMonitor} type="button"
+                    title={state === 'reopened' ? 'Open the self-serve room monitor' : 'Open the live monitor'}>
                     <Radio size={12} /> Monitor
                 </button>
             );
@@ -222,9 +278,15 @@ export default function ActivityCard({ activity, classId, onDelete }) {
         }
         if (state === 'closed' && (activity.questions_count || 0) > 0) {
             return (
-                <button className="cw-btn-mini go" onClick={goResults} type="button" title="Open results analysis">
-                    <BarChart3 size={12} /> Results
-                </button>
+                <span style={{ display: 'inline-flex', gap: 6 }}>
+                    <button className="cw-btn-mini" onClick={handleReopen} type="button"
+                        title="Reopen for students who never took it — they work at their own pace">
+                        <RotateCcw size={12} /> Reopen
+                    </button>
+                    <button className="cw-btn-mini go" onClick={goResults} type="button" title="Open results analysis">
+                        <BarChart3 size={12} /> Results
+                    </button>
+                </span>
             );
         }
         return null;
@@ -286,6 +348,24 @@ export default function ActivityCard({ activity, classId, onDelete }) {
 
                     <div className="cw-card-actions">
                         {primaryAction}
+                        {(state === 'live' || state === 'reopened') && (
+                            <button
+                                className={`cw-icon-btn ${confirmClose ? 'danger' : ''}`}
+                                onClick={handleCloseRoom}
+                                type="button"
+                                title={confirmClose
+                                    ? 'Click again to close — students already working can finish'
+                                    : 'Close quiz (stops new entrants)'}
+                            >
+                                <Square size={13} />
+                            </button>
+                        )}
+                        {state === 'closed' && (activity.questions_count || 0) > 0 && (
+                            <button className="cw-icon-btn" onClick={handleFinalize} type="button"
+                                title="Finalize any attempts still in progress">
+                                <CheckCheck size={14} />
+                            </button>
+                        )}
                         <button className="cw-icon-btn" onClick={openRepost} type="button" title="Post to another class">
                             <Copy size={14} />
                         </button>

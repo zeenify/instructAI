@@ -245,6 +245,13 @@
     border: 1px solid color-mix(in srgb, var(--db-amber) 35%, transparent);
 }
 
+/* Reopened: open again for absentees, self-serve — not a live run */
+.cw-state.reopened {
+    color: var(--db-accent-bright);
+    background: var(--db-accent-soft);
+    border: 1px solid var(--db-accent-border);
+}
+
 .cw-state.closed {
     color: var(--db-text-2);
     background: var(--db-card-2);

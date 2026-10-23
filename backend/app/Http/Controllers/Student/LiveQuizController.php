@@ -52,7 +52,32 @@ class LiveQuizController extends Controller
 
     private function roomClosed(ClassActivity $activity): bool
     {
-        return (bool) $activity->close_room_at || $activity->live_status === 'completed';
+        // A reopened room still carries its previous close_room_at as the
+        // "reopened" marker, so closed means NOT live and previously closed.
+        return ! $activity->is_live
+            && ($activity->close_room_at !== null || $activity->live_status === 'completed');
+    }
+
+    /**
+     * Teacher-paced only while the room is actually running live. Reopened
+     * rooms are self-serve for everyone, and a closed room's in-flight
+     * attempts finish at their own pace (Close never cuts a student off).
+     */
+    private function effectivePacing(ClassActivity $activity, ?ActivitySubmission $submission): string
+    {
+        if ($activity->pacing_mode !== 'teacher') {
+            return 'student';
+        }
+
+        if ($activity->isReopened()) {
+            return 'student';
+        }
+
+        if ($submission && ($submission->is_late || ! $activity->is_live)) {
+            return 'student';
+        }
+
+        return 'teacher';
     }
 
     private function isFinalized(ActivitySubmission $submission): bool
@@ -95,15 +120,20 @@ class LiveQuizController extends Controller
         }
     }
 
-    private function syncSubmissionToTeacher(ActivitySubmission $submission, ClassActivity $activity): void
+    /**
+     * The live pointer is a CEILING, not a cursor-setting command: a catch-up
+     * student keeps their own position and is only pulled back if it somehow
+     * runs past the teacher's current question.
+     */
+    private function clampSubmissionToTeacher(ActivitySubmission $submission, ClassActivity $activity, string $pacing): void
     {
-        if ($activity->pacing_mode !== 'teacher' || $this->isFinalized($submission)) {
+        if ($pacing !== 'teacher' || $this->isFinalized($submission)) {
             return;
         }
 
-        $idx = (int) $activity->live_current_q;
-        if ((int) $submission->current_question_idx !== max($idx, 0)) {
-            $submission->update(['current_question_idx' => max($idx, 0)]);
+        $live = max((int) $activity->live_current_q, 0);
+        if ((int) $submission->current_question_idx > $live) {
+            $submission->update(['current_question_idx' => $live]);
         }
     }
 
@@ -128,7 +158,7 @@ class LiveQuizController extends Controller
 
     private function currentQuestionFeedback(ClassActivity $activity, ?ActivitySubmission $submission): ?array
     {
-        if ($activity->pacing_mode !== 'teacher') {
+        if (! $submission || $this->effectivePacing($activity, $submission) !== 'teacher') {
             return null;
         }
 
@@ -175,13 +205,16 @@ class LiveQuizController extends Controller
             && $this->remainingSeconds($submission, $activity) <= 0;
     }
 
-    private function studentActivityPayload(ClassActivity $activity): array
+    private function studentActivityPayload(ClassActivity $activity, ?ActivitySubmission $submission = null): array
     {
         return [
             'id' => $activity->id,
             'title' => $activity->title,
             'description' => $activity->description,
-            'pacing_mode' => $activity->pacing_mode,
+            // The mode this student is actually in — a reopened room is
+            // self-serve even when the quiz is configured teacher-paced.
+            'pacing_mode' => $this->effectivePacing($activity, $submission),
+            'reopened' => $activity->isReopened(),
             'timer_mode' => $activity->timer_mode,
             'time_limit_minutes' => $activity->time_limit_minutes,
             'per_question_durations' => $activity->per_question_durations,
@@ -276,6 +309,7 @@ class LiveQuizController extends Controller
     {
         $finalized = $submission && $this->isFinalized($submission);
         $roomClosed = $this->roomClosed($activity);
+        $pacing = $this->effectivePacing($activity, $submission);
 
         $reveal = 'none';
         if ($finalized) {
@@ -283,7 +317,7 @@ class LiveQuizController extends Controller
         }
 
         return [
-            'activity' => $this->studentActivityPayload($activity),
+            'activity' => $this->studentActivityPayload($activity, $submission),
             'submission' => $submission,
             'questions' => $this->orderedQuestions($activity, $submission),
             'reveal' => $reveal,
@@ -293,10 +327,10 @@ class LiveQuizController extends Controller
             'room_closed' => $roomClosed,
             'finalized' => $finalized,
             'results' => $finalized ? $this->resultsPayload($activity, $submission) : null,
-            'teacher_phase' => $activity->pacing_mode === 'teacher' ? $this->teacherPhase($activity) : null,
-            'live_current_q' => $activity->pacing_mode === 'teacher' ? (int) $activity->live_current_q : null,
-            'live_question_deadline_at' => $activity->pacing_mode === 'teacher' ? $activity->live_question_deadline_at?->toISOString() : null,
-            'live_question_revealed_at' => $activity->pacing_mode === 'teacher' ? $activity->live_question_revealed_at?->toISOString() : null,
+            'teacher_phase' => $pacing === 'teacher' ? $this->teacherPhase($activity) : null,
+            'live_current_q' => $pacing === 'teacher' ? (int) $activity->live_current_q : null,
+            'live_question_deadline_at' => $pacing === 'teacher' ? $activity->live_question_deadline_at?->toISOString() : null,
+            'live_question_revealed_at' => $pacing === 'teacher' ? $activity->live_question_revealed_at?->toISOString() : null,
             'current_question_feedback' => $this->currentQuestionFeedback($activity, $submission),
         ];
     }
@@ -324,7 +358,12 @@ class LiveQuizController extends Controller
                     'status' => 'draft',
                     'max_score' => $activity->questions->sum('points'),
                     'question_order' => $this->buildQuestionOrder($activity),
-                    'current_question_idx' => $activity->pacing_mode === 'teacher' ? max((int) $activity->live_current_q, 0) : 0,
+                    // Everyone starts from Q1. Late joiners catch up on their
+                    // own screen; on-time students are at the same place the
+                    // teacher is anyway.
+                    'current_question_idx' => 0,
+                    // A reopened room is for absentees — their attempt is late.
+                    'is_late' => $activity->isReopened(),
                 ]);
             } catch (UniqueConstraintViolationException $e) {
                 $submission = $this->getSubmission($id);
@@ -394,18 +433,26 @@ class LiveQuizController extends Controller
             abort(422, 'Time is up');
         }
 
-        if ($activity->pacing_mode === 'teacher') {
+        $pacing = $this->effectivePacing($activity, $submission);
+        $questionPos = null;
+
+        if ($pacing === 'teacher') {
             $this->syncTeacherQuestion($activity);
-            $this->syncSubmissionToTeacher($submission, $activity);
+            $this->clampSubmissionToTeacher($submission, $activity, $pacing);
 
             $order = $submission->question_order ?? $activity->questions->pluck('id')->all();
-            $currentQuestionId = $order[(int) $activity->live_current_q] ?? null;
+            $liveIdx = (int) $activity->live_current_q;
+            $questionPos = array_search($question->id, $order, true);
 
-            if ($currentQuestionId !== $question->id) {
+            // Catch-up: anything up to the teacher's current question is
+            // answerable; only the live pointer itself is gated.
+            if ($liveIdx < 0 || $questionPos === false || $questionPos > $liveIdx) {
                 abort(422, 'Question is not open');
             }
 
-            if ($activity->live_question_revealed_at) {
+            // Only the teacher's CURRENT question closes on reveal — earlier
+            // questions stay answerable for students still catching up.
+            if ($questionPos === $liveIdx && $activity->live_question_revealed_at) {
                 abort(422, 'Question closed');
             }
 
@@ -429,8 +476,8 @@ class LiveQuizController extends Controller
 
         $submission->update([
             'last_seen_at' => now(),
-            'current_question_idx' => $activity->pacing_mode === 'teacher'
-                ? max((int) $activity->live_current_q, 0)
+            'current_question_idx' => ($pacing === 'teacher' && $questionPos !== false && $questionPos !== null)
+                ? (int) $questionPos
                 : ($request->current_question_idx ?? $submission->current_question_idx),
         ]);
 
@@ -450,7 +497,18 @@ class LiveQuizController extends Controller
         abort_if(! $submission, 422, 'Join the quiz first');
         abort_if($this->isFinalized($submission), 422, 'Quiz already finalized');
         abort_if($this->roomPaused($activity), 422, 'Quiz is paused');
-        abort_if($activity->pacing_mode === 'teacher', 422, 'Teacher controls the pace');
+
+        $pacing = $this->effectivePacing($activity, $submission);
+
+        if ($pacing === 'teacher') {
+            $liveIdx = (int) $activity->live_current_q;
+            if ($liveIdx < 0) {
+                abort(422, 'The teacher has not opened a question yet');
+            }
+            if ((int) $request->current_question_idx > $liveIdx) {
+                abort(422, 'That question is not open yet');
+            }
+        }
 
         $submission->update([
             'last_seen_at' => now(),
@@ -469,7 +527,9 @@ class LiveQuizController extends Controller
         abort_if(! $submission, 422, 'Join the quiz first');
         abort_if($this->isFinalized($submission), 422, 'Quiz already finalized');
         abort_if($this->roomPaused($activity), 422, 'Quiz is paused');
-        abort_if($activity->pacing_mode === 'teacher' && ! $this->roomClosed($activity), 422, 'The teacher will end the quiz');
+        // In a live teacher-paced room the teacher ends it; once closed (or
+        // reopened) the attempt is self-paced and the student finishes it.
+        abort_if($this->effectivePacing($activity, $submission) === 'teacher', 422, 'The teacher will end the quiz');
 
         return DB::transaction(function () use ($submission, $activity) {
             $this->finalizeNow($submission, $activity);
@@ -501,8 +561,9 @@ class LiveQuizController extends Controller
         $submission = $this->getSubmission($id);
 
         if ($submission && ! $this->isFinalized($submission)) {
+            $pacing = $this->effectivePacing($activity, $submission);
             $this->syncTeacherQuestion($activity);
-            $this->syncSubmissionToTeacher($submission, $activity);
+            $this->clampSubmissionToTeacher($submission, $activity, $pacing);
 
             if ($activity->timer_mode === 'entire_quiz' && $this->isExpired($submission, $activity)) {
                 $this->finalizeNow($submission, $activity);

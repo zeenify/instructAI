@@ -139,8 +139,9 @@ class ClassActivityController extends Controller
             ->orderBy('order_index', 'asc')
             ->get();
 
-        // Self-heal forgotten rooms so the board's LIVE state stays honest
-        $activities->where('is_live', true)->each->syncExpiredRoom();
+        // Self-heal forgotten rooms so the board's LIVE state stays honest —
+        // including closed rooms holding attempts that never finished.
+        $activities->each->syncExpiredRoom();
 
         $enrolledCount = Enrollment::where('class_id', $classId)->count();
         $activities->each->setAttribute('enrolled_count', $enrolledCount);
@@ -204,11 +205,9 @@ class ClassActivityController extends Controller
             // assumed /100 for null). Quiz/question activities compute their
             // own maxes; those stay null.
             'max_points' => $validated['max_points'] ?? (($validated['activity_type'] === 'activity' && $validated['submission_type'] === 'file') ? 100 : null),
-            // Teacher-paced quizzes run on the room's own lifecycle, but a
-            // student-paced quiz can be due Friday like any assignment — the
-            // student submit paths enforce deadline_at + hard/soft the same
-            // way they do for activities.
-            'deadline_at' => ($validated['activity_type'] === 'quiz' && ($validated['pacing_mode'] ?? 'student') === 'teacher')
+            // Quizzes have no wall-clock deadline in either pacing mode —
+            // the room's Close/Reopen lifecycle owns the window now.
+            'deadline_at' => $validated['activity_type'] === 'quiz'
                 ? null
                 : ($validated['deadline_at'] ?? null),
             'deadline_behavior' => $validated['deadline_behavior'] ?? 'hard',
@@ -277,13 +276,11 @@ class ClassActivityController extends Controller
         ]);
 
         if ($activity->activity_type === 'quiz') {
-            // Teacher-paced quizzes run on the room's own clock — no wall-clock
-            // deadline. Student-paced quizzes CAN be due like an assignment:
-            // the student submit paths already enforce deadline_at + hard/soft.
-            if (($validated['pacing_mode'] ?? $activity->pacing_mode) === 'teacher') {
-                $validated['deadline_at'] = null;
-                unset($validated['deadline_behavior'], $validated['late_submission'], $validated['late_penalty_pct']);
-            }
+            // Quizzes have no wall-clock deadline in either pacing mode. The
+            // room's Close/Reopen lifecycle owns the window; late is set on
+            // attempts that join after a Reopen.
+            $validated['deadline_at'] = null;
+            unset($validated['deadline_behavior'], $validated['late_submission'], $validated['late_penalty_pct']);
 
             // Lock quiz settings while the room is live
             if ($activity->is_live) {
@@ -528,12 +525,113 @@ class ClassActivityController extends Controller
     {
         $activity = $this->authorizeActivity($id);
 
+        if (! $activity->is_live) {
+            return response()->json(['message' => 'This quiz is already closed'], 422);
+        }
+
+        // Close stops new entrants. Students already working keep going and
+        // finish on their own — or the 24h net / Finalize now grades them.
         $result = $activity->closeRoomNow();
 
         return response()->json([
-            'message' => 'Quiz ended',
+            'message' => $result['still_finishing'] > 0
+                ? 'Quiz closed — '.$result['still_finishing'].' student(s) still finishing'
+                : 'Quiz closed',
             'finalized' => $result['finalized'],
             'missed' => $result['missed'],
+            'still_finishing' => $result['still_finishing'],
+        ]);
+    }
+
+    /**
+     * Reopen a closed quiz for absentees. The room becomes self-serve even
+     * for a teacher-paced quiz; live sync returns only with a fresh Start
+     * live run. Only attempts that never started are resurrected — submitted
+     * work is untouched, and a reopen is not a retake.
+     */
+    public function reopenLive($id)
+    {
+        $activity = $this->authorizeActivity($id);
+
+        if ($activity->activity_type !== 'quiz') {
+            return response()->json(['message' => 'Only quizzes have rooms'], 422);
+        }
+
+        if ($activity->is_live) {
+            return response()->json(['message' => 'This quiz is already open'], 422);
+        }
+
+        if (! $activity->close_room_at && $activity->live_status !== 'completed') {
+            return response()->json(['message' => 'This quiz has not run yet — start the room instead'], 422);
+        }
+
+        if (! $activity->is_published) {
+            return response()->json(['message' => 'Publish the quiz before reopening the room'], 422);
+        }
+
+        $resurrectedCount = DB::transaction(function () use ($activity) {
+            $resurrected = ActivitySubmission::where('activity_id', $activity->id)
+                ->whereNull('started_at')
+                ->whereIn('status', ['missed', 'draft'])
+                ->get();
+
+            foreach ($resurrected as $submission) {
+                // Never started, so there cannot be real answers; clear any
+                // stray rows from old experiments too.
+                ActivityAnswer::where('submission_id', $submission->id)->delete();
+                $submission->update([
+                    'status' => 'draft',
+                    'submitted_at' => null,
+                    'score' => null,
+                    'graded_at' => null,
+                    'graded_by' => null,
+                    'room_closed_at' => null,
+                    'current_question_idx' => 0,
+                    'is_late' => true,
+                ]);
+            }
+
+            $activity->update([
+                'is_live' => true,
+                'live_status' => 'active',
+                'live_started_at' => now(),
+                'live_paused_at' => null,
+                // Keeping a non-null close_room_at while live is what marks
+                // this phase as reopened (self-serve) instead of a live run.
+                'close_room_at' => $activity->close_room_at ?? now(),
+                'live_current_q' => -1,
+                'live_question_deadline_at' => null,
+                'live_question_revealed_at' => null,
+            ]);
+
+            return $resurrected->count();
+        });
+
+        return response()->json([
+            'message' => $resurrectedCount > 0
+                ? 'Quiz reopened — '.$resurrectedCount.' student(s) can catch up'
+                : 'Quiz reopened for anyone who has not submitted',
+            'activity' => $activity->fresh(),
+            'resurrected' => $resurrectedCount,
+        ]);
+    }
+
+    /** Grade the attempts still in progress in a closed room, on demand. */
+    public function finalizeLive($id)
+    {
+        $activity = $this->authorizeActivity($id);
+
+        if ($activity->is_live) {
+            return response()->json(['message' => 'Close the room before finalizing'], 422);
+        }
+
+        $result = $activity->finalizeLingeringDrafts();
+
+        return response()->json([
+            'message' => 'Finalized '.$result['finalized'].' attempt(s)',
+            'finalized' => $result['finalized'],
+            'missed' => $result['missed'],
+            'still_finishing' => $result['still_finishing'],
         ]);
     }
 

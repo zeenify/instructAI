@@ -16,13 +16,19 @@ export function deriveState(activity) {
 
   if (isQuiz) {
     if (activity.is_live) {
+      // A finished attempt is done even while the room is still open (self-paced).
+      if (subStatus === 'graded') return 'graded';
+      if (subStatus === 'submitted') return 'submitted';
       if (activity.submission_summary && activity.submission_summary.started_at && subStatus === 'draft') return 'in_progress';
-      return 'live';
+      // A reopened room stays live but carries the previous close time.
+      return activity.close_room_at ? 'reopened' : 'live';
     }
     if (activity.close_room_at || activity.live_status === 'completed') {
       if (subStatus === 'graded') return 'graded';
       if (subStatus === 'submitted') return 'submitted';
-      return 'missed';
+      // The quiz is over and they never took it. It stays visible and
+      // labelled Closed — never silently hidden or called "to do".
+      return 'closed';
     }
     // Published but the teacher hasn't opened the room yet
     if (subStatus === 'graded') return 'graded';

@@ -176,6 +176,8 @@ Route::middleware(['auth:sanctum', 'role:teacher'])->group(function () {
     Route::post('/teacher/activities/{id}/pause-live', [ClassActivityController::class, 'pauseLive']);
     Route::post('/teacher/activities/{id}/resume-live', [ClassActivityController::class, 'resumeLive']);
     Route::post('/teacher/activities/{id}/end-live', [ClassActivityController::class, 'endLive']);
+    Route::post('/teacher/activities/{id}/reopen-live', [ClassActivityController::class, 'reopenLive']);
+    Route::post('/teacher/activities/{id}/finalize-live', [ClassActivityController::class, 'finalizeLive']);
     Route::post('/teacher/activities/{id}/live/question', [ClassActivityController::class, 'setLiveQuestion']);
     Route::post('/teacher/activities/{id}/live/reveal', [ClassActivityController::class, 'revealLiveQuestion']);
     Route::get('/teacher/activities/{id}/live-board', [ClassActivityController::class, 'liveBoard']);

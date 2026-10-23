@@ -9,10 +9,10 @@ import DeleteModal from '../../components/ui/DeleteModal';
 import Gradebook from '../../components/teacher/Gradebook';
 import './Classwork.css';
 
-const GROUP_ORDER = ['live', 'open', 'material', 'draft', 'closed'];
+const GROUP_ORDER = ['live', 'reopened', 'open', 'material', 'draft', 'closed'];
 
 function groupActivities(activities) {
-    const groups = { live: [], open: [], material: [], draft: [], closed: [] };
+    const groups = { live: [], reopened: [], open: [], material: [], draft: [], closed: [] };
 
     activities.forEach((a) => {
         if (!a.is_published) {
@@ -26,7 +26,9 @@ function groupActivities(activities) {
             return;
         }
         if (a.activity_type === 'quiz') {
-            if (a.is_live) {
+            if (a.is_live && a.close_room_at) {
+                groups.reopened.push(a);
+            } else if (a.is_live) {
                 groups.live.push(a);
             } else if (a.close_room_at || a.live_status === 'completed') {
                 groups.closed.push(a);
@@ -47,10 +49,11 @@ function groupActivities(activities) {
 
 const groupMeta = {
     live: { label: 'Live now', color: 'var(--db-danger)', pulse: true, hint: 'Students are in the room right now' },
+    reopened: { label: 'Reopened', color: 'var(--db-accent-bright)', hint: 'Open again for absentees — they work at their own pace' },
     open: { label: 'Open now', color: 'var(--db-green)', hint: 'Published and accepting work' },
     material: { label: 'Materials', color: 'var(--db-green)', hint: 'Reference reading — no due date' },
     draft: { label: 'Drafts', color: 'var(--db-amber)', hint: 'Only you can see these until you publish' },
-    closed: { label: 'Closed', color: 'var(--db-text-3)', hint: 'Past the deadline or ended — results still available' },
+    closed: { label: 'Closed', color: 'var(--db-text-3)', hint: 'Ended or past the deadline — results still available, reopen quizzes for absentees' },
 };
 
 function ClassworkSkeleton() {

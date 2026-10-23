@@ -95,29 +95,38 @@ class ClassActivity extends Model
      */
     public function syncExpiredRoom(): void
     {
-        if (! $this->is_live || ! $this->live_started_at) {
+        // A live room forgotten for 24h is closed AND finalized — nobody is
+        // realistically still working in it.
+        if ($this->is_live && $this->live_started_at
+            && $this->live_started_at->copy()->addHours(24)->isPast()) {
+            $this->closeRoomNow(true);
+            $this->refresh();
+
             return;
         }
 
-        if (! $this->live_started_at->copy()->addHours(24)->isPast()) {
-            return;
+        // A closed room can still hold in-flight attempts (Close stops new
+        // entrants; students already working finish). Those get one more day
+        // after close, then they are graded on what they answered.
+        if (! $this->is_live && $this->close_room_at
+            && $this->close_room_at->copy()->addHours(24)->isPast()) {
+            $this->finalizeLingeringDrafts();
+            $this->refresh();
         }
-
-        $this->closeRoomNow();
-        $this->refresh();
     }
 
     /**
-     * The single close path for a live room — used by BOTH the teacher's
-     * End Room endpoint and the 24h auto-close so their outcomes are
-     * identical: started drafts are graded on what was answered, never
-     * started drafts become missed, the room flips to completed.
+     * The single close path — used by the teacher's Close action and the 24h
+     * auto-close. Closing always stops new entrants and marks never-started
+     * attempts as missed. Started attempts keep working by default (the
+     * teacher's Close must not cut off a student mid-question); the 24h
+     * auto-close and an explicit "Finalize now" pass $finalizeDrafts = true.
      */
-    public function closeRoomNow(): array
+    public function closeRoomNow(bool $finalizeDrafts = false): array
     {
-        return DB::transaction(function () {
+        return DB::transaction(function () use ($finalizeDrafts) {
             if (! $this->is_live) {
-                return ['finalized' => 0, 'missed' => 0];
+                return ['finalized' => 0, 'missed' => 0, 'still_finishing' => 0];
             }
 
             $now = now();
@@ -130,8 +139,10 @@ class ClassActivity extends Model
 
             foreach ($submissions as $submission) {
                 if ($submission->started_at) {
-                    ActivityGrading::finalizeSubmission($submission, $this, $now->toDateTimeString());
-                    $finalized++;
+                    if ($finalizeDrafts) {
+                        ActivityGrading::finalizeSubmission($submission, $this, $now->toDateTimeString());
+                        $finalized++;
+                    }
                 } else {
                     $submission->update([
                         'status' => 'missed',
@@ -150,7 +161,50 @@ class ClassActivity extends Model
                 'live_question_revealed_at' => null,
             ]);
 
-            return ['finalized' => $finalized, 'missed' => $missed];
+            $stillFinishing = ActivitySubmission::where('activity_id', $this->id)
+                ->where('status', 'draft')
+                ->count();
+
+            return ['finalized' => $finalized, 'missed' => $missed, 'still_finishing' => $stillFinishing];
         });
+    }
+
+    /**
+     * Grade every attempt still in progress in a closed room. Used by the
+     * 24h safety net and by the teacher's explicit "Finalize now" action.
+     */
+    public function finalizeLingeringDrafts(): array
+    {
+        return DB::transaction(function () {
+            $now = now();
+            $finalized = 0;
+            $missed = 0;
+
+            $drafts = ActivitySubmission::where('activity_id', $this->id)
+                ->where('status', 'draft')
+                ->get();
+
+            foreach ($drafts as $submission) {
+                if ($submission->started_at) {
+                    ActivityGrading::finalizeSubmission($submission, $this, $now->toDateTimeString());
+                    $finalized++;
+                } else {
+                    $submission->update([
+                        'status' => 'missed',
+                        'submitted_at' => $now,
+                        'room_closed_at' => $now,
+                    ]);
+                    $missed++;
+                }
+            }
+
+            return ['finalized' => $finalized, 'missed' => $missed, 'still_finishing' => 0];
+        });
+    }
+
+    /** A room reopened for absentees, not a fresh live run. */
+    public function isReopened(): bool
+    {
+        return $this->is_live && $this->close_room_at !== null;
     }
 }

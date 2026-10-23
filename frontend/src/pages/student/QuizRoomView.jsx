@@ -77,6 +77,7 @@ export default function QuizRoomView() {
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [teacherPacing, setTeacherPacing] = useState(false);
   const [teacherPhase, setTeacherPhase] = useState("waiting");
+  const [liveCurrentQ, setLiveCurrentQ] = useState(null);
   const [roomPaused, setRoomPaused] = useState(false);
 
   const answersRef = useRef(answers);
@@ -89,6 +90,10 @@ export default function QuizRoomView() {
   const heartbeaterRef = useRef(null);
   const pollerRef = useRef(null);
   const mountedJoinRef = useRef(null);
+  // The teacher's pointer and the previously seen pointer. A student who was
+  // at the old pointer follows a next; a student behind it never gets yanked.
+  const liveCurrentQRef = useRef(null);
+  const lastLiveQRef = useRef(null);
 
   useEffect(() => {
     answersRef.current = answers;
@@ -114,6 +119,9 @@ export default function QuizRoomView() {
   useEffect(() => {
     roomPausedRef.current = roomPaused;
   }, [roomPaused]);
+  useEffect(() => {
+    liveCurrentQRef.current = liveCurrentQ;
+  }, [liveCurrentQ]);
 
   const backToClass = useCallback(() => {
     invalidateCache(`get:/student/classes/${classId}/activities`);
@@ -126,6 +134,14 @@ export default function QuizRoomView() {
     setRoomPaused(!!data.room_paused);
     if (data.activity?.pacing_mode === "teacher") {
       setTeacherPhase(data.teacher_phase || "waiting");
+      const liveQ = data.live_current_q ?? null;
+      setLiveCurrentQ(liveQ);
+      liveCurrentQRef.current = liveQ;
+      lastLiveQRef.current = liveQ;
+    } else {
+      setLiveCurrentQ(null);
+      liveCurrentQRef.current = null;
+      lastLiveQRef.current = null;
     }
     const restored = {};
     (data.submission?.answers || []).forEach((ans) => {
@@ -185,6 +201,12 @@ export default function QuizRoomView() {
           return;
         }
         if (data.room_closed) {
+          // Close stops NEW entrants, but an attempt already in progress is
+          // allowed to finish — don't eject a student who reloaded mid-quiz.
+          if (data.submission?.status === "draft" && data.submission?.started_at) {
+            applyPayload(data);
+            return;
+          }
           setErrorMsg("This quiz has ended.");
           setPhase("error");
           return;
@@ -334,15 +356,39 @@ export default function QuizRoomView() {
               }
             : prev,
         );
-        if (data.live_current_q !== undefined && data.live_current_q !== null) {
-          setCurrentIdx(data.live_current_q);
-        }
-        if (data.live_question_deadline_at) {
-          const ms =
-            new Date(data.live_question_deadline_at).getTime() - Date.now();
-          setTimeLeft(Math.max(0, Math.ceil(ms / 1000)));
-        } else if (timeLeftRef.current !== null) {
-          setTimeLeft(null);
+
+        const liveQ = data.live_current_q;
+        if (liveQ !== undefined && liveQ !== null) {
+          const prevLive = lastLiveQRef.current;
+
+          if (liveQ >= 0) {
+            setCurrentIdx((prev) => {
+              let next = prev;
+              // Caught up with the previous pointer -> follow the teacher's
+              // next. Behind it -> stay put and keep catching up.
+              if (prevLive !== null && prev >= prevLive && liveQ > prevLive) {
+                next = liveQ;
+              }
+              // The live pointer is a ceiling, never a cursor-setting command.
+              return Math.min(Math.max(next, 0), liveQ);
+            });
+          }
+
+          lastLiveQRef.current = liveQ;
+          setLiveCurrentQ(liveQ);
+          liveCurrentQRef.current = liveQ;
+
+          // The server deadline belongs to the teacher's CURRENT question.
+          // Catch-up questions run on their own per-question clock instead.
+          if (liveQ >= 0 && idxRef.current === liveQ) {
+            if (data.live_question_deadline_at) {
+              const ms =
+                new Date(data.live_question_deadline_at).getTime() - Date.now();
+              setTimeLeft(Math.max(0, Math.ceil(ms / 1000)));
+            } else if (timeLeftRef.current !== null) {
+              setTimeLeft(null);
+            }
+          }
         }
       }
       setRoomPaused(!!data.room_paused);
@@ -436,10 +482,14 @@ export default function QuizRoomView() {
     (delta) => {
       flushSave();
       setCurrentIdx((prev) => {
-        const next = Math.min(
-          Math.max(prev + delta, 0),
-          (payloadRef.current?.questions?.length || 1) - 1,
-        );
+        const countMax = (payloadRef.current?.questions?.length || 1) - 1;
+        // Catch-up can move inside [0, teacher's current question], never past.
+        const maxIdx = teacherPacing
+          && liveCurrentQRef.current !== null
+          && liveCurrentQRef.current >= 0
+          ? Math.min(countMax, liveCurrentQRef.current)
+          : countMax;
+        const next = Math.min(Math.max(prev + delta, 0), maxIdx);
         if (next !== prev) {
           api
             .post(`/student/activities/${activityId}/quiz/advance`, {
@@ -450,7 +500,7 @@ export default function QuizRoomView() {
         return next;
       });
     },
-    [activityId, flushSave],
+    [activityId, flushSave, teacherPacing],
   );
 
   const perQuestionSeconds = useCallback((q) => {
@@ -463,6 +513,13 @@ export default function QuizRoomView() {
   const currentQuestion = payload?.questions?.[currentIdx];
   const questionCount = payload?.questions?.length || 0;
   const timerMode = payload?.activity?.timer_mode;
+  // Teacher-paced: at the teacher's question vs still catching up.
+  const atLiveQuestion =
+    !teacherPacing ||
+    liveCurrentQ === null ||
+    liveCurrentQ < 0 ||
+    currentIdx === liveCurrentQ;
+  const isCatchup = teacherPacing && !atLiveQuestion && liveCurrentQ >= 0;
 
   const timeLeftRef = useRef(null);
   useEffect(() => {
@@ -471,7 +528,24 @@ export default function QuizRoomView() {
 
   useEffect(() => {
     if (phase !== "taking") return;
-    if (teacherPacing) return;
+
+    const atLive =
+      !teacherPacing ||
+      liveCurrentQ === null ||
+      liveCurrentQ < 0 ||
+      currentIdx === liveCurrentQ;
+    const catchup = teacherPacing && !atLive;
+
+    // The teacher's current question is timed by the server deadline.
+    if (teacherPacing && atLive) return;
+
+    // Catch-up is self-paced. Only a per-question timer applies, and it
+    // never flips the student's page when it hits zero.
+    if (catchup && timerMode !== "per_question") {
+      timeLeftRef.current = null;
+      setTimeLeft(null);
+      return;
+    }
 
     if (timerMode === "per_question") {
       const seconds = perQuestionSeconds(currentQuestion);
@@ -488,6 +562,7 @@ export default function QuizRoomView() {
       setTimeLeft(next);
       if (next === 0) {
         clearInterval(interval);
+        if (catchup) return; // stay on the question — the student moves on
         if (
           timerMode === "per_question" &&
           idxRef.current < questionCount - 1
@@ -510,10 +585,14 @@ export default function QuizRoomView() {
     advance,
     handleFinish,
     teacherPacing,
+    liveCurrentQ,
   ]);
 
   useEffect(() => {
     if (phase !== "taking" || !teacherPacing) return;
+    // Only the live question mirrors the server deadline; catch-up questions
+    // have their own clock above.
+    if (liveCurrentQ !== null && currentIdx !== liveCurrentQ) return;
     if (timeLeft === null || timeLeft === undefined) return;
 
     const interval = setInterval(() => {
@@ -530,7 +609,7 @@ export default function QuizRoomView() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [phase, teacherPacing, timeLeft]);
+  }, [phase, teacherPacing, timeLeft, currentIdx, liveCurrentQ]);
 
   useEffect(() => {
     if (phase !== "taking") return;
@@ -838,7 +917,7 @@ export default function QuizRoomView() {
                 color: 'var(--accent)',
               }}
             >
-              Live Quiz
+              {payload.activity.reopened ? 'Reopened Quiz' : 'Live Quiz'}
             </span>
             <span
               style={{
@@ -846,13 +925,13 @@ export default function QuizRoomView() {
                 fontWeight: 700,
                 padding: "4px 10px",
                 borderRadius: "999px",
-                background: "rgba(239, 68, 68, 0.12)",
-                color: "#ef4444",
+                background: payload.activity.reopened ? "var(--accent-light)" : "rgba(239, 68, 68, 0.12)",
+                color: payload.activity.reopened ? "var(--accent)" : "#ef4444",
                 letterSpacing: "0.08em",
-                animation: "pulse 1.6s infinite",
+                animation: payload.activity.reopened ? undefined : "pulse 1.6s infinite",
               }}
             >
-              ● LIVE
+              {payload.activity.reopened ? '● REOPENED' : '● LIVE'}
             </span>
           </div>
           <h1
@@ -1590,9 +1669,10 @@ export default function QuizRoomView() {
               question={currentQuestion}
               value={answers[currentQuestion.id]}
               onChange={(val) => onAnswerChange(currentQuestion.id, val)}
-              disabled={teacherPacing && teacherPhase === "revealed"}
+              disabled={teacherPacing && atLiveQuestion && teacherPhase === "revealed"}
             />
             {teacherPacing &&
+              atLiveQuestion &&
               teacherPhase === "revealed" &&
               payload.current_question_feedback && (
                 <RevealFeedback
@@ -1614,19 +1694,67 @@ export default function QuizRoomView() {
         >
           {teacherPacing ? (
             <>
+              {currentIdx > 0 && (
+                <button
+                  onClick={() => advance(-1)}
+                  style={{
+                    padding: "14px 20px",
+                    borderRadius: "12px",
+                    border: "1px solid var(--border-color)",
+                    background: "var(--bg-secondary)",
+                    color: "var(--text-secondary)",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <ChevronLeft size={16} /> Previous
+                </button>
+              )}
               <div style={{ flex: 1 }} />
               <p
                 style={{
                   fontSize: "12px",
-                  color: "var(--text-tertiary)",
+                  color: isCatchup ? "var(--accent)" : "var(--text-tertiary)",
                   margin: 0,
                   display: "flex",
                   alignItems: "center",
                   gap: "6px",
+                  fontWeight: isCatchup ? 700 : 400,
                 }}
               >
-                <Radio size={14} /> Your teacher controls the pace — sit tight
+                <Radio size={14} />
+                {isCatchup
+                  ? `Catch up at your own pace — you'll sync at question ${liveCurrentQ + 1}`
+                  : teacherPhase === "revealed"
+                    ? "Question closed — waiting for the teacher"
+                    : "In sync — your teacher controls the next question"}
               </p>
+              {isCatchup && (
+                <button
+                  onClick={() => advance(1)}
+                  style={{
+                    padding: "14px 28px",
+                    borderRadius: "12px",
+                    border: "none",
+                    background: "var(--accent)",
+                    color: "#fff",
+                    fontWeight: 700,
+                    fontSize: "13px",
+                    letterSpacing: "0.08em",
+                    textTransform: "none",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    boxShadow: "0 4px 12px var(--accent-glow)",
+                  }}
+                >
+                  Next <ChevronRight size={16} />
+                </button>
+              )}
             </>
           ) : roomPaused ? (
             <>

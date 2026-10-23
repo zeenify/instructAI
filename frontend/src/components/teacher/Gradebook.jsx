@@ -267,6 +267,7 @@ export default function Gradebook({ data, loading, onActivityClick }) {
                           {score}/{max}
                           {pct !== null && <small>{pct}%</small>}
                         </span>
+                        {g.is_late && <span className="gb-late-dot" title="Late attempt — submitted after a reopen" />}
                       </td>
                     );
                   }
@@ -274,6 +275,7 @@ export default function Gradebook({ data, loading, onActivityClick }) {
                     return (
                       <td key={a.id} className="gb-cell" onClick={() => onActivityClick?.(a.id)} style={{ cursor: 'pointer' }}>
                         <span className="gb-chip tograde">To grade</span>
+                        {g.is_late && <span className="gb-late-dot" title="Late attempt — submitted after a reopen" />}
                       </td>
                     );
                   }

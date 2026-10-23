@@ -85,10 +85,10 @@ export default function CreateActivityModal({ isOpen, onClose, classId }) {
     if (!isOpen) return null;
 
     const isQuiz = selectedType === 'quiz';
-    // Deadlines: required for submitted activities, OPTIONAL for quizzes —
-    // a student-paced quiz can be due Friday; teacher-paced quizzes run on
-    // the room's own lifecycle, and the backend drops the deadline for them.
-    const showsDeadline = isQuiz || (selectedType === 'activity' && submissionType !== 'material');
+    // Deadlines belong to submitted activities. Quizzes have no wall-clock
+    // deadline in either pacing mode — the room's Close/Reopen lifecycle owns
+    // the window, so a date here would be a lie.
+    const showsDeadline = selectedType === 'activity' && submissionType !== 'material';
     const needsDeadline = selectedType === 'activity' && submissionType !== 'material';
 
     const reset = () => {
@@ -131,8 +131,11 @@ export default function CreateActivityModal({ isOpen, onClose, classId }) {
                 title: title.trim(),
                 description: description.trim() || null,
                 activity_type: selectedType,
-                deadline_at: deadlineAt || null,
-                deadline_behavior: deadlineBehavior,
+                // Quizzes: no date at all (the room owns its lifecycle)
+                ...(selectedType === 'quiz' ? {} : {
+                    deadline_at: deadlineAt || null,
+                    deadline_behavior: deadlineBehavior,
+                }),
             };
             if (selectedType === 'activity') {
                 payload.submission_type = submissionType;
@@ -233,7 +236,7 @@ export default function CreateActivityModal({ isOpen, onClose, classId }) {
 
                             {showsDeadline && (
                                 <div className="db-field">
-                                    <span className="db-field-label"><Clock size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} /> Deadline{isQuiz && <em> · optional</em>}</span>
+                                    <span className="db-field-label"><Clock size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} /> Deadline</span>
                                     <DateTimePicker value={deadlineAt} onChange={setDeadlineAt} />
                                     <div className="cw-presets">
                                         {DEADLINE_PRESETS.map((p) => (

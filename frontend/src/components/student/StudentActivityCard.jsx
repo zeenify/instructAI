@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Clock, CheckCircle2, Circle, AlertTriangle, Hourglass, FileText, HelpCircle, BookOpen, Radio, PlayCircle, Timer, Award } from 'lucide-react';
+import { Clock, CheckCircle2, Circle, AlertTriangle, Hourglass, FileText, HelpCircle, BookOpen, Radio, PlayCircle, Timer, Award, RotateCcw, Lock } from 'lucide-react';
 import { format, isPast, parseISO } from 'date-fns';
 import { deriveState } from '../../utils/activityState';
 
@@ -12,12 +12,14 @@ const typeConfig = {
 
 const stateConfig = {
   live: { label: 'Join now', icon: Radio, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.14)', border: 'rgba(239, 68, 68, 0.4)', pulse: true },
+  reopened: { label: 'Reopened', icon: RotateCcw, color: 'var(--accent)', bg: 'var(--accent-light)', border: 'rgba(59, 130, 246, 0.35)' },
   in_progress: { label: 'In progress', icon: PlayCircle, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.35)' },
   waiting: { label: 'Starts soon', icon: Circle, color: 'var(--accent)', bg: 'var(--accent-light)', border: 'rgba(59, 130, 246, 0.35)' },
   graded: { label: 'Done', icon: CheckCircle2, color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.35)' },
   submitted: { label: 'Pending grade', icon: Hourglass, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.35)' },
   todo: { label: 'To do', icon: Circle, color: 'var(--text-tertiary)', bg: 'var(--bg-tertiary)', border: 'var(--border-color)' },
   missed: { label: 'Missed', icon: AlertTriangle, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.35)' },
+  closed: { label: 'Closed', icon: Lock, color: 'var(--text-tertiary)', bg: 'var(--bg-tertiary)', border: 'var(--border-color)' },
 };
 
 function timerSummary(a) {

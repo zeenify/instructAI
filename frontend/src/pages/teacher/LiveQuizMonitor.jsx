@@ -1011,7 +1011,7 @@ export default function LiveQuizMonitor() {
                     }}
                   >
                     <Square size={14} fill="#ef4444" />
-                    End Room
+                    Close quiz
                   </button>
                 )}
                 {isClosed && (
@@ -1385,7 +1385,7 @@ export default function LiveQuizMonitor() {
               >
                 <Square size={20} color="#ef4444" fill="#ef4444" />
                 <h3 style={{ fontSize: "19px", fontWeight: "700", margin: 0 }}>
-                  End live room?
+                  Close the quiz?
                 </h3>
               </div>
               <p
@@ -1396,10 +1396,10 @@ export default function LiveQuizMonitor() {
                   lineHeight: 1.6,
                 }}
               >
-                The room will close immediately. Unfinished answers are
-                submitted as-is, missed questions are graded as incorrect, and
-                results are shown to students (per the quiz settings). This
-                cannot be undone.
+                New students can no longer join. Students already working keep
+                their attempt and can finish at their own pace — their answers
+                are not cut off. You can reopen the quiz later for anyone who
+                never took it.
               </p>
               <div
                 style={{
@@ -1438,7 +1438,7 @@ export default function LiveQuizMonitor() {
                     opacity: busy ? 0.6 : 1,
                   }}
                 >
-                  {busy ? "Closing..." : "End Room"}
+                  {busy ? "Closing..." : "Close quiz"}
                 </button>
               </div>
             </div>
