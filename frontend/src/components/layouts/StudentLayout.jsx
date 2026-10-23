@@ -60,7 +60,9 @@ export default function StudentLayout() {
         }
         setLoading(true);
         try {
-            const res = await api.get('/student/classes');
+            // Forced refreshes must bypass the legacy axios GET cache (5-min
+            // TTL) — otherwise joining a class re-reads the pre-join list.
+            const res = await api.get('/student/classes', forceRefresh ? { bypassCache: true } : undefined);
             cache.set(cacheKey, res.data);
             sessionStorage.setItem('sidebar:student:classes-last', JSON.stringify(res.data));
             setClasses(res.data);
@@ -168,7 +170,7 @@ export default function StudentLayout() {
 
 
             <main className="main-content">
-                <Outlet context={{ classes }} />
+                <Outlet context={{ classes, openJoinModal: () => setIsJoinModalOpen(true), loading }} />
             </main>
 
             <JoinClassModal 

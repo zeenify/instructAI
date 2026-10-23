@@ -5,10 +5,11 @@ import { motion } from 'framer-motion';
 
 export default function StudentOverview() {
     const { user } = useAuth();
-    const { classes } = useOutletContext();
+    const { classes, openJoinModal } = useOutletContext();
     const navigate = useNavigate();
 
     const totalCourses = classes?.reduce((n, c) => n + (c.courses_count || 0), 0) || 0;
+    const isEmpty = (classes?.length || 0) === 0;
 
     return (
         <div style={{ width: '100%', padding: '48px 40px 80px' }}>
@@ -17,18 +18,51 @@ export default function StudentOverview() {
                 <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '38px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 8px 0', letterSpacing: '-0.01em' }}>
                     Welcome back, <span style={{ fontStyle: 'italic', color: 'var(--accent)' }}>{user?.student_profile?.first_name}</span>
                 </h1>
-                <p style={{ fontSize: '16px', color: 'var(--text-secondary)', fontWeight: 500, margin: '0 0 6px 0' }}>
-                    Pick up where you left off — select a class to continue.
+                <p style={{ fontSize: '16px', color: 'var(--text-secondary)', fontWeight: 500, margin: isEmpty ? 0 : '0 0 6px 0' }}>
+                    {isEmpty
+                        ? 'Your classes will show up here once you join one.'
+                        : 'Pick up where you left off — select a class to continue.'}
                 </p>
-                <p style={{ fontSize: '14px', color: 'var(--text-tertiary)', margin: 0 }}>
-                    {classes?.length || 0} {classes?.length === 1 ? 'class' : 'classes'} · {totalCourses} {totalCourses === 1 ? 'course' : 'courses'}
-                </p>
+                {!isEmpty && (
+                    <p style={{ fontSize: '14px', color: 'var(--text-tertiary)', margin: 0 }}>
+                        {classes.length} {classes.length === 1 ? 'class' : 'classes'} · {totalCourses} {totalCourses === 1 ? 'course' : 'courses'}
+                    </p>
+                )}
             </div>
 
             <h2 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 20px 0' }}>Your classes</h2>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '22px' }}>
-                {classes.map(c => (
+            {isEmpty ? (
+                <div style={{
+                    background: 'var(--bg-secondary)',
+                    border: '1.5px dashed var(--border-color)',
+                    borderRadius: 22,
+                    padding: '56px 32px',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 14,
+                    maxWidth: 620,
+                }}>
+                    <div style={{ width: 64, height: 64, borderRadius: 18, background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
+                        <BookOpen size={28} />
+                    </div>
+                    <h3 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '26px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                        No classes yet
+                    </h3>
+                    <p style={{ fontSize: '15px', color: 'var(--text-secondary)', margin: 0, maxWidth: 420, lineHeight: 1.55 }}>
+                        Ask your teacher for the class code, then join to get your lessons, quizzes, and classwork.
+                    </p>
+                    <button
+                        onClick={() => openJoinModal?.()}
+                        style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: 'var(--accent)', color: '#fffdf7', border: 'none', borderRadius: 12, fontWeight: 600, fontSize: 15, padding: '12px 22px' }}
+                    >
+                        Join a class <ArrowRight size={16} />
+                    </button>
+                    <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>
+                        You can also join anytime from the sidebar.
+                    </p>
+                </div>
+            ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '22px' }}>
+                    {classes.map(c => (
                     <div
                         key={c.id}
                         onClick={() => navigate(`/dashboard/student/class/${c.id}`)}
@@ -74,7 +108,8 @@ export default function StudentOverview() {
                         </div>
                     </div>
                 ))}
-            </div>
+                </div>
+            )}
         </div>
     );
 }
