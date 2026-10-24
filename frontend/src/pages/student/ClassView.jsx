@@ -65,13 +65,12 @@ export default function ClassView() {
             ...(mod.quizzes || []).map(q => ({ ...q, kind: 'quiz' })),
         ].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))), [modules]);
     const lockByKey = useMemo(() => {
+        // TEMP (owner testing 2026-10-25): sequential unlocking DISABLED — every
+        // lesson and quiz opens regardless of progress, on both this module
+        // list and the course viewer. Revert to the previous-item rule when
+        // the student-view walkthrough is done.
         const map = {};
-        flat.forEach((item, index) => {
-            if (index === 0) { map[`${item.kind}-${item.id}`] = false; return; }
-            const prev = flat[index - 1];
-            const prevDone = prev.kind === 'lesson' ? prev.is_completed : prev.is_passed;
-            map[`${item.kind}-${item.id}`] = !prevDone;
-        });
+        flat.forEach((item) => { map[`${item.kind}-${item.id}`] = false; });
         return map;
     }, [flat]);
 

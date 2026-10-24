@@ -70,14 +70,10 @@ export default function CourseViewer() {
             items = [...items, ...sortedTimeline];
         });
 
-        const result = items.map((item, index) => {
-            if (index === 0) return { ...item, isLocked: false };
-            const prev = items[index - 1];
-            const prevDone = prev.itemType === 'lesson'
-                ? progress.lessons.includes(prev.id)
-                : progress.quizzes.includes(prev.id);
-            return { ...item, isLocked: !prevDone };
-        });
+        // TEMP (owner testing 2026-10-25): sequential unlocking DISABLED — every
+        // timeline item opens regardless of progress. Revert to the
+        // previous-item-done rule when the student-view walkthrough is done.
+        const result = items.map((item) => ({ ...item, isLocked: false }));
 
         return result;
     }, [course, progress]);
