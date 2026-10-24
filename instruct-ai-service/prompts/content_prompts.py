@@ -109,6 +109,7 @@ CODING RULES:
 - expected_output = ACTUAL console output of reference_solution with no input (e.g., "42\\n", NOT "prints 42")
 - test_cases = array of 2-4 objects {{"input", "expected_output", "hidden"}}. "input" is the exact stdin fed to the program ("" when it reads nothing); "expected_output" is the EXACT full stdout for that stdin — every line the boilerplate or the solution prints (input prompts included), in order, and NEVER lines the program would not print; the first test must have hidden=false and at least one other test hidden=true. For html questions omit test_cases and reference_solution entirely.
 - points = 3-5 based on complexity
+- CONSOLE-ONLY (CRITICAL): coding questions are graded by feeding stdin and comparing stdout. NEVER write a coding question whose solution builds a GUI/window (Swing, AWT, JavaFX, JFrame), draws graphics, plays audio, or otherwise needs a screen — such a program cannot run or be verified and the question is discarded. Assess GUI/graphics TOPICS with multiple_choice, true_false, identification, or enumeration questions about the concepts instead.
 
 GROUPING REQUIREMENT - JSON STRUCTURE ENFORCES THIS:
 The output JSON structure has SEPARATE ARRAYS for each type.
@@ -241,17 +242,16 @@ LESSON STRUCTURE - VARY THE FORMAT:
 - 1-2 explanation paragraphs
 - Code example demonstrating the concept
 - 1-2 more paragraphs explaining the code
-- Challenge code block for practice
+- Challenge code block ONLY when the lesson's competency is a console (stdin/stdout) programming exercise
 
 **For practical lessons**:
 - 1 h1 heading
 - Brief theory (1 paragraph)
 - Multiple small code examples (not just one big one)
-- Mix playground and challenge modes
+- Playground blocks for runnable examples; a challenge only when the topic is verifiable as console output
 - Focus on DOING, not reading
 
 **Include only if relevant**:
-- Images: when visual diagrams help understanding
 - Videos: when concept is complex and benefits from video
 - Links: always include official docs
 
@@ -259,21 +259,7 @@ LESSON STRUCTURE - VARY THE FORMAT:
 - Use the same h1 → 3 paragraphs → 1 code → image → video → link pattern
 - Write fluff or filler content
 - Force code examples where they don't add value
-
-CRITICAL FOR IMAGES:
-- Format: https://source.unsplash.com/800x400/?keyword1,keyword2,keyword3
-- Generate 2-3 keywords SPECIFIC to this lesson's topic
-- DO NOT use generic "programming,java,code" for every lesson
-- Match keywords to lesson content:
-
-Examples based on lesson topic:
-  * "Variables and Data Types" → "variables,data,programming"
-  * "Installing Java JDK" → "computer,software,installation"
-  * "Object-Oriented Programming" → "objects,classes,programming"
-  * "Loops and Iteration" → "loops,algorithm,iteration"
-  * "UI Design Basics" → "design,interface,user-experience"
-  * "Color Theory" → "colors,palette,design"
-  * "Database Queries" → "database,sql,data"
+- Include image blocks of any kind, or coding challenges for topics a console runner cannot verify (GUI/window code, graphics, audio, setup walkthroughs, document writing)
 
 CRITICAL FOR VIDEOS:
 - NEVER make up YouTube URLs
@@ -292,7 +278,8 @@ def build_quiz_prompt(
     quiz_title: str,
     question_type_distribution: dict,
     difficulty: str,
-    language: str = ""
+    language: str = "",
+    used_coding_tasks: list = None
 ) -> str:
     """
     Build user prompt for quiz content generation
@@ -303,6 +290,8 @@ def build_quiz_prompt(
         quiz_title: Target quiz title
         question_type_distribution: Dict with mc, tf, id, enum, code percentages
         difficulty: Difficulty level
+        used_coding_tasks: Coding-task statements already shipped in this
+            generation run — the model must not repeat them
 
     Returns:
         Quiz generation prompt string
@@ -343,10 +332,18 @@ def build_quiz_prompt(
         "Never use any other programming language."
     ) if language else ""
 
+    used_tasks_line = ""
+    if used_coding_tasks:
+        task_list = "\n".join(f"- {t}" for t in used_coding_tasks[:12])
+        used_tasks_line = f"""
+CODING TASKS ALREADY USED IN EARLIER QUIZZES (NEVER repeat these or trivial variants of them — write a coding task about a DIFFERENT aspect of the lessons):
+{task_list}
+"""
+
     return f"""
 Generate a comprehensive quiz based on lesson content covered.
 {language_line}
-LESSON CONTENT:
+{used_tasks_line}LESSON CONTENT:
 {lesson_context}
 
 MODULE: {module_title}

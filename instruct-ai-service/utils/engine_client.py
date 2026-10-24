@@ -86,11 +86,19 @@ def execute_code(language: str, code: str, stdin: str = None) -> dict:
     return run
 
 
-def verify_test_cases(language: str, reference_code: str, test_cases: list) -> list:
+def verify_test_cases_status(language: str, reference_code: str, test_cases: list) -> tuple:
     """
-    Execute the reference solution once per test case and return only the test
-    cases whose expected output matches the actual normalized stdout. A test
-    case is also dropped if its input is not a string.
+    Execute the reference solution once per test case. Returns a tuple
+    (kept_cases, engine_reachable):
+
+    - kept_cases: only the test cases whose expected output matches the actual
+      normalized stdout (a non-dict case is dropped).
+    - engine_reachable: False when an infrastructure problem (engine down or
+      busy) made verification impossible. Callers must NOT treat that as a bad
+      question — it means "unknown", not "wrong".
+
+    A timeout on a case means the reference itself is suspect, so nothing is
+    kept from that run.
     """
     kept = []
     for test_case in test_cases or []:
@@ -99,12 +107,22 @@ def verify_test_cases(language: str, reference_code: str, test_cases: list) -> l
         expected = str(test_case.get("expected_output", "") or "")
         stdin = test_case.get("input") or None
         run = execute_code(language, reference_code, stdin)
-        if run.get("engine_error") or run.get("timed_out"):
-            # Infrastructure problem: keep nothing — caller falls back to
-            # expected-output grading rather than shipping unverified tests.
-            return []
+        if run.get("engine_error"):
+            return [], False
+        if run.get("timed_out"):
+            return [], True
         if normalize_output(run["stdout"]) == normalize_output(expected):
             kept.append(test_case)
+    return kept, True
+
+
+def verify_test_cases(language: str, reference_code: str, test_cases: list) -> list:
+    """
+    Execute the reference solution once per test case and return only the test
+    cases whose expected output matches the actual normalized stdout. A test
+    case is also dropped if its input is not a string.
+    """
+    kept, _ = verify_test_cases_status(language, reference_code, test_cases)
     return kept
 
 

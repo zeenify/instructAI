@@ -11,7 +11,7 @@ from utils.media_fetcher import (
     generate_video_keywords
 )
 from utils.code_formatter import format_code_block, fix_json_escapes_in_code
-from utils.engine_client import actual_output_for, strip_markdown_fence, verify_test_cases
+from utils.engine_client import actual_output_for, strip_markdown_fence, verify_test_cases_status
 
 # Languages the InstructAI IDE understands end to end (mirrors CodeRunner::LANGUAGES).
 VALID_LANGUAGES = {"java", "python", "javascript", "cpp", "html"}
@@ -222,16 +222,33 @@ def format_section_to_blocks(
             raw_code = fix_json_escapes_in_code(raw_code)
             formatted_code = format_code_block(raw_code)
 
-            blocks.append({
-                "id": str(uuid.uuid4()),
-                "type": "code",
-                "data": {
-                    "mode": "playground",
-                    "language": normalize_language(section_content.get("language")),
-                    "code": formatted_code,
-                    "expected": fix_json_escapes_in_code(section_content.get("output", ""))
-                }
-            })
+            # Code that cannot run in the browser's console runner — GUI/window
+            # frameworks (there is no display server), or anything the model
+            # declared "runnable": false (ASCII diagrams, graphics, audio) —
+            # ships as a read-only reference listing instead of a playground
+            # whose Run button could only ever error.
+            gui_imports = re.search(r"import\s+(?:javax\.swing|java\.awt|javafx)", formatted_code)
+            if gui_imports or section_content.get("runnable") is False:
+                blocks.append({
+                    "id": str(uuid.uuid4()),
+                    "type": "code",
+                    "data": {
+                        "mode": "reference",
+                        "language": normalize_language(section_content.get("language")),
+                        "code": formatted_code
+                    }
+                })
+            else:
+                blocks.append({
+                    "id": str(uuid.uuid4()),
+                    "type": "code",
+                    "data": {
+                        "mode": "playground",
+                        "language": normalize_language(section_content.get("language")),
+                        "code": formatted_code,
+                        "expected": fix_json_escapes_in_code(section_content.get("output", ""))
+                    }
+                })
 
         # Visual example description (non-programming courses)
         if section_content.get("example_description"):
@@ -314,43 +331,58 @@ def format_section_to_blocks(
                     challenge_data["code"] = html_file["content"]
 
             # Non-HTML challenges: run the AI's reference solution on the real
-            # engine and publish ITS output as the expected result, so every
-            # generated challenge is verified solvable. If the engine is down
-            # or the reference fails, keep the AI's expected text as-is.
+            # engine against every proposed test case. Only a challenge whose
+            # reference actually passes at least one case ships as a challenge —
+            # the grader would otherwise have nothing true to compare against.
+            # When verification proves the challenge unsolvable (or there is
+            # nothing to verify), it is DOWNGRADED to a playground: same
+            # starter code, free practice, no fake grading. An unreachable
+            # engine means "unknown", not "bad" — those keep the challenge
+            # with the AI's expected text (legacy fallback).
+            downgraded = False
             if language and language != "html":
                 reference = strip_markdown_fence(
                     fix_json_escapes_in_code(str(section_content.get("reference_solution") or ""))
                 )
                 if reference:
-                    actual = actual_output_for(language, reference)
-                    if actual:
-                        expected = actual
-                        challenge_data["expected"] = expected
-                        print(f"[CHALLENGE-VERIFY] {section_title[:40]}: expected output verified by engine")
-                    else:
-                        print(f"[CHALLENGE-VERIFY] {section_title[:40]}: engine unavailable/reference failed — keeping AI expected output")
-
-                    # Attach the AI's test cases to the block — but only the
-                    # ones the reference solution ACTUALLY passes on the engine.
-                    # The lesson editor grades challenges per-case (stdin in,
-                    # stdout compared), so unverified cases would mislead students.
                     ai_cases = section_content.get("test_cases")
                     ai_cases = [c for c in (ai_cases if isinstance(ai_cases, list) else [])
                                 if isinstance(c, dict) and str(c.get("input", "") or "").strip()]
                     ai_cases = ai_cases[:4]
-                    verified = verify_test_cases(language, reference, ai_cases) if (actual and ai_cases) else []
+                    verified, engine_reachable = verify_test_cases_status(language, reference, ai_cases)
                     if verified:
                         challenge_data["test_cases"] = [
                             {"input": str(c.get("input", "")), "expected_output": str(c.get("expected_output", "") or "")}
                             for c in verified
                         ]
+                        # The no-input run is the nicest "expected" text when the
+                        # program runs without input; interactive programs crash
+                        # on it, so fall back to the first verified case's output.
+                        actual = actual_output_for(language, reference)
+                        challenge_data["expected"] = actual if actual else str(verified[0].get("expected_output", "") or "")
                         print(f"[CHALLENGE-VERIFY] {section_title[:40]}: {len(verified)}/{len(ai_cases)} test cases verified and attached")
+                    elif not engine_reachable:
+                        challenge_data["expected"] = expected
+                        print(f"[CHALLENGE-VERIFY] {section_title[:40]}: engine unreachable — keeping AI expected output (unverified)")
+                    else:
+                        downgraded = True
+                        print(f"[CHALLENGE-VERIFY] {section_title[:40]}: reference failed every test case — downgraded to playground")
+                else:
+                    downgraded = True
+                    print(f"[CHALLENGE-VERIFY] {section_title[:40]}: no reference solution — downgraded to playground")
 
-            blocks.append({
-                "id": str(uuid.uuid4()),
-                "type": "code",
-                "data": challenge_data
-            })
+            if downgraded:
+                blocks.append({
+                    "id": str(uuid.uuid4()),
+                    "type": "code",
+                    "data": {"mode": "playground", "language": language, "code": formatted_starter, "expected": ""}
+                })
+            else:
+                blocks.append({
+                    "id": str(uuid.uuid4()),
+                    "type": "code",
+                    "data": challenge_data
+                })
 
         # Expected outcome (non-programming) or expected output (programming)
         if section_content.get("expected_outcome"):

@@ -3,6 +3,7 @@ Media Fetcher - Fetch real images and videos from Pexels and YouTube
 """
 import os
 import random
+import re
 import requests
 from googleapiclient.discovery import build
 from utils.logger import log_error
@@ -60,6 +61,14 @@ def fetch_pexels_image(keywords: str, orientation: str = "landscape") -> str:
         return "https://images.pexels.com/photos/577585/pexels-photo-577585.jpeg?w=800"
 
 
+def _clean_video_description(description: str) -> str:
+    """One flat line of a video's real description: no URLs, no line breaks,
+    capped at 180 chars. Empty beats fabricated text."""
+    text = re.sub(r"https?://\S+", "", str(description or ""))
+    text = " ".join(text.split())
+    return text[:180].rstrip()
+
+
 def _is_video_relevant(video_title: str, keywords: str) -> bool:
     """
     Check if video title is actually relevant to the search keywords.
@@ -82,6 +91,17 @@ def _is_video_relevant(video_title: str, keywords: str) -> bool:
     has_main_keyword = any(kw in title_lower for kw in keyword_parts if len(kw) > 3)
 
     if not has_main_keyword:
+        return False
+
+    # Lectures in other languages match English keywords fine on YouTube, but
+    # they are useless to English-medium classes — reject them outright
+    # ("relevanceLanguage=en" only biases the search, it does not filter).
+    other_language_markers = [
+        "in hindi", "hindi", "urdu", "bangla", "bengali", "tamil", "telugu",
+        "kannada", "malayalam", "punjabi", "marathi", "gujarati", "arabic",
+        "chinese", "mandarin", "russian", "bahasa",
+    ]
+    if any(marker in title_lower for marker in other_language_markers):
         return False
 
     # Reject videos about completely different topics (blacklist)
@@ -125,11 +145,12 @@ def fetch_youtube_video(keywords: str) -> dict:
     try:
         youtube = build("youtube", "v3", developerKey=api_key)
 
-        # Search for videos - get top 5 to find a relevant one
+        # Search for videos - get top 8 so the language/subject filters have
+        # candidates to fall through to
         search_response = youtube.search().list(
             q=keywords,
             part="id,snippet",
-            maxResults=5,  # Get 5 results to filter for relevance
+            maxResults=8,
             type="video",
             videoDuration="medium",  # 4-20 minutes
             relevanceLanguage="en",
@@ -150,7 +171,9 @@ def fetch_youtube_video(keywords: str) -> dict:
                     return {
                         "url": video_url,
                         "title": video_title,
-                        "description": f"Tutorial video about {keywords}"
+                        # The video's real description (trimmed) — never a
+                        # fabricated "Tutorial video about …" line
+                        "description": _clean_video_description(video["snippet"].get("description", ""))
                     }
 
             # No relevant video found in top 5

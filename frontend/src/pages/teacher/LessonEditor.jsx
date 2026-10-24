@@ -797,6 +797,7 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
             const langId = resolveLanguage(block.data.language, block.data.code);
             const lang = languageOf(langId);
             const isChallenge = block.data.mode === 'challenge';
+            const isReference = block.data.mode === 'reference';
             const storedCases = normalizeChallengeCases(block.data.test_cases, block.data.expected);
             // A brand-new challenge starts with one blank case row
             const cases = storedCases.length > 0 ? storedCases : [{ id: 'new', input: '', expected_output: '' }];
@@ -826,7 +827,7 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
                         <div className="le-mode-grid">
                             <button
                                 type="button"
-                                className={`le-mode-card ${!isChallenge ? 'active' : ''}`}
+                                className={`le-mode-card ${!isChallenge && !isReference ? 'active' : ''}`}
                                 onClick={() => update(block.id, { mode: 'playground' })}
                             >
                                 <span className="le-mode-name"><Play size={14} /> Practice</span>
@@ -839,6 +840,14 @@ function BlockElement({ block, update, isUploading, setUploading, clearUploading
                             >
                                 <span className="le-mode-name"><Target size={14} /> Challenge</span>
                                 <span className="le-mode-sub">Students must reach a goal you define</span>
+                            </button>
+                            <button
+                                type="button"
+                                className={`le-mode-card ${isReference ? 'active' : ''}`}
+                                onClick={() => update(block.id, { mode: 'reference' })}
+                            >
+                                <span className="le-mode-name"><BookOpen size={14} /> Reference</span>
+                                <span className="le-mode-sub">Read-only listing — no Run button (GUI code, diagrams)</span>
                             </button>
                         </div>
                     </div>
@@ -997,7 +1006,7 @@ function PreviewBlock({ block }) {
             return (
                 <div className="le-preview-code">
                     <div className="le-preview-code-head">
-                        {block.data.mode === 'challenge' ? 'Code challenge' : 'Code playground'} &middot; {block.data.language}
+                        {block.data.mode === 'challenge' ? 'Code challenge' : block.data.mode === 'reference' ? 'Reference code' : 'Code playground'} &middot; {block.data.language}
                     </div>
                     {files.map((f) => (
                         <div key={f.name}>

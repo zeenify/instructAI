@@ -148,11 +148,16 @@ RULES:
 7. Do NOT mention javac, compilation steps, or terminal commands
 8. Assume students will click "Run" in the editor to test the code
 9. VARY examples: Some should be minimal (show one concept), some should be realistic (show patterns)
+10. "runnable": false when the code CANNOT run in the browser's console runner — GUI/window code (Swing, AWT, JavaFX), graphics, audio. Say in the intro/explanation that students should study it and re-type it in their own IDE. The platform shows such code as a read-only listing, so NEVER claim students can click Run on it.
 
 LANGUAGE FIELD (REQUIRED):
 - "language" = the programming language of the code, matching the curriculum
 - MUST be exactly one of: "java", "python", "javascript", "cpp", "html"
 - If the curriculum teaches web pages, use "html" and make "code" a complete HTML document
+
+DIAGRAM TOPICS (flowcharts, pseudocode structure, hierarchy diagrams):
+- When this section's focus is a diagram TECHNIQUE, the "code" field carries the actual diagram drawn as ASCII art with box-drawing characters (┌ ─ ┐ │ └ ┘ ├ ┤ and <> or ◇ for decisions) — NOT prose and NOT a program.
+- Set "runnable": false for those, and make the explanation walk through the diagram box by box (what each symbol means, what the arrows say).
 
 STYLE: Code-first, then explain. Like showing AND telling. Make students curious.
 
@@ -160,10 +165,11 @@ Output format:
 {
   "content_type": "example",
   "language": "java",
+  "runnable": true,
   "intro": "Brief, engaging intro to what we're demonstrating (1-2 sentences)",
   "code": "Complete, properly formatted code with:\n  - ACTUAL line breaks between statements (not \\n escape sequences)\n  - Clear indentation (4 spaces per level)\n  - Comments only on tricky lines (not obvious things)\n  - Blank lines between logical sections\n  - Readable structure (never cramped into one line)",
   "explanation": "Explain the code: WHAT it does + WHY it's structured this way (focus on insights)",
-  "output": "What you should see when you run this (use actual line breaks, not \\n). For html: what the rendered page shows.",
+  "output": "What you should see when you run this (use actual line breaks, not \\n). For html: what the rendered page shows. Empty when runnable is false.",
   "key_concepts": ["Concept 1 shown in code", "Concept 2 shown in code"]
 }
 """
@@ -205,6 +211,12 @@ Your job is to create CODING PRACTICE EXERCISES.
 Do NOT introduce concepts students haven't learned yet.
 If the section is about variables, make a challenge about variables - NOT loops.
 If it's about syntax, don't require algorithms. Stay focused.
+
+**CONSOLE-VERIFIABLE ONLY (CRITICAL)**:
+- A coding challenge is graded by running the program with stdin and comparing stdout. If the section's focus cannot be practiced that way, you MUST NOT write a coding challenge.
+- NEVER create coding challenges for: GUI/window code (Swing, AWT, JavaFX, JFrame, layouts) — windows cannot run in the browser runner; graphics/drawing; audio; environment setup walkthroughs; diagram-drawing tasks; document/plan writing.
+- For those topics, return the NON-PROGRAMMING practice format instead (bottom of this prompt): challenge = a build-it-in-your-IDE or analysis task, guidelines = a concrete checklist, expected_outcome + success_criteria describe what success looks like. No "language", no "starter_code", no "reference_solution", no "test_cases".
+- When a diagram (e.g. a flowchart) defines a program's logic, the RIGHT challenge is "implement in code the program this diagram describes" — that IS console-verifiable.
 
 RULES:
 1. State the challenge clearly - MUST be related to THIS section's focus only (see "Focus:" below)
@@ -287,9 +299,9 @@ Output format:
   "challenge": "Clear statement of what to build/do (1-2 sentences, directly related to this lesson)",
   "starter_code": "Fully structured code with:\n  - All imports and class setup\n  - Method signatures ready\n  - VAGUE TODO comments (show WHERE, not WHAT)\n  - NO example code in comments\n  - Proper formatting with actual line breaks (not \\n)",
   "reference_solution": "Complete working solution (actual line breaks, no TODOs, not hardcoded)",
-  "expected_output": "The EXACT literal output of the reference solution with no input (actual line breaks, not \\n)",
+  "expected_output": "The EXACT literal stdout of the reference solution for the FIRST test case's input (for a program that reads nothing: its no-input output). Actual line breaks, not \\n",
   "test_cases": [
-    {"input": "", "expected_output": "output of the no-input run", "hidden": false},
+    {"input": "", "expected_output": "EXACT full stdout for this stdin (empty input when the program reads nothing)", "hidden": false},
     {"input": "5\n7", "expected_output": "exact stdout for that stdin", "hidden": true}
   ],
   "success_criteria": "How to verify it works - be specific about what to check"

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import CodeIDE from './CodeIDE';
 import AITutor from '../../components/student/AITutor';
+import { CODE_LANGUAGES } from '../../utils/codeLanguages';
 import { toast } from 'sonner';
 
 export default function LessonRenderer({ lessonId, onProgressUpdate, isCompleted }) {
@@ -94,11 +95,15 @@ export default function LessonRenderer({ lessonId, onProgressUpdate, isCompleted
                 {lesson.content?.map((block) => (
                     <div key={block.id}>
                         {block.type === 'code' ? (
-                            <CodeIDE
-                                block={block}
-                                lessonId={lessonId}
-                                onSolve={() => handleBlockSolved(block.id)}
-                            />
+                            block.data.mode === 'reference' ? (
+                                <ReferenceCode data={block.data} />
+                            ) : (
+                                <CodeIDE
+                                    block={block}
+                                    lessonId={lessonId}
+                                    onSolve={() => handleBlockSolved(block.id)}
+                                />
+                            )
                         ) : (
                             renderStandardBlock(block)
                         )}
@@ -211,6 +216,29 @@ function renderStandardBlock(block) {
         default:
             return null;
     }
+}
+
+// Read-only code listing — for code the browser runner cannot execute
+// (GUI/window frameworks, ASCII diagrams). No editor, no Run button; the
+// note points students at their own IDE.
+function ReferenceCode({ data }) {
+    const lang = CODE_LANGUAGES[data.language];
+    return (
+        <div style={{ borderRadius: '16px', border: '1px solid var(--border-color)', overflow: 'hidden', background: 'var(--bg-secondary)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 18px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+                <CodeIcon size={15} style={{ color: 'var(--text-tertiary)' }} />
+                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', fontFamily: "'JetBrains Mono', monospace" }}>
+                    {lang ? lang.label : 'Reference'}
+                </span>
+                <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                    Reference code — study it, then try it in your own IDE
+                </span>
+            </div>
+            <pre style={{ margin: 0, padding: '18px 20px', overflowX: 'auto', fontFamily: "'JetBrains Mono', monospace", fontSize: '13.5px', lineHeight: 1.7, color: 'var(--text-primary)' }}>
+                {data.code}
+            </pre>
+        </div>
+    );
 }
 
 function LessonSkeleton() {

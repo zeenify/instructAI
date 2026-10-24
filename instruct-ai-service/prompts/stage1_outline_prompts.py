@@ -18,7 +18,7 @@ CRITICAL RULES:
    - GOOD: "Setting Up Java Environment" (covers both in one section)
 4. Match the lesson type:
    - Tutorial lessons: Step-by-step sections
-   - Concept lessons: Theory → Example → Practice
+   - Concept lessons: Theory → Example (→ Practice only when it fits rule 6)
    - Mixed lessons: Blend of both
 
 5. Section types:
@@ -29,7 +29,7 @@ CRITICAL RULES:
    - "practice" - Challenge or exercise
    - "summary" - Key takeaways
 
-6. For programming courses: Balance theory and practice
+6. Practice sections are OPTIONAL, even for programming courses. Include one ONLY when the lesson's competency is genuinely hands-on AND can be practiced as a console program (stdin in, stdout out) in the course's language. Reading/concept lessons, environment setup, diagram-drawing topics, GUI/window-building topics, and document/plan-writing tasks end with a summary instead — a forced practice section is worse than none.
 7. For non-programming: Focus on clear explanations and examples
 8. **KEEP IT FOCUSED**: 4-5 sections is better than 6-7 if topics overlap
 

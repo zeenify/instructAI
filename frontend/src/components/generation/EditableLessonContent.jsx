@@ -361,6 +361,7 @@ export default function EditableLessonContent({ lesson, onBlocksChange, courseLa
 
                     if (type === 'code') {
                         const isChallenge = data.mode === 'challenge';
+                        const isReference = data.mode === 'reference';
                         return shell(
                             <div>
                                 {isEditing && editable ? (
@@ -382,8 +383,9 @@ export default function EditableLessonContent({ lesson, onBlocksChange, courseLa
                                             <div>
                                                 <span className="gen-label">Mode</span>
                                                 <div className="gen-seg">
-                                                    <button type="button" className={!isChallenge ? 'on' : ''} onClick={() => updateBlock(idx, { mode: 'playground' })}>Sandbox</button>
+                                                    <button type="button" className={!isChallenge && !isReference ? 'on' : ''} onClick={() => updateBlock(idx, { mode: 'playground' })}>Sandbox</button>
                                                     <button type="button" className={isChallenge ? 'on' : ''} onClick={() => updateBlock(idx, { mode: 'challenge' })}>Challenge</button>
+                                                    <button type="button" className={isReference ? 'on' : ''} onClick={() => updateBlock(idx, { mode: 'reference' })}>Reference</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -398,7 +400,7 @@ export default function EditableLessonContent({ lesson, onBlocksChange, courseLa
                                                 style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, resize: 'vertical' }}
                                             />
                                         </div>
-                                        {!isChallenge && (
+                                        {!isChallenge && !isReference && (
                                             <div>
                                                 <span className="gen-label">Expected output</span>
                                                 <textarea
@@ -435,7 +437,7 @@ export default function EditableLessonContent({ lesson, onBlocksChange, courseLa
                                                 <span style={{ color: data.language === 'html' ? 'var(--db-amber)' : 'var(--db-accent-bright)' }}>
                                                     {data.language || 'java'}
                                                 </span>
-                                                <span>· {isChallenge ? 'challenge' : 'sandbox'}</span>
+                                                <span>· {isChallenge ? 'challenge' : isReference ? 'reference (read-only)' : 'sandbox'}</span>
                                             </div>
                                             <pre style={{ overflowX: 'auto', margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: 13, color: 'var(--db-text)' }}>
                                                 <code>{data.code || ''}</code>

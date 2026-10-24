@@ -14,7 +14,7 @@ from services.stage2_content_service import generate_all_section_contents
 from services.stage3_formatter_service import format_all_sections_to_lesson
 from utils.logger import log_api_request, log_api_response, log_error, print_metrics_summary
 from utils.code_formatter import fix_json_escapes_in_code
-from utils.engine_client import verify_test_cases, actual_output_for, strip_markdown_fence
+from utils.engine_client import verify_test_cases_status, actual_output_for, strip_markdown_fence, execute_code
 
 # Languages the InstructAI IDE understands end to end (mirrors CodeRunner::LANGUAGES).
 VALID_LANGUAGES = {"java", "python", "javascript", "cpp", "html"}
@@ -38,12 +38,23 @@ def harden_coding_questions(quiz_data: dict, language_lock: str = "") -> None:
     - normalize/keep "language" (None -> backend grades as java)
     - unwrap markdown fences from boilerplate/reference_solution
     - EXECUTE reference_solution on the engine against every test case and
-      keep only passing ones (needs >= 2 kept, else test cases are dropped
-      and the question falls back to expected-output grading)
+      keep only passing ones
     - when verified, rewrite expected_output to the reference's real no-input
-      output so students and graders agree on the same target
+      output (or, for interactive programs, the first verified case's output)
+      so students and graders agree on the same target
     - html questions carry no tests/reference (checked visually)
+
+    An UNVERIFIABLE question — the reference fails every case, or there is no
+    reference/tests to verify at all — is DROPPED while the engine is
+    reachable: shipping a coding question the grader can't check (e.g. a GUI
+    program that cannot run headless) silently zeroes students. Only a
+    genuinely unreachable engine keeps the question with expected-output
+    grading as the legacy fallback.
     """
+    kept_questions = []
+    engine_probed = False
+    engine_reachable = True
+
     for question in quiz_data.get("coding", []) or []:
         if not isinstance(question, dict):
             continue
@@ -78,21 +89,69 @@ def harden_coding_questions(quiz_data: dict, language_lock: str = "") -> None:
 
         if language in (None, "html"):
             question.pop("test_cases", None)
+            kept_questions.append(question)
             continue
 
         if reference and tests:
-            kept = verify_test_cases(language, reference, tests)
-            if len(kept) >= 1:
+            kept, engine_reachable_now = verify_test_cases_status(language, reference, tests)
+            if kept:
                 question["test_cases"] = kept
                 actual = actual_output_for(language, reference)
                 if actual is not None:
                     question["expected_output"] = actual
+                else:
+                    # Interactive references crash on the no-input run — the
+                    # first verified case's output is the honest target then.
+                    question["expected_output"] = str(kept[0].get("expected_output", "") or "")
                 print(f"[QUIZ-HARDEN] kept {len(kept)}/{len(tests)} verified test cases")
+                kept_questions.append(question)
                 continue
-            print(f"[QUIZ-HARDEN] no tests verified — dropping test cases, "
-                  f"question falls back to expected-output grading")
+            if not engine_reachable_now:
+                print(f"[QUIZ-HARDEN] engine unreachable — keeping question with "
+                      f"expected-output fallback")
+                question.pop("test_cases", None)
+                kept_questions.append(question)
+                continue
+            print(f"[QUIZ-HARDEN] reference failed every test case — dropping question: "
+                  f"{str(question.get('question_text', ''))[:70]}")
+            continue
 
+        # No reference or no tests: nothing to verify against. Drop it when we
+        # know the engine is up; keep the legacy fallback only during outages.
+        if not engine_probed:
+            probe = execute_code("python", "print(1)")
+            engine_reachable = not probe.get("engine_error")
+            engine_probed = True
+        if engine_reachable:
+            print(f"[QUIZ-HARDEN] no reference/tests to verify — dropping question: "
+                  f"{str(question.get('question_text', ''))[:70]}")
+            continue
         question.pop("test_cases", None)
+        kept_questions.append(question)
+
+    quiz_data["coding"] = kept_questions
+
+
+def _normalize_coding_statement(text) -> str:
+    """Lowercase, alphanumeric-only restatement of a coding task."""
+    cleaned = "".join(ch if ch.isalnum() else " " for ch in str(text or "").lower())
+    return " ".join(cleaned.split())
+
+
+def _is_duplicate_coding_statement(a: str, b: str) -> bool:
+    """
+    True when two normalized coding statements are the same task — an exact
+    match, or a near match (>= 0.8 token overlap), which catches restatements
+    like swapped word order or a dropped clause.
+    """
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    ta, tb = set(a.split()), set(b.split())
+    if not ta or not tb:
+        return False
+    return len(ta & tb) / len(ta | tb) >= 0.8
 
 
 HEARTBEAT_INTERVAL_S = 12
@@ -305,6 +364,10 @@ async def generate_content_stream(
         all_lessons = []
         all_quizzes = []
         all_lesson_summaries = []  # Collect summaries for quiz context
+        # Coding-task statements already shipped in this run — later quizzes
+        # get them as a do-not-repeat list, and anything that slips through
+        # anyway is dropped here (the M2/M4 "positive/negative/zero" twin).
+        used_coding_statements = []
         module_lesson_summaries = []  # Track summaries within current module for context awareness
 
         # Generate content for each module
@@ -523,7 +586,8 @@ async def generate_content_stream(
                     quiz_title=quiz_title,
                     question_type_distribution=distribution,
                     difficulty=difficulty,
-                    language=language
+                    language=language,
+                    used_coding_tasks=used_coding_statements
                 )
 
                 # Use dedicated quiz system prompt (not the lesson system prompt)
@@ -618,6 +682,21 @@ async def generate_content_stream(
                     async for msg in run_with_heartbeat(harden_coding_questions, quiz_data, language):
                         if 'result' not in msg:
                             yield ': heartbeat rss=' + str(msg.get('rss', '?')) + chr(10) + chr(10)
+
+                    # Cross-quiz dedupe: the prompt carries every coding task
+                    # used so far, but models still repeat themselves — a
+                    # near-identical restatement of an earlier task tests
+                    # nothing new and gets dropped.
+                    fresh_coding = []
+                    for question in quiz_data.get("coding", []) or []:
+                        statement = _normalize_coding_statement(question.get("question_text", "") if isinstance(question, dict) else "")
+                        if statement and any(_is_duplicate_coding_statement(statement, prev) for prev in used_coding_statements):
+                            print(f"[QUIZ-DEDUPE] dropping repeated coding task: {statement[:70]}")
+                            continue
+                        fresh_coding.append(question)
+                        if statement:
+                            used_coding_statements.append(statement)
+                    quiz_data["coding"] = fresh_coding
 
                     # Pass full quiz data (includes grouped questions + timer settings)
                     quiz_content = {
