@@ -16,6 +16,15 @@ from utils.engine_client import actual_output_for, strip_markdown_fence, verify_
 # Languages the InstructAI IDE understands end to end (mirrors CodeRunner::LANGUAGES).
 VALID_LANGUAGES = {"java", "python", "javascript", "cpp", "html"}
 
+# Box-drawing characters — real programs never contain them; ASCII/Unicode
+# diagrams consist of them.
+_BOX_DRAWING = re.compile(r"[─│┌┐└┘├┤┬┴┼╔╗╚╝║═╭╮╰╯]")
+
+
+def _looks_like_diagram(code: str) -> bool:
+    """True when the 'code' is really a drawn diagram (flowchart, hierarchy)."""
+    return len(_BOX_DRAWING.findall(code or "")) >= 2
+
 
 def normalize_language(value) -> str | None:
     """Normalize an AI-provided language id to one the IDE knows, else None."""
@@ -143,7 +152,9 @@ def format_section_to_blocks(
                 "data": {"text": f"<ol>{items}</ol>"}
             })
 
-        # Commands as code block
+        # Commands as a READ-ONLY listing — terminal commands (java -version,
+        # pip install …) are instructions to read and re-type, not programs
+        # the browser runner can execute; a Run button there only ever errors.
         if section_content.get("commands"):
             commands = section_content["commands"]
             # Ensure it's a list
@@ -157,9 +168,8 @@ def format_section_to_blocks(
                 "id": str(uuid.uuid4()),
                 "type": "code",
                 "data": {
-                    "mode": "playground",
-                    "code": formatted_commands,
-                    "expected": ""
+                    "mode": "reference",
+                    "code": formatted_commands
                 }
             })
 
@@ -223,12 +233,13 @@ def format_section_to_blocks(
             formatted_code = format_code_block(raw_code)
 
             # Code that cannot run in the browser's console runner — GUI/window
-            # frameworks (there is no display server), or anything the model
-            # declared "runnable": false (ASCII diagrams, graphics, audio) —
-            # ships as a read-only reference listing instead of a playground
-            # whose Run button could only ever error.
+            # frameworks (there is no display server), anything the model
+            # declared "runnable": false (diagrams, graphics, audio), or an
+            # ASCII/Unicode diagram the model forgot to flag — ships as a
+            # read-only reference listing instead of a playground whose Run
+            # button could only ever error.
             gui_imports = re.search(r"import\s+(?:javax\.swing|java\.awt|javafx)", formatted_code)
-            if gui_imports or section_content.get("runnable") is False:
+            if gui_imports or _looks_like_diagram(formatted_code) or section_content.get("runnable") is False:
                 blocks.append({
                     "id": str(uuid.uuid4()),
                     "type": "code",

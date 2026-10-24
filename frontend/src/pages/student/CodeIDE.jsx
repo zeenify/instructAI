@@ -596,17 +596,25 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             toast.info('This program reads input — type while it runs in the Terminal; the run is graded when the program finishes.');
             return;
         }
-        // The terminal always plays the current code live — in a playground
-        // that IS the run; in a challenge it runs WHILE the test cases grade.
-        // Grading goes first and on its own: the interactive terminal rides a
-        // separate websocket that can stall, and a stalled terminal must never
-        // stop the cases from being graded.
+        // The terminal plays the current code live — in a playground that IS
+        // the run. In a challenge with stdin test cases, grading runs on its
+        // own: while the case runs execute, the terminal must NOT auto-run
+        // the same program too — two concurrent JVMs on the free-tier engine
+        // starve each other and a graded case can come back with EMPTY output
+        // (verified: same code+input passes cleanly in isolation). The
+        // Terminal tab still runs manually whenever the student wants.
         if (mode === 'challenge') {
             handleCodeRun();
+            if (challengeCases.length === 0 || !challengeCases.some((c) => c.input)) {
+                try {
+                    runInLiveTerminal();
+                } catch { /* terminal is a live view only — grading already started */ }
+            }
+            return;
         }
         try {
             runInLiveTerminal();
-        } catch { /* terminal is a live view only — grading already started */ }
+        } catch { /* playground: the terminal run IS the run */ }
     };
 
     const handleRun = () => runRef.current();
@@ -931,7 +939,10 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                                                 fontSize: '10.5px', fontWeight: 700, fontFamily: 'monospace',
                                                 padding: '3px 10px', borderRadius: '999px',
                                                 background: 'rgba(10, 132, 255, 0.1)', color: '#60a5fa',
-                                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%',
+                                                // pre-wrap: a multi-line stdin must SHOW its line
+                                                // breaks — collapsed spaces read as one command
+                                                // line and mislead students about the input format
+                                                whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxWidth: '100%',
                                             }}>
                                                 ⌨ input: {c.input}
                                             </span>
