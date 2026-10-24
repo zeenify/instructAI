@@ -11,7 +11,7 @@ from utils.media_fetcher import (
     generate_video_keywords
 )
 from utils.code_formatter import format_code_block, fix_json_escapes_in_code
-from utils.engine_client import actual_output_for, strip_markdown_fence, verify_test_cases_status
+from utils.engine_client import actual_output_for, execute_code, normalize_output, strip_markdown_fence, verify_test_cases_status
 
 # Languages the InstructAI IDE understands end to end (mirrors CodeRunner::LANGUAGES).
 VALID_LANGUAGES = {"java", "python", "javascript", "cpp", "html"}
@@ -24,6 +24,57 @@ _BOX_DRAWING = re.compile(r"[─│┌┐└┘├┤┬┴┼╔╗╚╝║═
 def _looks_like_diagram(code: str) -> bool:
     """True when the 'code' is really a drawn diagram (flowchart, hierarchy)."""
     return len(_BOX_DRAWING.findall(code or "")) >= 2
+
+
+# Tokens that indicate real program source. Their absence on a compile failure
+# means the "code" is pseudocode or prose the model put in a code field — that
+# becomes a read-only listing, while genuine-but-broken source is dropped.
+_SOURCE_HINTS = re.compile(
+    r"(public\s+class|import\s+\w|System\.out|def\s+\w|print\s*\(|console\.log|#include|int\s+main|function\s+\w|const\s+\w|let\s+\w)",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_source(code: str) -> bool:
+    return bool(_SOURCE_HINTS.search(code or ""))
+
+
+def _verify_example(language, code: str, model_expected: str, section_title: str = "") -> tuple:
+    """
+    Engine-check a runnable example. Returns (action, expected):
+
+    - "keep": ship as a playground with `expected` (the model's text for
+      interactive programs, the engine's real output otherwise, "" when the
+      program is non-deterministic or prints nothing)
+    - "reference": ships as a read-only listing (pseudocode in a code field)
+    - "drop": genuinely broken source code — no code block at all
+    """
+    if not language:
+        return "keep", model_expected
+    run1 = execute_code(language, code, None)
+    if run1.get("engine_error"):
+        print(f"[EXAMPLE-VERIFY] {section_title[:40]}: engine unreachable — keeping unverified")
+        return "keep", model_expected
+    if run1.get("compile_output"):
+        if _looks_like_source(code):
+            print(f"[EXAMPLE-VERIFY] {section_title[:40]}: does not compile — dropped")
+            return "drop", ""
+        print(f"[EXAMPLE-VERIFY] {section_title[:40]}: pseudocode in a code field — reference listing")
+        return "reference", ""
+    stderr = run1.get("stderr", "") or ""
+    out1 = normalize_output(run1.get("stdout", ""))
+    if not out1 and ("NoSuchElement" in stderr or "InputMismatch" in stderr or "EOFException" in stderr):
+        # Interactive example — the model's expected text describes a run
+        # with input, which a no-stdin check can't reproduce. Keep as written.
+        return "keep", model_expected
+    run2 = execute_code(language, code, None)
+    out2 = normalize_output(run2.get("stdout", ""))
+    if run1.get("engine_error") or run2.get("engine_error") or out1 != out2:
+        # Non-deterministic output (thread interleavings, hash iteration
+        # order…) — claiming any specific output would mislead.
+        print(f"[EXAMPLE-VERIFY] {section_title[:40]}: non-deterministic output — expected cleared")
+        return "keep", ""
+    return "keep", out1
 
 
 def normalize_language(value) -> str | None:
@@ -239,27 +290,48 @@ def format_section_to_blocks(
             # read-only reference listing instead of a playground whose Run
             # button could only ever error.
             gui_imports = re.search(r"import\s+(?:javax\.swing|java\.awt|javafx)", formatted_code)
+            language = normalize_language(section_content.get("language"))
             if gui_imports or _looks_like_diagram(formatted_code) or section_content.get("runnable") is False:
                 blocks.append({
                     "id": str(uuid.uuid4()),
                     "type": "code",
                     "data": {
                         "mode": "reference",
-                        "language": normalize_language(section_content.get("language")),
+                        "language": language,
                         "code": formatted_code
                     }
                 })
             else:
-                blocks.append({
-                    "id": str(uuid.uuid4()),
-                    "type": "code",
-                    "data": {
-                        "mode": "playground",
-                        "language": normalize_language(section_content.get("language")),
-                        "code": formatted_code,
-                        "expected": fix_json_escapes_in_code(section_content.get("output", ""))
-                    }
-                })
+                # Runnable example — verify it on the engine before shipping.
+                # A playground whose Run instantly errors (truncated or
+                # uncompilable code) is worse than no code block; an example
+                # whose claimed output is wrong or non-deterministic (thread
+                # interleavings) misleads. An unreachable engine keeps the
+                # model's version unverified — that's transient, not "bad".
+                action, verified_expected = _verify_example(
+                    language, formatted_code,
+                    fix_json_escapes_in_code(section_content.get("output", "")),
+                    section_title,
+                )
+                if action == "drop":
+                    pass
+                elif action == "reference":
+                    blocks.append({
+                        "id": str(uuid.uuid4()),
+                        "type": "code",
+                        "data": {"mode": "reference", "language": language, "code": formatted_code}
+                    })
+                else:
+                    blocks.append({
+                        "id": str(uuid.uuid4()),
+                        "type": "code",
+                        "data": {
+                            "mode": "playground",
+                            "language": language,
+                            "code": formatted_code,
+                            "expected": verified_expected
+                        }
+                    })
 
         # Visual example description (non-programming courses)
         if section_content.get("example_description"):
