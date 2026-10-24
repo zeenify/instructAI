@@ -8,7 +8,9 @@ export default function ContentParametersModal({ isOpen, onClose, onGenerate, st
         contentDepth: 'standard',
         includeVideos: true,
         writingStyle: 'conversational',
-        questionTypeDistribution: 'balanced',
+        // No coding questions by default — opt in per course (matches the
+        // architect modal's coding-exercises default)
+        questionTypeDistribution: 'non_coding',
         passingPercentage: 70,
         allowAIAssistance: false,
         quizTimerMode: 'entire_quiz',

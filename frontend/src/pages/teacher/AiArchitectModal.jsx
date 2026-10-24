@@ -15,7 +15,9 @@ export default function AiArchitectModal({ isOpen, onClose, onExecute, curriculu
         lessonsPerModule: '3-5',
         lessonsCustom: false,
         includeQuiz: true,
-        includeCodingExercises: true,
+        // Off by default — coding challenges are where generated content
+        // struggles most; teachers opt in per course.
+        includeCodingExercises: false,
         pacing: 'standard'
     });
 

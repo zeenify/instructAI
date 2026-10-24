@@ -377,16 +377,23 @@ def format_section_to_blocks(
                         print(f"[CHALLENGE-VERIFY] {section_title[:40]}: engine unreachable — keeping AI expected output (unverified)")
                     else:
                         downgraded = True
-                        print(f"[CHALLENGE-VERIFY] {section_title[:40]}: reference failed every test case — downgraded to playground")
+                        print(f"[CHALLENGE-VERIFY] {section_title[:40]}: reference failed every test case — downgraded to non-graded block")
                 else:
                     downgraded = True
-                    print(f"[CHALLENGE-VERIFY] {section_title[:40]}: no reference solution — downgraded to playground")
+                    print(f"[CHALLENGE-VERIFY] {section_title[:40]}: no reference solution — downgraded to non-graded block")
 
             if downgraded:
+                # The starter may itself be unrunnable (a GUI program or an
+                # ASCII diagram the model dressed up as practice) — a
+                # playground there just moves the broken Run button. Anything
+                # the console runner can't execute downgrades to a read-only
+                # reference instead.
+                starter_gui = re.search(r"import\s+(?:javax\.swing|java\.awt|javafx)", formatted_starter)
+                downgraded_mode = "reference" if (starter_gui or _looks_like_diagram(formatted_starter)) else "playground"
                 blocks.append({
                     "id": str(uuid.uuid4()),
                     "type": "code",
-                    "data": {"mode": "playground", "language": language, "code": formatted_starter, "expected": ""}
+                    "data": {"mode": downgraded_mode, "language": language, "code": formatted_starter, "expected": ""}
                 })
             else:
                 blocks.append({
