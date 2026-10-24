@@ -9,7 +9,9 @@ import DeleteModal from '../../components/ui/DeleteModal';
 import Gradebook from '../../components/teacher/Gradebook';
 import './Classwork.css';
 
-const GROUP_ORDER = ['live', 'reopened', 'open', 'material', 'draft', 'closed'];
+// Drafts lead: a newly created activity lands there, and that's the group the
+// teacher is looking for right after creating something.
+const GROUP_ORDER = ['draft', 'live', 'reopened', 'open', 'material', 'closed'];
 
 function groupActivities(activities) {
     const groups = { live: [], reopened: [], open: [], material: [], draft: [], closed: [] };

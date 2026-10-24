@@ -332,9 +332,11 @@ export default function ActivityCard({ activity, classId, onDelete }) {
                     {activity.submissions_count !== undefined && (
                         <span className="cw-card-meta-item">
                             <Users size={12} />
-                            {isQuiz
-                                ? `${activity.submissions_count}/${activity.enrolled_count ?? '—'} submitted`
-                                : `${activity.submissions_count} submitted`}
+                            {isMaterial
+                                ? `${activity.submissions_count} viewed`
+                                : isQuiz
+                                    ? `${activity.submissions_count}/${activity.enrolled_count ?? '—'} submitted`
+                                    : `${activity.submissions_count} submitted`}
                         </span>
                     )}
                     {timerSummary(activity) && (

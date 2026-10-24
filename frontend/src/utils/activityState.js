@@ -6,12 +6,13 @@ export function deriveState(activity) {
   const isQuiz = activity.activity_type === 'quiz';
   const subStatus = activity.submission_status;
 
-  // Materials are reference reading, not tasks: no deadline, no submission,
-  // no meaningful transition — a permanent chip on them is noise. They get
-  // one inert state that the cards render no chip for and the groupings
-  // park in their own "Materials" section.
+  // Materials are reference reading, not graded tasks. An unread material is
+  // actionable reading — it sits in To do (with the chip) until the student
+  // opens it; the read-tracking submission then moves it to the chip-less
+  // "Materials" section for good.
   if (activity.activity_type === 'activity' && activity.submission_type === 'material') {
-    return 'material';
+    const viewed = activity.submission_status === 'submitted' || activity.submission_status === 'graded';
+    return viewed ? 'material' : 'todo';
   }
 
   if (isQuiz) {

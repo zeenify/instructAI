@@ -1,5 +1,26 @@
 # Bug Log — organized for fixing
 
+## Quick checklist — all 14 entries (2026-10-23)
+
+Every logged bug is fixed and deployed. Sorted by entry number. The last column is the production re-check status: ✅ = already verified on prod, ⏳ = deployed but only dev-verified so far (check this one while testing prod).
+
+| # | Difficulty | Label | Issue (what went wrong) | Fix (what changed) | Prod verified |
+|---|---|---|---|---|---|
+| 1 | MEDIUM | AI studio tab collision | Clicking a finished Quiz tab also highlighted a Lesson and opened the lesson's content. | Tab selection now uses type-scoped keys (`lesson-N` / `quiz-N`), so quiz and lesson tabs can never collide. | ✅ |
+| 2 | EASY | Material status chip | Material cards always showed a status chip ("Ready" / "To do") even though materials never change state. | Materials render no status chip and sit in their own Materials group; unpublished materials still show Draft for the teacher. | ✅ |
+| 3 | HARD | AI question modal layout | The lesson tree could grow without limit and Advanced options opened below the fold, making the modal hard to use. | The modal is now two bounded panes — class material on the left with its own scrolling tree, question settings on the right — with the Automatic/Custom mix switch inline and a pinned footer. | ⏳ |
+| 4 | EASY | Max points default | New file-submission activities started with an empty Max points field, forcing teachers to type 100 every time. | New file submissions default to 100 points; an explicit value still wins and other activity types are unchanged. | ✅ |
+| 5 | HARD | Quiz lifecycle redesign | Quiz deadlines were confusing (and ignored in teacher-paced mode), and a closed room could not be reopened for absentees. | Quiz dates are gone; teachers now Close, Reopen, or Finalize a quiz, with catch-up for late joiners, a late flag on reopened attempts, and a 24-hour safety net. | ⏳ |
+| 6 | HARD | AI question cap | AI question generation was capped at 20 per run, blocking teachers who needed larger sets. | The cap is now 100 in the modal, Laravel, and the Python service, and the generating screen shows elapsed time plus an ETA. | ⏳ |
+| 7 | EASY | Multiple-choice option count | AI-generated multiple-choice questions sometimes came out with five options instead of four. | The prompt demands exactly four, and both the AI service and the commit step trim or reject anything else while preserving the correct answer. | ✅ |
+| 8 | MEDIUM | Code formatting in questions | Code inside AI-written questions collapsed into one unreadable paragraph. | A shared `FormattedText` renderer honors line breaks, fenced code blocks, and inline code on every question surface. | ✅ |
+| 9 | MEDIUM | Referenced code not shown | Questions asked about a named program without ever showing its code. | The generation prompt now embeds the actual snippet in any question whose premise depends on a program or example. | ✅ |
+| 10 | EASY | Materials in To-grade | Opening a material created a submission that appeared in the teacher's To-grade queue. | The grading queue and its sidebar counter exclude materials, while read tracking is unchanged. | ✅ |
+| 11-L | EASY | Terminal connect timeout | The live terminal could sit on "Compiling…" forever when the execution engine's websocket stalled. | A 30-second connect timer retries the wake-up up to three times, then resets the Run button instead of hanging. | ⏳ |
+| 12 | MEDIUM | AI Tutor error bubble | A tutor reply briefly showed a raw Python-style error and then disappeared from chat history. | Stream failures return a generic message, error-shaped text is sanitized before display and save, and the deployed cache is shared so replies persist. | ✅ |
+| 13 | HARD | Coding quiz per-case results | The coding results screen showed one "Expected Answer" that contradicted the 2/3 verdict and gave no breakdown of failed hidden tests. | Visible test cases now store and show input, expected, and actual output per case; hidden cases show verdict only; the misleading Expected Answer line is suppressed. | ⏳ |
+| 14 | EASY | Join refresh + empty state | A newly joined class only appeared after a manual refresh, and a student with no classes saw a bare home page. | Forced refetches bypass the stale legacy cache, and the overview has a proper empty state with a Join a class button. | ✅ |
+
 How this works now (2026-10-23):
 
 - The pre-pilot fix freeze is **lifted**. Fixes are authorized **label by label** — the user says which label to start, and only that label's bugs get fixed.

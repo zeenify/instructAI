@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import FormattedText from '../../components/ui/FormattedText';
+import AutoGrowTextarea from '../../components/ui/AutoGrowTextarea';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Reorder, useDragControls } from 'framer-motion';
 import {
@@ -218,8 +219,8 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
                     {/* Question text */}
                     <label className="db-field" style={{ marginBottom: 16 }}>
                         <span className="db-field-label">Question</span>
-                        <textarea className="db-input db-textarea" value={questionText} onChange={(e) => setQuestionText(e.target.value)}
-                            rows={3} required placeholder="Enter your question..." />
+                        <AutoGrowTextarea className="db-input db-textarea" value={questionText} onChange={(e) => setQuestionText(e.target.value)}
+                            rows={3} maxRows={14} required placeholder="Enter your question..." />
                     </label>
 
                     {/* Points */}
@@ -479,7 +480,7 @@ function QuestionBlock({ question, index, onUpdate, onDelete, onEdit, disabled, 
             </div>
 
             {isEditing ? (
-                <textarea className="ae-q-textarea" value={text} onChange={(e) => setText(e.target.value)} autoFocus
+                <AutoGrowTextarea className="ae-q-textarea" value={text} onChange={(e) => setText(e.target.value)} autoFocus
                     onBlur={() => { setIsEditing(false); save('text'); }} />
             ) : (
                 <p className="ae-q-text" onClick={() => !question.is_temp && setIsEditing(true)}>
@@ -804,6 +805,7 @@ export default function ActivityEditor() {
     if (!activity) return null;
 
     const isQuiz = activity.activity_type === 'quiz';
+    const isMaterial = activity.submission_type === 'material';
     const isLive = activity.is_live;
     const isPastDue = activity.deadline_at && new Date(activity.deadline_at) < new Date();
     const isLocked = activity.is_published && (activity.submissions_count || 0) > 0;
@@ -866,7 +868,9 @@ export default function ActivityEditor() {
                                     ? `${(activity.questions || []).length} question${(activity.questions || []).length !== 1 ? 's' : ''} · ${totalQuestionPoints} pts`
                                     : null,
                                 activity.submissions_count !== undefined
-                                    ? `${activity.submissions_count} submission${activity.submissions_count !== 1 ? 's' : ''}`
+                                    ? isMaterial
+                                        ? `${activity.submissions_count} view${activity.submissions_count !== 1 ? 's' : ''}`
+                                        : `${activity.submissions_count} submission${activity.submissions_count !== 1 ? 's' : ''}`
                                     : null,
                                 !isQuiz && activity.deadline_at && (
                                     <span key="due" style={{ color: isPastDue ? 'var(--db-danger)' : undefined }}>
@@ -890,7 +894,7 @@ export default function ActivityEditor() {
                     </span>
                     <button className="db-btn-ghost" onClick={() => navigate(`/dashboard/teacher/class/${classId}/activity/${activityId}/submissions`)}
                         type="button">
-                        <UserCheck size={15} /> {activity.submission_type === 'material' && !isQuiz ? 'View status' : 'Submissions'}
+                        <UserCheck size={15} /> {isMaterial && !isQuiz ? 'View status' : 'Submissions'}
                     </button>
                     {activity.is_published ? (
                         <button
@@ -923,8 +927,12 @@ export default function ActivityEditor() {
                 <div className="ae-banner warn">
                     <AlertTriangle size={16} style={{ flexShrink: 0 }} />
                     <span>
-                        {activity.submissions_count} submission{activity.submissions_count !== 1 ? 's' : ''} already in —
-                        most settings are locked to keep grading fair. You can still adjust the deadline.
+                        {isMaterial
+                            ? `${activity.submissions_count} student${activity.submissions_count !== 1 ? 's' : ''} already viewed this material — most settings stay locked.`
+                            : <>
+                                {activity.submissions_count} submission{activity.submissions_count !== 1 ? 's' : ''} already in —
+                                most settings are locked to keep grading fair. You can still adjust the deadline.
+                              </>}
                     </span>
                 </div>
             )}
@@ -935,7 +943,7 @@ export default function ActivityEditor() {
                     {/* Instructions */}
                     <div className="ae-card">
                         <h4 className="ae-card-label"><BookOpen size={13} /> Instructions</h4>
-                        <textarea className="ae-textarea" value={activity.description || ''}
+                        <AutoGrowTextarea className="ae-textarea" value={activity.description || ''}
                             onChange={(e) => handleFieldChange('description', e.target.value)} rows={5}
                             readOnly={isLocked || isPastDue}
                             placeholder="Add instructions for students..." />

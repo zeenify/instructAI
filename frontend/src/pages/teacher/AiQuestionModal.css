@@ -532,6 +532,28 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* Click-to-edit number between the − / + buttons */
+.aiq-stepper-num {
+    min-width: 34px;
+    width: 34px;
+    border: none;
+    background: transparent;
+    color: var(--db-text);
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 700;
+    text-align: center;
+    padding: 0;
+    outline: none;
+    font-variant-numeric: tabular-nums;
+}
+
+.aiq-stepper-num:focus { background: var(--db-card-2); }
+
+.aiq-stepper-num:disabled { opacity: 0.6; }
+
+.aiq-stepper--sm .aiq-stepper-num { min-width: 26px; width: 26px; font-size: 12.5px; }
+
 .aiq-seg {
     display: inline-flex;
     padding: 3px;

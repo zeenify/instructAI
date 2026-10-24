@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import FormattedText from '../../components/ui/FormattedText';
+import AutoGrowTextarea from '../../components/ui/AutoGrowTextarea';
 import { useQuery } from '@tanstack/react-query';
 import {
     ArrowRight,
@@ -51,6 +52,35 @@ const MODAL_Z = 9990;
 
 let localId = 0;
 const nextLocalId = () => `aiq${++localId}`;
+
+// The stepper's number is directly editable — click it and type. The typed
+// draft becomes the real count on blur or Enter, clamped to [min, max].
+function StepperNumber({ value, min, max, disabled, ariaLabel, onCommit }) {
+    const [draft, setDraft] = useState(null);
+    const commit = () => {
+        if (draft === null) return;
+        const n = Math.max(min, Math.min(max, parseInt(draft, 10) || min));
+        setDraft(null);
+        if (n !== value) onCommit(n);
+    };
+    return (
+        <input
+            type="text"
+            inputMode="numeric"
+            className="aiq-stepper-num"
+            disabled={disabled}
+            aria-label={ariaLabel}
+            value={draft ?? String(value)}
+            onFocus={(e) => { setDraft(String(value)); e.target.select(); }}
+            onChange={(e) => setDraft(e.target.value.replace(/\D/g, '').slice(0, 3))}
+            onBlur={commit}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+                if (e.key === 'Escape') { setDraft(null); e.currentTarget.blur(); }
+            }}
+        />
+    );
+}
 
 const fmtWords = (chars) => {
     const words = Math.max(1, Math.round(chars / 5.5));
@@ -670,7 +700,14 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                             <div className="aiq-count-row">
                                                 <div className="aiq-stepper">
                                                     <button type="button" aria-label="Fewer questions" onClick={() => setCount((c) => Math.max(1, c - 1))} disabled={countsActive || totalCount <= 1}>−</button>
-                                                    <span>{totalCount}</span>
+                                                    <StepperNumber
+                                                        value={totalCount}
+                                                        min={1}
+                                                        max={MAX_QUESTIONS}
+                                                        disabled={countsActive}
+                                                        ariaLabel="Number of questions"
+                                                        onCommit={(n) => setCount(n)}
+                                                    />
                                                     <button type="button" aria-label="More questions" onClick={() => setCount((c) => Math.min(MAX_QUESTIONS, c + 1))} disabled={countsActive || totalCount >= MAX_QUESTIONS}>+</button>
                                                 </div>
                                                 <span className="aiq-count-note">
@@ -698,9 +735,10 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
 
                                         <div className="aiq-setting-row">
                                             <div className="aiq-rail-label">Custom prompt <span className="aiq-optional">optional</span></div>
-                                            <textarea
+                                            <AutoGrowTextarea
                                                 className="aiq-focus"
                                                 rows={2}
+                                                maxRows={6}
                                                 maxLength={500}
                                                 value={focus}
                                                 onChange={(e) => setFocus(e.target.value)}
@@ -745,7 +783,14 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                                                         onClick={() => setCounts((c) => ({ ...c, [t.id]: Math.max(0, Number(c[t.id]) - 1) }))}
                                                                         disabled={locked || Number(counts[t.id]) <= 0}
                                                                     >−</button>
-                                                                    <span>{counts[t.id]}</span>
+                                                                    <StepperNumber
+                                                                        value={Number(counts[t.id])}
+                                                                        min={0}
+                                                                        max={Math.max(0, MAX_QUESTIONS - (countsSum - Number(counts[t.id])))}
+                                                                        disabled={locked}
+                                                                        ariaLabel={`Number of ${t.label} questions`}
+                                                                        onCommit={(n) => setCounts((c) => ({ ...c, [t.id]: n }))}
+                                                                    />
                                                                     <button
                                                                         type="button"
                                                                         aria-label={`More ${t.label}`}
@@ -891,9 +936,10 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                         </button>
                                     </div>
 
-                                    <textarea
+                                    <AutoGrowTextarea
                                         className="aiq-qtext"
                                         rows={2}
+                                        maxRows={12}
                                         value={d.question_text}
                                         onChange={(e) => patchDraft(d.localId, { question_text: e.target.value })}
                                         aria-label={`Question ${index + 1} text`}
@@ -1002,9 +1048,10 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                         <div className="aiq-coding">
                                             <div className="aiq-coding-field">
                                                 <div className="aiq-rail-label">Starter code</div>
-                                                <textarea
+                                                <AutoGrowTextarea
                                                     className="aiq-code"
                                                     rows={4}
+                                                    maxRows={16}
                                                     value={d.boilerplate}
                                                     onChange={(e) => patchDraft(d.localId, { boilerplate: e.target.value })}
                                                     aria-label={`Question ${index + 1} starter code`}
@@ -1015,9 +1062,10 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                                 <div className="aiq-rail-label">
                                                     Reference solution <span className="aiq-optional">the answer key — students never see it</span>
                                                 </div>
-                                                <textarea
+                                                <AutoGrowTextarea
                                                     className="aiq-code"
                                                     rows={5}
+                                                    maxRows={16}
                                                     value={d.reference_code}
                                                     onChange={(e) => patchDraft(d.localId, { reference_code: e.target.value })}
                                                     aria-label={`Question ${index + 1} reference solution`}
@@ -1026,9 +1074,10 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                             </div>
                                             <div className="aiq-coding-field">
                                                 <div className="aiq-rail-label">Expected output</div>
-                                                <textarea
+                                                <AutoGrowTextarea
                                                     className="aiq-code aiq-code--short"
                                                     rows={2}
+                                                    maxRows={8}
                                                     value={d.expected_output}
                                                     onChange={(e) => patchDraft(d.localId, { expected_output: e.target.value })}
                                                     aria-label={`Question ${index + 1} expected output`}
@@ -1056,9 +1105,10 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                                                     Remove
                                                                 </button>
                                                             </div>
-                                                            <textarea
+                                                            <AutoGrowTextarea
                                                                 className="aiq-code"
                                                                 rows={2}
+                                                                maxRows={8}
                                                                 value={tc.input}
                                                                 onChange={(e) => patchDraft(d.localId, { test_cases: d.test_cases.map((x, j) => (j === ti ? { ...x, input: e.target.value } : x)) })}
                                                                 aria-label={`Question ${index + 1} test case ${ti + 1} stdin`}
@@ -1066,9 +1116,10 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                                                                 placeholder="(empty stdin is allowed)"
                                                             />
                                                             <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--db-text-3)' }}>Expected stdout</span>
-                                                            <textarea
+                                                            <AutoGrowTextarea
                                                                 className="aiq-code"
                                                                 rows={2}
+                                                                maxRows={8}
                                                                 value={tc.expected_output}
                                                                 onChange={(e) => patchDraft(d.localId, { test_cases: d.test_cases.map((x, j) => (j === ti ? { ...x, expected_output: e.target.value } : x)) })}
                                                                 aria-label={`Question ${index + 1} test case ${ti + 1} expected output`}
