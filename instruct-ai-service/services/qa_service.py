@@ -18,6 +18,8 @@ Event contract (SSE `data: {json}\n\n`, `: heartbeat\n\n` comments):
 import asyncio
 import json
 import os
+import time
+import urllib.error
 import urllib.request
 
 from config.gen_schemas import qa_questions_format
@@ -343,24 +345,56 @@ def _normalize_output(text):
 
 
 def _engine_exec(language, code, stdin):
+    """One engine execute with a cold-start wake-retry. The engine sleeps on
+    Render's free tier — the first hit after a quiet stretch meets a waking
+    container (5xx/connection error) while a boot takes 30-50s. Without this
+    retry, every proposed test case was silently discarded whenever the
+    teacher generated during a cold window (mirrors the wake-retry the
+    studio's engine_client has always had)."""
     engine_url = (os.environ.get("EXECUTION_ENGINE_URL") or "http://localhost:3000").rstrip("/")
     engine_token = os.environ.get("EXECUTION_ENGINE_TOKEN") or ""
     headers = {"Content-Type": "application/json"}
     if engine_token:
         headers["X-Engine-Token"] = engine_token
-    req = urllib.request.Request(
-        engine_url + "/execute",
-        data=json.dumps({"language": language, "code": code, "input": stdin}).encode(),
-        headers=headers,
-    )
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        return json.loads(resp.read().decode())
+    last_err = None
+    for attempt in range(3):
+        req = urllib.request.Request(
+            engine_url + "/execute",
+            data=json.dumps({"language": language, "code": code, "input": stdin}).encode(),
+            headers=headers,
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                return json.loads(resp.read().decode())
+        except urllib.error.HTTPError as e:
+            last_err = e
+            if e.code >= 500 and attempt < 2:
+                print(f"[QA] engine waking (HTTP {e.code}) — retrying in 20s ({attempt + 1}/2)")
+                time.sleep(20)
+                continue
+            raise
+        except (urllib.error.URLError, OSError) as e:
+            last_err = e
+            if attempt < 2:
+                print(f"[QA] engine unreachable ({type(e).__name__}) — retrying in 20s ({attempt + 1}/2)")
+                time.sleep(20)
+                continue
+            raise
+    raise last_err
 
 
 def _verify_batch_test_cases(questions, language):
     """Keeps only test cases the reference solution actually passes; ships
-    questions with zero surviving tests without test cases (teacher-scored)."""
+    questions with zero surviving tests without test cases (teacher-scored).
+    Returns (questions, engine_failed) — the flag lets the stream TELL the
+    teacher why the tests are missing instead of failing silently."""
+    engine_failed = False
     for q in questions:
+        if engine_failed:
+            # Engine already proved unreachable — strip the rest unverified
+            # rather than burning another 40s of retries per question.
+            q.pop("test_cases", None)
+            continue
         tests = q.get("test_cases") or []
         if not tests or not q.get("reference_code"):
             q["test_cases"] = []
@@ -372,17 +406,20 @@ def _verify_batch_test_cases(questions, language):
                 failed_on_engine = bool((run.get("stderr") or "").strip() or (run.get("compile_output") or "").strip())
                 ok = (not failed_on_engine) and _normalize_output(run.get("stdout")) == _normalize_output(t["expected_output"])
             except Exception as e:
-                print(f"[QA] test-case verify skipped — engine unreachable: {type(e).__name__}: {e}")
-                kept = []
+                print(f"[QA] test-case verify failed — engine unreachable after retries: {type(e).__name__}: {e}")
+                engine_failed = True
                 break
             if ok:
                 kept.append(t)
             else:
                 print(f"[QA] dropped a proposed test case the reference solution failed")
-        q["test_cases"] = kept
-        if not kept:
+        if engine_failed:
             q.pop("test_cases", None)
-    return questions
+        else:
+            q["test_cases"] = kept
+            if not kept:
+                q.pop("test_cases", None)
+    return questions, engine_failed
 
 
 async def generate_qa_questions_stream(ai_pool: AIClientPool, context_sources, settings):
@@ -472,10 +509,27 @@ async def generate_qa_questions_stream(ai_pool: AIClientPool, context_sources, s
             continue
 
         if with_test_cases and any(q.get("test_cases") for q in questions):
-            yield f"data: {json.dumps({'type': 'status', 'message': 'Verifying proposed test cases on the execution engine…'})}\n\n"
-            questions = await asyncio.to_thread(
-                _verify_batch_test_cases, questions, language or "python"
+            yield f"data: {json.dumps({'type': 'status', 'message': 'Verifying proposed test cases on the execution engine (waking it if needed — this can take a minute)…'})}\n\n"
+            # Verification runs Java per test on the engine — tens of seconds,
+            # longer if the engine is cold-booting. The Laravel proxy drops
+            # the stream after 45s of silence, so heartbeats flow while the
+            # thread works (same pattern _run_batch uses).
+            verify_task = asyncio.create_task(
+                asyncio.to_thread(_verify_batch_test_cases, questions, language or "python")
             )
+            while not verify_task.done():
+                yield ": heartbeat\n\n"
+                await asyncio.sleep(10)
+            questions, engine_failed = verify_task.result()
+            if engine_failed:
+                yield (
+                    "data: "
+                    + json.dumps({
+                        "type": "status",
+                        "message": "The execution engine could not be reached, so these coding questions were saved WITHOUT test cases — generate again in a minute, or add test cases by hand in the editor.",
+                    })
+                    + "\n\n"
+                )
             kept = sum(len(q.get("test_cases") or []) for q in questions)
             yield f"data: {json.dumps({'type': 'status', 'message': f'{kept} test case(s) survived verification'})}\n\n"
 
