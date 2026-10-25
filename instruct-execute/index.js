@@ -487,7 +487,20 @@ function sweepTempDirs() {
 sweepTempDirs();
 setInterval(sweepTempDirs, 60 * 60 * 1000).unref();
 
-// --- 1. AUTH + REQUEST LOGGER ---
+// --- 1. CORS + AUTH + REQUEST LOGGER ---
+// The browser calls /execute-batch DIRECTLY (long runs must not sit on the
+// Laravel edge: parallel quiz traffic got 503'd there while a batch ran).
+// The engine is tokenless by design — the WS has always been open.
+app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Engine-Token');
+    res.setHeader('Access-Control-Max-Age', '600');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    next();
+});
+
+// --- 2. AUTH + REQUEST LOGGER ---
 // Behind a deployment proxy (Render/Railway) every student arrives through
 // the same edge IP; trust proxy lets req.ip resolve X-Forwarded-For so the
 // rate budget is per-coursemate instead of per-infrastructure.
@@ -508,7 +521,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// --- 2. HEALTH / CAPABILITIES ---
+// --- 3. HEALTH / CAPABILITIES ---
 app.get('/', (req, res) => {
     res.json({ status: 'online', service: 'InstructAI Execution Engine', languages: SUPPORTED_IDS });
 });
@@ -809,7 +822,7 @@ app.post('/execute-batch', async (req, res) => {
     res.json(result);
 });
 
-// --- 4. WEBSOCKET INTERACTIVE EXECUTION ---
+// --- 5. WEBSOCKET INTERACTIVE EXECUTION ---
 wss.on('connection', (ws, req) => {
     if (!requestAuthorized(req)) {
         ws.close();

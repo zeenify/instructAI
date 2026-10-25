@@ -268,7 +268,9 @@ const tutorPromise = aiTutor(students[0].token).catch((e) => { log('AI TUTOR err
 
 // Students trickle in like a real class entering the quiz (0-13s), not a
 // synchronized wall — the earlier run measured the worst-case wall separately.
-const results = await Promise.all(students.map((s, i) =>
+const LIMIT = parseInt(process.env.STUDENT_LIMIT || '0', 10);
+const activeStudents = LIMIT > 0 ? students.slice(0, LIMIT) : students;
+const results = await Promise.all(activeStudents.map((s, i) =>
   new Promise((r) => setTimeout(r, i * 1200)).then(() => studentFlow(browser, s))));
 const teacherErrors = await teacherPromise;
 const [gen, tutor] = await Promise.all([genPromise, tutorPromise]);

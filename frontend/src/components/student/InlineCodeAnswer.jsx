@@ -165,6 +165,15 @@ export default function InlineCodeAnswer({
             // check run. ONE batch call compiles once and runs every input —
             // per-case compiles tripled the cold-javac cost and blew timeouts.
             if (sampleTests.length > 0) {
+                // Long runs go DIRECT to the engine: while a batch sat on the
+                // Laravel edge, the page's other calls (heartbeat/state) got
+                // 503'd in class-scale bursts. Same origin as the terminal WS.
+                let engineBase = import.meta.env.VITE_WS_URL || 'ws://localhost:3000';
+                if (engineBase.includes('localhost') && !window.location.hostname.includes('localhost')) {
+                    engineBase = 'wss://instruct-execute.onrender.com';
+                }
+                const engineHttp = engineBase.replace(/^ws/, 'http');
+
                 let batch = null;
                 let lastErr = null;
                 // A whole class clicking Run at once over-subscribes the
@@ -176,17 +185,41 @@ export default function InlineCodeAnswer({
                 for (let attempt = 0; attempt < 1 + BUSY_DELAYS.length; attempt += 1) {
                     if (attempt > 0) await new Promise((r) => setTimeout(r, BUSY_DELAYS[attempt - 1]));
                     try {
-                        const res = await api.post('/student/execute-batch', {
-                            code: value || boilerplate,
-                            language: lang.id,
-                            inputs: sampleTests.map((t) => t.input ?? ''),
-                        }, { timeout: 50000 });
-                        batch = res.data;
+                        let data;
+                        try {
+                            const direct = await fetch(`${engineHttp}/execute-batch`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    code: value || boilerplate,
+                                    language: lang.id,
+                                    inputs: sampleTests.map((t) => t.input ?? ''),
+                                }),
+                                signal: AbortSignal.timeout(150000),
+                            });
+                            if (!direct.ok) {
+                                const body = await direct.json().catch(() => ({}));
+                                const e = new Error(body.error || `engine HTTP ${direct.status}`);
+                                e.response = { status: direct.status, data: body };
+                                throw e;
+                            }
+                            data = await direct.json();
+                        } catch {
+                            // CORS/network/edge failure on the direct hop — fall
+                            // back to the relayed route (slower, but equivalent).
+                            const res = await api.post('/student/execute-batch', {
+                                code: value || boilerplate,
+                                language: lang.id,
+                                inputs: sampleTests.map((t) => t.input ?? ''),
+                            }, { timeout: 50000 });
+                            data = res.data;
+                        }
+                        batch = data;
                         break;
                     } catch (err) {
                         lastErr = err;
-                        const message = String(err?.response?.data?.message || '');
-                        const busy = err?.response?.status === 503 && /busy/i.test(message);
+                        const message = String(err?.response?.data?.message || err?.response?.data?.error || '');
+                        const busy = [429, 503].includes(err?.response?.status) && /busy/i.test(message);
                         if (!err?.response) {
                             // Network-level drop — one quiet retry, then bail.
                             if (attempt === 0) continue;
