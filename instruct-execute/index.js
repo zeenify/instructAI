@@ -646,6 +646,10 @@ function executeBatch({ language, code, inputs, timeoutMs = REST_TIMEOUT_MS }) {
         const lang = LANGS[language];
         const folderPath = path.join(os.tmpdir(), `exec-${uuidv4()}`);
         const startedAt = Date.now();
+        // The overall budget scales with the per-run timeout: a caller asking
+        // for patient runs (the auto-grader) must not trip a fixed 40s cap
+        // mid-batch and get its remaining inputs back as fake timeouts.
+        const totalBudgetMs = Math.max(BATCH_TOTAL_BUDGET_MS, timeoutMs * inputs.length + 5000);
         let compileChild = null;
         let compileTimer = null;
         let runChild = null;
@@ -708,7 +712,7 @@ function executeBatch({ language, code, inputs, timeoutMs = REST_TIMEOUT_MS }) {
         const runAll = async () => {
             const results = [];
             for (const input of inputs) {
-                if (Date.now() - startedAt > BATCH_TOTAL_BUDGET_MS) {
+                if (Date.now() - startedAt > totalBudgetMs) {
                     results.push({
                         stdout: '',
                         stderr: 'Batch budget exhausted — press Run again in a moment.',
@@ -814,10 +818,14 @@ app.post('/execute-batch', async (req, res) => {
         return res.status(429).json({ error: 'The engine is busy right now — try again in a few seconds.' });
     }
 
+    // The auto-grader asks for patient runs (25s); interactive sample tests
+    // keep the snappy default. Unknown to older engines? Ignored harmlessly.
+    const runTimeoutMs = Math.min(Math.max(parseInt(req.body.timeout_ms, 10) || 0, 1000), 25000);
     const result = await executeBatch({
         language,
         code,
         inputs: inputs.map((v) => (v == null ? '' : String(v))),
+        timeoutMs: runTimeoutMs >= 1000 ? runTimeoutMs : REST_TIMEOUT_MS,
     });
     res.json(result);
 });

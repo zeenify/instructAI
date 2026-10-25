@@ -167,13 +167,18 @@ class CodeRunner
      * @param  array<int, string>  $inputs
      * @return array{compile_output: string, compile_timed_out: bool, results: array<int, array{stdout: string, stderr: string, exit_code: int|null, timed_out: bool, duration_ms?: int}>, engine_error: bool, message?: string}
      */
-    public static function executeBatch(string $language, string $code, array $inputs): array
+    public static function executeBatch(string $language, string $code, array $inputs, int $timeoutMs = 0): array
     {
         $payload = [
             'language' => $language,
             'code' => self::preprocessForEngine($language, $code),
             'inputs' => array_map(fn ($v) => str_replace("\r\n", "\n", (string) $v), array_values($inputs)),
         ];
+        // Patient per-run timeout for background grading (engine clamps to
+        // its own max; a 0/absent value keeps the engine's snappy default).
+        if ($timeoutMs > 0) {
+            $payload['timeout_ms'] = $timeoutMs;
+        }
 
         $localUrl = 'http://localhost:3000/execute-batch';
         $base = rtrim((string) env('EXECUTION_ENGINE_URL'), '/');
@@ -183,8 +188,13 @@ class CodeRunner
         $deployedUrl = $base !== '' ? $base.'/execute-batch' : '';
 
         $token = (string) env('EXECUTION_ENGINE_TOKEN', '');
-        $post = function (string $url, array $payload) use ($token) {
-            $request = Http::timeout(60)->asJson();
+        // HTTP wait must cover the whole batch: per-run timeout × inputs, plus
+        // compile/settle headroom (the engine's own budget matches this math).
+        $httpTimeout = $timeoutMs > 0
+            ? ($timeoutMs * count($payload['inputs'])) + 25
+            : 60;
+        $post = function (string $url, array $payload) use ($token, $httpTimeout) {
+            $request = Http::timeout($httpTimeout)->asJson();
             if ($token !== '') {
                 $request = $request->withHeaders(['X-Engine-Token' => $token]);
             }

@@ -66,9 +66,22 @@ async function studentFlow(browser, stu) {
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 160)); });
   page.on('pageerror', (e) => errors.push('PAGEERROR ' + String(e.message).slice(0, 160)));
-  const result = { id: stu.id, ok: false, score: null, steps: [], errors, failedRequests: [] };
+  const result = { id: stu.id, ok: false, score: null, steps: [], errors, failedRequests: [], httpLog: [] };
+  const reqStart = new Map();
+  const shortPath = (url) => { const m = url.match(/https?:\/\/[^/]+\/(.*)/); return (m ? m[1] : url).slice(0, 90); };
+  page.on('request', (r) => { if (/\/api\/|execute-batch|\/execute\b|onrender\.com/.test(r.url())) reqStart.set(r, Date.now()); });
+  page.on('response', (r) => {
+    const start = reqStart.get(r.request()); if (!start) return; reqStart.delete(r.request());
+    if (r.status() >= 400 || /execute-batch/.test(r.url())) {
+      result.httpLog.push({ t: Date.now() - t0, ms: Date.now() - start, m: r.request().method(), p: shortPath(r.url()), s: r.status() });
+    }
+  });
   page.on('requestfailed', (r) => {
-    if (r.url().includes('/api/')) result.failedRequests.push(`${r.method()} ${r.url().split('/api/')[1]} ${r.failure()?.errorText}`);
+    if (r.url().includes('/api/') || /execute-batch/.test(r.url())) {
+      const start = reqStart.get(r); reqStart.delete(r);
+      result.failedRequests.push(`${r.method()} ${shortPath(r.url())} ${r.failure()?.errorText}`);
+      result.httpLog.push({ t: Date.now() - t0, ms: start ? Date.now() - start : -1, m: r.method(), p: shortPath(r.url()), s: 0, err: r.failure()?.errorText });
+    }
   });
   const step = (name, ms, extra = '') => {
     result.steps.push({ name, ms: Math.round(ms), extra });
@@ -296,6 +309,13 @@ for (const [name, arr] of Object.entries(allSteps)) {
 console.log('\nTeacher probes (browser page loads):');
 for (const p of teacherProbes) console.log(`  ${p.name}: ${p.ms >= 0 ? p.ms + 'ms' : 'FAILED ' + (p.error || '')}`);
 console.log(`Teacher console errors: ${teacherErrors.length}${teacherErrors.length ? ' — ' + teacherErrors[0].slice(0, 100) : ''}`);
+const statusAgg = {};
+for (const r of results) for (const h of r.httpLog || []) {
+  const key = `${h.s || 'net:' + (h.err || '?')} ${(h.p || '').replace(/\?.*/, '').replace(/quiz\/(heartbeat|state|answers|advance|start|finish)/, 'quiz/$1').replace(/\/\d+/, '/N')}`;
+  statusAgg[key] = (statusAgg[key] || 0) + 1;
+}
+console.log('\nNon-2xx / failed HTTP timeline (aggregated):');
+for (const [k, n] of Object.entries(statusAgg).sort((a, b) => b[1] - a[1]).slice(0, 20)) console.log(`  ${String(n).padStart(4)}× ${k}`);
 if (gen) console.log(`AI generation under load: ${(gen.ms / 1000).toFixed(1)}s, ${gen.questions} questions, ${gen.tests} test cases`);
 if (tutor) console.log(`AI tutor under load: HTTP ${tutor.status} in ${(tutor.ms / 1000).toFixed(1)}s`);
 console.log(`Wall time: ${((Date.now() - t0) / 1000).toFixed(0)}s`);

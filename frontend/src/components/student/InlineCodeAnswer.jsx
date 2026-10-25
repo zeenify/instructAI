@@ -179,11 +179,16 @@ export default function InlineCodeAnswer({
                 // A whole class clicking Run at once over-subscribes the
                 // engine; over-cap callers get a clean 'busy' answer. Queue
                 // behind the class with staggered retries instead of failing
-                // the check — and say what's happening.
-                const BUSY_DELAYS = [3000, 7000, 12000, 16000];
+                // the check — and say what's happening. Each click jitters its
+                // own schedule (±25%): a whole class retrying at the exact
+                // same 3s/7s/12s marks re-creates the synchronized 429 wave
+                // the staggering is meant to break.
+                const delays = [3000, 7000, 12000, 16000].map(
+                    (ms) => Math.round(ms * (0.75 + Math.random() * 0.5)),
+                );
                 let busyWait = 0;
-                for (let attempt = 0; attempt < 1 + BUSY_DELAYS.length; attempt += 1) {
-                    if (attempt > 0) await new Promise((r) => setTimeout(r, BUSY_DELAYS[attempt - 1]));
+                for (let attempt = 0; attempt < 1 + delays.length; attempt += 1) {
+                    if (attempt > 0) await new Promise((r) => setTimeout(r, delays[attempt - 1]));
                     try {
                         let data;
                         try {
@@ -201,10 +206,18 @@ export default function InlineCodeAnswer({
                                 const body = await direct.json().catch(() => ({}));
                                 const e = new Error(body.error || `engine HTTP ${direct.status}`);
                                 e.response = { status: direct.status, data: body };
+                                e.fromDirect = true;
                                 throw e;
                             }
                             data = await direct.json();
-                        } catch {
+                        } catch (directErr) {
+                            if (directErr?.fromDirect) {
+                                // The engine ANSWERED (busy/400/etc.) — handle
+                                // it in the outer catch; relaying through the
+                                // backend would double-hit the busy engine and
+                                // park a PHP worker for nothing.
+                                throw directErr;
+                            }
                             // CORS/network/edge failure on the direct hop — fall
                             // back to the relayed route (slower, but equivalent).
                             const res = await api.post('/student/execute-batch', {
@@ -226,9 +239,9 @@ export default function InlineCodeAnswer({
                             break;
                         }
                         if (!busy) break; // a real engine answer
-                        busyWait += BUSY_DELAYS[attempt] || 0;
+                        busyWait += delays[attempt] || 0;
                         setErrorType('system');
-                        setOutput(`The engine is busy with the class — retrying in about ${Math.round((BUSY_DELAYS[attempt] || 0) / 1000)}s… (${busyWait / 1000}s waited)`);
+                        setOutput(`The engine is busy with the class — retrying in about ${Math.round((delays[attempt] || 0) / 1000)}s… (${busyWait / 1000}s waited)`);
                     }
                 }
                 if (!batch) {

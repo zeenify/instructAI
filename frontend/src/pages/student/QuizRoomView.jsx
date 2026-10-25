@@ -286,7 +286,7 @@ export default function QuizRoomView() {
   }, [phase, activityId, applyPayload, loadQuiz]);
 
   const saveAnswer = useCallback(
-    async (questionId, value, idx) => {
+    async (questionId, value, idx, attempt = 0) => {
       pendingSaveRef.current = null;
       setSaveState("saving");
       try {
@@ -298,16 +298,29 @@ export default function QuizRoomView() {
         setSaveState("saved");
       } catch (err) {
         if (err.response?.status === 422) {
-          pendingSaveRef.current = null;
-          setSaveState("blocked");
-          const stateRes = await api.get(
-            `/student/activities/${activityId}/quiz/state`,
-            { bypassCache: true },
-          );
-          if (stateRes.data.finalized) {
-            applyPayload(stateRes.data);
+          const stateRes = await api
+            .get(`/student/activities/${activityId}/quiz/state`, {
+              bypassCache: true,
+            })
+            .catch(() => null);
+          const data = stateRes?.data;
+          if (data?.finalized) {
+            applyPayload(data);
             return;
           }
+          // Load testing caught transient 422s on self-paced students whose
+          // quiz was NOT over — the old code discarded the answer here and
+          // the points were silently lost. If the quiz is still live, retry
+          // a couple of times before giving up on the save.
+          if (attempt < 2) {
+            setSaveState("saving");
+            setTimeout(() => {
+              saveAnswer(questionId, value, idx, attempt + 1);
+            }, 2500);
+            return;
+          }
+          pendingSaveRef.current = null;
+          setSaveState("blocked");
           return;
         }
         pendingSaveRef.current = { questionId, value, idx };

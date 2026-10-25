@@ -35,11 +35,15 @@ class CodingQuestionGrader
 
         // One compile, every test input — grading used to compile the same
         // submission per test case, which on a cold free-tier engine pushed
-        // whole submissions past timeouts.
+        // whole submissions past timeouts. Grading runs in the background, so
+        // it also asks the engine for patient runs (25s): under class load the
+        // shared CPU can make a CORRECT program exceed the interactive 10s
+        // cap, which used to score it as an infinite loop.
         $batch = CodeRunner::executeBatch(
             $language,
             $code,
-            $testCases->map(fn ($tc) => (string) ($tc->input ?? ''))->all()
+            $testCases->map(fn ($tc) => (string) ($tc->input ?? ''))->all(),
+            25000
         );
 
         $batchEngineError = ! empty($batch['engine_error']) || ! empty($batch['compile_timed_out']);
@@ -85,6 +89,49 @@ class CodingQuestionGrader
             $tests[] = $entry;
             if ($ok) {
                 $passed++;
+            }
+        }
+
+        // A timed-out run under class load is usually the engine CPU being
+        // oversubscribed, not the student's infinite loop — in load tests,
+        // byte-identical correct code timed out for one student and passed
+        // 3/3 for her classmates seconds later. Before believing a timeout,
+        // re-run ONLY the timed-out inputs once, after a short breather.
+        // Still-slow retries keep the timeout verdict (real infinite loops
+        // stay failed, just with a patient cap).
+        $timedOutIdx = [];
+        foreach ($tests as $i => $t) {
+            if (! empty($t['timed_out']) && empty($t['engine_error'])) {
+                $timedOutIdx[] = $i;
+            }
+        }
+        if ($timedOutIdx !== [] && ! $batchEngineError) {
+            sleep(5);
+            $retry = CodeRunner::executeBatch(
+                $language,
+                $code,
+                collect($timedOutIdx)->map(fn ($i) => (string) ($testCases[$i]->input ?? ''))->all(),
+                25000
+            );
+            $retryClean = empty($retry['engine_error'])
+                && empty($retry['compile_timed_out'])
+                && trim((string) ($retry['compile_output'] ?? '')) === '';
+            if ($retryClean) {
+                foreach ($timedOutIdx as $round => $i) {
+                    $run = $retry['results'][$round] ?? null;
+                    if ($run === null || ! empty($run['timed_out'])) {
+                        continue;
+                    }
+                    $expected = CodeRunner::normalizeOutput((string) $testCases[$i]->expected_output);
+                    $actual = CodeRunner::normalizeOutput((string) ($run['stdout'] ?? ''));
+                    $tests[$i]['timed_out'] = false;
+                    $tests[$i]['passed'] = $actual === $expected;
+                    if (! $testCases[$i]->hidden) {
+                        $tests[$i]['actual_output'] = self::clip($actual);
+                        $tests[$i]['stderr'] = self::clip((string) ($run['stderr'] ?? ''));
+                    }
+                }
+                $passed = collect($tests)->filter(fn ($t) => ! empty($t['passed']))->count();
             }
         }
 
