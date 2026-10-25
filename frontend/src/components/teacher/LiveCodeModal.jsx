@@ -2,43 +2,70 @@
 // question. Polls live-drafts on demand so the teacher can see who's stuck,
 // how far along each student is — and run any student's code on the REAL
 // interactive terminal (type into their running program like a console).
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
-import { X, RefreshCw, Loader2, Users, Code2 } from 'lucide-react';
+import { X, RefreshCw, Loader2, Users, Code2, Play, Square } from 'lucide-react';
 import api from '../../services/api';
 import { cmExtension, languageOf } from '../../utils/codeLanguages';
 import InteractiveTerminal from '../student/InteractiveTerminal';
 
 // One panel per expanded student, mirroring the student CodeIDE pattern:
-// Code / Terminal tabs. The terminal is the real InteractiveTerminal with its
-// own Run Program button — nothing executes until the teacher clicks Run, and
-// the session survives tab switches (both panes stay mounted).
+// Code / Terminal pill tabs with a slim toolbar. The terminal is the compact
+// InteractiveTerminal (no chrome of its own — the dark box is the panel's),
+// and Run lives in the toolbar, so nothing executes until the teacher clicks
+// it. Both panes stay mounted so a running session survives tab switches.
 function StudentCodePanel({ code, language }) {
     const [tab, setTab] = useState('code');
+    const [running, setRunning] = useState(false);
+    const termRef = useRef(null);
     return (
         <div>
-            <div style={{ display: 'flex', gap: '6px', padding: '10px 16px 0', borderBottom: '1px solid var(--border-color)' }}>
-                {[
-                    { id: 'code', label: 'Code' },
-                    { id: 'terminal', label: 'Terminal' },
-                ].map((t) => (
-                    <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setTab(t.id)}
-                        style={{
-                            padding: '7px 14px', borderTopLeftRadius: 9, borderTopRightRadius: 9,
-                            border: '1px solid', borderBottom: 'none',
-                            borderColor: tab === t.id ? 'var(--border-color)' : 'transparent',
-                            background: tab === t.id ? 'var(--bg-tertiary)' : 'transparent',
-                            color: tab === t.id ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                            fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                            marginBottom: -1,
-                        }}
-                    >
-                        {t.label}
-                    </button>
-                ))}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '8px 16px', borderBottom: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                    {[
+                        { id: 'code', label: 'Code' },
+                        { id: 'terminal', label: 'Terminal' },
+                    ].map((t) => (
+                        <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setTab(t.id)}
+                            style={{
+                                padding: '6px 14px',
+                                borderRadius: 999,
+                                border: 'none',
+                                background: tab === t.id ? 'rgba(10, 132, 255, 0.14)' : 'transparent',
+                                color: tab === t.id ? '#0a84ff' : 'var(--text-tertiary)',
+                                fontSize: 12,
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                            }}
+                        >
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
+                {tab === 'terminal' && (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        {running && (
+                            <button
+                                type="button"
+                                onClick={() => termRef.current?.stop()}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: 9, border: '1px solid rgba(239, 68, 68, 0.4)', background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}
+                            >
+                                <Square size={12} /> Stop
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => termRef.current?.triggerRun()}
+                            disabled={running}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: 9, border: 'none', background: running ? 'rgba(10,132,255,0.4)' : '#0a84ff', color: '#fff', fontSize: 12, fontWeight: 800, cursor: running ? 'wait' : 'pointer' }}
+                        >
+                            <Play size={12} /> {running ? 'Running…' : 'Run program'}
+                        </button>
+                    </div>
+                )}
             </div>
             <div style={{ display: tab === 'code' ? 'block' : 'none' }}>
                 <CodeMirror
@@ -50,8 +77,8 @@ function StudentCodePanel({ code, language }) {
                     basicSetup={{ foldGutter: false, highlightActiveLine: false }}
                 />
             </div>
-            <div style={{ display: tab === 'terminal' ? 'block' : 'none', height: 360 }}>
-                <InteractiveTerminal code={code} language={language} />
+            <div style={{ display: tab === 'terminal' ? 'block' : 'none', height: 340, background: '#0d0d1a', overflow: 'hidden' }}>
+                <InteractiveTerminal ref={termRef} code={code} language={language} compact onRunningChange={setRunning} />
             </div>
         </div>
     );
@@ -159,17 +186,7 @@ export default function LiveCodeModal({ activityId, onClose }) {
                                 </button>
                                 {openStudent === d.student_id && (
                                     d.code ? (
-                                        <div>
-                                            <CodeMirror
-                                                value={d.code}
-                                                editable={false}
-                                                height="220px"
-                                                extensions={[cmExtension(lang.id)]}
-                                                theme="dark"
-                                                basicSetup={{ foldGutter: false, highlightActiveLine: false }}
-                                            />
-                                            <StudentCodePanel code={d.code} language={data?.language || 'java'} />
-                                        </div>
+                                        <StudentCodePanel code={d.code} language={data?.language || 'java'} />
                                     ) : (
                                         <div style={{ padding: '14px 16px', color: 'var(--text-tertiary)', fontSize: '12px', fontStyle: 'italic' }}>
                                             This student hasn't typed any code for the current question.
