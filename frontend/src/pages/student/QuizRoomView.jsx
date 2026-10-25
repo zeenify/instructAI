@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import api, { invalidateCache } from "../../services/api";
 import {
   ChevronLeft,
@@ -890,7 +891,7 @@ export default function QuizRoomView() {
       >
         <div
           style={{
-            maxWidth: "560px",
+            maxWidth: "640px",
             width: "100%",
             background: "var(--bg-secondary)",
             border: "1px solid var(--border-color)",
@@ -1137,7 +1138,7 @@ export default function QuizRoomView() {
       >
         <div
           style={{
-            maxWidth: "760px",
+            maxWidth: "1080px",
             margin: "0 auto",
             padding: "48px 24px 96px",
           }}
@@ -1486,7 +1487,7 @@ export default function QuizRoomView() {
       >
         <div
           style={{
-            maxWidth: "760px",
+            maxWidth: "1080px",
             margin: "0 auto",
             padding: "16px 24px",
             display: "flex",
@@ -1613,7 +1614,7 @@ export default function QuizRoomView() {
       <div
         style={{
           flex: 1,
-          maxWidth: "760px",
+          maxWidth: "1080px",
           width: "100%",
           margin: "0 auto",
           padding: "40px 24px 120px",
@@ -1664,23 +1665,34 @@ export default function QuizRoomView() {
           </div>
         ) : (
           <>
-            <QuestionRenderer
-              key={currentQuestion.id}
-              question={currentQuestion}
-              value={answers[currentQuestion.id]}
-              onChange={(val) => onAnswerChange(currentQuestion.id, val)}
-              disabled={teacherPacing && atLiveQuestion && teacherPhase === "revealed"}
-            />
-            {teacherPacing &&
-              atLiveQuestion &&
-              teacherPhase === "revealed" &&
-              payload.current_question_feedback && (
-                <RevealFeedback
-                  feedback={payload.current_question_feedback}
+            {/* Slide-and-fade so a teacher Next (or your own Next) glides the
+                new question in instead of hard-cutting it mid-read */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentQuestion.id}
+                initial={{ opacity: 0, x: 28 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -28 }}
+                transition={{ duration: 0.24, ease: "easeOut" }}
+              >
+                <QuestionRenderer
                   question={currentQuestion}
                   value={answers[currentQuestion.id]}
+                  onChange={(val) => onAnswerChange(currentQuestion.id, val)}
+                  disabled={teacherPacing && atLiveQuestion && teacherPhase === "revealed"}
                 />
-              )}
+                {teacherPacing &&
+                  atLiveQuestion &&
+                  teacherPhase === "revealed" &&
+                  payload.current_question_feedback && (
+                    <RevealFeedback
+                      feedback={payload.current_question_feedback}
+                      question={currentQuestion}
+                      value={answers[currentQuestion.id]}
+                    />
+                  )}
+              </motion.div>
+            </AnimatePresence>
           </>
         )}
 

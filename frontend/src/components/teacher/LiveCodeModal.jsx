@@ -1,9 +1,10 @@
 // Teacher view of students' live draft code during a teacher-paced coding
 // question. Polls live-drafts on demand so the teacher can see who's stuck,
-// how far along each student is, and discuss solutions mid-class.
+// how far along each student is, and discuss solutions mid-class — and run
+// any student's code on the real engine right from here.
 import { useEffect, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
-import { X, RefreshCw, Loader2, Users, Code2 } from 'lucide-react';
+import { X, RefreshCw, Loader2, Users, Code2, Play, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
 import { cmExtension, languageOf } from '../../utils/codeLanguages';
 
@@ -13,6 +14,8 @@ export default function LiveCodeModal({ activityId, onClose }) {
     const [refreshing, setRefreshing] = useState(false);
     const [message, setMessage] = useState(null);
     const [openStudent, setOpenStudent] = useState(null);
+    const [runningId, setRunningId] = useState(null);
+    const [runResults, setRunResults] = useState({});
 
     const load = async (silent = false) => {
         if (!silent) setLoading(true);
@@ -26,6 +29,26 @@ export default function LiveCodeModal({ activityId, onClose }) {
         } finally {
             setLoading(false);
             setRefreshing(false);
+        }
+    };
+
+    // Runs the STUDENT's code as-is on the engine (no stdin — the draft
+    // carries none, so this shows the program's no-input behavior).
+    const runStudentCode = async (studentId, code) => {
+        setRunningId(studentId);
+        try {
+            const res = await api.post('/teacher/run-code', {
+                language: data?.language || 'java',
+                code,
+            });
+            setRunResults((prev) => ({ ...prev, [studentId]: res.data }));
+        } catch (err) {
+            setRunResults((prev) => ({
+                ...prev,
+                [studentId]: { stdout: '', stderr: '', compile_output: '', error: err.response?.data?.message || 'Run failed' },
+            }));
+        } finally {
+            setRunningId(null);
         }
     };
 
@@ -109,14 +132,59 @@ export default function LiveCodeModal({ activityId, onClose }) {
                                 </button>
                                 {openStudent === d.student_id && (
                                     d.code ? (
-                                        <CodeMirror
-                                            value={d.code}
-                                            editable={false}
-                                            height="220px"
-                                            extensions={[cmExtension(lang.id)]}
-                                            theme="dark"
-                                            basicSetup={{ foldGutter: false, highlightActiveLine: false }}
-                                        />
+                                        <div>
+                                            <CodeMirror
+                                                value={d.code}
+                                                editable={false}
+                                                height="220px"
+                                                extensions={[cmExtension(lang.id)]}
+                                                theme="dark"
+                                                basicSetup={{ foldGutter: false, highlightActiveLine: false }}
+                                            />
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', borderTop: '1px solid var(--border-color)' }}>
+                                                <button
+                                                    onClick={() => runStudentCode(d.student_id, d.code)}
+                                                    disabled={runningId === d.student_id}
+                                                    type="button"
+                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '7px 14px', borderRadius: '9px', border: 'none', background: 'var(--accent, #0a84ff)', color: '#fff', fontSize: '12px', fontWeight: 800, cursor: runningId === d.student_id ? 'wait' : 'pointer', opacity: runningId === d.student_id ? 0.7 : 1 }}
+                                                >
+                                                    {runningId === d.student_id ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
+                                                    {runningId === d.student_id ? 'Running…' : 'Run this code'}
+                                                </button>
+                                                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                                                    Runs on the class engine with no input — you see what their program does on its own.
+                                                </span>
+                                            </div>
+                                            {runResults[d.student_id] && (
+                                                <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                    {runResults[d.student_id].error && (
+                                                        <p style={{ margin: 0, fontSize: '12px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <AlertCircle size={13} /> {runResults[d.student_id].error}
+                                                        </p>
+                                                    )}
+                                                    {runResults[d.student_id].compile_output && (
+                                                        <pre style={{ margin: 0, padding: '10px 12px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.08)', color: '#f87171', fontSize: '12px', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                                            {runResults[d.student_id].compile_output}
+                                                        </pre>
+                                                    )}
+                                                    {runResults[d.student_id].stdout && (
+                                                        <pre style={{ margin: 0, padding: '10px 12px', borderRadius: '10px', background: 'rgba(2, 6, 23, 0.72)', color: '#e2e8f0', fontSize: '12px', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                                            {runResults[d.student_id].stdout}
+                                                        </pre>
+                                                    )}
+                                                    {runResults[d.student_id].stderr && (
+                                                        <pre style={{ margin: 0, padding: '10px 12px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.08)', color: '#f59e0b', fontSize: '12px', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                                            {runResults[d.student_id].stderr}
+                                                        </pre>
+                                                    )}
+                                                    {!runResults[d.student_id].stdout && !runResults[d.student_id].stderr && !runResults[d.student_id].compile_output && !runResults[d.student_id].error && (
+                                                        <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                                                            (no output — the program printed nothing)
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     ) : (
                                         <div style={{ padding: '14px 16px', color: 'var(--text-tertiary)', fontSize: '12px', fontStyle: 'italic' }}>
                                             This student hasn't typed any code for the current question.

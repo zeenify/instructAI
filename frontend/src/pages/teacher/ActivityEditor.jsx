@@ -1047,50 +1047,61 @@ export default function ActivityEditor() {
                                 </span>
                             </div>
 
-                            {/* Timer */}
-                            <div style={{ marginBottom: 15 }}>
-                                <span className="ae-field-label">Timer</span>
-                                <div className="ae-seg">
-                                    {TIMER_MODES.filter((m) => !(activity.pacing_mode === 'teacher' && m.id === 'entire_quiz')).map((m) => (
-                                        <button key={m.id} type="button" disabled={quizSettingsDisabled}
-                                            onClick={() => handleFieldChange('timer_mode', m.id)}
-                                            className={`ae-seg-btn ${activity.timer_mode === m.id ? 'on' : ''}`}>
-                                            {m.label}
-                                        </button>
-                                    ))}
+                            {/* Timer — the teacher paces the questions themselves,
+                                so a clock only fights the teacher. Teacher-paced
+                                quizzes are always No limit. */}
+                            {activity.pacing_mode === 'teacher' ? (
+                                <div style={{ marginBottom: 15 }}>
+                                    <span className="ae-field-label">Timer</span>
+                                    <span className="ae-chip" style={{ background: 'var(--db-card-2)' }}>
+                                        <Timer size={13} /> No limit — you control the pace
+                                    </span>
                                 </div>
-
-                                {activity.timer_mode === 'entire_quiz' && (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 11 }}>
-                                        <input type="number" min={1} max={300} step={1} className="ae-input" style={{ width: 96 }}
-                                            value={activity.time_limit_minutes || ''} readOnly={quizSettingsDisabled}
-                                            onChange={(e) => handleFieldChange('time_limit_minutes', e.target.value ? Number(e.target.value) : null)}
-                                            placeholder="Minutes" />
-                                        <span style={{ fontSize: 12.5, color: 'var(--db-text-3)' }}>minutes for the whole quiz</span>
-                                    </div>
-                                )}
-
-                                {activity.timer_mode === 'per_question' && (
-                                    <div style={{ marginTop: 11, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                        {QUESTION_TYPES.map((t) => (
-                                            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                                <span style={{ flex: 1, fontSize: 13, color: 'var(--db-text-2)' }}>{t.label}</span>
-                                                <input
-                                                    type="number" min={5} max={900} step={5}
-                                                    className="ae-input" style={{ width: 76, textAlign: 'right' }}
-                                                    value={perQuestionDurations[t.id] || ''}
-                                                    readOnly={quizSettingsDisabled}
-                                                    onChange={(e) => {
-                                                        const next = { ...perQuestionDurations, [t.id]: e.target.value ? Number(e.target.value) : null };
-                                                        handleFieldChange('per_question_durations', next);
-                                                    }} />
-                                                <span style={{ fontSize: 12, color: 'var(--db-text-3)', width: 28 }}>sec</span>
-                                            </div>
+                            ) : (
+                                <div style={{ marginBottom: 15 }}>
+                                    <span className="ae-field-label">Timer</span>
+                                    <div className="ae-seg">
+                                        {TIMER_MODES.filter((m) => m.id !== 'entire_quiz').map((m) => (
+                                            <button key={m.id} type="button" disabled={quizSettingsDisabled}
+                                                onClick={() => handleFieldChange('timer_mode', m.id)}
+                                                className={`ae-seg-btn ${activity.timer_mode === m.id ? 'on' : ''}`}>
+                                                {m.label}
+                                            </button>
                                         ))}
-                                        <p className="ae-seg-hint" style={{ margin: '4px 0 0' }}>Smart defaults per type — adjust any value.</p>
                                     </div>
-                                )}
-                            </div>
+
+                                    {activity.timer_mode === 'entire_quiz' && (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 11 }}>
+                                            <input type="number" min={1} max={300} step={1} className="ae-input" style={{ width: 96 }}
+                                                value={activity.time_limit_minutes || ''} readOnly={quizSettingsDisabled}
+                                                onChange={(e) => handleFieldChange('time_limit_minutes', e.target.value ? Number(e.target.value) : null)}
+                                                placeholder="Minutes" />
+                                            <span style={{ fontSize: 12.5, color: 'var(--db-text-3)' }}>minutes for the whole quiz</span>
+                                        </div>
+                                    )}
+
+                                    {activity.timer_mode === 'per_question' && (
+                                        <div style={{ marginTop: 11, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                            {QUESTION_TYPES.map((t) => (
+                                                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                    <span style={{ flex: 1, fontSize: 13, color: 'var(--db-text-2)' }}>{t.label}</span>
+                                                    <input
+                                                        type="number" min={5} max={900} step={5}
+                                                        className="ae-input" style={{ width: 76, textAlign: 'right' }}
+                                                        value={perQuestionDurations[t.id] || ''}
+                                                        readOnly={quizSettingsDisabled}
+                                                        onChange={(e) => {
+                                                            const next = { ...perQuestionDurations, [t.id]: e.target.value ? Number(e.target.value) : null };
+                                                            handleFieldChange('per_question_durations', next);
+                                                        }} />
+                                                    <span style={{ fontSize: 12, color: 'var(--db-text-3)', width: 28 }}>sec</span>
+                                                </div>
+                                            ))}
+                                            <p className="ae-seg-hint" style={{ margin: '4px 0 0' }}>Smart defaults per type — adjust any value.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Shuffle */}
                             <button type="button" disabled={quizSettingsDisabled || activity.pacing_mode === 'teacher'}
@@ -1112,23 +1123,32 @@ export default function ActivityEditor() {
                             {/* Show results */}
                             <div>
                                 <span className="ae-field-label">Show results</span>
-                                <div className="ae-seg">
-                                    {[
-                                        { id: 'immediate', label: activity.pacing_mode === 'teacher' ? 'After each question' : 'Immediately' },
-                                        { id: 'room_close', label: activity.pacing_mode === 'teacher' ? 'At the end' : 'When room closes' },
-                                    ].map((opt) => (
-                                        <button key={opt.id} type="button" disabled={quizSettingsDisabled}
-                                            onClick={() => handleFieldChange('show_results', opt.id)}
-                                            className={`ae-seg-btn ${activity.show_results === opt.id ? 'on' : ''}`}>
-                                            {opt.label}
-                                        </button>
-                                    ))}
-                                </div>
-                                <p className="ae-seg-hint">
-                                    {activity.pacing_mode === 'teacher'
-                                        ? 'After each question: correctness appears when you reveal it. At the end: results only when the room closes.'
-                                        : 'Immediate: results appear right after a student submits. Room close: results stay hidden until you end the room.'}
-                                </p>
+                                {activity.pacing_mode === 'teacher' ? (
+                                    // Per-question reveal is gone — answers stay
+                                    // sealed until the room closes, so there is
+                                    // nothing to configure here anymore.
+                                    <span className="ae-chip" style={{ background: 'var(--db-card-2)' }}>
+                                        <EyeOff size={13} /> At the end — when the room closes
+                                    </span>
+                                ) : (
+                                    <>
+                                        <div className="ae-seg">
+                                            {[
+                                                { id: 'immediate', label: 'Immediately' },
+                                                { id: 'room_close', label: 'When room closes' },
+                                            ].map((opt) => (
+                                                <button key={opt.id} type="button" disabled={quizSettingsDisabled}
+                                                    onClick={() => handleFieldChange('show_results', opt.id)}
+                                                    className={`ae-seg-btn ${activity.show_results === opt.id ? 'on' : ''}`}>
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <p className="ae-seg-hint">
+                                            Immediate: results appear right after a student submits. Room close: results stay hidden until you end the room.
+                                        </p>
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}

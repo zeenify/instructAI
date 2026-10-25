@@ -118,9 +118,11 @@ class ClassActivity extends Model
     /**
      * The single close path — used by the teacher's Close action and the 24h
      * auto-close. Closing always stops new entrants and marks never-started
-     * attempts as missed. Started attempts keep working by default (the
-     * teacher's Close must not cut off a student mid-question); the 24h
-     * auto-close and an explicit "Finalize now" pass $finalizeDrafts = true.
+     * attempts as missed. Started attempts split: anyone still heartbeating
+     * (every 10s while their tab is open) keeps working and grades themselves
+     * on Finish; stale drafts — tab closed, gone, disconnected — grade right
+     * here, so nobody waits on a hidden "Finalize" button. An explicit
+     * $finalizeDrafts = true (24h net, manual finalize) grades everyone.
      */
     public function closeRoomNow(bool $finalizeDrafts = false): array
     {
@@ -139,7 +141,10 @@ class ClassActivity extends Model
 
             foreach ($submissions as $submission) {
                 if ($submission->started_at) {
-                    if ($finalizeDrafts) {
+                    $stillActive = $submission->last_seen_at
+                        && $submission->last_seen_at->gt($now->copy()->subSeconds(90));
+
+                    if ($finalizeDrafts || ! $stillActive) {
                         ActivityGrading::finalizeSubmission($submission, $this, $now->toDateTimeString());
                         $finalized++;
                     }

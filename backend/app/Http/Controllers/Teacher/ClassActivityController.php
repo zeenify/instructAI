@@ -213,16 +213,25 @@ class ClassActivityController extends Controller
             'deadline_behavior' => $validated['deadline_behavior'] ?? 'hard',
             'late_submission' => $validated['late_submission'] ?? false,
             'late_penalty_pct' => $validated['late_penalty_pct'] ?? null,
-            'time_limit_minutes' => $validated['time_limit_minutes'] ?? null,
+            'time_limit_minutes' => ($validated['pacing_mode'] ?? 'student') === 'teacher'
+                ? null
+                : ($validated['time_limit_minutes'] ?? null),
             'pacing_mode' => $validated['pacing_mode'] ?? 'student',
             'timer_mode' => ($validated['pacing_mode'] ?? 'student') === 'teacher'
                 ? 'none'
                 : ($validated['timer_mode'] ?? 'none'),
-            'per_question_durations' => $validated['per_question_durations'] ?? null,
+            // The teacher paces teacher-paced rooms themselves — any stored
+            // per-question clock would only fight them (and Catch-up students
+            // advance at their own click).
+            'per_question_durations' => ($validated['pacing_mode'] ?? 'student') === 'teacher'
+                ? null
+                : ($validated['per_question_durations'] ?? null),
             'shuffle_questions' => ($validated['pacing_mode'] ?? 'student') === 'teacher'
                 ? false
                 : ($validated['shuffle_questions'] ?? false),
-            'show_results' => $validated['show_results'] ?? 'room_close',
+            'show_results' => ($validated['pacing_mode'] ?? 'student') === 'teacher'
+                ? 'room_close'
+                : ($validated['show_results'] ?? 'room_close'),
             'order_index' => $maxOrder + 1,
         ]);
 
@@ -281,6 +290,17 @@ class ClassActivityController extends Controller
             // attempts that join after a Reopen.
             $validated['deadline_at'] = null;
             unset($validated['deadline_behavior'], $validated['late_submission'], $validated['late_penalty_pct']);
+
+            // Teacher-paced rooms have no clock of any kind — the teacher
+            // advances the questions, so timers only fight them. Results also
+            // only come out at close (per-question reveal no longer exists).
+            $effectivePacingNow = $validated['pacing_mode'] ?? $activity->pacing_mode;
+            if ($effectivePacingNow === 'teacher') {
+                $validated['timer_mode'] = 'none';
+                $validated['time_limit_minutes'] = null;
+                $validated['per_question_durations'] = null;
+                $validated['show_results'] = 'room_close';
+            }
 
             // Lock quiz settings while the room is live
             if ($activity->is_live) {
@@ -529,14 +549,23 @@ class ClassActivityController extends Controller
             return response()->json(['message' => 'This quiz is already closed'], 422);
         }
 
-        // Close stops new entrants. Students already working keep going and
-        // finish on their own — or the 24h net / Finalize now grades them.
+        // Close stops new entrants and grades everyone automatically — except
+        // students still actively working, who grade themselves on Finish.
         $result = $activity->closeRoomNow();
 
+        $parts = ['Quiz closed'];
+        if ($result['finalized'] > 0) {
+            $parts[] = $result['finalized'].' attempt(s) graded';
+        }
+        if ($result['missed'] > 0) {
+            $parts[] = $result['missed'].' marked missing';
+        }
+        if ($result['still_finishing'] > 0) {
+            $parts[] = $result['still_finishing'].' still finishing (grades on their submit)';
+        }
+
         return response()->json([
-            'message' => $result['still_finishing'] > 0
-                ? 'Quiz closed — '.$result['still_finishing'].' student(s) still finishing'
-                : 'Quiz closed',
+            'message' => implode(' · ', $parts),
             'finalized' => $result['finalized'],
             'missed' => $result['missed'],
             'still_finishing' => $result['still_finishing'],

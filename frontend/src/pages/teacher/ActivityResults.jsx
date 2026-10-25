@@ -117,6 +117,9 @@ export default function ActivityResults() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [exporting, setExporting] = useState(false);
+    const [exportSel, setExportSel] = useState({ results: true, itemAnalysis: true, matrix: true, summary: true });
 
     const axisColor = theme === 'dark' ? '#94a3b8' : '#64748b';
     const gridColor = theme === 'dark' ? 'rgba(148,163,184,0.16)' : 'rgba(100,116,139,0.18)';
@@ -183,12 +186,13 @@ export default function ActivityResults() {
     const top3 = rankingData.slice(0, 3);
     const visualPodium = [top3[1], top3[0], top3[2]].filter(Boolean).map((r) => ({ r, rank: r === top3[0] ? 1 : r === top3[1] ? 2 : 3 }));
 
-    const handleExport = async () => {
+    const handleExport = async (sel) => {
         const ExcelJS = await getExcelJS();
         const wb = new ExcelJS.Workbook();
         const activityTitle = data.activity.title;
 
-        // ── Sheet 1: one row per student, highest first, non-submitters last ──
+        // ── Sheet: one row per student, highest first, non-submitters last ──
+        if (sel.results) {
         const ws = wb.addWorksheet('Results');
         const colCount = 9;
         const hr = addTitleBlock(
@@ -235,10 +239,11 @@ export default function ActivityResults() {
         fitColumns(ws, colCount, { min: 6, max: 30 });
         ws.getColumn(2).width = 30;
         ws.getColumn(8).width = 20;
+        }
 
-        // ── Sheet 2: item analysis ──
+        // ── Sheet: item analysis ──
         const qs = data.questions || [];
-        if (qs.length) {
+        if (sel.itemAnalysis && qs.length) {
             const ws2 = wb.addWorksheet('Item Analysis');
             const h2 = addTitleBlock(ws2, `${activityTitle} — Item Analysis`, `${qs.length} questions · Generated ${stamp()}`, 10);
             ['#', 'Question', 'Type', 'Pts', 'Correct', 'Wrong', 'Blank', 'To grade', 'Accuracy', 'Difficulty'].forEach((h, i) => {
@@ -284,9 +289,9 @@ export default function ActivityResults() {
             ws2.getColumn(2).width = 70;
         }
 
-        // ── Sheet 3: student × question matrix ──
+        // ── Sheet: student × question matrix ──
         const matrixRows = data.matrix || [];
-        if (matrixRows.length && qs.length) {
+        if (sel.matrix && matrixRows.length && qs.length) {
             const colsWithQ = 2 + qs.length + 1;
             const ws3 = wb.addWorksheet('Student × Question');
             const h3 = addTitleBlock(ws3, `${activityTitle} — Student × Question`, `✓ correct · ✕ wrong · P needs grading · – blank · Generated ${stamp()}`, colsWithQ);
@@ -314,6 +319,105 @@ export default function ActivityResults() {
             ws3.getColumn(1).width = 30;
             for (let c = 2; c < colsWithQ; c += 1) ws3.getColumn(c).width = 6;
             ws3.getColumn(colsWithQ).width = 8;
+        }
+
+        // ── Sheet: class summary — the analytics a teacher actually reports ──
+        if (sel.summary) {
+            const ws4 = wb.addWorksheet('Class Summary');
+            const hr4 = addTitleBlock(
+                ws4,
+                `${activityTitle} — Class Summary`,
+                `${typeLabel(data.activity.activity_type)} · Generated ${stamp()}`,
+                4,
+            );
+            let r = hr4;
+
+            const kv = [
+                ['Students enrolled', stats.enrolled ?? '—'],
+                ['Students submitted', stats.submitted ?? '—'],
+                ['Participation', stats.participation_rate != null ? `${stats.participation_rate}%` : '—'],
+                ['Class average', stats.avg_score_pct != null ? `${stats.avg_score_pct}%` : '—'],
+                ['Median score', stats.median_score_pct != null ? `${stats.median_score_pct}%` : '—'],
+                ['Pass rate (≥60%)', stats.pass_rate != null ? `${stats.pass_rate}%` : '—'],
+                ['Highest score', stats.highest_score_pct != null ? `${stats.highest_score_pct}%` : '—'],
+                ['Lowest score', stats.lowest_score_pct != null ? `${stats.lowest_score_pct}%` : '—'],
+                ['Average time taken', stats.avg_duration_seconds != null ? fmtDuration(stats.avg_duration_seconds) : '—'],
+                ['Questions answered (avg)', stats.avg_answered_pct != null ? `${stats.avg_answered_pct}%` : '—'],
+            ];
+            kv.forEach(([k, v]) => {
+                ws4.getCell(r, 1).value = k;
+                ws4.getCell(r, 1).font = { bold: true, color: { argb: 'FF374151' } };
+                ws4.getCell(r, 2).value = v;
+                ws4.getCell(r, 2).alignment = { horizontal: 'center' };
+                allBorders(ws4.getCell(r, 1));
+                allBorders(ws4.getCell(r, 2));
+                r += 1;
+            });
+
+            // Score distribution
+            r += 2;
+            ws4.getCell(r, 1).value = 'Score distribution';
+            ws4.getCell(r, 1).font = { bold: true, size: 12.5, color: { argb: 'FF111827' } };
+            r += 1;
+            ['Range', 'Students'].forEach((h, i) => { ws4.getCell(r, i + 1).value = h; });
+            styleHeader(ws4, r, 2);
+            (data.histogram || []).forEach((bin) => {
+                r += 1;
+                ws4.getCell(r, 1).value = bin.label;
+                ws4.getCell(r, 2).value = bin.count;
+                ws4.getCell(r, 2).alignment = { horizontal: 'center' };
+                allBorders(ws4.getCell(r, 1));
+                allBorders(ws4.getCell(r, 2));
+            });
+
+            // Performance by question type
+            r += 2;
+            ws4.getCell(r, 1).value = 'Performance by question type';
+            ws4.getCell(r, 1).font = { bold: true, size: 12.5, color: { argb: 'FF111827' } };
+            r += 1;
+            ['Type', 'Questions', 'Correct', 'Accuracy'].forEach((h, i) => { ws4.getCell(r, i + 1).value = h; });
+            styleHeader(ws4, r, 4);
+            (data.types || []).forEach((t) => {
+                r += 1;
+                ws4.getCell(r, 1).value = TYPE_LABELS[t.type] || t.type;
+                ws4.getCell(r, 2).value = t.count;
+                ws4.getCell(r, 3).value = t.correct;
+                if (t.accuracy_pct !== null && t.accuracy_pct !== undefined) {
+                    ws4.getCell(r, 4).value = t.accuracy_pct / 100;
+                    ws4.getCell(r, 4).numFmt = '0%';
+                }
+                for (let c = 1; c <= 4; c += 1) {
+                    if (c > 1) ws4.getCell(r, c).alignment = { horizontal: 'center' };
+                    allBorders(ws4.getCell(r, c));
+                }
+            });
+
+            // Insights
+            const ins = data.insights || {};
+            r += 2;
+            ws4.getCell(r, 1).value = 'Insights';
+            ws4.getCell(r, 1).font = { bold: true, size: 12.5, color: { argb: 'FF111827' } };
+            r += 1;
+            const insightLines = [];
+            if (ins.hardest) insightLines.push([`Hardest question — Q${ins.hardest.order}`, `${ins.hardest.accuracy_pct}% accuracy`]);
+            if (ins.easiest) insightLines.push([`Easiest question — Q${ins.easiest.order}`, `${ins.easiest.accuracy_pct}% accuracy`]);
+            (ins.weak_questions || []).forEach((q) => insightLines.push([`Weak — Q${q.order}: ${q.text}`, `${q.accuracy_pct}% accuracy`]));
+            (ins.needs_help || []).forEach((s) => insightLines.push([`Needs support — ${s.student}`, `${s.score_pct}%`]));
+            (ins.not_submitted || []).forEach((n) => insightLines.push(['Did not submit', n]));
+            if (!insightLines.length) insightLines.push(['Nothing flagged', '—']);
+            insightLines.forEach(([k, v]) => {
+                ws4.getCell(r, 1).value = k;
+                ws4.mergeCells(r, 1, r, 3);
+                ws4.getCell(r, 4).value = v;
+                ws4.getCell(r, 4).alignment = { horizontal: 'center' };
+                ws4.getCell(r, 1).alignment = { wrapText: true, vertical: 'middle' };
+                for (let c = 1; c <= 4; c += 1) allBorders(ws4.getCell(r, c));
+                r += 1;
+            });
+
+            fitColumns(ws4, 4, { min: 10 });
+            ws4.getColumn(1).width = 52;
+            ws4.views = [{ state: 'frozen', ySplit: 0 }];
         }
 
         await downloadWorkbook(wb, `Results — ${activityTitle} — ${stampFile()}.xlsx`);
@@ -354,8 +458,9 @@ export default function ActivityResults() {
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
                         <button
-                            onClick={handleExport}
-                            title="Download results, item analysis, and the student × question matrix as Excel"
+                            onClick={() => setShowExportModal(true)}
+                            disabled={!data}
+                            title="Choose what to export as Excel"
                             style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: 'var(--db-card)', border: '1px solid var(--db-border)', borderRadius: '8px', color: 'var(--db-text-2)', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}
                         >
                             <Download size={14} />
@@ -724,6 +829,70 @@ export default function ActivityResults() {
                     </>
                 )}
             </div>
+
+            {/* Export picker — every sheet on by default, one Excel file */}
+            {showExportModal && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                    <div onClick={() => setShowExportModal(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(2px)' }} />
+                    <div style={{ position: 'relative', zIndex: 1, background: 'var(--db-card)', border: '1px solid var(--db-border)', borderRadius: '16px', padding: '26px', width: 'min(480px, 100%)', boxShadow: '0 24px 60px rgba(0,0,0,0.35)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                            <h3 style={{ fontSize: '18px', fontWeight: 800, margin: 0, color: 'var(--db-text)' }}>Export to Excel</h3>
+                            <button onClick={() => setShowExportModal(false)} type="button" style={{ background: 'transparent', border: 'none', color: 'var(--db-text-3)', cursor: 'pointer', display: 'flex' }}>
+                                <EyeOff size={18} />
+                            </button>
+                        </div>
+                        <p style={{ fontSize: '13.5px', color: 'var(--db-text-3)', margin: '0 0 18px' }}>
+                            Pick the sheets you want — everything is included by default.
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '22px' }}>
+                            {[
+                                { key: 'results', label: 'Results', desc: 'One row per student — rank, score, %, duration, submitted time; non-submitters listed' },
+                                { key: 'itemAnalysis', label: 'Item analysis', desc: 'Per question: correct / wrong / blank, accuracy, Easy–Moderate–Hard rating' },
+                                { key: 'matrix', label: 'Student × question matrix', desc: '✓ / ✕ grid — spot who skipped what at a glance' },
+                                { key: 'summary', label: 'Class summary', desc: 'Averages, median, pass rate, score distribution, per-type accuracy, flagged insights' },
+                            ].map((opt) => (
+                                <label
+                                    key={opt.key}
+                                    style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 14px', borderRadius: '12px', border: `1px solid ${exportSel[opt.key] ? 'rgba(10,132,255,0.45)' : 'var(--db-border)'}`, background: exportSel[opt.key] ? 'rgba(10,132,255,0.07)' : 'transparent', cursor: 'pointer' }}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={exportSel[opt.key]}
+                                        onChange={(e) => setExportSel((prev) => ({ ...prev, [opt.key]: e.target.checked }))}
+                                        style={{ marginTop: '3px', accentColor: '#0a84ff', width: 16, height: 16 }}
+                                    />
+                                    <span>
+                                        <span style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: 'var(--db-text)' }}>{opt.label}</span>
+                                        <span style={{ display: 'block', fontSize: '12.5px', color: 'var(--db-text-3)', marginTop: '2px', lineHeight: 1.45 }}>{opt.desc}</span>
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                            <button onClick={() => setShowExportModal(false)} type="button" style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--db-border)', borderRadius: '9px', color: 'var(--db-text-2)', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+                                Cancel
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    setExporting(true);
+                                    try {
+                                        await handleExport(exportSel);
+                                        setShowExportModal(false);
+                                    } finally {
+                                        setExporting(false);
+                                    }
+                                }}
+                                disabled={exporting || !Object.values(exportSel).some(Boolean)}
+                                type="button"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#0a84ff', border: 'none', borderRadius: '9px', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: exporting ? 'wait' : 'pointer', opacity: exporting || !Object.values(exportSel).some(Boolean) ? 0.6 : 1 }}
+                            >
+                                <Download size={14} />
+                                {exporting ? 'Building…' : 'Download Excel'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -145,7 +145,6 @@ function TeacherPacingControls({
   const distribution = board?.distribution || [];
   const currentQ = pacing.current_q ?? 0;
   const phase = isPaused ? "paused" : pacing.phase || "waiting";
-  const revealed = phase === "revealed" || !!pacing.revealed_at;
   const question = questions[currentQ];
   const dist = distribution[currentQ] || null;
 
@@ -186,20 +185,6 @@ function TeacherPacingControls({
     }
   };
 
-  const reveal = async () => {
-    setBusy(true);
-    try {
-      await api.post(`/teacher/activities/${activityId}/live/reveal`);
-      await onChanged(true);
-    } catch (e) {
-      onError(
-        e.response?.data?.message || e.message || "Failed to reveal answer",
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const deadline = pacing.deadline_at ? new Date(pacing.deadline_at) : null;
   const deadlineText =
     deadline && deadline.getTime() > Date.now()
@@ -207,10 +192,6 @@ function TeacherPacingControls({
       : deadline && phase !== "complete"
         ? "Countdown expired"
         : null;
-
-  // Coding questions have no single stored answer — revealing one would flip
-  // the phase with nothing shown to anyone. Hide the control for them.
-  const isCodingQuestion = question?.type === "coding";
 
   return (
     <div
@@ -439,52 +420,9 @@ function TeacherPacingControls({
         >
           Next <ChevronRight size={16} />
         </button>
-        <button
-          onClick={reveal}
-          disabled={
-            busy ||
-            isPaused ||
-            revealed ||
-            isCodingQuestion ||
-            phase === "complete" ||
-            phase === "waiting"
-          }
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "10px 18px",
-            backgroundColor: "#10b981",
-            border: "none",
-            borderRadius: "8px",
-            color: "#fff",
-            fontWeight: "600",
-            fontSize: "15px",
-            cursor: "pointer",
-            transition: "all 200ms ease-in-out",
-            opacity:
-              busy ||
-              isPaused ||
-              revealed ||
-              isCodingQuestion ||
-              phase === "complete" ||
-              phase === "waiting"
-                ? 0.5
-                : 1,
-          }}
-          title={
-            isCodingQuestion
-              ? "Coding questions have no single answer to reveal — students see their own output"
-              : "Reveal the correct answer to the class"
-          }
-        >
-          <Eye size={16} />
-          {revealed
-            ? "Answer Revealed"
-            : isCodingQuestion
-              ? "No reveal for coding"
-              : "Reveal Answer"}
-        </button>
+        {/* No per-question reveal: mid-run reveals let students backtrack and
+            change answers after seeing the key — answers now stay sealed until
+            the room closes and results come out. */}
       </div>
     </div>
   );
@@ -698,10 +636,9 @@ export default function LiveQuizMonitor() {
       }}
     >
       <div
-        className="max-w-7xl mx-auto"
         style={{
-          paddingLeft: "24px",
-          paddingRight: "24px",
+          paddingLeft: "32px",
+          paddingRight: "32px",
           paddingTop: "32px",
           paddingBottom: "32px",
           transition: "margin-right 200ms ease",
@@ -1396,10 +1333,10 @@ export default function LiveQuizMonitor() {
                   lineHeight: 1.6,
                 }}
               >
-                New students can no longer join. Students already working keep
-                their attempt and can finish at their own pace — their answers
-                are not cut off. You can reopen the quiz later for anyone who
-                never took it.
+                New students can no longer join. Everyone's attempt is graded
+                automatically — students still actively working keep their
+                attempt and grade themselves when they press Finish. You can
+                reopen the quiz later for anyone who never took it.
               </p>
               <div
                 style={{

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Trash2, Eye, EyeOff, Users, Clock, Upload, HelpCircle, BookOpen, Zap,
-    Radio, BarChart3, Play, Timer, Copy, Loader2, X, Square, RotateCcw, CheckCheck,
+    Radio, BarChart3, Play, Timer, Copy, Loader2, X, Square, RotateCcw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -196,15 +196,6 @@ export default function ActivityCard({ activity, classId, onDelete }) {
         }, 'Could not reopen the quiz');
     };
 
-    const handleFinalize = (e) => {
-        e.stopPropagation();
-        withBusy(async () => {
-            const res = await api.post(`/teacher/activities/${activity.id}/finalize-live`);
-            refresh();
-            toast.success(res.data?.message || 'Finalized the remaining attempts');
-        }, 'Could not finalize the remaining attempts');
-    };
-
     const openRepost = async (e) => {
         e.stopPropagation();
         setRepostOpen(true);
@@ -362,12 +353,9 @@ export default function ActivityCard({ activity, classId, onDelete }) {
                                 <Square size={13} />
                             </button>
                         )}
-                        {state === 'closed' && (activity.questions_count || 0) > 0 && (
-                            <button className="cw-icon-btn" onClick={handleFinalize} type="button"
-                                title="Finalize any attempts still in progress">
-                                <CheckCheck size={14} />
-                            </button>
-                        )}
+                        {/* No manual Finalize anymore: closing the room grades
+                            everyone except students still actively working,
+                            and those grade themselves when they press Finish. */}
                         <button className="cw-icon-btn" onClick={openRepost} type="button" title="Post to another class">
                             <Copy size={14} />
                         </button>

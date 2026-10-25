@@ -198,6 +198,13 @@ class AuthController extends Controller
                     ]);
                     $this->markTeacherClaimed($email);
                 }
+
+                // Model::create() does NOT load column defaults back onto the
+                // instance — is_active is null on the in-memory model, so the
+                // disabled-account gate below rejected every brand-new Google
+                // account ("disabled by the school admin") even though the
+                // row was saved active. Reload from the database.
+                $user->refresh();
             }
 
             // Disabled accounts (incl. re-disabled Google ones) get no token.

@@ -35,29 +35,45 @@ export default function StudentOverview() {
             {isEmpty ? (
                 <div style={{
                     background: 'var(--bg-secondary)',
-                    border: '1.5px dashed var(--border-color)',
+                    border: '1px solid var(--border-color)',
                     borderRadius: 22,
-                    padding: '56px 32px',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 14,
-                    maxWidth: 620,
+                    padding: '52px 40px 44px',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
+                    maxWidth: 680, width: '100%',
                 }}>
-                    <div style={{ width: 64, height: 64, borderRadius: 18, background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
-                        <BookOpen size={28} />
+                    <div style={{ width: 72, height: 72, borderRadius: 22, background: 'var(--accent-light, rgba(62,142,126,0.12))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', marginBottom: 18 }}>
+                        <BookOpen size={32} strokeWidth={1.8} />
                     </div>
-                    <h3 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '26px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-                        No classes yet
+                    <h3 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
+                        Ready when you are
                     </h3>
-                    <p style={{ fontSize: '15px', color: 'var(--text-secondary)', margin: 0, maxWidth: 420, lineHeight: 1.55 }}>
-                        Ask your teacher for the class code, then join to get your lessons, quizzes, and classwork.
+                    <p style={{ fontSize: '15.5px', color: 'var(--text-secondary)', margin: '0 0 30px 0', maxWidth: 430, lineHeight: 1.55 }}>
+                        Join your first class to unlock its lessons, quizzes, and classwork — it takes under a minute.
                     </p>
+
+                    {/* How it works — three plain steps instead of one flat sentence */}
+                    <div style={{ display: 'flex', gap: 14, width: '100%', marginBottom: 30, flexWrap: 'wrap', justifyContent: 'center' }}>
+                        {[
+                            { n: '1', title: 'Ask your teacher', sub: 'for the 6-character class code' },
+                            { n: '2', title: 'Enter the code', sub: 'in the Join a class window' },
+                            { n: '3', title: 'Start learning', sub: 'lessons and quizzes appear here' },
+                        ].map((s) => (
+                            <div key={s.n} style={{ flex: '1 1 170px', maxWidth: 200, background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: 16, padding: '18px 16px', textAlign: 'left' }}>
+                                <span style={{ display: 'inline-flex', width: 26, height: 26, borderRadius: 999, background: 'var(--accent)', color: '#fffdf7', fontSize: 13, fontWeight: 700, alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>{s.n}</span>
+                                <p style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 3px 0' }}>{s.title}</p>
+                                <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: 0, lineHeight: 1.45 }}>{s.sub}</p>
+                            </div>
+                        ))}
+                    </div>
+
                     <button
                         onClick={() => openJoinModal?.()}
-                        style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: 'var(--accent)', color: '#fffdf7', border: 'none', borderRadius: 12, fontWeight: 600, fontSize: 15, padding: '12px 22px' }}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: 'var(--accent)', color: '#fffdf7', border: 'none', borderRadius: 12, fontWeight: 600, fontSize: 15.5, padding: '13px 26px' }}
                     >
-                        Join a class <ArrowRight size={16} />
+                        Join a class <ArrowRight size={17} />
                     </button>
-                    <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', margin: 0 }}>
-                        You can also join anytime from the sidebar.
+                    <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: '14px 0 0 0' }}>
+                        Already enrolled by your teacher? Refresh in a moment — new classes appear automatically.
                     </p>
                 </div>
             ) : (
