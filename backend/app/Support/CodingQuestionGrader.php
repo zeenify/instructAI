@@ -33,14 +33,24 @@ class CodingQuestionGrader
         $engineError = false;
         $tests = [];
 
-        foreach ($testCases as $testCase) {
-            $run = CodeRunner::execute(
-                $language,
-                $code,
-                ($testCase->input ?? '') !== '' ? $testCase->input : null
-            );
+        // One compile, every test input — grading used to compile the same
+        // submission per test case, which on a cold free-tier engine pushed
+        // whole submissions past timeouts.
+        $batch = CodeRunner::executeBatch(
+            $language,
+            $code,
+            $testCases->map(fn ($tc) => (string) ($tc->input ?? ''))->all()
+        );
 
-            $runEngineError = ! empty($run['engine_error']);
+        $batchEngineError = ! empty($batch['engine_error']) || ! empty($batch['compile_timed_out']);
+        $compileError = trim((string) ($batch['compile_output'] ?? ''));
+
+        foreach ($testCases as $index => $testCase) {
+            // A compile failure (student's own syntax error, or the engine
+            // being busy) fails every case with that diagnostic; infra
+            // failures are flagged, never scored.
+            $run = $batch['results'][$index] ?? null;
+            $runEngineError = $batchEngineError;
             if ($runEngineError) {
                 $engineError = true;
             }
@@ -49,7 +59,9 @@ class CodingQuestionGrader
             $actual = CodeRunner::normalizeOutput((string) ($run['stdout'] ?? ''));
 
             $ok = ! $runEngineError
-                && ! $run['timed_out']
+                && $compileError === ''
+                && $run !== null
+                && ! ($run['timed_out'] ?? false)
                 && $actual === $expected;
 
             $entry = [
@@ -67,7 +79,7 @@ class CodingQuestionGrader
                 $entry['input'] = self::clip((string) ($testCase->input ?? ''));
                 $entry['expected_output'] = self::clip($expected);
                 $entry['actual_output'] = self::clip($actual);
-                $entry['stderr'] = self::clip((string) ($run['stderr'] ?? ''));
+                $entry['stderr'] = self::clip($compileError !== '' ? $compileError : (string) ($run['stderr'] ?? ''));
             }
 
             $tests[] = $entry;

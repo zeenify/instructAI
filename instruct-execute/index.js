@@ -563,6 +563,185 @@ app.post('/execute', async (req, res) => {
     res.json(result);
 });
 
+// --- BATCH EXECUTION: compile once, run every input ----------------------
+// A quiz "Run" checks all sample tests; grading checks every stored test.
+// Compiling per input triples the (cold, expensive) javac cost — on a cold
+// engine that pushed each request past the client's timeout and the check
+// failed on the first click after an idle stretch. One compile, N runs.
+const BATCH_MAX_INPUTS = 10;
+// Whole-call budget: keep the single HTTP response safely under proxy
+// response ceilings (~50s on Render's edge).
+const BATCH_TOTAL_BUDGET_MS = 40 * 1000;
+
+function executeBatch({ language, code, inputs, timeoutMs = REST_TIMEOUT_MS }) {
+    return new Promise((resolve) => {
+        const lang = LANGS[language];
+        const folderPath = path.join(os.tmpdir(), `exec-${uuidv4()}`);
+        const startedAt = Date.now();
+        let compileChild = null;
+        let compileTimer = null;
+        let runChild = null;
+        let runTimer = null;
+        let settled = false;
+        let compileTimedOut = false;
+
+        const scrub = (text) => (typeof text !== 'string' || !text
+            ? text
+            : text.split(folderPath + path.sep).join('').split(folderPath).join(''));
+
+        const finish = (result) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(compileTimer);
+            clearTimeout(runTimer);
+            killTree(runChild);
+            killTree(compileChild);
+            activeJobs = Math.max(0, activeJobs - 1);
+            try { fs.rmSync(folderPath, { recursive: true, force: true }); } catch { /* best effort */ }
+            resolve({
+                compile_output: scrub(result.compile_output) || '',
+                compile_timed_out: !!result.compile_timed_out,
+                results: result.results || [],
+                duration_ms: Date.now() - startedAt,
+            });
+        };
+
+        const runOne = (input) => new Promise((done) => {
+            const child = lang.run(folderPath, meta);
+            runChild = child;
+            let stdout = '';
+            let stderr = '';
+            let timedOut = false;
+            child.stdout?.on('data', (d) => { stdout += d; });
+            child.stderr?.on('data', (d) => { stderr += d; });
+            if (input != null && input !== '') {
+                try {
+                    const normalized = normalizeInput(input);
+                    child.stdin.write(normalized.endsWith('\n') ? normalized : `${normalized}\n`);
+                } catch { /* stdin closed early */ }
+            }
+            try { child.stdin.end(); } catch { /* noop */ }
+            runTimer = setTimeout(() => { timedOut = true; killTree(child); }, timeoutMs);
+            const settle = (exitCode) => setTimeout(() => {
+                clearTimeout(runTimer);
+                runChild = null;
+                done({
+                    stdout: cap(stdout),
+                    stderr: timedOut ? 'Execution Timed Out (Possible Infinite Loop)' : cap(stderr),
+                    exit_code: exitCode ?? -1,
+                    timed_out: timedOut,
+                    duration_ms: Date.now() - startedAt,
+                });
+            }, GRACE_MS);
+            child.on('exit', (code) => settle(code));
+            child.on('error', () => settle(null));
+        });
+
+        const runAll = async () => {
+            const results = [];
+            for (const input of inputs) {
+                if (Date.now() - startedAt > BATCH_TOTAL_BUDGET_MS) {
+                    results.push({
+                        stdout: '',
+                        stderr: 'Batch budget exhausted — press Run again in a moment.',
+                        exit_code: -1,
+                        timed_out: true,
+                        duration_ms: Date.now() - startedAt,
+                    });
+                    break;
+                }
+                const r = await runOne(input);
+                results.push(r);
+                if (r.timed_out) break; // a hung program would burn every remaining run
+            }
+            finish({ results });
+        };
+
+        let meta = {};
+        try {
+            fs.mkdirSync(folderPath, { recursive: true });
+            activeJobs += 1;
+            meta = lang.files(code, folderPath) || {};
+
+            if (lang.compile) {
+                compileChild = lang.compile(folderPath, meta);
+                let compileOutput = '';
+                compileChild.stderr?.on('data', (d) => { compileOutput += d; });
+                compileChild.stdout?.on('data', (d) => { compileOutput += d; });
+                compileTimer = setTimeout(() => {
+                    compileTimedOut = true;
+                    killTree(compileChild);
+                }, COMPILE_TIMEOUT_MS);
+                compileChild.on('close', (cc) => {
+                    if (cc !== 0) {
+                        // Same honest handling as the single-run path: a
+                        // killed/blank compile is an engine failure, not the
+                        // student's code failing.
+                        let output = cap(compileOutput);
+                        let infraFailure = false;
+                        if (compileTimedOut || !String(output).trim()) {
+                            infraFailure = true;
+                            output = compileTimedOut
+                                ? 'Compilation timed out — the engine is busy. Try again in a moment.'
+                                : 'The compiler failed without a diagnostic (engine busy or out of memory). Try again.';
+                        }
+                        finish({ compile_output: output, compile_timed_out: infraFailure });
+                        return;
+                    }
+                    runAll();
+                });
+                compileChild.on('error', (err) => finish({
+                    compile_output: err.toString(),
+                    compile_timed_out: true,
+                }));
+            } else {
+                runAll();
+            }
+        } catch (err) {
+            console.error('Batch execution error:', err);
+            finish({
+                compile_output: `Server failed to process code: ${err.toString()}`,
+                compile_timed_out: true,
+            });
+        }
+    });
+}
+
+app.post('/execute-batch', async (req, res) => {
+    const { language = 'java', code, inputs } = req.body || {};
+
+    if (!LANGS[language]) {
+        return res.status(400).json({
+            error: `Unsupported language '${language}'. Supported: ${SUPPORTED_IDS.join(', ')}.`,
+        });
+    }
+    if (LANGS[language].preview_only) {
+        return res.status(400).json({
+            error: `${LANGS[language].label} runs in the browser preview — nothing to execute on the server.`,
+            preview_only: true,
+        });
+    }
+    if (typeof code !== 'string' || !code.trim()) {
+        return res.status(400).json({ error: 'code is required.' });
+    }
+    if (!Array.isArray(inputs) || inputs.length < 1 || inputs.length > BATCH_MAX_INPUTS) {
+        return res.status(400).json({ error: `inputs must be an array of 1-${BATCH_MAX_INPUTS} strings.` });
+    }
+    if (!isAvailable(language)) {
+        return res.status(503).json({ error: `${LANGS[language].label} runtime is not installed on this execution server.` });
+    }
+    if (activeJobs >= MAX_CONCURRENT_JOBS) {
+        return res.status(429).json({ error: 'The engine is busy right now — try again in a few seconds.' });
+    }
+
+    const result = await executeBatch({
+        language,
+        code,
+        inputs: inputs.map((v) => (v == null ? '' : String(v))),
+    });
+    res.json(result);
+});
+
 // --- 4. WEBSOCKET INTERACTIVE EXECUTION ---
 wss.on('connection', (ws, req) => {
     if (!requestAuthorized(req)) {

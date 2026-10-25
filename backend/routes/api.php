@@ -233,6 +233,7 @@ Route::middleware(['auth:sanctum', 'role:student'])->group(function () {
 
     // Remote Code Execution Proxy — throttled: each run spawns a process
     Route::post('/student/execute', [CodeExecutionController::class, 'execute'])->middleware('throttle:code-execution');
+    Route::post('/student/execute-batch', [CodeExecutionController::class, 'executeBatch'])->middleware('throttle:code-execution');
 
     // AI Chat (Student) — streaming goes browser → Python directly;
     // Laravel runs the checks (prepare) and persists the turn (commit)

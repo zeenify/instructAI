@@ -45,6 +45,34 @@ class CodeExecutionController extends Controller
         return response()->json($result, $status);
     }
 
+    /**
+     * Compile once, run every input — the quiz Run button's sample checks.
+     * 10 inputs max protects the shared engine from one giant request.
+     */
+    public function executeBatch(Request $request)
+    {
+        $request->validate([
+            'code' => 'required|string',
+            'language' => 'sometimes|string|in:'.implode(',', CodeRunner::LANGUAGES),
+            'inputs' => 'required|array|min:1|max:10',
+            'inputs.*' => 'nullable|string',
+        ]);
+
+        $language = $request->input('language', 'java');
+
+        if ($language === 'html') {
+            return response()->json([
+                'preview_only' => true,
+                'message' => 'HTML runs in the browser preview.',
+            ]);
+        }
+
+        $code = CodeRunner::preprocessForEngine($language, $request->code);
+        $result = CodeRunner::executeBatch($language, $code, (array) $request->input('inputs', []));
+
+        return response()->json($result, ! empty($result['engine_error']) ? 503 : 200);
+    }
+
     public function verifyCodeChallenge(Request $request)
     {
         $request->validate([

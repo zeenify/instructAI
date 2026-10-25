@@ -158,6 +158,93 @@ class CodeRunner
         }
     }
 
+    /**
+     * Compile once, run every input: the quiz "Run" checks all sample tests
+     * and grading checks every stored test — per-input compiles tripled the
+     * cold javac cost and blew client timeouts. Mirrors execute()'s
+     * local-then-deployed fallback.
+     *
+     * @param  array<int, string>  $inputs
+     * @return array{compile_output: string, compile_timed_out: bool, results: array<int, array{stdout: string, stderr: string, exit_code: int|null, timed_out: bool, duration_ms?: int}>, engine_error: bool, message?: string}
+     */
+    public static function executeBatch(string $language, string $code, array $inputs): array
+    {
+        $payload = [
+            'language' => $language,
+            'code' => self::preprocessForEngine($language, $code),
+            'inputs' => array_map(fn ($v) => str_replace("\r\n", "\n", (string) $v), array_values($inputs)),
+        ];
+
+        $localUrl = 'http://localhost:3000/execute-batch';
+        $base = rtrim((string) env('EXECUTION_ENGINE_URL'), '/');
+        if (str_ends_with($base, '/execute')) {
+            $base = substr($base, 0, -strlen('/execute'));
+        }
+        $deployedUrl = $base !== '' ? $base.'/execute-batch' : '';
+
+        $token = (string) env('EXECUTION_ENGINE_TOKEN', '');
+        $post = function (string $url, array $payload) use ($token) {
+            $request = Http::timeout(60)->asJson();
+            if ($token !== '') {
+                $request = $request->withHeaders(['X-Engine-Token' => $token]);
+            }
+
+            return $request->post($url, $payload);
+        };
+
+        $normalizeBatch = function (array $data): array {
+            $results = [];
+            foreach (($data['results'] ?? []) as $r) {
+                if (! is_array($r)) {
+                    continue;
+                }
+                $results[] = [
+                    'stdout' => (string) ($r['stdout'] ?? ''),
+                    'stderr' => (string) ($r['stderr'] ?? ''),
+                    'exit_code' => $r['exit_code'] ?? null,
+                    'timed_out' => (bool) ($r['timed_out'] ?? false),
+                    'duration_ms' => $r['duration_ms'] ?? null,
+                ];
+            }
+
+            return [
+                'compile_output' => (string) ($data['compile_output'] ?? ''),
+                'compile_timed_out' => (bool) ($data['compile_timed_out'] ?? false),
+                'results' => $results,
+                'engine_error' => false,
+            ];
+        };
+
+        $batchError = fn (string $message) => [
+            'compile_output' => '',
+            'compile_timed_out' => false,
+            'results' => [],
+            'engine_error' => true,
+            'message' => $message,
+        ];
+
+        foreach (array_filter([$localUrl, $deployedUrl]) as $url) {
+            try {
+                $response = $post($url, $payload);
+
+                if ($response->successful()) {
+                    return $normalizeBatch((array) $response->json());
+                }
+
+                $body = $response->json();
+                if (is_array($body) && isset($body['error']) && in_array($response->status(), [400, 401, 429, 503], true)) {
+                    return $batchError((string) $body['error']);
+                }
+
+                Log::warning('CodeRunner: batch engine responded unhealthy', ['url' => $url, 'status' => $response->status()]);
+            } catch (\Throwable $e) {
+                Log::info('CodeRunner: batch engine unreachable', ['url' => $url, 'error' => $e->getMessage()]);
+            }
+        }
+
+        return $batchError('Engine Connection Error: No available execution engine.');
+    }
+
     private static function normalize(?array $data): array
     {
         return [

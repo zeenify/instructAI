@@ -162,36 +162,54 @@ export default function InlineCodeAnswer({
         try {
             // Sample tests are the visible I/O contract; feed each one's stdin
             // so input-reading programs (Scanner/input()) stop crashing on the
-            // check run. Mirrors what the server grades on submit.
+            // check run. ONE batch call compiles once and runs every input —
+            // per-case compiles tripled the cold-javac cost and blew timeouts.
             if (sampleTests.length > 0) {
+                let batch;
+                try {
+                    const res = await api.post('/student/execute-batch', {
+                        code: value || boilerplate,
+                        language: lang.id,
+                        inputs: sampleTests.map((t) => t.input ?? ''),
+                    }, { timeout: 50000 });
+                    batch = res.data;
+                } catch (err) {
+                    setErrorType('system');
+                    setOutput(
+                        err?.response?.data?.message
+                        || 'The engine did not answer — it may be waking up. Press Run to retry.',
+                    );
+                    return;
+                }
+
+                if (batch?.engine_error) {
+                    setErrorType('system');
+                    setOutput(batch.message || 'The engine is busy right now — press Run to retry.');
+                    return;
+                }
+                if (batch?.compile_output) {
+                    setErrorType(batch.compile_timed_out ? 'system' : 'compile');
+                    setOutput(batch.compile_output);
+                    return;
+                }
+
                 const results = [];
                 for (let i = 0; i < sampleTests.length; i += 1) {
                     const t = sampleTests[i];
-                    let data;
-                    try {
-                        data = await restRun(t.input ?? '');
-                    } catch {
-                        setErrorType('system');
-                        setOutput(`The execution engine dropped after ${results.length} of ${sampleTests.length} test cases. Press Run to retry.`);
-                        return;
-                    }
-                    setMeta({ duration_ms: data.duration_ms, exit_code: data.exit_code });
-                    if (data.compile_output) {
-                        setErrorType('compile');
-                        setOutput(data.compile_output);
-                        return;
-                    }
-                    if (data.timed_out) {
+                    const r = batch?.results?.[i];
+                    if (!r) break;
+                    setMeta({ duration_ms: r.duration_ms, exit_code: r.exit_code });
+                    if (r.timed_out) {
                         setErrorType('timeout');
-                        setOutput(data.stderr || 'Execution Timed Out');
+                        setOutput(r.stderr || 'Execution Timed Out');
                         return;
                     }
-                    if (data.stderr) {
+                    if (r.stderr) {
                         setErrorType('runtime');
-                        setOutput(data.stderr);
+                        setOutput(r.stderr);
                         return;
                     }
-                    const actual = normOutput(data.stdout);
+                    const actual = normOutput(r.stdout);
                     results.push({
                         n: i + 1,
                         input: t.input ?? '',
@@ -201,7 +219,7 @@ export default function InlineCodeAnswer({
                     });
                     setCaseResults([...results]);
                 }
-                setPassed(results.every((r) => r.passed));
+                setPassed(results.length === sampleTests.length && results.every((r) => r.passed));
                 setActualOutput(results[results.length - 1]?.actual ?? null);
                 return;
             }
