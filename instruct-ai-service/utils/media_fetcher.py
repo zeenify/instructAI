@@ -130,7 +130,12 @@ def _is_video_relevant(video_title: str, keywords: str) -> bool:
         "javascript", "node.js", "react", "vue",  # Not if searching for Python/Java
         "c++", "rust", "go", "kotlin",  # Different languages
         "forex", "trading", "crypto", "stocks",  # Finance
-        "music", "gaming", "sports", "cooking"  # Completely different domains
+        "music", "gaming", "sports", "cooking",  # Completely different domains
+        # Office/engineering software shares vocabulary with design topics
+        # ("production", "report", "layout", "draw"…) but is never the right
+        # video for a design or programming lesson
+        "excel", "spreadsheet", "powerpoint", "microsoft word",
+        "autocad", "solidworks", "matlab", "spss", "sap ",
     ]
 
     # If searching for Java, reject JavaScript, Python, etc. results
