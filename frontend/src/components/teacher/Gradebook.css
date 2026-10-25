@@ -512,3 +512,24 @@
     background: var(--db-amber);
     vertical-align: middle;
 }
+
+/* Excel export — matches the toolbar chips */
+.gb-export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
+    border-radius: 11px;
+    border: 1px solid var(--db-accent-border, rgba(10, 132, 255, 0.35));
+    background: var(--db-card, #fff);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--db-accent, #0071e3);
+    cursor: pointer;
+    transition: background 0.15s ease, filter 0.15s ease;
+}
+
+.gb-export-btn:hover { background: var(--db-accent-light, rgba(10, 132, 255, 0.1)); }
+
+.gb-export-btn:active { filter: brightness(0.95); }

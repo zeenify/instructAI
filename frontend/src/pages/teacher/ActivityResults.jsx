@@ -6,10 +6,11 @@ import {
 } from 'recharts';
 import {
     ChevronLeft, Users, Target, Hash, Trophy, Clock, CheckCircle2,
-    RefreshCw, AlertTriangle, TrendingDown, Lightbulb, EyeOff, BarChart3, Crown, PartyPopper,
+    RefreshCw, AlertTriangle, TrendingDown, Lightbulb, EyeOff, BarChart3, Crown, PartyPopper, Download,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
+import { getExcelJS, addTitleBlock, styleHeader, allBorders, fitColumns, stamp, stampFile, fmtDateTime, downloadWorkbook, XL } from '../../utils/excelExport';
 import SimilarityPanel from '../../components/teacher/SimilarityPanel';
 
 const C = {
@@ -182,6 +183,142 @@ export default function ActivityResults() {
     const top3 = rankingData.slice(0, 3);
     const visualPodium = [top3[1], top3[0], top3[2]].filter(Boolean).map((r) => ({ r, rank: r === top3[0] ? 1 : r === top3[1] ? 2 : 3 }));
 
+    const handleExport = async () => {
+        const ExcelJS = await getExcelJS();
+        const wb = new ExcelJS.Workbook();
+        const activityTitle = data.activity.title;
+
+        // ── Sheet 1: one row per student, highest first, non-submitters last ──
+        const ws = wb.addWorksheet('Results');
+        const colCount = 9;
+        const hr = addTitleBlock(
+            ws,
+            `${activityTitle} — Results`,
+            `${typeLabel(data.activity.activity_type)} · ${stats.submitted} of ${stats.enrolled} enrolled submitted`
+                + ` · Class avg ${stats.avg_score_pct ?? '—'}% · Median ${stats.median_score_pct ?? '—'}%`
+                + ` · Pass rate ${stats.pass_rate ?? '—'}% · Generated ${stamp()}`,
+            colCount,
+        );
+        ['Rank', 'Student', 'Score', 'Max', '%', 'Status', 'Duration', 'Submitted', 'Answered'].forEach((h, i) => {
+            ws.getCell(hr, i + 1).value = h;
+        });
+        styleHeader(ws, hr, colCount);
+
+        let rowIdx = hr;
+        (data.ranking || []).forEach((r, i) => {
+            rowIdx += 1;
+            ws.getCell(rowIdx, 1).value = i + 1;
+            ws.getCell(rowIdx, 2).value = r.student;
+            ws.getCell(rowIdx, 3).value = r.score;
+            ws.getCell(rowIdx, 4).value = r.max_score;
+            const pctCell = ws.getCell(rowIdx, 5);
+            pctCell.value = r.score_pct / 100;
+            pctCell.numFmt = '0%';
+            pctCell.font = { bold: true, color: { argb: r.score_pct >= 80 ? 'FF065F46' : r.score_pct >= 50 ? 'FF92610A' : 'FF991B1B' } };
+            ws.getCell(rowIdx, 6).value = r.status === 'graded' ? 'Graded' : 'Submitted';
+            ws.getCell(rowIdx, 7).value = fmtDuration(r.duration_seconds);
+            ws.getCell(rowIdx, 8).value = fmtDateTime(r.submitted_at);
+            ws.getCell(rowIdx, 9).value = `${r.answered} / ${r.total_questions}`;
+            [1, 3, 4, 5, 6, 7, 9].forEach((c) => { ws.getCell(rowIdx, c).alignment = { horizontal: 'center' }; });
+            for (let c = 1; c <= colCount; c += 1) allBorders(ws.getCell(rowIdx, c));
+        });
+        (data.insights?.not_submitted || []).forEach((name) => {
+            rowIdx += 1;
+            ws.getCell(rowIdx, 2).value = name;
+            const s = ws.getCell(rowIdx, 6);
+            s.value = 'No submission';
+            s.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.missingFill } };
+            s.font = XL.missingFont;
+            s.alignment = { horizontal: 'center' };
+            for (let c = 1; c <= colCount; c += 1) allBorders(ws.getCell(rowIdx, c));
+        });
+        fitColumns(ws, colCount, { min: 6, max: 30 });
+        ws.getColumn(2).width = 30;
+        ws.getColumn(8).width = 20;
+
+        // ── Sheet 2: item analysis ──
+        const qs = data.questions || [];
+        if (qs.length) {
+            const ws2 = wb.addWorksheet('Item Analysis');
+            const h2 = addTitleBlock(ws2, `${activityTitle} — Item Analysis`, `${qs.length} questions · Generated ${stamp()}`, 10);
+            ['#', 'Question', 'Type', 'Pts', 'Correct', 'Wrong', 'Blank', 'To grade', 'Accuracy', 'Difficulty'].forEach((h, i) => {
+                ws2.getCell(h2, i + 1).value = h;
+            });
+            styleHeader(ws2, h2, 10);
+            qs.forEach((q, i) => {
+                const row = h2 + 1 + i;
+                ws2.getCell(row, 1).value = q.order ?? i + 1;
+                ws2.getCell(row, 2).value = q.text;
+                ws2.getCell(row, 3).value = TYPE_LABELS[q.type] || q.type;
+                ws2.getCell(row, 4).value = q.points;
+                ws2.getCell(row, 5).value = q.correct;
+                ws2.getCell(row, 6).value = q.wrong;
+                ws2.getCell(row, 7).value = q.blank;
+                ws2.getCell(row, 8).value = q.pending;
+                if (q.accuracy_pct !== null && q.accuracy_pct !== undefined) {
+                    const a = ws2.getCell(row, 9);
+                    a.value = q.accuracy_pct / 100;
+                    a.numFmt = '0%';
+                }
+                const d = ws2.getCell(row, 10);
+                d.alignment = { horizontal: 'center' };
+                if (!q.attempted) {
+                    d.value = '—';
+                    d.font = XL.mutedFont;
+                } else if (q.accuracy_pct >= 75) {
+                    d.value = 'Easy';
+                    d.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.gradedFill } };
+                    d.font = XL.gradedFont;
+                } else if (q.accuracy_pct >= 40) {
+                    d.value = 'Moderate';
+                    d.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.pendingFill } };
+                    d.font = XL.pendingFont;
+                } else {
+                    d.value = 'Hard';
+                    d.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.missingFill } };
+                    d.font = XL.missingFont;
+                }
+                for (let c = 1; c <= 10; c += 1) allBorders(ws2.getCell(row, c));
+            });
+            fitColumns(ws2, 10, { min: 6, max: 18 });
+            ws2.getColumn(2).width = 70;
+        }
+
+        // ── Sheet 3: student × question matrix ──
+        const matrixRows = data.matrix || [];
+        if (matrixRows.length && qs.length) {
+            const colsWithQ = 2 + qs.length + 1;
+            const ws3 = wb.addWorksheet('Student × Question');
+            const h3 = addTitleBlock(ws3, `${activityTitle} — Student × Question`, `✓ correct · ✕ wrong · P needs grading · – blank · Generated ${stamp()}`, colsWithQ);
+            const headers3 = ['Student', ...qs.map((q, i) => `Q${q.order ?? i + 1}`), '%'];
+            headers3.forEach((h, i) => { ws3.getCell(h3, i + 1).value = h; });
+            styleHeader(ws3, h3, colsWithQ);
+            matrixRows.forEach((m, ri) => {
+                const row = h3 + 1 + ri;
+                ws3.getCell(row, 1).value = m.student;
+                m.cells.forEach((cell, ci) => {
+                    const c = ws3.getCell(row, 2 + ci);
+                    c.alignment = { horizontal: 'center' };
+                    if (cell.state === 'correct') { c.value = '✓'; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.gradedFill } }; c.font = XL.gradedFont; }
+                    else if (cell.state === 'wrong') { c.value = '✕'; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.missingFill } }; c.font = XL.missingFont; }
+                    else if (cell.state === 'pending') { c.value = 'P'; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.pendingFill } }; c.font = XL.pendingFont; }
+                    else { c.value = '–'; c.font = XL.mutedFont; }
+                });
+                const pct = ws3.getCell(row, colsWithQ);
+                pct.value = m.score_pct / 100;
+                pct.numFmt = '0%';
+                pct.font = { bold: true };
+                pct.alignment = { horizontal: 'center' };
+                for (let c = 1; c <= colsWithQ; c += 1) allBorders(ws3.getCell(row, c));
+            });
+            ws3.getColumn(1).width = 30;
+            for (let c = 2; c < colsWithQ; c += 1) ws3.getColumn(c).width = 6;
+            ws3.getColumn(colsWithQ).width = 8;
+        }
+
+        await downloadWorkbook(wb, `Results — ${activityTitle} — ${stampFile()}.xlsx`);
+    };
+
     return (
         <div style={{ minHeight: '100vh', backgroundColor: 'var(--db-canvas)', color: 'var(--db-text)', transition: 'all 0.3s ease' }}>
             <div className="max-w-7xl mx-auto" style={{ padding: '32px 24px', paddingBottom: '64px' }}>
@@ -215,14 +352,24 @@ export default function ActivityResults() {
                             <span>{stats.submitted} scored submission{stats.submitted !== 1 ? 's' : ''} of {stats.enrolled} enrolled</span>
                         </div>
                     </div>
-                    <button
-                        onClick={() => fetchAnalysis(true)}
-                        disabled={refreshing}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: 'var(--db-card)', border: '1px solid var(--db-border)', borderRadius: '8px', color: 'var(--db-text-2)', fontWeight: '600', fontSize: '14px', cursor: 'pointer', opacity: refreshing ? 0.6 : 1 }}
-                    >
-                        <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-                        {refreshing ? 'Refreshing...' : 'Refresh'}
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                            onClick={handleExport}
+                            title="Download results, item analysis, and the student × question matrix as Excel"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: 'var(--db-card)', border: '1px solid var(--db-border)', borderRadius: '8px', color: 'var(--db-text-2)', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}
+                        >
+                            <Download size={14} />
+                            Export Excel
+                        </button>
+                        <button
+                            onClick={() => fetchAnalysis(true)}
+                            disabled={refreshing}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: 'var(--db-card)', border: '1px solid var(--db-border)', borderRadius: '8px', color: 'var(--db-text-2)', fontWeight: '600', fontSize: '14px', cursor: 'pointer', opacity: refreshing ? 0.6 : 1 }}
+                        >
+                            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+                            {refreshing ? 'Refreshing...' : 'Refresh'}
+                        </button>
+                    </div>
                 </div>
 
                 {!hasResults ? (

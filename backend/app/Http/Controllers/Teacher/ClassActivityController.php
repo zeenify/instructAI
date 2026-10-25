@@ -1555,7 +1555,7 @@ class ClassActivityController extends Controller
 
     public function gradebook($classId)
     {
-        $this->authorizeTeacher($classId);
+        $classroom = $this->authorizeTeacher($classId);
 
         $activities = ClassActivity::where('class_id', $classId)
             ->where('is_published', true)
@@ -1583,7 +1583,13 @@ class ClassActivityController extends Controller
             ];
         }
 
-        return response()->json(compact('activities', 'students', 'grades'));
+        return response()->json([
+            'class_name' => $classroom->name,
+            'teacher_name' => auth()->user()->name ?? null,
+            'activities' => $activities,
+            'students' => $students,
+            'grades' => $grades,
+        ]);
     }
 
     // ── Instruction Files ──

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Zap, Upload, HelpCircle, AlertTriangle, CircleDashed, TrendingUp, Search } from 'lucide-react';
+import { Zap, Upload, HelpCircle, AlertTriangle, CircleDashed, TrendingUp, Search, Download } from 'lucide-react';
 import Dropdown from '../ui/Dropdown';
+import { getExcelJS, addTitleBlock, styleHeader, allBorders, fitColumns, stamp, stampFile, downloadWorkbook, XL } from '../../utils/excelExport';
 import './Gradebook.css';
 
 const typeIcons = { quiz: Zap, file: Upload, questions: HelpCircle };
@@ -125,6 +126,161 @@ export default function Gradebook({ data, loading, onActivityClick }) {
     return Math.round(withPct.reduce((n, r) => n + r.pct, 0) / withPct.length);
   }, [rows]);
 
+  const handleExport = async () => {
+    const ExcelJS = await getExcelJS();
+    const wb = new ExcelJS.Workbook();
+    const className = data?.class_name || 'Class';
+    const sorted = [...rows].sort((a, b) => {
+      const an = `${a.student.student_profile?.last_name || ''}${a.student.student_profile?.first_name || ''}`.toLowerCase();
+      const bn = `${b.student.student_profile?.last_name || ''}${b.student.student_profile?.first_name || ''}`.toLowerCase();
+      return an.localeCompare(bn);
+    });
+
+    // Points possible per activity: the activity's own setting, or the max of
+    // whatever submissions recorded (classwork quizzes carry it per submission)
+    const actPts = {};
+    activities.forEach((a) => {
+      let pts = Number(a.max_points ?? 0);
+      if (!pts) {
+        students.forEach((s) => {
+          const g = grades[s.id]?.[a.id];
+          if (g?.max_score) pts = Math.max(pts, Number(g.max_score));
+        });
+      }
+      actPts[a.id] = pts;
+    });
+
+    // ── Sheet 1: the class record ──
+    const ws = wb.addWorksheet('Class Record');
+    const colCount = 7 + activities.length;
+    const headerRow = addTitleBlock(
+      ws,
+      `${className} — Class Record`,
+      `${activities.length} graded items · ${sorted.length} students${data?.teacher_name ? ` · Teacher: ${data.teacher_name}` : ''} · Generated ${stamp()}`,
+      colCount,
+    );
+    const headers = ['#', 'Last Name', 'First Name', 'Email', 'LRN',
+      ...activities.map((a) => `${a.title}\n${actPts[a.id] ? `${actPts[a.id]} pts` : ''}`.trim()),
+      'Total (pts)', 'Total %'];
+    headers.forEach((h, i) => { ws.getCell(headerRow, i + 1).value = h; });
+    styleHeader(ws, headerRow, colCount);
+
+    sorted.forEach((r, idx) => {
+      const row = headerRow + 1 + idx;
+      const p = r.student.student_profile || {};
+      ws.getCell(row, 1).value = idx + 1;
+      ws.getCell(row, 2).value = p.last_name || '';
+      ws.getCell(row, 3).value = p.first_name || '';
+      ws.getCell(row, 4).value = r.student.email || '';
+      ws.getCell(row, 5).value = p.lrn_number || '';
+      activities.forEach((a, ai) => {
+        const cell = ws.getCell(row, 6 + ai);
+        const { state, g } = r.cells[a.id];
+        if (state === 'graded') {
+          cell.value = Number(g.score);
+          cell.numFmt = '0.##';
+          cell.alignment = { horizontal: 'center' };
+          if (g.is_late) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.pendingFill } };
+          }
+        } else if (state === 'pending') {
+          cell.value = 'To grade';
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.pendingFill } };
+          cell.font = XL.pendingFont;
+          cell.alignment = { horizontal: 'center' };
+        } else if (state === 'missing') {
+          cell.value = 'Missing';
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.missingFill } };
+          cell.font = XL.missingFont;
+          cell.alignment = { horizontal: 'center' };
+        } else if (state === 'none') {
+          cell.value = '—';
+          cell.font = XL.mutedFont;
+          cell.alignment = { horizontal: 'center' };
+        }
+      });
+      const tot = ws.getCell(row, colCount - 1);
+      tot.value = r.totalScore;
+      tot.numFmt = '0.##';
+      tot.font = { bold: true };
+      tot.alignment = { horizontal: 'center' };
+      const pct = ws.getCell(row, colCount);
+      if (r.pct !== null) {
+        pct.value = r.pct / 100;
+        pct.numFmt = '0%';
+        pct.font = { bold: true, color: { argb: r.pct >= 80 ? 'FF065F46' : r.pct >= 50 ? 'FF92610A' : 'FF991B1B' } };
+      }
+      pct.alignment = { horizontal: 'center' };
+      for (let c = 1; c <= colCount; c += 1) allBorders(ws.getCell(row, c));
+    });
+
+    // Class average row
+    const avgRow = headerRow + 1 + sorted.length;
+    ws.getCell(avgRow, 2).value = 'Class Average';
+    activities.forEach((a, ai) => {
+      const cell = ws.getCell(avgRow, 6 + ai);
+      const avg = colStats[a.id]?.avg;
+      if (avg !== null && avg !== undefined) {
+        cell.value = avg / 100;
+        cell.numFmt = '0%';
+      }
+      cell.alignment = { horizontal: 'center' };
+    });
+    if (classAvg !== null) {
+      const cell = ws.getCell(avgRow, colCount);
+      cell.value = classAvg / 100;
+      cell.numFmt = '0%';
+    }
+    for (let c = 1; c <= colCount; c += 1) {
+      const cell = ws.getCell(avgRow, c);
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.avgFill } };
+      cell.font = cell.font?.bold ? cell.font : XL.avgFont;
+      allBorders(cell);
+    }
+
+    fitColumns(ws, colCount, { min: 6, max: 30 });
+    [1, 2, 3, 4, 5].forEach((c) => { ws.getColumn(c).width = [5, 18, 16, 30, 16][c - 1]; });
+    activities.forEach((_, ai) => { ws.getColumn(6 + ai).width = 20; });
+    ws.getColumn(colCount - 1).width = 12;
+    ws.getColumn(colCount).width = 10;
+
+    // ── Sheet 2: per-student summary ──
+    const ws2 = wb.addWorksheet('Summary');
+    const h2 = addTitleBlock(ws2, `${className} — Student Summary`, `Generated ${stamp()}`, 9);
+    ['Last Name', 'First Name', 'Email', 'LRN', 'Graded', 'To grade', 'Missing', 'Late', 'Average %'].forEach((h, i) => {
+      ws2.getCell(h2, i + 1).value = h;
+    });
+    styleHeader(ws2, h2, 9);
+    sorted.forEach((r, idx) => {
+      const row = h2 + 1 + idx;
+      const p = r.student.student_profile || {};
+      let late = 0;
+      let gradedCount = 0;
+      activities.forEach((a) => {
+        const { state, g } = r.cells[a.id];
+        if (state === 'graded') { gradedCount += 1; if (g.is_late) late += 1; }
+      });
+      ws2.getCell(row, 1).value = p.last_name || '';
+      ws2.getCell(row, 2).value = p.first_name || '';
+      ws2.getCell(row, 3).value = r.student.email || '';
+      ws2.getCell(row, 4).value = p.lrn_number || '';
+      ws2.getCell(row, 5).value = gradedCount;
+      ws2.getCell(row, 6).value = r.pending;
+      ws2.getCell(row, 7).value = r.missing;
+      ws2.getCell(row, 8).value = late;
+      if (r.pct !== null) {
+        const c = ws2.getCell(row, 9);
+        c.value = r.pct / 100;
+        c.numFmt = '0%';
+      }
+      for (let c = 1; c <= 9; c += 1) allBorders(ws2.getCell(row, c));
+    });
+    fitColumns(ws2, 9, { min: 8 });
+    ws2.getColumn(3).width = 30;
+
+    await downloadWorkbook(wb, `Class Record — ${className} — ${stampFile()}.xlsx`);
+  };
+
   if (loading) {
     return (
       <div>
@@ -189,6 +345,14 @@ export default function Gradebook({ data, loading, onActivityClick }) {
               Class avg {classAvg}%
             </span>
           )}
+          <button
+            type="button"
+            className="gb-export-btn"
+            onClick={handleExport}
+            title="Download the class record as an Excel file"
+          >
+            <Download size={13} /> Excel
+          </button>
           <Dropdown
             value={sort}
             onChange={setSort}

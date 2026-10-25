@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Search, ClipboardCheck, CircleDashed, PlayCircle, ChevronRight, Clock,
-    BookOpen, Zap, TrendingUp,
+    BookOpen, Zap, TrendingUp, Download,
 } from 'lucide-react';
 import { useMonitorStats, useMonitorStudents, useStudentProgress } from '../../queries/pulse';
 import { useClassGradebook } from '../../queries/classwork';
+import { getExcelJS, addTitleBlock, styleHeader, allBorders, fitColumns, stamp, stampFile, fmtDateTime, downloadWorkbook } from '../../utils/excelExport';
 import './ClassPulse.css';
 
 function relTime(ts) {
@@ -81,6 +82,53 @@ export default function ClassPulse({ classId, course, embedded = false }) {
     const riskCount = rows.filter((r) => r.status.cls === 'risk').length;
     const missingStudents = rows.filter((r) => r.cw.missing > 0).length;
     const toGrade = rows.reduce((n, r) => n + r.cw.pending, 0);
+
+    // Honors the toolbar's filter + search — the export mirrors the roster
+    // the teacher is looking at.
+    const handleExport = async () => {
+        const ExcelJS = await getExcelJS();
+        const wb = new ExcelJS.Workbook();
+        const ws = wb.addWorksheet('Progress');
+        const colCount = 8;
+        const filterLabel = filter === 'risk' ? ' · At-risk students only' : filter === 'missing' ? ' · Students with missing work only' : '';
+        const hr = addTitleBlock(
+            ws,
+            `${course?.title || 'Class'} — Student Progress`,
+            `${visibleRows.length} students${filterLabel} · Generated ${stamp()}`,
+            colCount,
+        );
+        ['#', 'Student', 'LRN', 'Status', 'Course progress', 'To grade', 'Missing work', 'Last active'].forEach((h, i) => {
+            ws.getCell(hr, i + 1).value = h;
+        });
+        styleHeader(ws, hr, colCount);
+        visibleRows.forEach((r, i) => {
+            const row = hr + 1 + i;
+            ws.getCell(row, 1).value = i + 1;
+            ws.getCell(row, 2).value = r.name || '';
+            ws.getCell(row, 3).value = r.lrn_number || '';
+            const status = ws.getCell(row, 4);
+            status.value = r.status.label;
+            status.alignment = { horizontal: 'center' };
+            if (r.status.cls === 'risk') {
+                status.font = { bold: true, color: { argb: 'FF991B1B' } };
+            } else if (r.status.cls === 'stuck') {
+                status.font = { bold: true, color: { argb: 'FF92610A' } };
+            }
+            const prog = ws.getCell(row, 5);
+            prog.value = (r.completion_percentage ?? 0) / 100;
+            prog.numFmt = '0%';
+            prog.alignment = { horizontal: 'center' };
+            ws.getCell(row, 6).value = r.cw.pending;
+            ws.getCell(row, 7).value = r.cw.missing;
+            ws.getCell(row, 8).value = r.last_active ? fmtDateTime(r.last_active) : 'Never';
+            [1, 4, 5, 6, 7].forEach((c) => { ws.getCell(row, c).alignment = { horizontal: 'center', ...(ws.getCell(row, c).alignment || {}) }; });
+            for (let c = 1; c <= colCount; c += 1) allBorders(ws.getCell(row, c));
+        });
+        fitColumns(ws, colCount, { min: 8 });
+        ws.getColumn(2).width = 32;
+        ws.getColumn(8).width = 20;
+        await downloadWorkbook(wb, `Progress — ${course?.title || 'Class'} — ${stampFile()}.xlsx`);
+    };
 
     const visibleRows = useMemo(() => {
         let list = rows;
@@ -187,6 +235,10 @@ export default function ClassPulse({ classId, course, embedded = false }) {
                         </button>
                     ))}
                 </div>
+                <button type="button" className="pu-export-btn" onClick={handleExport}
+                    title="Download this roster (with the active filter applied) as Excel">
+                    <Download size={13} /> Excel
+                </button>
             </div>
 
             {dataLoading ? (
