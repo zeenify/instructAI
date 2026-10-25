@@ -51,9 +51,12 @@ async function sweep() {
         const res = await fetch(s.url, { method: s.method, signal: AbortSignal.timeout(90_000) });
         const ok = res.ok;
         const wasAsleep = res.status === 502 || res.status === 503;
+        // 429 = Render restarting the instance (usually mid-deploy from a
+        // git push) — transient, recovers when the deploy finishes.
+        const deploying = res.status === 429;
         console.log(
-          `[${stamp()}] ${ok ? "✓" : wasAsleep ? "⏳" : "✗"} ${s.name}: HTTP ${res.status}` +
-            (wasAsleep ? " (was asleep — this ping wakes it, allow ~1 min)" : ok ? " alive" : " unexpected"),
+          `[${stamp()}] ${ok ? "✓" : wasAsleep || deploying ? "⏳" : "✗"} ${s.name}: HTTP ${res.status}` +
+            (deploying ? " (restarting — likely a deploy from a git push, allow a few min)" : wasAsleep ? " (was asleep — this ping wakes it, allow ~1 min)" : ok ? " alive" : " unexpected"),
         );
       } catch (err) {
         const reason = err?.name === "TimeoutError" ? "timed out (waking?)" : err?.cause?.code || err?.message;
