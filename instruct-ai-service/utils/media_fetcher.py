@@ -69,6 +69,25 @@ def _clean_video_description(description: str) -> str:
     return text[:180].rstrip()
 
 
+# Filler words that appear in almost every educational video title and every
+# lesson title. A video only earns its embed when its title matches a
+# DISTINCTIVE topic word (logo, packaging, flowchart, swing…) — matching on
+# filler like "design tutorial" is how off-topic videos used to slip in, and
+# how every lesson ended up with a video it didn't need.
+_GENERIC_TITLE_WORDS = {
+    "tutorial", "guide", "how", "the", "and", "or", "for", "with", "your",
+    "lesson", "course", "class", "video", "part", "chapter", "episode",
+    "introduction", "intro", "basics", "basic", "beginner", "beginners",
+    "fundamental", "fundamentals", "essential", "essentials", "complete",
+    "learn", "learning", "creating", "create", "making", "make", "practice",
+    "design", "designs", "designer", "designers", "graphic", "graphics",
+    "visual", "media", "principles", "principle", "elements", "element",
+    "software", "tool", "tools", "tips", "tricks", "free", "new", "best",
+    "easy", "simple", "quick", "understanding", "overview", "explained",
+    "about", "using", "what",
+}
+
+
 def _is_video_relevant(video_title: str, keywords: str) -> bool:
     """
     Check if video title is actually relevant to the search keywords.
@@ -84,13 +103,14 @@ def _is_video_relevant(video_title: str, keywords: str) -> bool:
     title_lower = video_title.lower()
     keywords_lower = keywords.lower()
 
-    # Extract main topics from keywords (ignore "tutorial")
-    keyword_parts = [w for w in keywords_lower.split() if w not in ["tutorial", "guide", "how", "to", "the", "a", "and", "or"]]
-
-    # Video must contain at least one main keyword
-    has_main_keyword = any(kw in title_lower for kw in keyword_parts if len(kw) > 3)
-
-    if not has_main_keyword:
+    # Distinctive topic words — the anchor a title must match. When the
+    # keywords carry nothing distinctive (a fully generic lesson title),
+    # fall back to any main keyword rather than blocking videos outright.
+    distinctive = [w for w in keywords_lower.split()
+                   if len(w) > 3 and w not in _GENERIC_TITLE_WORDS]
+    if not distinctive:
+        distinctive = [w for w in keywords_lower.split() if len(w) > 3]
+    if not any(w in title_lower for w in distinctive):
         return False
 
     # Lectures in other languages match English keywords fine on YouTube, but

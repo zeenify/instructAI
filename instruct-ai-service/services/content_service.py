@@ -369,6 +369,9 @@ async def generate_content_stream(
         # anyway is dropped here (the M2/M4 "positive/negative/zero" twin).
         used_coding_statements = []
         module_lesson_summaries = []  # Track summaries within current module for context awareness
+        # Video titles used anywhere in this run — a video repeats nowhere in
+        # the whole course (module-level banning alone let repeats through).
+        course_used_videos = set()
 
         # Generate content for each module
         for module_idx, module in enumerate(curriculum_structure):
@@ -511,12 +514,16 @@ async def generate_content_stream(
                         module_title=module_title,
                         include_images=(include_images.lower() == "true"),
                         include_videos=(include_videos.lower() == "true"),
-                        previous_lesson_videos=module_lesson_summaries  # Pass previous lesson summaries for video deduplication
+                        previous_lesson_videos=module_lesson_summaries,  # Pass previous lesson summaries for video deduplication
+                        extra_banned_video_titles=course_used_videos
                     ):
-                        if 'result' in msg:
-                            formatted_lesson = msg['result']
-                        else:
+                        if 'result' not in msg:
                             yield ': heartbeat rss=' + str(msg.get('rss', '?')) + chr(10) + chr(10)
+                        else:
+                            formatted_lesson = msg['result']
+                            course_used_videos.update(
+                                v for v in (formatted_lesson.get('videos_used') or []) if v
+                            )
 
                     lesson_content = {
                         "lesson_id": lesson_id,

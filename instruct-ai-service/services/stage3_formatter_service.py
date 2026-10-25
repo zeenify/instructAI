@@ -555,7 +555,8 @@ def format_all_sections_to_lesson(
     module_title: str = "",
     include_images: bool = True,
     include_videos: bool = True,
-    previous_lesson_videos: list = None
+    previous_lesson_videos: list = None,
+    extra_banned_video_titles: set = None
 ) -> dict:
     """
     Convert all section contents into a complete lesson
@@ -567,12 +568,15 @@ def format_all_sections_to_lesson(
         include_images: Deprecated - images are no longer added (removed due to repetitive/irrelevant content)
         include_videos: Whether to include videos (only if relevant and not already used)
         previous_lesson_videos: List of lesson summaries from earlier lessons (contains video titles to avoid)
+        extra_banned_video_titles: Video titles already used ANYWHERE in this
+            generation run — a video repeats nowhere in the whole course
 
     Returns:
         Complete lesson with blocks
     """
     all_blocks = []
     used_video_titles = set()   # Track video titles used in this lesson
+    video_added = False         # A lesson carries AT MOST ONE video
 
     # Collect video titles from previous lessons to avoid (cross-lesson deduplication)
     banned_video_titles = set()
@@ -581,6 +585,8 @@ def format_all_sections_to_lesson(
             videos = prev_lesson.get('videos_used', [])
             if videos:
                 banned_video_titles.update(videos)
+    if extra_banned_video_titles:
+        banned_video_titles.update(extra_banned_video_titles)
 
     for idx, section_content in enumerate(section_contents):
         # Always include videos if requested (let format_section_to_blocks decide relevance)
@@ -590,7 +596,7 @@ def format_all_sections_to_lesson(
             lesson_title=lesson_title,
             module_title=module_title,
             include_images=False,  # Images removed entirely
-            include_videos=include_videos,
+            include_videos=include_videos and not video_added,
             banned_video_titles=banned_video_titles  # Pass banned videos from previous lessons
         )
 
@@ -598,11 +604,12 @@ def format_all_sections_to_lesson(
         for block in section_blocks:
             if block['type'] == 'video':
                 video_title = block['data'].get('title', '')
-                if video_title.lower().strip() not in {v.lower().strip() for v in used_video_titles}:
-                    used_video_titles.add(video_title)
-                    all_blocks.append(block)
+                if video_added or video_title.lower().strip() in {v.lower().strip() for v in used_video_titles}:
+                    print(f"[VIDEO-SKIP] Lesson already has its one video: {video_title}")
                 else:
-                    print(f"[VIDEO-SKIP] Duplicate video in lesson: {video_title}")
+                    used_video_titles.add(video_title)
+                    video_added = True
+                    all_blocks.append(block)
             else:
                 all_blocks.append(block)
 
