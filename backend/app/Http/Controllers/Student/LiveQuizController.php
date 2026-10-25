@@ -11,6 +11,7 @@ use App\Support\ActivityGrading;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class LiveQuizController extends Controller
 {
@@ -544,6 +545,9 @@ class LiveQuizController extends Controller
         // response flushes — this returns fast with a locked 'submitted'
         // attempt, so Render's ~53s response ceiling is never hit.
         $submission = $this->finalizeNow($submission, $activity);
+        // Claim the grading slot: state() re-arms stale gradings (e.g. one
+        // interrupted by a redeploy) and must not double-run this one.
+        Cache::add("quiz-regrade:{$submission->id}", 1, 180);
 
         return response()->json($this->statePayload($activity, $submission));
     }
@@ -568,6 +572,21 @@ class LiveQuizController extends Controller
         $this->checkEnrollment($activity->class_id);
 
         $submission = $this->getSubmission($id);
+
+        // Self-heal: a grading pass interrupted by a deploy leaves the
+        // attempt 'submitted' with graded_at null forever, and the student
+        // stares at the grading screen. When that state is clearly stale,
+        // re-arm it (cooldown keeps polling from stampeding the engine).
+        if ($submission
+            && $this->isFinalized($submission)
+            && $submission->graded_at === null
+            && $submission->submitted_at
+            && $submission->submitted_at->lt(now()->subMinutes(3))
+            && ! $activity->questions->contains(fn ($q) => ! ActivityGrading::autoGradable($q))
+            && Cache::add("quiz-regrade:{$submission->id}", 1, 180)) {
+            \Log::warning("Quiz grading stale for submission {$submission->id} — re-arming");
+            app()->terminating(fn () => ActivityGrading::gradeSubmission($submission->id, $activity->id));
+        }
 
         if ($submission && ! $this->isFinalized($submission)) {
             $pacing = $this->effectivePacing($activity, $submission);

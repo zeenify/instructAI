@@ -67,6 +67,9 @@ export default function QuizRoomView() {
   const navigate = useNavigate();
 
   const [phase, setPhase] = useState("loading");
+  // Session-local seconds on the grading screen — reassures the student the
+  // wait is progressing instead of an empty loading state.
+  const [gradingElapsed, setGradingElapsed] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
   const [payload, setPayload] = useState(null);
   const [answers, setAnswers] = useState({});
@@ -548,6 +551,8 @@ export default function QuizRoomView() {
   // code questions), so the attempt locks instantly and the score lands here.
   useEffect(() => {
     if (phase !== "grading") return;
+    setGradingElapsed(0);
+    const ticks = setInterval(() => setGradingElapsed((s) => s + 1), 1000);
     let alive = true;
     const tick = async () => {
       try {
@@ -565,6 +570,7 @@ export default function QuizRoomView() {
     return () => {
       alive = false;
       clearInterval(timer);
+      clearInterval(ticks);
     };
   }, [phase, activityId, applyPayload]);
 
@@ -1196,6 +1202,19 @@ export default function QuizRoomView() {
         <p
           style={{
             fontSize: "13px",
+            color: "var(--text-secondary)",
+            margin: 0,
+            maxWidth: "420px",
+            textAlign: "center",
+            lineHeight: 1.5,
+          }}
+        >
+          Your programs are being compiled and verified — this usually takes
+          under a minute. ({gradingElapsed}s)
+        </p>
+        <p
+          style={{
+            fontSize: "13px",
             color: "var(--text-tertiary)",
             margin: 0,
             maxWidth: "420px",
@@ -1203,10 +1222,27 @@ export default function QuizRoomView() {
             lineHeight: 1.5,
           }}
         >
-          Your programs are compiled and verified on the execution engine —
-          this can take a couple of minutes. Keep this page open; your score
-          appears here automatically.
+          You can leave this page — your answers are already saved and
+          grading keeps running. Your score will be waiting when you come
+          back.
         </p>
+        <button
+          type="button"
+          onClick={backToClass}
+          style={{
+            marginTop: "4px",
+            padding: "10px 18px",
+            borderRadius: "10px",
+            border: "1px solid var(--text-tertiary)",
+            background: "transparent",
+            color: "var(--text-primary)",
+            fontSize: "13px",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          Back to class — check results later
+        </button>
       </div>
     );
   }
