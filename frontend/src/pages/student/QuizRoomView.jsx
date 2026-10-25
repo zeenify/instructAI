@@ -74,6 +74,17 @@ export default function QuizRoomView() {
   const [timeLeft, setTimeLeft] = useState(null);
   const [saveState, setSaveState] = useState("idle");
   const [offline, setOffline] = useState(false);
+  // One failed request in a wave of parallel quiz traffic is not "offline" —
+  // require a few consecutive failures before alarming the student.
+  const offlineStreakRef = useRef(0);
+  const noteNetFail = useCallback(() => {
+    offlineStreakRef.current += 1;
+    if (offlineStreakRef.current >= 3) setOffline(true);
+  }, []);
+  const noteNetOk = useCallback(() => {
+    offlineStreakRef.current = 0;
+    setOffline(false);
+  }, []);
   const [finishing, setFinishing] = useState(false);
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [teacherPacing, setTeacherPacing] = useState(false);
@@ -298,10 +309,10 @@ export default function QuizRoomView() {
         }
         pendingSaveRef.current = { questionId, value, idx };
         setSaveState("error");
-        setOffline(true);
+        noteNetFail();
       }
     },
-    [activityId, applyPayload],
+    [activityId, applyPayload, noteNetFail],
   );
 
   const flushSave = useCallback(() => {
@@ -426,9 +437,9 @@ export default function QuizRoomView() {
       });
       setAnswers((prev) => ({ ...prev, ...restored }));
     } catch {
-      setOffline(true);
+      noteNetFail();
     }
-  }, [activityId, applyPayload]);
+  }, [activityId, applyPayload, noteNetFail]);
 
   const handleStart = useCallback(async () => {
     try {
@@ -647,7 +658,8 @@ export default function QuizRoomView() {
     heartbeaterRef.current = setInterval(() => {
       api
         .post(`/student/activities/${activityId}/quiz/heartbeat`)
-        .catch(() => setOffline(true));
+        .then(() => noteNetOk())
+        .catch(noteNetFail);
     }, 10000);
     pollerRef.current = setInterval(() => {
       pollState();
@@ -656,7 +668,7 @@ export default function QuizRoomView() {
       clearInterval(heartbeaterRef.current);
       clearInterval(pollerRef.current);
     };
-  }, [phase, activityId, pollState, teacherPacing, roomPaused]);
+  }, [phase, activityId, pollState, teacherPacing, roomPaused, noteNetFail, noteNetOk]);
 
   useEffect(() => {
     if (phase === "results" && payload?.reveal === "summary") {

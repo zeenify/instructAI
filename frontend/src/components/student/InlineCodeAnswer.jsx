@@ -165,18 +165,31 @@ export default function InlineCodeAnswer({
             // check run. ONE batch call compiles once and runs every input —
             // per-case compiles tripled the cold-javac cost and blew timeouts.
             if (sampleTests.length > 0) {
-                let batch;
-                try {
-                    const res = await api.post('/student/execute-batch', {
-                        code: value || boilerplate,
-                        language: lang.id,
-                        inputs: sampleTests.map((t) => t.input ?? ''),
-                    }, { timeout: 50000 });
-                    batch = res.data;
-                } catch (err) {
+                let batch = null;
+                let lastErr = null;
+                for (let attempt = 0; attempt < 2; attempt += 1) {
+                    if (attempt > 0) await new Promise((r) => setTimeout(r, 1500));
+                    try {
+                        const res = await api.post('/student/execute-batch', {
+                            code: value || boilerplate,
+                            language: lang.id,
+                            inputs: sampleTests.map((t) => t.input ?? ''),
+                        }, { timeout: 50000 });
+                        batch = res.data;
+                        break;
+                    } catch (err) {
+                        lastErr = err;
+                        // A response body (busy / engine error) is a real
+                        // answer — don't hammer the engine. Only network-level
+                        // failures retry: the long call can lose its socket in
+                        // a wave of parallel quiz traffic right after a run.
+                        if (err?.response) break;
+                    }
+                }
+                if (!batch) {
                     setErrorType('system');
                     setOutput(
-                        err?.response?.data?.message
+                        lastErr?.response?.data?.message
                         || 'The engine did not answer — it may be waking up. Press Run to retry.',
                     );
                     return;
