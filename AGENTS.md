@@ -263,8 +263,11 @@ pilot / defense days (STOPS itself after 12h; don't run 24/7, the free
 instance-hour pool is shared across the workspace). **Long AI streams go
 browser→Python DIRECTLY, never through a Laravel proxy** — the Render relay
 chain silently drops minutes-long SSE mid-run (clean EOF, no error frame)
-and each streamed request held a PHP worker (the backend Dockerfile now
-sets `PHP_CLI_SERVER_WORKERS=4`, but still don't proxy streams). The AI
+and each streamed request held a PHP worker (the backend Dockerfile sets
+`PHP_CLI_SERVER_WORKERS=4` **and must keep `--no-reload` on the serve
+command** — Laravel's ServeCommand silently forces ONE worker without it,
+so long requests (batch code runs, exports) would block every other
+request on the site; but still don't proxy streams). The AI
 Tutor, the studio's content generation, AND classwork question generation
 all use the same signed-envelope pattern: Laravel mints an HMAC payload
 (classwork: `ai-generate-prepare` → Python `/ai/qa-questions-stream-signed`,

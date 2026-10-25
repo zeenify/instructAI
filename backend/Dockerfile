@@ -43,8 +43,10 @@ EXPOSE 10000
 # time by default — a single long SSE/upload/export request wedged the whole
 # site (Render's edge 503'd everything else). Forked workers share memory
 # copy-on-write, so 4 is safe on the free tier's 512MB.
+# NOTE: Laravel ONLY honors this with --no-reload (its .env file-watcher
+# otherwise forces a single server); production never edits .env live.
 ENV PHP_CLI_SERVER_WORKERS=4
 
 # Start the Laravel server and run migrations
 # Replace the last line of your Dockerfile with this:
-CMD php artisan config:clear && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=10000
+CMD php artisan config:clear && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=10000 --no-reload
