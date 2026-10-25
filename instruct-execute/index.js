@@ -18,9 +18,17 @@ const wss = new WebSocket.Server({ server });
 const MAX_OUTPUT_BYTES = 64 * 1024;      // per-stream cap so a fork bomb can't eat memory
 const REST_TIMEOUT_MS = 10 * 1000;
 const WS_TIMEOUT_MS = 30 * 1000;
-const COMPILE_TIMEOUT_MS = 20 * 1000;
+// Cold java compiles on the shared free-tier CPU take 10-35s, longer when
+// several students compile at once — a tight cap kills javac mid-flight,
+// which (before the honest compile-failure handling below) graded as a
+// blank success. Env-overridable for local slow-engine tests.
+const COMPILE_TIMEOUT_MS = (parseInt(process.env.COMPILE_TIMEOUT_MS, 10) || 40) * 1000;
 const AVAILABILITY_TTL_MS = 30 * 1000;
-const MAX_CONCURRENT_JOBS = Math.max(2, os.cpus().length * 2);
+// os.cpus() reports the HOST's cores on a throttled container, so cpus*2
+// wildly overbooks a 512MB box with java compilers (~100-150MB each). Cap at
+// 6: over-cap callers get an honest 429, which Laravel maps to engine_error
+// (flagged for retake, never scored against the student).
+const MAX_CONCURRENT_JOBS = Math.min(6, Math.max(2, os.cpus().length * 2));
 // Students iterate: run, read the error, fix, run again. And on a Render-style
 // deployment EVERY student arrives through the same proxy IP (app.set('trust
 // proxy') below recovers the real client where possible), so this is a
@@ -271,6 +279,7 @@ function executeJob({ language, code, input, interactive = false, timeoutMs, onE
         let compileTimer = null;
         let absoluteTimer = null;
         let timedOut = false;
+        let compileTimedOut = false;
         let timeoutReason = '';
         let settled = false;
 
@@ -405,16 +414,41 @@ function executeJob({ language, code, input, interactive = false, timeoutMs, onE
                 compileChild.stdout?.on('data', (d) => { compileOutput += d; });
 
                 compileTimer = setTimeout(() => {
+                    compileTimedOut = true;
                     killTree(compileChild);
                 }, COMPILE_TIMEOUT_MS);
 
                 compileChild.on('close', (cc) => {
                     if (cc !== 0) {
+                        // A killed or blank compile must never look like a
+                        // clean run with no output — graders compare stdout
+                        // and would score engine slowness as a wrong answer.
+                        // Timeouts and OOM-style kills (non-zero exit, nothing
+                        // printed — a real syntax error ALWAYS has javac/g++
+                        // diagnostics) get an honest message plus the
+                        // compile_timed_out flag, which Laravel maps to
+                        // engine_error: flagged for retake, never scored.
+                        // Genuine compiler errors keep their diagnostics and
+                        // carry NO flag — that's the student's code failing.
+                        let output = cap(compileOutput);
+                        let infraFailure = false;
+                        if (compileTimedOut || !String(output).trim()) {
+                            infraFailure = true;
+                            output = compileTimedOut
+                                ? 'Compilation timed out — the engine is busy. Try again in a moment.'
+                                : 'The compiler failed without a diagnostic (engine busy or out of memory). Try again.';
+                            emit({
+                                type: 'error',
+                                message: 'Compilation failed on the engine (busy) — press Run again in a moment.',
+                            });
+                        }
                         finish({
                             stdout: '',
-                            stderr: cap(compileOutput),
-                            compile_output: cap(compileOutput),
+                            stderr: output,
+                            compile_output: output,
                             exit_code: cc ?? -1,
+                            timed_out: compileTimedOut,
+                            compile_timed_out: infraFailure,
                         });
                         return;
                     }

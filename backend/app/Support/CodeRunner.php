@@ -115,7 +115,7 @@ class CodeRunner
             $response = $withToken($localUrl, $payload);
 
             if ($response->successful()) {
-                return self::normalize($response->json());
+                return self::result($response->json());
             }
 
             // Deterministic engine answers (bad language, missing runtime, busy)
@@ -140,7 +140,7 @@ class CodeRunner
             $response = $withToken($deployedUrl, $payload);
 
             if ($response->successful()) {
-                return self::normalize($response->json());
+                return self::result($response->json());
             }
 
             $body = $response->json();
@@ -168,6 +168,21 @@ class CodeRunner
             'timed_out' => (bool) ($data['timed_out'] ?? false),
             'engine_error' => false,
         ];
+    }
+
+    /**
+     * A compile the engine killed (busy CPU / out of memory) carries
+     * compile_timed_out — an infrastructure failure, not the student's code
+     * failing, so it routes to the engine-error path (flagged for
+     * retake/review, never scored) instead of comparing blank stdout.
+     */
+    private static function result(?array $data): array
+    {
+        if (is_array($data) && ! empty($data['compile_timed_out'])) {
+            return self::engineError('Compilation timed out on the engine (busy) — try again in a moment.');
+        }
+
+        return self::normalize($data);
     }
 
     private static function engineError(string $message): array
