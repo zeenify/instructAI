@@ -95,7 +95,12 @@ def verify_stream_signature(payload_json: str, auth_sig: str, auth_ts: int) -> b
 _seen_stream_payloads = {}
 
 
-def payload_is_replay(payload_json: str) -> bool:
+def payload_is_replay(payload_json: str, auth_ts: int = 0) -> bool:
+    # Keyed on the envelope (payload + minted ts), not the payload alone: a
+    # captured envelope replays the same ts and stays blocked, while a FRESH
+    # prepare for identical content (teacher regenerates the same settings)
+    # gets a new ts and is allowed.
+    payload_json = payload_json + "\n" + str(auth_ts)
     now = time.time()
     for key in [k for k, exp in _seen_stream_payloads.items() if exp < now]:
         _seen_stream_payloads.pop(key, None)
@@ -441,7 +446,7 @@ async def qa_questions_stream_signed(
     if not verify_stream_signature(payload_json, auth_sig, auth_ts):
         print("[QA Stream] invalid or expired stream signature")
         return JSONResponse(status_code=401, content={"error": "invalid or expired stream signature"})
-    if payload_is_replay(payload_json):
+    if payload_is_replay(payload_json, auth_ts):
         print("[QA Stream] replayed envelope rejected")
         return JSONResponse(status_code=401, content={"error": "stream envelope already used"})
 

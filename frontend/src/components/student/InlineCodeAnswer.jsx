@@ -167,8 +167,14 @@ export default function InlineCodeAnswer({
             if (sampleTests.length > 0) {
                 let batch = null;
                 let lastErr = null;
-                for (let attempt = 0; attempt < 2; attempt += 1) {
-                    if (attempt > 0) await new Promise((r) => setTimeout(r, 1500));
+                // A whole class clicking Run at once over-subscribes the
+                // engine; over-cap callers get a clean 'busy' answer. Queue
+                // behind the class with staggered retries instead of failing
+                // the check — and say what's happening.
+                const BUSY_DELAYS = [3000, 7000, 12000, 16000];
+                let busyWait = 0;
+                for (let attempt = 0; attempt < 1 + BUSY_DELAYS.length; attempt += 1) {
+                    if (attempt > 0) await new Promise((r) => setTimeout(r, BUSY_DELAYS[attempt - 1]));
                     try {
                         const res = await api.post('/student/execute-batch', {
                             code: value || boilerplate,
@@ -179,11 +185,17 @@ export default function InlineCodeAnswer({
                         break;
                     } catch (err) {
                         lastErr = err;
-                        // A response body (busy / engine error) is a real
-                        // answer — don't hammer the engine. Only network-level
-                        // failures retry: the long call can lose its socket in
-                        // a wave of parallel quiz traffic right after a run.
-                        if (err?.response) break;
+                        const message = String(err?.response?.data?.message || '');
+                        const busy = err?.response?.status === 503 && /busy/i.test(message);
+                        if (!err?.response) {
+                            // Network-level drop — one quiet retry, then bail.
+                            if (attempt === 0) continue;
+                            break;
+                        }
+                        if (!busy) break; // a real engine answer
+                        busyWait += BUSY_DELAYS[attempt] || 0;
+                        setErrorType('system');
+                        setOutput(`The engine is busy with the class — retrying in about ${Math.round((BUSY_DELAYS[attempt] || 0) / 1000)}s… (${busyWait / 1000}s waited)`);
                     }
                 }
                 if (!batch) {

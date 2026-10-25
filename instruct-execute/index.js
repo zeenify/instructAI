@@ -563,6 +563,61 @@ app.post('/execute', async (req, res) => {
     res.json(result);
 });
 
+// --- COMPILE CACHE --------------------------------------------------------
+// Compiling is the expensive half of a java run. The same student code is
+// executed again and again (their own retries, grading after the quiz, a
+// teacher replaying it), and a class clicking Run at once saturates the CPU.
+// Cache compiled artifacts by sha1(language+code): a hit skips javac/g++.
+const COMPILE_CACHE_DIR = path.join(os.tmpdir(), 'exec-cache');
+const COMPILE_CACHE_MAX = 60;
+const crypto = require('crypto');
+
+function cacheKey(language, code) {
+    return crypto.createHash('sha1').update(language + ' ' + code).digest('hex');
+}
+
+function cacheLookup(key) {
+    try {
+        const dir = path.join(COMPILE_CACHE_DIR, key);
+        if (!fs.existsSync(path.join(dir, 'meta.json'))) return null;
+        return dir;
+    } catch { return null; }
+}
+
+function cachePopulate(key, sourceDir, meta) {
+    try {
+        fs.mkdirSync(COMPILE_CACHE_DIR, { recursive: true });
+        const dir = path.join(COMPILE_CACHE_DIR, key);
+        const tmp = `${dir}.tmp-${process.pid}-${Date.now()}`;
+        fs.mkdirSync(tmp, { recursive: true });
+        for (const entry of fs.readdirSync(sourceDir)) {
+            fs.copyFileSync(path.join(sourceDir, entry), path.join(tmp, entry));
+        }
+        fs.writeFileSync(path.join(tmp, 'meta.json'), JSON.stringify(meta || {}));
+        try { fs.renameSync(tmp, dir); } catch { fs.rmSync(tmp, { recursive: true, force: true }); }
+        // evict oldest beyond the cap
+        const entries = fs.readdirSync(COMPILE_CACHE_DIR)
+            .filter((e) => !e.includes('.tmp-'))
+            .map((e) => ({ e, t: fs.statSync(path.join(COMPILE_CACHE_DIR, e)).mtimeMs }))
+            .sort((a, b) => a.t - b.t);
+        for (const old of entries.slice(0, Math.max(0, entries.length - COMPILE_CACHE_MAX))) {
+            fs.rmSync(path.join(COMPILE_CACHE_DIR, old.e), { recursive: true, force: true });
+        }
+    } catch { /* cache is best-effort */ }
+}
+
+function cacheRestore(key, folderPath) {
+    const dir = cacheLookup(key);
+    if (!dir) return null;
+    try {
+        for (const entry of fs.readdirSync(dir)) {
+            if (entry === 'meta.json') continue;
+            fs.copyFileSync(path.join(dir, entry), path.join(folderPath, entry));
+        }
+        return JSON.parse(fs.readFileSync(path.join(dir, 'meta.json'), 'utf8') || '{}');
+    } catch { return null; }
+}
+
 // --- BATCH EXECUTION: compile once, run every input ----------------------
 // A quiz "Run" checks all sample tests; grading checks every stored test.
 // Compiling per input triples the (cold, expensive) javac cost — on a cold
@@ -658,10 +713,21 @@ function executeBatch({ language, code, inputs, timeoutMs = REST_TIMEOUT_MS }) {
         };
 
         let meta = {};
+        const cKey = lang.compile ? cacheKey(language, code) : null;
         try {
             fs.mkdirSync(folderPath, { recursive: true });
             activeJobs += 1;
             meta = lang.files(code, folderPath) || {};
+
+            if (cKey) {
+                const cachedMeta = cacheRestore(cKey, folderPath);
+                if (cachedMeta) {
+                    // Compiled artifacts already on disk — skip the compiler.
+                    meta = cachedMeta;
+                    runAll();
+                    return;
+                }
+            }
 
             if (lang.compile) {
                 compileChild = lang.compile(folderPath, meta);
@@ -688,6 +754,7 @@ function executeBatch({ language, code, inputs, timeoutMs = REST_TIMEOUT_MS }) {
                         finish({ compile_output: output, compile_timed_out: infraFailure });
                         return;
                     }
+                    if (cKey) cachePopulate(cKey, folderPath, meta);
                     runAll();
                 });
                 compileChild.on('error', (err) => finish({
