@@ -126,11 +126,50 @@ class ActivityGrading
 
     public static function finalizeSubmission(ActivitySubmission $submission, ClassActivity $activity, ?string $roomClosedAt = null): ActivitySubmission
     {
+        // Lock the attempt instantly — code questions grade by compiling on
+        // the execution engine, which runs minutes for a java quiz, and
+        // Render's edge kills any request that hasn't responded within ~53s.
+        // The heavy grading runs AFTER the response flushes (app terminating
+        // phase — the same pattern LessonIndexer uses), so callers get an
+        // immediate 'submitted' submission and clients poll until graded.
+        $activity->loadMissing('questions');
+        $submission->update([
+            'status' => 'submitted',
+            'max_score' => $activity->questions->sum('points'),
+            'submitted_at' => now(),
+            'room_closed_at' => $roomClosedAt,
+        ]);
+
+        if (app()->runningInConsole()) {
+            // No response to flush (commands/tinker) — grade synchronously.
+            return self::gradeSubmission($submission->id, $activity->id) ?? $submission->fresh();
+        }
+
+        app()->terminating(fn () => self::gradeSubmission($submission->id, $activity->id));
+
+        return $submission->fresh();
+    }
+
+    /**
+     * The heavy half of finalization: per-question grading (engine compiles
+     * for coding answers) and the final score/status write. Safe to re-run —
+     * already-graded submissions short-circuit.
+     */
+    public static function gradeSubmission($submissionId, $activityId): ?ActivitySubmission
+    {
+        $submission = ActivitySubmission::find($submissionId);
+        if (! $submission || $submission->graded_at) {
+            return $submission;
+        }
+        $activity = ClassActivity::with('questions.testCases')->find($activityId);
+        if (! $activity) {
+            return $submission;
+        }
+
         $totalScore = 0;
         $hasManualTypes = false;
 
         $submission->loadMissing('answers');
-        $activity->loadMissing('questions.testCases');
 
         foreach ($activity->questions as $question) {
             $answer = $submission->answers->firstWhere('question_id', $question->id);
@@ -159,10 +198,7 @@ class ActivityGrading
         $submission->update([
             'status' => $hasManualTypes ? 'submitted' : 'graded',
             'score' => round($totalScore, 2),
-            'max_score' => $activity->questions->sum('points'),
-            'submitted_at' => now(),
             'graded_at' => $hasManualTypes ? null : now(),
-            'room_closed_at' => $roomClosedAt,
         ]);
 
         return $submission->fresh();

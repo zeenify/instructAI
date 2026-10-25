@@ -316,6 +316,14 @@ class LiveQuizController extends Controller
             $reveal = ($activity->show_results === 'immediate' || $roomClosed) ? 'full' : 'summary';
         }
 
+        // The attempt is locked but the (auto-only) grading pass is still
+        // running in the terminating phase — clients poll until it lands.
+        // Manual-mixed quizzes never show this: graded_at stays null for
+        // them by design, so only fully auto-gradable quizzes qualify.
+        $gradingPending = $finalized
+            && $submission->graded_at === null
+            && ! $activity->questions->contains(fn ($q) => ! \App\Support\ActivityGrading::autoGradable($q));
+
         return [
             'activity' => $this->studentActivityPayload($activity, $submission),
             'submission' => $submission,
@@ -326,6 +334,7 @@ class LiveQuizController extends Controller
             'room_paused' => $this->roomPaused($activity),
             'room_closed' => $roomClosed,
             'finalized' => $finalized,
+            'grading_pending' => $gradingPending,
             'results' => $finalized ? $this->resultsPayload($activity, $submission) : null,
             'teacher_phase' => $pacing === 'teacher' ? $this->teacherPhase($activity) : null,
             'live_current_q' => $pacing === 'teacher' ? (int) $activity->live_current_q : null,
@@ -531,12 +540,12 @@ class LiveQuizController extends Controller
         // reopened) the attempt is self-paced and the student finishes it.
         abort_if($this->effectivePacing($activity, $submission) === 'teacher', 422, 'The teacher will end the quiz');
 
-        return DB::transaction(function () use ($submission, $activity) {
-            $this->finalizeNow($submission, $activity);
-            $submission->load('answers');
+        // Grading (engine compiles for code questions) runs after the
+        // response flushes — this returns fast with a locked 'submitted'
+        // attempt, so Render's ~53s response ceiling is never hit.
+        $submission = $this->finalizeNow($submission, $activity);
 
-            return response()->json($this->statePayload($activity, $submission));
-        });
+        return response()->json($this->statePayload($activity, $submission));
     }
 
     public function heartbeat($id)
@@ -566,16 +575,15 @@ class LiveQuizController extends Controller
             $this->clampSubmissionToTeacher($submission, $activity, $pacing);
 
             if ($activity->timer_mode === 'entire_quiz' && $this->isExpired($submission, $activity)) {
-                $this->finalizeNow($submission, $activity);
+                $submission = $this->finalizeNow($submission, $activity);
             }
         }
 
         return response()->json($this->statePayload($activity, $submission));
     }
 
-    private function finalizeNow(ActivitySubmission $submission, ClassActivity $activity): void
+    private function finalizeNow(ActivitySubmission $submission, ClassActivity $activity): ActivitySubmission
     {
-        ActivityGrading::finalizeSubmission($submission, $activity);
-        $submission->load('answers');
+        return ActivityGrading::finalizeSubmission($submission, $activity);
     }
 }

@@ -150,6 +150,12 @@ export default function QuizRoomView() {
     });
     setAnswers(restored);
 
+    if (data.grading_pending) {
+      // Attempt locked, grading (code compiles) still running server-side.
+      setPhase("grading");
+      return;
+    }
+
     if (data.finalized) {
       setPhase("results");
       return;
@@ -526,6 +532,30 @@ export default function QuizRoomView() {
   useEffect(() => {
     timeLeftRef.current = timeLeft;
   }, [timeLeft]);
+
+  // Grading poll — the backend grades AFTER responding (engine compiles for
+  // code questions), so the attempt locks instantly and the score lands here.
+  useEffect(() => {
+    if (phase !== "grading") return;
+    let alive = true;
+    const tick = async () => {
+      try {
+        const res = await api.get(
+          `/student/activities/${activityId}/quiz/state`,
+          { bypassCache: true },
+        );
+        if (alive && !res.data.grading_pending) applyPayload(res.data);
+      } catch {
+        /* grading continues server-side — keep polling */
+      }
+    };
+    const timer = setInterval(tick, 5000);
+    tick();
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [phase, activityId, applyPayload]);
 
   useEffect(() => {
     if (phase !== "taking") return;
@@ -1118,6 +1148,53 @@ export default function QuizRoomView() {
             Not now — back to class
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (phase === "grading") {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "16px",
+          background: "var(--bg-primary)",
+          padding: "24px",
+        }}
+      >
+        <Loader2
+          className="animate-spin"
+          size={32}
+          color="var(--text-tertiary)"
+        />
+        <p
+          style={{
+            fontSize: "17px",
+            color: "var(--text-primary)",
+            margin: 0,
+            fontWeight: 600,
+          }}
+        >
+          Checking your answers…
+        </p>
+        <p
+          style={{
+            fontSize: "13px",
+            color: "var(--text-tertiary)",
+            margin: 0,
+            maxWidth: "420px",
+            textAlign: "center",
+            lineHeight: 1.5,
+          }}
+        >
+          Your programs are compiled and verified on the execution engine —
+          this can take a couple of minutes. Keep this page open; your score
+          appears here automatically.
+        </p>
       </div>
     );
   }
