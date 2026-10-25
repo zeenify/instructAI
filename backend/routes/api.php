@@ -197,6 +197,7 @@ Route::middleware(['auth:sanctum', 'role:teacher'])->group(function () {
 
     // Activity AI question generation (context tree → stream → commit)
     Route::get('/teacher/activities/{activityId}/ai-context', [ActivityAiController::class, 'context']);
+    Route::post('/teacher/activities/{activityId}/ai-generate-prepare', [ActivityAiController::class, 'prepareGenerate']);
     Route::post('/teacher/activities/{activityId}/ai-generate-questions', [ActivityAiController::class, 'generate']);
     Route::post('/teacher/activities/{activityId}/ai-commit-questions', [ActivityAiController::class, 'commit']);
 

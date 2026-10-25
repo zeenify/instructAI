@@ -69,7 +69,7 @@ async def internal_auth_middleware(request: Request, call_next):
         # CORS preflight must pass through untouched
         if request.method == "OPTIONS":
             return await call_next(request)
-        if path in ("/ai/tutor-chat-stream", "/ai/pilot-stream", "/ai/course-content-stream"):
+        if path in ("/ai/tutor-chat-stream", "/ai/pilot-stream", "/ai/course-content-stream", "/ai/qa-questions-stream-signed"):
             return await call_next(request)  # HMAC verified inside the handler
         if not INTERNAL_SECRET or request.headers.get("X-Internal-Auth") != INTERNAL_SECRET:
             return JSONResponse(status_code=401, content={"error": "unauthorized"})
@@ -411,6 +411,66 @@ async def qa_questions_stream_endpoint(
     return StreamingResponse(
         generate_qa_questions_stream(ai_pool=gen_pool, context_sources=sources, settings=qa_settings),
         media_type="text/event-stream",
+    )
+
+
+class QaStreamEnvelope(BaseModel):
+    """HMAC-authenticated envelope, minted by Laravel's ai-generate-prepare."""
+    payload_json: str
+    auth_sig: str
+    auth_ts: int
+
+
+@app.post("/ai/qa-questions-stream-signed")
+async def qa_questions_stream_signed(
+    payload_json: str = Form(...),
+    auth_sig: str = Form(...),
+    auth_ts: int = Form(...),
+    files: list[UploadFile] = File(None, alias="files[]"),
+):
+    """Classwork question generation, streamed straight to the browser.
+
+    The legacy relay (browser -> Laravel proxy -> this service) crosses the
+    Render edge twice and silently drops long streams mid-run (clean EOF,
+    no error frame) — coding batches with engine-verified test cases run
+    for minutes and always hit that wall. Auth mirrors
+    course-content-stream: HMAC over payload_json + timestamp; the
+    teacher's context (lesson/curriculum text, pre-extracted by Laravel)
+    rides inside the signed payload, uploaded files ride along raw.
+    """
+    if not verify_stream_signature(payload_json, auth_sig, auth_ts):
+        print("[QA Stream] invalid or expired stream signature")
+        return JSONResponse(status_code=401, content={"error": "invalid or expired stream signature"})
+    if payload_is_replay(payload_json):
+        print("[QA Stream] replayed envelope rejected")
+        return JSONResponse(status_code=401, content={"error": "stream envelope already used"})
+
+    try:
+        payload = json.loads(payload_json)
+        sources = payload["context"]
+        qa_settings = payload["settings"]
+        if not isinstance(sources, list) or not isinstance(qa_settings, dict):
+            raise ValueError("bad payload shape")
+    except Exception as e:
+        print(f"[QA Stream] bad payload: {e}")
+        return JSONResponse(status_code=400, content={"error": "bad payload"})
+
+    print(
+        f"[QA Stream] activity={payload.get('activity_id')} "
+        f"teacher={payload.get('teacher_id')} files={len(files or [])}"
+    )
+
+    for file in (files or [])[:4]:
+        text = await asyncio.to_thread(_safe_extract, file)
+        if text and text.strip():
+            sources.append({"source": "file", "title": file.filename, "text": text[:20000]})
+        else:
+            print(f"[QA] no text extracted from {file.filename}")
+
+    return StreamingResponse(
+        generate_qa_questions_stream(ai_pool=gen_pool, context_sources=sources, settings=qa_settings),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
     )
 
 

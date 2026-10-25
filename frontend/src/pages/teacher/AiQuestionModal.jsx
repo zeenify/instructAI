@@ -295,12 +295,55 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
         let sawError = null;
         const collected = [];
         try {
-            const res = await fetch(`${VITE_API_URL}/teacher/activities/${activityId}/ai-generate-questions`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${localStorage.token}` },
-                body: form,
-                signal: controller.signal,
-            });
+            // Preferred: the direct browser→Python stream. The Laravel SSE
+            // relay crosses Render's edge twice and silently drops
+            // minutes-long runs (coding batches with engine-verified test
+            // cases always hit that wall) — so Laravel only MINTS a signed
+            // envelope here and the stream never touches it. The relayed
+            // endpoint stays as the fallback.
+            let res;
+            try {
+                const prep = await api.post(
+                    `/teacher/activities/${activityId}/ai-generate-prepare`,
+                    {
+                        context: {
+                            lesson_ids: [...selectedLessons],
+                            use_curriculum: useCurriculum,
+                            has_files: files.length > 0,
+                        },
+                        settings: {
+                            count: totalCount,
+                            difficulty,
+                            focus,
+                            // null = automatic — the backend reads the material and decides
+                            counts: countsActive ? counts : null,
+                            generate_test_cases: genTestCases,
+                        },
+                    },
+                    { signal: controller.signal },
+                );
+                const direct = new FormData();
+                direct.append('payload_json', prep.data.payload_json);
+                direct.append('auth_sig', prep.data.auth_sig);
+                direct.append('auth_ts', String(prep.data.auth_ts));
+                files.forEach((f) => direct.append('files[]', f));
+                res = await fetch(`${prep.data.ai_url}/ai/qa-questions-stream-signed`, {
+                    method: 'POST',
+                    body: direct,
+                    signal: controller.signal,
+                });
+                if (!res.ok) throw new Error(`AI stream HTTP ${res.status}`);
+            } catch (directErr) {
+                if (directErr?.name === 'AbortError') throw directErr;
+                if (directErr?.response?.status === 422) throw directErr; // validation — surface the message
+                console.warn('Direct AI stream unavailable — using the legacy relay:', directErr?.message);
+                res = await fetch(`${VITE_API_URL}/teacher/activities/${activityId}/ai-generate-questions`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${localStorage.token}` },
+                    body: form,
+                    signal: controller.signal,
+                });
+            }
 
             if (!res.ok) {
                 let message = 'Could not start the generation';
@@ -384,7 +427,7 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
             }
         } catch (err) {
             if (err?.name !== 'AbortError') {
-                sawError = 'The connection dropped — try again';
+                sawError = err?.response?.data?.message || 'The connection dropped — try again';
             }
         }
 

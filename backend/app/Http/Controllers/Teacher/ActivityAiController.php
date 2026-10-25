@@ -149,107 +149,17 @@ class ActivityAiController extends Controller
             'files.*' => 'file|mimes:pdf,doc,docx,ppt,pptx,txt|max:10240', // 10 MB each
         ]);
 
-        // Multipart form fields arrive as strings — decode then validate
-        $settings = json_decode($request->input('settings', '{}'), true);
-        $difficulty = (string) ($settings['difficulty'] ?? '');
-        $focus = substr((string) ($settings['focus'] ?? ''), 0, 500);
-
-        if (!in_array($difficulty, ['easy', 'medium', 'hard'], true)) {
-            return response()->json(['message' => 'Invalid difficulty.'], 422);
+        // Shared with prepareGenerate: validates the decoded context and
+        // settings, resolves lesson/curriculum text, and computes the mix.
+        // Returns a JsonResponse on any validation dead end.
+        $plan = $this->resolveGenerationPlan($request, $activity);
+        if ($plan instanceof \Illuminate\Http\JsonResponse) {
+            return $plan;
         }
-
-        // Resolve selected lessons → text sources, scoped to THIS teacher's
-        // class (the tree ids are client-supplied)
-        $contextSources = [];
-        $context = json_decode($request->input('context', '{}'), true);
-        $lessonIds = collect($context['lesson_ids'] ?? [])
-            ->filter(fn ($v) => is_numeric($v))->map(fn ($v) => (int) $v)->unique()->values();
-        $useCurriculum = (bool) ($context['use_curriculum'] ?? false);
-
-        if ($lessonIds->isNotEmpty()) {
-            $lessons = Lesson::whereIn('id', $lessonIds)
-                ->whereHas('module.course', fn ($q) => $q->where('class_id', $activity->class_id)->where('teacher_id', $request->user()->id))
-                ->with('module:id,title')
-                ->get();
-
-            foreach ($lessons as $lesson) {
-                $text = $this->lessonText($lesson);
-                if (mb_strlen(trim($text)) < 40) {
-                    continue; // image/video-only lesson — nothing to ground on
-                }
-                $contextSources[] = [
-                    'source' => 'lesson',
-                    'title' => ($lesson->module?->title ? $lesson->module->title . ' — ' : '') . $lesson->title,
-                    'text' => $text,
-                ];
-            }
-        }
-
-        $course = Course::where('class_id', $activity->class_id)->orderBy('order_index')->first();
-        if ($useCurriculum && $course && $course->curriculum_text) {
-            $contextSources[] = [
-                'source' => 'curriculum',
-                'title' => $course->title . ' curriculum',
-                'text' => $course->curriculum_text,
-            ];
-        }
-
-        $hasFiles = $request->hasFile('files');
-        if (empty($contextSources) && !$hasFiles) {
-            return response()->json([
-                'message' => 'Pick at least one lesson with text, or upload a file — the AI needs material to write from.',
-            ], 422);
-        }
-
-        // ---- The question mix -------------------------------------------------
-        // Explicit per-type counts (Advanced) always win. Otherwise the mix is
-        // computed from the material: coding questions only for coding material
-        // (course language set, engine can run it, ≥15% of the selected text is
-        // real code), essays only when there's room to think.
-        $counts = collect($settings['counts'] ?? [])
-            ->filter(fn ($n, $t) => in_array($t, self::ALLOWED_TYPES, true) && is_numeric($n) && (int) $n > 0)
-            ->map(fn ($n) => (int) $n);
-
-        if ($counts->isNotEmpty()) {
-            if ($counts->sum() > self::MAX_QUESTIONS) {
-                return response()->json(['message' => 'Question counts add up to more than '.self::MAX_QUESTIONS.'.'], 422);
-            }
-            if (($counts['coding'] ?? 0) > 0 && (!$course || !$course->language)) {
-                return response()->json([
-                    'message' => 'Coding questions need a course language — set it in the Curriculum modal first.',
-                ], 422);
-            }
-        } else {
-            // Default mix: multiple choice only — clean, auto-gradable, and
-            // never a surprise. Other types (TF, coding, essays) are a
-            // deliberate Advanced choice with exact counts.
-            $counts = collect(['multiple_choice' => max(1, min(self::MAX_QUESTIONS, (int) ($settings['count'] ?? 10)))]);
-        }
-
-        $count = $counts->sum();
-        if ($count < 1) {
-            return response()->json(['message' => 'Set how many questions you need first.'], 422);
-        }
-        $planLabel = $counts
-            ->map(fn ($n, $t) => $n . ' ' . (self::PLAN_LABELS[$t] ?? $t))
-            ->implode(', ');
 
         $payload = [
-            ['name' => 'context', 'contents' => json_encode($contextSources)],
-            ['name' => 'settings', 'contents' => json_encode([
-                'types' => $counts->keys()->values()->all(),
-                'counts' => $counts->all(),
-                'count' => $count,
-                'difficulty' => $difficulty,
-                'focus' => $focus,
-                // Coding questions are written in the course's language — the
-                // same convention the studio's lesson-challenge generator uses
-                'language' => $course?->language,
-                // Opt-in: the AI also proposes IO test cases for coding
-                // questions (Python engine-verifies them against the
-                // reference solution before they reach the review)
-                'generate_test_cases' => (bool) ($settings['generate_test_cases'] ?? false),
-            ])],
+            ['name' => 'context', 'contents' => json_encode($plan['sources'])],
+            ['name' => 'settings', 'contents' => json_encode($plan['settings'])],
         ];
 
         foreach ($request->file('files', []) as $file) {
@@ -262,12 +172,12 @@ class ActivityAiController extends Controller
             ];
         }
 
-        return new \Symfony\Component\HttpFoundation\StreamedResponse(function () use ($payload, $activity, $planLabel) {
+        return new \Symfony\Component\HttpFoundation\StreamedResponse(function () use ($payload, $activity, $plan) {
             $aiUrl = env('AI_SERVICE_URL') . '/ai/generate-qa-questions-stream';
             $client = new \GuzzleHttp\Client();
 
             echo "data: " . json_encode(['type' => 'status', 'message' => 'Connecting to AI service...']) . "\n\n";
-            echo "data: " . json_encode(['type' => 'status', 'message' => 'Plan: ' . $planLabel]) . "\n\n";
+            echo "data: " . json_encode(['type' => 'status', 'message' => 'Plan: ' . $plan['label']]) . "\n\n";
             if (ob_get_level() > 0) {
                 ob_flush();
             }
@@ -309,6 +219,163 @@ class ActivityAiController extends Controller
             'Content-Type' => 'text/event-stream',
             'Cache-Control' => 'no-cache',
             'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /**
+     * Validate the teacher's context/settings picks and resolve them into
+     * the exact sources + settings the Python generator consumes. Shared by
+     * generate() (legacy relay) and prepareGenerate() (direct signed
+     * stream). Returns a 422 JsonResponse on any dead end, otherwise
+     * ['sources', 'settings', 'label'].
+     */
+    private function resolveGenerationPlan(Request $request, ClassActivity $activity)
+    {
+        // Multipart form fields arrive as strings — decode then validate
+        $settings = json_decode($request->input('settings', '{}'), true);
+        $difficulty = (string) ($settings['difficulty'] ?? '');
+        $focus = substr((string) ($settings['focus'] ?? ''), 0, 500);
+
+        if (!in_array($difficulty, ['easy', 'medium', 'hard'], true)) {
+            return response()->json(['message' => 'Invalid difficulty.'], 422);
+        }
+
+        // Resolve selected lessons → text sources, scoped to THIS teacher's
+        // class (the tree ids are client-supplied)
+        $contextSources = [];
+        $context = json_decode($request->input('context', '{}'), true);
+        $lessonIds = collect($context['lesson_ids'] ?? [])
+            ->filter(fn ($v) => is_numeric($v))->map(fn ($v) => (int) $v)->unique()->values();
+        $useCurriculum = (bool) ($context['use_curriculum'] ?? false);
+
+        if ($lessonIds->isNotEmpty()) {
+            $lessons = Lesson::whereIn('id', $lessonIds)
+                ->whereHas('module.course', fn ($q) => $q->where('class_id', $activity->class_id)->where('teacher_id', $request->user()->id))
+                ->with('module:id,title')
+                ->get();
+
+            foreach ($lessons as $lesson) {
+                $text = $this->lessonText($lesson);
+                if (mb_strlen(trim($text)) < 40) {
+                    continue; // image/video-only lesson — nothing to ground on
+                }
+                $contextSources[] = [
+                    'source' => 'lesson',
+                    'title' => ($lesson->module?->title ? $lesson->module?->title . ' — ' : '') . $lesson->title,
+                    'text' => $text,
+                ];
+            }
+        }
+
+        $course = Course::where('class_id', $activity->class_id)->orderBy('order_index')->first();
+        if ($useCurriculum && $course && $course->curriculum_text) {
+            $contextSources[] = [
+                'source' => 'curriculum',
+                'title' => $course->title . ' curriculum',
+                'text' => $course->curriculum_text,
+            ];
+        }
+
+        $hasFiles = $request->hasFile('files') || (bool) ($context['has_files'] ?? false);
+        if (empty($contextSources) && !$hasFiles) {
+            return response()->json([
+                'message' => 'Pick at least one lesson with text, or upload a file — the AI needs material to write from.',
+            ], 422);
+        }
+
+        // ---- The question mix -------------------------------------------------
+        // Explicit per-type counts (Advanced) always win. Otherwise multiple
+        // choice only — clean, auto-gradable, never a surprise.
+        $counts = collect($settings['counts'] ?? [])
+            ->filter(fn ($n, $t) => in_array($t, self::ALLOWED_TYPES, true) && is_numeric($n) && (int) $n > 0)
+            ->map(fn ($n) => (int) $n);
+
+        if ($counts->isNotEmpty()) {
+            if ($counts->sum() > self::MAX_QUESTIONS) {
+                return response()->json(['message' => 'Question counts add up to more than '.self::MAX_QUESTIONS.'.'], 422);
+            }
+            if (($counts['coding'] ?? 0) > 0 && (!$course || !$course->language)) {
+                return response()->json([
+                    'message' => 'Coding questions need a course language — set it in the Curriculum modal first.',
+                ], 422);
+            }
+        } else {
+            $counts = collect(['multiple_choice' => max(1, min(self::MAX_QUESTIONS, (int) ($settings['count'] ?? 10)))]);
+        }
+
+        $count = $counts->sum();
+        if ($count < 1) {
+            return response()->json(['message' => 'Set how many questions you need first.'], 422);
+        }
+
+        return [
+            'sources' => $contextSources,
+            'settings' => [
+                'types' => $counts->keys()->values()->all(),
+                'counts' => $counts->all(),
+                'count' => $count,
+                'difficulty' => $difficulty,
+                'focus' => $focus,
+                // Coding questions are written in the course's language — the
+                // same convention the studio's lesson-challenge generator uses
+                'language' => $course?->language,
+                // Opt-in: the AI also proposes IO test cases for coding
+                // questions (Python engine-verifies them against the
+                // reference solution before they reach the review)
+                'generate_test_cases' => (bool) ($settings['generate_test_cases'] ?? false),
+            ],
+            'label' => $counts
+                ->map(fn ($n, $t) => $n . ' ' . (self::PLAN_LABELS[$t] ?? $t))
+                ->implode(', '),
+        ];
+    }
+
+    /**
+     * Mint a short-lived signed envelope so the modal can stream question
+     * generation DIRECTLY from the Python AI service (browser → Python),
+     * bypassing this app's SSE relay. The relayed path crosses Render's
+     * edge twice and silently drops minutes-long streams mid-run — the
+     * same wall the studio's content stream already moved off (see
+     * CourseController::aiPrepareStream). Uploaded files ride along on the
+     * direct request itself; lesson/curriculum text is resolved here and
+     * travels inside the signed payload.
+     */
+    public function prepareGenerate(Request $request, $activityId)
+    {
+        $activity = $this->authorizeActivity($activityId);
+
+        $request->validate([
+            'context' => 'required|array',
+            'settings' => 'required|array',
+        ]);
+        // resolveGenerationPlan reads the JSON-string form fields — present
+        // the decoded arrays the same way
+        $request->merge([
+            'context' => json_encode($request->input('context')),
+            'settings' => json_encode($request->input('settings')),
+        ]);
+
+        $plan = $this->resolveGenerationPlan($request, $activity);
+        if ($plan instanceof \Illuminate\Http\JsonResponse) {
+            return $plan;
+        }
+
+        $payload = [
+            'action' => 'qa-questions-stream',
+            'activity_id' => (int) $activity->id,
+            'teacher_id' => (int) $request->user()->id,
+            'context' => $plan['sources'],
+            'settings' => $plan['settings'],
+        ];
+
+        $payloadJson = json_encode($payload);
+        $sign = \App\Services\AiService::signPayload($payloadJson);
+
+        return response()->json([
+            'payload_json' => $payloadJson,
+            'auth_sig' => $sign['auth_sig'],
+            'auth_ts' => $sign['auth_ts'],
+            'ai_url' => rtrim((string) env('AI_SERVICE_URL'), '/'),
         ]);
     }
 
