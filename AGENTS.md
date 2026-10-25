@@ -257,7 +257,17 @@ sslmode=require, GEMINI_API, RIVER_API_KEY, AI_SERVICE_SECRET — must MATCH the
 backend's, EXECUTION_ENGINE_URL bare no /execute) · Execution engine **Render**
 `instruct-execute.onrender.com` (tokenless by design — the AI service's verify
 client sends no engine token; ENGINE_TOKEN must stay unset until that client
-learns it). All on Render's **free** tier: instances sleep after ~15 min idle
+learns it). **Render CLI is installed and logged in** (v2.31.0 at
+`%LOCALAPPDATA%/Programs/render-cli/render.exe`, token in `~/.render/cli.yaml`;
+run `render login` again if it expires). Use it before inferring anything about
+prod from the outside — `render logs -r <id> --start ... --end ... -o json`
+shows per-request app logs (path + duration), `render deploys list <id>`
+confirms deploy windows, `render restart <id>` after sign-off. Service ids:
+backend `srv-d75s5fa4d50c73cmbud0` · AI service `srv-dba8otfbtjjs73e84vag`
+(instruct-ai) · engine `srv-dba8n8brjlhs739ba9b0` (instruct-execute). The
+Render MCP server exists but adds nothing over the CLI for us (same API; the
+CLI is scriptable with `-o json`).
+All on Render's **free** tier: instances sleep after ~15 min idle
 and take ~1 min to wake — run `node tools/keep-awake.mjs` during testing /
 pilot / defense days (STOPS itself after 12h; don't run 24/7, the free
 instance-hour pool is shared across the workspace). **Long AI streams go
