@@ -244,7 +244,7 @@ export default function Gradebook({ data, loading, onActivityClick }) {
         const { state, g } = r.cells[a.id];
         if (state === 'graded') {
           cell.value = Number(g.score);
-          cell.numFmt = '0.##';
+          // Plain numbers — '0.##' renders integers with a trailing dot ("8.")
           cell.alignment = { horizontal: 'center' };
           if (g.is_late) {
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.pendingFill } };
@@ -259,7 +259,9 @@ export default function Gradebook({ data, loading, onActivityClick }) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.missingFill } };
           cell.font = XL.missingFont;
           cell.alignment = { horizontal: 'center' };
-        } else if (state === 'none') {
+        } else {
+          // No grade yet — quiz not taken, or activity still submittable.
+          // Every no-data cell reads the same: a muted dash, never blank.
           cell.value = '—';
           cell.font = XL.mutedFont;
           cell.alignment = { horizontal: 'center' };
@@ -267,7 +269,6 @@ export default function Gradebook({ data, loading, onActivityClick }) {
       });
       const tot = ws.getCell(row, colCount - 1);
       tot.value = r.sTotalScore;
-      tot.numFmt = '0.##';
       tot.font = { bold: true };
       tot.alignment = { horizontal: 'center' };
       const pct = ws.getCell(row, colCount);
@@ -309,6 +310,15 @@ export default function Gradebook({ data, loading, onActivityClick }) {
     exportActs.forEach((_, ai) => { ws.getColumn(6 + ai).width = 20; });
     ws.getColumn(colCount - 1).width = 12;
     ws.getColumn(colCount).width = 10;
+
+    // Legend — so anyone reading the sheet knows every marker without guessing
+    const legendRow = avgRow + 2;
+    ws.mergeCells(legendRow, 1, legendRow, colCount);
+    const legend = ws.getCell(legendRow, 1);
+    legend.value = 'Legend:  number = graded   ·   — = no grade yet (not taken / not due)   ·   To grade = submitted, awaiting grading   ·   Missing = not submitted by the deadline   ·   shaded amber = late';
+    legend.font = { size: 10, color: { argb: 'FF6B7280' }, italic: true };
+    legend.alignment = { horizontal: 'left', wrapText: true };
+    ws.getRow(legendRow).height = 18;
 
     // ── Sheet 2: per-student summary (same selection) ──
     const ws2 = wb.addWorksheet('Summary');
