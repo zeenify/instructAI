@@ -81,6 +81,7 @@ class ActivityGrading
                 'is_correct' => $graded['is_correct'],
                 'score' => $graded['earned'],
                 'test_results' => ['passed' => $graded['passed'], 'total' => $graded['total'], 'tests' => $graded['tests']],
+                'engine_error' => (bool) ($graded['engine_error'] ?? false),
             ];
         }
 
@@ -168,6 +169,7 @@ class ActivityGrading
 
         $totalScore = 0;
         $hasManualTypes = false;
+        $anyEngineError = false;
 
         $submission->loadMissing('answers');
 
@@ -183,6 +185,9 @@ class ActivityGrading
             }
 
             $result = static::grade($question, $raw);
+            if (! empty($result['engine_error'])) {
+                $anyEngineError = true;
+            }
             $answer->update([
                 'is_correct' => $result['is_correct'],
                 'score' => $result['score'],
@@ -195,10 +200,17 @@ class ActivityGrading
             }
         }
 
+        // An engine outage/busy strike during grading must NOT become a final
+        // score — a class submitting together saturated the engine and five
+        // students' correct code finalized as 0. Stay 'submitted' with
+        // graded_at null: the stale re-arm in state() retries until the
+        // engine answers (the compile cache makes the retry cheap).
+        $pending = $hasManualTypes || $anyEngineError;
+
         $submission->update([
-            'status' => $hasManualTypes ? 'submitted' : 'graded',
+            'status' => $pending ? 'submitted' : 'graded',
             'score' => round($totalScore, 2),
-            'graded_at' => $hasManualTypes ? null : now(),
+            'graded_at' => $pending ? null : now(),
         ]);
 
         return $submission->fresh();
