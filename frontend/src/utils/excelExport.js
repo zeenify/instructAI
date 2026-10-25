@@ -17,6 +17,7 @@ export async function getExcelJS() {
 
 export const XL = {
     headerFill: 'FF0071E3', // iOS blue — matches the dashboard accent
+    activityHeaderFill: 'FF475569', // slate — distinguishes activity columns from quiz columns
     headerFont: { color: { argb: 'FFFFFFFF' }, bold: true, size: 11 },
     titleFont: { bold: true, size: 15, color: { argb: 'FF111827' } },
     subFont: { size: 10.5, color: { argb: 'FF6B7280' } },

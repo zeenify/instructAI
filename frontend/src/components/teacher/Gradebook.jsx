@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Zap, Upload, HelpCircle, AlertTriangle, CircleDashed, TrendingUp, Search, Download } from 'lucide-react';
+import { toast } from 'sonner';
 import Dropdown from '../ui/Dropdown';
 import { getExcelJS, addTitleBlock, styleHeader, allBorders, fitColumns, stamp, stampFile, downloadWorkbook, XL } from '../../utils/excelExport';
 import './Gradebook.css';
@@ -16,6 +17,7 @@ export default function Gradebook({ data, loading, onActivityClick }) {
   const [search, setSearch] = useState('');
   const [flagFilter, setFlagFilter] = useState(null); // null | 'tograde' | 'missing'
   const [sort, setSort] = useState('name');
+  const [exportScope, setExportScope] = useState('all'); // all | quiz | activity
 
   const activities = useMemo(
     () => (data?.activities || []).filter((a) => a.submission_type !== 'material'),
@@ -127,6 +129,20 @@ export default function Gradebook({ data, loading, onActivityClick }) {
   }, [rows]);
 
   const handleExport = async () => {
+    // The scope dropdown decides which columns ship; the on-screen grid is
+    // untouched. Quizzes = activity_type 'quiz', everything else is an
+    // activity (file / Q&A — materials never reach the gradebook).
+    const exportActs = activities.filter((a) => (
+      exportScope === 'all'
+      || (exportScope === 'quiz' ? a.activity_type === 'quiz' : a.activity_type !== 'quiz')
+    ));
+    if (!exportActs.length) {
+      toast.error(exportScope === 'quiz' ? 'No quizzes in this gradebook yet.' : 'No activities in this gradebook yet.');
+      return;
+    }
+    const typeOf = (a) => (a.activity_type === 'quiz' ? 'Quiz' : 'Activity');
+    const quizCount = exportActs.filter((a) => a.activity_type === 'quiz').length;
+
     const ExcelJS = await getExcelJS();
     const wb = new ExcelJS.Workbook();
     const className = data?.class_name || 'Class';
@@ -136,10 +152,52 @@ export default function Gradebook({ data, loading, onActivityClick }) {
       return an.localeCompare(bn);
     });
 
+    // Totals re-computed over the selected columns only, so "Quizzes only"
+    // exports a quiz-only average — same state machine as the grid
+    const scoped = sorted.map((r) => {
+      let totalScore = 0;
+      let totalMax = 0;
+      let missing = 0;
+      let pending = 0;
+      let late = 0;
+      let graded = 0;
+      exportActs.forEach((a) => {
+        const { state, g } = r.cells[a.id];
+        const max = Number(g?.max_score ?? a.max_points ?? 0);
+        if (state === 'graded') {
+          totalScore += Number(g.score);
+          totalMax += max;
+          graded += 1;
+          if (g.is_late) late += 1;
+        } else if (state === 'pending') {
+          pending += 1;
+          totalMax += max;
+        } else if (state === 'missing') {
+          missing += 1;
+          totalMax += max;
+        } else {
+          totalMax += max;
+        }
+      });
+      return {
+        ...r,
+        sTotalScore: totalScore,
+        sPct: totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : null,
+        sMissing: missing,
+        sPending: pending,
+        sLate: late,
+        sGraded: graded,
+      };
+    });
+    const scopedClassAvg = (() => {
+      const withPct = scoped.filter((r) => r.sPct !== null);
+      return withPct.length ? Math.round(withPct.reduce((n, r) => n + r.sPct, 0) / withPct.length) : null;
+    })();
+
     // Points possible per activity: the activity's own setting, or the max of
     // whatever submissions recorded (classwork quizzes carry it per submission)
     const actPts = {};
-    activities.forEach((a) => {
+    exportActs.forEach((a) => {
       let pts = Number(a.max_points ?? 0);
       if (!pts) {
         students.forEach((s) => {
@@ -152,20 +210,28 @@ export default function Gradebook({ data, loading, onActivityClick }) {
 
     // ── Sheet 1: the class record ──
     const ws = wb.addWorksheet('Class Record');
-    const colCount = 7 + activities.length;
+    const colCount = 7 + exportActs.length;
     const headerRow = addTitleBlock(
       ws,
       `${className} — Class Record`,
-      `${activities.length} graded items · ${sorted.length} students${data?.teacher_name ? ` · Teacher: ${data.teacher_name}` : ''} · Generated ${stamp()}`,
+      `${exportActs.length} item${exportActs.length !== 1 ? 's' : ''} (${quizCount} quiz${quizCount !== 1 ? 'zes' : ''} · ${exportActs.length - quizCount} activit${exportActs.length - quizCount !== 1 ? 'ies' : 'y'})`
+        + ` · ${sorted.length} student${sorted.length !== 1 ? 's' : ''}${data?.teacher_name ? ` · Teacher: ${data.teacher_name}` : ''} · Generated ${stamp()}`,
       colCount,
     );
     const headers = ['#', 'Last Name', 'First Name', 'Email', 'LRN',
-      ...activities.map((a) => `${a.title}\n${actPts[a.id] ? `${actPts[a.id]} pts` : ''}`.trim()),
+      ...exportActs.map((a) => `${typeOf(a)} · ${a.title}\n${actPts[a.id] ? `${actPts[a.id]} pts` : ''}`.trim()),
       'Total (pts)', 'Total %'];
     headers.forEach((h, i) => { ws.getCell(headerRow, i + 1).value = h; });
     styleHeader(ws, headerRow, colCount);
+    // Quizzes keep the blue header; activity columns get the slate header so
+    // the two kinds stay distinguishable at a glance, even printed in mono
+    exportActs.forEach((a, ai) => {
+      if (a.activity_type !== 'quiz') {
+        ws.getCell(headerRow, 6 + ai).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.activityHeaderFill } };
+      }
+    });
 
-    sorted.forEach((r, idx) => {
+    scoped.forEach((r, idx) => {
       const row = headerRow + 1 + idx;
       const p = r.student.student_profile || {};
       ws.getCell(row, 1).value = idx + 1;
@@ -173,7 +239,7 @@ export default function Gradebook({ data, loading, onActivityClick }) {
       ws.getCell(row, 3).value = p.first_name || '';
       ws.getCell(row, 4).value = r.student.email || '';
       ws.getCell(row, 5).value = p.lrn_number || '';
-      activities.forEach((a, ai) => {
+      exportActs.forEach((a, ai) => {
         const cell = ws.getCell(row, 6 + ai);
         const { state, g } = r.cells[a.id];
         if (state === 'graded') {
@@ -200,15 +266,15 @@ export default function Gradebook({ data, loading, onActivityClick }) {
         }
       });
       const tot = ws.getCell(row, colCount - 1);
-      tot.value = r.totalScore;
+      tot.value = r.sTotalScore;
       tot.numFmt = '0.##';
       tot.font = { bold: true };
       tot.alignment = { horizontal: 'center' };
       const pct = ws.getCell(row, colCount);
-      if (r.pct !== null) {
-        pct.value = r.pct / 100;
+      if (r.sPct !== null) {
+        pct.value = r.sPct / 100;
         pct.numFmt = '0%';
-        pct.font = { bold: true, color: { argb: r.pct >= 80 ? 'FF065F46' : r.pct >= 50 ? 'FF92610A' : 'FF991B1B' } };
+        pct.font = { bold: true, color: { argb: r.sPct >= 80 ? 'FF065F46' : r.sPct >= 50 ? 'FF92610A' : 'FF991B1B' } };
       }
       pct.alignment = { horizontal: 'center' };
       for (let c = 1; c <= colCount; c += 1) allBorders(ws.getCell(row, c));
@@ -217,7 +283,7 @@ export default function Gradebook({ data, loading, onActivityClick }) {
     // Class average row
     const avgRow = headerRow + 1 + sorted.length;
     ws.getCell(avgRow, 2).value = 'Class Average';
-    activities.forEach((a, ai) => {
+    exportActs.forEach((a, ai) => {
       const cell = ws.getCell(avgRow, 6 + ai);
       const avg = colStats[a.id]?.avg;
       if (avg !== null && avg !== undefined) {
@@ -226,9 +292,9 @@ export default function Gradebook({ data, loading, onActivityClick }) {
       }
       cell.alignment = { horizontal: 'center' };
     });
-    if (classAvg !== null) {
+    if (scopedClassAvg !== null) {
       const cell = ws.getCell(avgRow, colCount);
-      cell.value = classAvg / 100;
+      cell.value = scopedClassAvg / 100;
       cell.numFmt = '0%';
     }
     for (let c = 1; c <= colCount; c += 1) {
@@ -240,37 +306,36 @@ export default function Gradebook({ data, loading, onActivityClick }) {
 
     fitColumns(ws, colCount, { min: 6, max: 30 });
     [1, 2, 3, 4, 5].forEach((c) => { ws.getColumn(c).width = [5, 18, 16, 30, 16][c - 1]; });
-    activities.forEach((_, ai) => { ws.getColumn(6 + ai).width = 20; });
+    exportActs.forEach((_, ai) => { ws.getColumn(6 + ai).width = 20; });
     ws.getColumn(colCount - 1).width = 12;
     ws.getColumn(colCount).width = 10;
 
-    // ── Sheet 2: per-student summary ──
+    // ── Sheet 2: per-student summary (same selection) ──
     const ws2 = wb.addWorksheet('Summary');
-    const h2 = addTitleBlock(ws2, `${className} — Student Summary`, `Generated ${stamp()}`, 9);
+    const h2 = addTitleBlock(
+      ws2,
+      `${className} — Student Summary`,
+      `${quizCount} quiz${quizCount !== 1 ? 'zes' : ''} · ${exportActs.length - quizCount} activit${exportActs.length - quizCount !== 1 ? 'ies' : 'y'} · Generated ${stamp()}`,
+      9,
+    );
     ['Last Name', 'First Name', 'Email', 'LRN', 'Graded', 'To grade', 'Missing', 'Late', 'Average %'].forEach((h, i) => {
       ws2.getCell(h2, i + 1).value = h;
     });
     styleHeader(ws2, h2, 9);
-    sorted.forEach((r, idx) => {
+    scoped.forEach((r, idx) => {
       const row = h2 + 1 + idx;
       const p = r.student.student_profile || {};
-      let late = 0;
-      let gradedCount = 0;
-      activities.forEach((a) => {
-        const { state, g } = r.cells[a.id];
-        if (state === 'graded') { gradedCount += 1; if (g.is_late) late += 1; }
-      });
       ws2.getCell(row, 1).value = p.last_name || '';
       ws2.getCell(row, 2).value = p.first_name || '';
       ws2.getCell(row, 3).value = r.student.email || '';
       ws2.getCell(row, 4).value = p.lrn_number || '';
-      ws2.getCell(row, 5).value = gradedCount;
-      ws2.getCell(row, 6).value = r.pending;
-      ws2.getCell(row, 7).value = r.missing;
-      ws2.getCell(row, 8).value = late;
-      if (r.pct !== null) {
+      ws2.getCell(row, 5).value = r.sGraded;
+      ws2.getCell(row, 6).value = r.sPending;
+      ws2.getCell(row, 7).value = r.sMissing;
+      ws2.getCell(row, 8).value = r.sLate;
+      if (r.sPct !== null) {
         const c = ws2.getCell(row, 9);
-        c.value = r.pct / 100;
+        c.value = r.sPct / 100;
         c.numFmt = '0%';
       }
       for (let c = 1; c <= 9; c += 1) allBorders(ws2.getCell(row, c));
@@ -345,6 +410,15 @@ export default function Gradebook({ data, loading, onActivityClick }) {
               Class avg {classAvg}%
             </span>
           )}
+          <Dropdown
+            value={exportScope}
+            onChange={setExportScope}
+            options={[
+              { value: 'all', label: 'Export: Everything' },
+              { value: 'quiz', label: 'Export: Quizzes only' },
+              { value: 'activity', label: 'Export: Activities only' },
+            ]}
+          />
           <button
             type="button"
             className="gb-export-btn"
