@@ -22,7 +22,8 @@ export default function CourseViewer() {
     const [loading, setLoading] = useState(true);
     const [showMobileSidebar, setShowMobileSidebar] = useState(false);
     const [progressReady, setProgressReady] = useState(false);
-    const [canProceed, setCanProceed] = useState(false);    const [isNavigating, setIsNavigating] = useState(false);
+    const [canProceed, setCanProceed] = useState(false);
+    const [isNavigating, setIsNavigating] = useState(false);
     const [isAiLocked, setIsAiLocked] = useState(false);
 
     useEffect(() => { fetchCourseData(); }, [courseId]);
@@ -86,6 +87,13 @@ export default function CourseViewer() {
         return result;
     }, [course, progress]);
 
+    const activeItem = useMemo(() => {
+        if (!flattenedTimeline.length || !itemId) return null;
+        return flattenedTimeline.find(
+            i => String(i.id) === String(itemId) && i.itemType === itemType
+        );
+    }, [flattenedTimeline, itemId, itemType]);
+
     // Deep-link guard: a pasted URL can't open a locked item — bounce to the
     // first open item. Runs only after progress has loaded, so a student who
     // legitimately advanced never gets bounced mid-load.
@@ -96,13 +104,6 @@ export default function CourseViewer() {
             navigate(`/dashboard/student/course/${courseId}/${firstOpen.itemType}/${firstOpen.id}`, { replace: true });
         }
     }, [progressReady, activeItem, flattenedTimeline, courseId, navigate]);
-
-    const activeItem = useMemo(() => {
-        if (!flattenedTimeline.length || !itemId) return null;
-        return flattenedTimeline.find(
-            i => String(i.id) === String(itemId) && i.itemType === itemType
-        );
-    }, [flattenedTimeline, itemId, itemType]);
 
     const handleNext = async () => {
         if (!canProceed || isNavigating) return;
