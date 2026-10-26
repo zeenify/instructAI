@@ -818,14 +818,18 @@ app.post('/execute-batch', async (req, res) => {
         return res.status(429).json({ error: 'The engine is busy right now — try again in a few seconds.' });
     }
 
-    // The auto-grader asks for patient runs (25s); interactive sample tests
-    // keep the snappy default. Unknown to older engines? Ignored harmlessly.
-    const runTimeoutMs = Math.min(Math.max(parseInt(req.body.timeout_ms, 10) || 0, 1000), 25000);
+    // Optional explicit per-run timeout (the auto-grader asks for 25s);
+    // ABSENT means the snappy default — the Floor(1000) here made every
+    // browser-initiated run die ~1s after JVM start on prod.
+    const requested = Number.parseInt(req.body.timeout_ms, 10);
+    const runTimeoutMs = Number.isFinite(requested) && requested >= 1000
+        ? Math.min(requested, 25000)
+        : REST_TIMEOUT_MS;
     const result = await executeBatch({
         language,
         code,
         inputs: inputs.map((v) => (v == null ? '' : String(v))),
-        timeoutMs: runTimeoutMs >= 1000 ? runTimeoutMs : REST_TIMEOUT_MS,
+        timeoutMs: runTimeoutMs,
     });
     res.json(result);
 });
