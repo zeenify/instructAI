@@ -85,7 +85,12 @@ the task and is substantially different from the boilerplate. "expected_output" 
 is the exact console output the reference solution prints when run — copy it \
 verbatim (a unittest run prints lines like "Ran 1 test in 0.001s" and "OK"); \
 it is NEVER empty and never a bare placeholder such as ".". Keep the task \
-small enough to finish in a few minutes and fully answerable from the material.
+small enough to finish in a few minutes and fully answerable from the material. \
+FORMAT question_text for scanning, never as one long paragraph: line 1 is a \
+one-sentence intro naming the task; then a line "Requirements:" followed by \
+ONE requirement per line, each starting with "- " and kept short; end with a \
+line stating the exact output format (e.g. 'Print exactly: Even count: <c>'). \
+Use \`inline code\` for identifiers/values inside the lines.
 - short_answer: a question answered in one brief sentence or phrase. \
 "expected_output" is a canonical phrasing a teacher would accept (auto-graded \
 by exact match, so keep it tight and unambiguous).
@@ -101,6 +106,9 @@ FROM the material, SHOW it: embed the code verbatim in question_text inside a \
 Never ask about code the student cannot see.
 - Vary the material coverage across questions; don't over-focus on one section.
 - Match the requested difficulty. Write in clear classroom English.
+- question_text must READ well at a glance: prefer short lines, lists and \
+blank-line separation over one dense paragraph whenever the task has more \
+than two parts.
 - "type" is always exactly the requested type string.
 """
 

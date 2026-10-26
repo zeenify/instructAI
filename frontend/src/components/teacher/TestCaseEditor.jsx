@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
 import './TestCaseEditor.css';
 
-export default function TestCaseEditor({ question, apiBase = '/teacher/questions' }) {
+export default function TestCaseEditor({ question, apiBase = '/teacher/questions', readOnly = false }) {
     const [tests, setTests] = useState(null); // null while loading
     const [savedSnapshot, setSavedSnapshot] = useState('');
     const [saving, setSaving] = useState(false);
@@ -123,25 +123,27 @@ export default function TestCaseEditor({ question, apiBase = '/teacher/questions
                                     <div key={t.id || i} className="tce-row">
                                         <div className="tce-row-top">
                                             <span className="tce-row-num">Test {i + 1}</span>
-                                            <div className="tce-row-tools">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => update(i, { hidden: !t.hidden })}
-                                                    title={t.hidden ? 'Hidden from students' : 'Visible to students as a sample'}
-                                                    className={`tce-visibility ${t.hidden ? 'hidden' : ''}`}
-                                                >
-                                                    {t.hidden ? <EyeOff size={10} /> : <Eye size={10} />}
-                                                    {t.hidden ? 'Hidden' : 'Sample'}
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeTest(i)}
-                                                    className="tce-remove"
-                                                    title="Remove this test"
-                                                >
-                                                    <Trash2 size={12} />
-                                                </button>
-                                            </div>
+                                            {!readOnly && (
+                                                <div className="tce-row-tools">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => update(i, { hidden: !t.hidden })}
+                                                        title={t.hidden ? 'Hidden from students' : 'Visible to students as a sample'}
+                                                        className={`tce-visibility ${t.hidden ? 'hidden' : ''}`}
+                                                    >
+                                                        {t.hidden ? <EyeOff size={10} /> : <Eye size={10} />}
+                                                        {t.hidden ? 'Hidden' : 'Sample'}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeTest(i)}
+                                                        className="tce-remove"
+                                                        title="Remove this test"
+                                                    >
+                                                        <Trash2 size={12} />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="tce-fields">
                                             <div>
@@ -149,6 +151,7 @@ export default function TestCaseEditor({ question, apiBase = '/teacher/questions
                                                 <textarea
                                                     value={t.input || ''}
                                                     onChange={(e) => update(i, { input: e.target.value })}
+                                                    readOnly={readOnly}
                                                     rows={2}
                                                     placeholder="e.g. 5"
                                                     className="tce-textarea"
@@ -159,6 +162,7 @@ export default function TestCaseEditor({ question, apiBase = '/teacher/questions
                                                 <textarea
                                                     value={t.expected_output || ''}
                                                     onChange={(e) => update(i, { expected_output: e.target.value })}
+                                                    readOnly={readOnly}
                                                     rows={2}
                                                     placeholder="What the console must print"
                                                     className="tce-textarea"
@@ -169,6 +173,7 @@ export default function TestCaseEditor({ question, apiBase = '/teacher/questions
                                 ))}
                             </div>
 
+                            {!readOnly && (
                             <div className="tce-actions">
                                 <button
                                     type="button"
@@ -187,7 +192,9 @@ export default function TestCaseEditor({ question, apiBase = '/teacher/questions
                                     Save test cases
                                 </button>
                             </div>
+                            )}
 
+                            {!readOnly && (
                             <div className="tce-verify">
                                 <div className="tce-verify-head">
                                     <label className="tce-verify-label">
@@ -255,6 +262,7 @@ export default function TestCaseEditor({ question, apiBase = '/teacher/questions
                                     </div>
                                 )}
                             </div>
+                            )}
                         </>
                     )}
                 </>

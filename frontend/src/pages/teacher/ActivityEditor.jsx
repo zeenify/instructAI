@@ -69,8 +69,10 @@ const DEADLINE_PRESETS = [
     },
 ];
 
-function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdited }) {
+function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdited, viewOnly = false }) {
     const isEditMode = !!editQuestion;
+    // View mode: the activity has submissions — show every detail, change nothing
+    const isViewMode = viewOnly && isEditMode;
     const [type, setType] = useState('multiple_choice');
     const [questionText, setQuestionText] = useState('');
     const [points, setPoints] = useState(1);
@@ -198,9 +200,11 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
 
                 <form onSubmit={handleSubmit}>
                     <div className="db-modal-head" style={{ marginBottom: 18 }}>
-                        <h3 className="db-modal-title" style={{ fontSize: 24 }}>{isEditMode ? 'Edit question' : 'Add a question'}</h3>
-                        <p className="db-modal-sub">{isEditMode ? 'Changes apply to this question only.' : 'Pick the type, then fill in the details.'}</p>
+                        <h3 className="db-modal-title" style={{ fontSize: 24 }}>{isViewMode ? 'View question' : isEditMode ? 'Edit question' : 'Add a question'}</h3>
+                        <p className="db-modal-sub">{isViewMode ? 'Read-only — settings lock once students submit.' : isEditMode ? 'Changes apply to this question only.' : 'Pick the type, then fill in the details.'}</p>
                     </div>
+
+                    <fieldset disabled={isViewMode} style={isViewMode ? { border: 'none', padding: 0, margin: 0, opacity: 0.92 } : undefined}>
 
                     {/* Type selector */}
                     <div style={{ marginBottom: 20 }}>
@@ -387,11 +391,15 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
                         </div>
                     )}
 
+                    </fieldset>
+
                     <div className="db-modal-actions">
-                        <button type="button" className="db-btn-ghost" onClick={onClose}>Cancel</button>
-                        <button type="submit" className="db-btn-primary" disabled={loading}>
-                            {isEditMode ? 'Save changes' : 'Add question'}
-                        </button>
+                        <button type="button" className="db-btn-ghost" onClick={onClose}>{isViewMode ? 'Close' : 'Cancel'}</button>
+                        {!isViewMode && (
+                            <button type="submit" className="db-btn-primary" disabled={loading}>
+                                {isEditMode ? 'Save changes' : 'Add question'}
+                            </button>
+                        )}
                     </div>
                 </form>
             </div>
@@ -457,6 +465,13 @@ function QuestionBlock({ question, index, onUpdate, onDelete, onEdit, disabled, 
 
     return (
         <div className="ae-q">
+            {disabled && !question.is_temp && (
+                <div className="ae-q-tools">
+                    <button type="button" className="ed-tool" onClick={() => onEdit?.(question)} title="View question details">
+                        <Eye size={14} />
+                    </button>
+                </div>
+            )}
             {!disabled && !question.is_temp && (
                 <div className="ae-q-tools">
                     <button type="button" className="ed-tool ed-tool-grip"
@@ -483,33 +498,39 @@ function QuestionBlock({ question, index, onUpdate, onDelete, onEdit, disabled, 
                 <AutoGrowTextarea className="ae-q-textarea" value={text} onChange={(e) => setText(e.target.value)} autoFocus
                     onBlur={() => { setIsEditing(false); save('text'); }} />
             ) : (
-                <p className="ae-q-text" onClick={() => !question.is_temp && setIsEditing(true)}>
+                <p className="ae-q-text" onClick={() => !disabled && !question.is_temp && setIsEditing(true)}>
                     <FormattedText text={question.question_text} />
                 </p>
             )}
 
             {question.type === 'coding' && !question.is_temp && (
                 <div className="ae-q-body">
-                    <button
-                        type="button"
-                        onClick={() => patchQuestion({ partial_credit: !question.partial_credit })}
-                        className={`ae-credit ${question.partial_credit ? 'on' : ''}`}
-                        title="Off: every test must pass for full points. On: points × tests passed."
-                    >
-                        <span className="ae-credit-track"><span className="ae-credit-knob" /></span>
-                        Allow partial credit
-                    </button>
+                    {disabled ? (
+                        <p className="ae-q-locked-note">Partial credit: {question.partial_credit ? 'on' : 'off'} — open the eye icon for the full question view.</p>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => patchQuestion({ partial_credit: !question.partial_credit })}
+                            className={`ae-credit ${question.partial_credit ? 'on' : ''}`}
+                            title="Off: every test must pass for full points. On: points × tests passed."
+                        >
+                            <span className="ae-credit-track"><span className="ae-credit-knob" /></span>
+                            Allow partial credit
+                        </button>
+                    )}
 
                     {(question.language || 'java') === 'html' ? (
-                        <HtmlChecksEditor
-                            title="Page Checks"
-                            checks={question.html_checks || []}
-                            onChange={(next) => patchQuestion({ html_checks: next })}
-                            referenceHtml={question.reference_code || ''}
-                            onReferenceChange={(text) => patchQuestion({ reference_code: text })}
-                        />
+                        <div style={disabled ? { pointerEvents: 'none', opacity: 0.75 } : undefined}>
+                            <HtmlChecksEditor
+                                title="Page Checks"
+                                checks={question.html_checks || []}
+                                onChange={(next) => patchQuestion({ html_checks: next })}
+                                referenceHtml={question.reference_code || ''}
+                                onReferenceChange={(text) => patchQuestion({ reference_code: text })}
+                            />
+                        </div>
                     ) : (
-                        <TestCaseEditor question={question} apiBase="/teacher/activity-questions" />
+                        <TestCaseEditor question={question} apiBase="/teacher/activity-questions" readOnly={disabled} />
                     )}
                 </div>
             )}
@@ -1236,8 +1257,8 @@ export default function ActivityEditor() {
                                 <div className="ae-locked-note">
                                     <EyeOff size={15} />
                                     {isPastDue
-                                        ? 'Questions are locked — the deadline has passed.'
-                                        : 'Questions are locked — this activity is published and has submissions.'}
+                                        ? 'Questions are locked — the deadline has passed. Use the eye icon on a question to view it.'
+                                        : 'Questions are locked — this activity is published and has submissions. Use the eye icon on a question to view it.'}
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                                     {(activity.questions || []).map((q) => (
@@ -1341,7 +1362,7 @@ export default function ActivityEditor() {
                     }}
                 />
             )}
-            <CreateQuestionModal key={'edit-' + (editQuestion?.id || 'null')} isOpen={!!editQuestion} onClose={() => setEditQuestion(null)} onEdited={handleEditQuestionSubmit} editQuestion={editQuestion} />
+            <CreateQuestionModal key={'edit-' + (editQuestion?.id || 'null')} isOpen={!!editQuestion} onClose={() => setEditQuestion(null)} onEdited={handleEditQuestionSubmit} editQuestion={editQuestion} viewOnly={questionsDisabled} />
             <DeleteModal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)}
                 onConfirm={() => { if (deleteTarget) handleDeleteQuestion(deleteTarget); setDeleteTarget(null); }}
                 title={deleteTarget?.question_text?.slice(0, 50) || 'Question'} loading={false} />
