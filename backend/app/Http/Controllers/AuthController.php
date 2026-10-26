@@ -165,7 +165,10 @@ class AuthController extends Controller
             // IF NEW USER AND ROLE IS CHOSEN
             if (!$user && $chosenRole) {
                 $request->validate([
-                    'lrn_number' => 'required_if:role,student|string|size:12|unique:student_profiles,lrn_number',
+                    // nullable: teachers legitimately send lrn_number null —
+                    // without it the string/size rules ran against null and
+                    // 500'd every Google teacher signup.
+                    'lrn_number' => 'required_if:role,student|nullable|string|size:12|unique:student_profiles,lrn_number',
                 ]);
 
                 if ($chosenRole === 'student' && ($error = $this->lrnEnrollmentError($lrnNumber))) {
