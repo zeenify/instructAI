@@ -21,8 +21,8 @@ export default function CourseViewer() {
     const [progress, setProgress] = useState({ lessons: [], quizzes: [] });
     const [loading, setLoading] = useState(true);
     const [showMobileSidebar, setShowMobileSidebar] = useState(false);
-    const [canProceed, setCanProceed] = useState(false);
-    const [isNavigating, setIsNavigating] = useState(false);
+    const [progressReady, setProgressReady] = useState(false);
+    const [canProceed, setCanProceed] = useState(false);    const [isNavigating, setIsNavigating] = useState(false);
     const [isAiLocked, setIsAiLocked] = useState(false);
 
     useEffect(() => { fetchCourseData(); }, [courseId]);
@@ -41,6 +41,7 @@ export default function CourseViewer() {
                 lessons: res.data.completed_lessons,
                 quizzes: res.data.completed_quizzes
             });
+            setProgressReady(true);
 
             if (!itemId) {
                 const firstModule = res.data.course.modules[0];
@@ -70,13 +71,31 @@ export default function CourseViewer() {
             items = [...items, ...sortedTimeline];
         });
 
-        // TEMP (owner testing 2026-10-25): sequential unlocking DISABLED — every
-        // timeline item opens regardless of progress. Revert to the
-        // previous-item-done rule when the student-view walkthrough is done.
-        const result = items.map((item) => ({ ...item, isLocked: false }));
+        // Sequential unlocking: an item opens once the PREVIOUS item is done.
+        // The first item of the course is always open. (Was temporarily
+        // disabled for the owner walkthrough — restored for the pilot.)
+        const result = items.map((item, index) => {
+            if (index === 0) return { ...item, isLocked: false };
+            const prev = items[index - 1];
+            const prevDone = prev.itemType === 'lesson'
+                ? progress.lessons.includes(prev.id)
+                : progress.quizzes.includes(prev.id);
+            return { ...item, isLocked: !prevDone };
+        });
 
         return result;
     }, [course, progress]);
+
+    // Deep-link guard: a pasted URL can't open a locked item — bounce to the
+    // first open item. Runs only after progress has loaded, so a student who
+    // legitimately advanced never gets bounced mid-load.
+    useEffect(() => {
+        if (!progressReady || !activeItem || !activeItem.isLocked) return;
+        const firstOpen = flattenedTimeline.find(i => !i.isLocked);
+        if (firstOpen) {
+            navigate(`/dashboard/student/course/${courseId}/${firstOpen.itemType}/${firstOpen.id}`, { replace: true });
+        }
+    }, [progressReady, activeItem, flattenedTimeline, courseId, navigate]);
 
     const activeItem = useMemo(() => {
         if (!flattenedTimeline.length || !itemId) return null;
@@ -148,6 +167,14 @@ export default function CourseViewer() {
 
     return (
         <div className="student-theme flex h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
+            {/* Mobile drawer scrim — tap anywhere outside to close */}
+            {showMobileSidebar && (
+                <div
+                    onClick={() => setShowMobileSidebar(false)}
+                    className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+                    aria-label="Close navigation"
+                />
+            )}
             {/* LEFT: PERSISTENT TIMELINE */}
             <aside style={{ background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-color)' }} className={`fixed lg:relative z-50 w-80 h-full flex flex-col backdrop-blur-2xl transition-transform duration-300 ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
                 <div style={{ padding: '24px 28px', paddingBottom: '20px', borderBottom: '1px solid var(--border-color)' }}>
