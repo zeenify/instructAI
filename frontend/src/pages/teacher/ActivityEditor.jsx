@@ -96,7 +96,16 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
             const opts = editQuestion.options || (editQuestion.type === 'multiple_choice' ? ['', '', '', ''] : []);
             setOptions(opts);
             if (editQuestion.type === 'multiple_choice') {
-                const idx = opts.indexOf(editQuestion.expected_output);
+                // expected_output stores the correct option's INDEX (the same
+                // convention students answer and grading compares in). Older/
+                // manual questions may carry the option TEXT — resolve both,
+                // never fall back to "first option" silently.
+                const raw = String(editQuestion.expected_output ?? '');
+                const byIndex = /^\d+$/.test(raw) && Number(raw) < opts.length
+                    ? Number(raw)
+                    : -1;
+                const byText = opts.indexOf(editQuestion.expected_output);
+                const idx = byIndex >= 0 ? byIndex : byText;
                 setCorrectOption(idx >= 0 ? idx : 0);
             } else if (editQuestion.type === 'true_false') {
                 setCorrectOption(editQuestion.expected_output === 'False' ? 1 : 0);
@@ -144,7 +153,12 @@ function CreateQuestionModal({ isOpen, onClose, onCreated, editQuestion, onEdite
             if (type === 'multiple_choice') {
                 const filteredOptions = options.filter(o => o.trim());
                 payload.options = filteredOptions;
-                payload.expected_output = String(correctOption);
+                // correctOption indexes the UNfiltered rows; after blanks are
+                // removed the saved index must point at the same TEXT, or
+                // grading silently shifts to a different option.
+                const selectedText = options[correctOption];
+                const savedIdx = Math.max(0, filteredOptions.indexOf(selectedText));
+                payload.expected_output = String(savedIdx);
             } else if (type === 'true_false') {
                 payload.options = ['True', 'False'];
                 payload.expected_output = correctOption === 0 ? 'True' : 'False';

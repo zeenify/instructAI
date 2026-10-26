@@ -106,6 +106,10 @@ FROM the material, SHOW it: embed the code verbatim in question_text inside a \
 Never ask about code the student cannot see.
 - Vary the material coverage across questions; don't over-focus on one section.
 - Match the requested difficulty. Write in clear classroom English.
+- For multiple_choice, SPREAD the correct option's position: across the batch \
+use each index (0-3) roughly equally and never let two consecutive questions \
+share the same correct index. "expected_output" is the correct option's INDEX \
+as a string ("0" = first option).
 - question_text must READ well at a glance: prefer short lines, lists and \
 blank-line separation over one dense paragraph whenever the task has more \
 than two parts.
