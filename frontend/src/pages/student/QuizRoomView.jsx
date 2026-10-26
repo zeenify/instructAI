@@ -102,6 +102,9 @@ export default function QuizRoomView() {
   const roomPausedRef = useRef(roomPaused);
   const saveTimerRef = useRef(null);
   const pendingSaveRef = useRef(null);
+  // Monotonic save counter: retries of a superseded save must not overwrite
+  // a newer answer (student changes her MC pick during a retry window).
+  const saveEpochRef = useRef(0);
   const heartbeaterRef = useRef(null);
   const pollerRef = useRef(null);
   const mountedJoinRef = useRef(null);
@@ -287,6 +290,7 @@ export default function QuizRoomView() {
 
   const saveAnswer = useCallback(
     async (questionId, value, idx, attempt = 0) => {
+      const epoch = ++saveEpochRef.current;
       pendingSaveRef.current = null;
       setSaveState("saving");
       try {
@@ -315,6 +319,9 @@ export default function QuizRoomView() {
           if (attempt < 2) {
             setSaveState("saving");
             setTimeout(() => {
+              // Abandon if a newer save started meanwhile — retrying the old
+              // value would overwrite the student's latest answer.
+              if (saveEpochRef.current !== epoch) return;
               saveAnswer(questionId, value, idx, attempt + 1);
             }, 2500);
             return;

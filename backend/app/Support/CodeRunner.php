@@ -188,11 +188,14 @@ class CodeRunner
         $deployedUrl = $base !== '' ? $base.'/execute-batch' : '';
 
         $token = (string) env('EXECUTION_ENGINE_TOKEN', '');
-        // HTTP wait must cover the whole batch: per-run timeout × inputs, plus
-        // compile/settle headroom (the engine's own budget matches this math).
-        $httpTimeout = $timeoutMs > 0
-            ? ($timeoutMs * count($payload['inputs'])) + 25
-            : 60;
+        // HTTP wait must cover the WHOLE batch: compile (engine caps it at
+        // 40s) + per-run timeout × inputs. A client timeout shorter than the
+        // engine's own budget turns a slow-but-fine batch into a phantom
+        // connection error.
+        $httpTimeout = max(
+            60,
+            (($timeoutMs > 0 ? $timeoutMs : 10000) * count($payload['inputs'])) + 55,
+        );
         $post = function (string $url, array $payload) use ($token, $httpTimeout) {
             $request = Http::timeout($httpTimeout)->asJson();
             if ($token !== '') {
