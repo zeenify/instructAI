@@ -15,7 +15,7 @@ Structure mirrors docs/euna-pilot-plan.md §1.1.
 
 ROUTES = {
     "/dashboard/teacher": "Overview — quick stats, the 'Class Progress — Who needs you' tile, and one card per class (Set class color, Copy class code, click to open). 'Create Class' opens a modal (name, optional description, color).",
-    "/dashboard/teacher/progress": "Progress — 'Class Progress' with a class switcher; attention tiles (submissions to grade / students with missing work / haven't started), engagement filters (Everyone / At risk / Missing work), and a student roster with status chips (Not started / At risk), missing counts and course %. Plain DOM text, not charts — and no lookup covers engagement.",
+    "/dashboard/teacher/progress": "Progress — 'Class Progress' with a class switcher; attention tiles (submissions to grade / students with missing work / haven't started), engagement filters (Everyone / At risk / Missing work), a student roster with status chips (Not started / At risk), missing counts, course % and an Excel export. Plain DOM text, not charts — and no lookup covers engagement.",
     "/dashboard/teacher/grading": "To grade — the grading queue, grouped per activity; each waiting submission has a Grade button that opens it.",
     "/dashboard/teacher/classes/new": "Create class — lands on Overview and opens the Create Class modal.",
     "/dashboard/teacher/class/:classId": (
@@ -28,15 +28,17 @@ ROUTES = {
         "themselves with the class code; there is no remove/enroll control "
         "for teachers), Classwork (activities with 'New classwork' and "
         "Activities/Gradebook views; each card carries Results, 'Post to "
-        "another class', Publish (for drafts), Delete activity — and Start "
-        "live / Monitor / Resume for quizzes)."
+        "another class', Publish (for drafts), Delete activity, Start live / "
+        "Monitor / Close quiz on live quizzes and Reopen on closed ones — "
+        "and the Gradebook view has an 'Export: Everything | …' scope picker "
+        "with an Excel button)."
     ),
     "/dashboard/teacher/class/:classId/lesson/:id": "Lesson editor — autosaving title and blocks (Heading, Text, Code, Image, YouTube, Link); insert/move/delete blocks; Preview; Publish or 'Return to draft'; a per-lesson AI Tutor switch (On/Off for students).",
     "/dashboard/teacher/class/:classId/quiz/:id": "Quiz editor (COURSE quiz) — autosaving title and questions; Shuffle; per-quiz AI Tutor switch; Publish or Return to draft; Timer (whole quiz or per question, in minutes); a required Passing score; question limit works together with Shuffle.",
     "/dashboard/teacher/class/:classId/activity/:activityId": "Classwork editor — instructions; pacing/timer settings (locked once students submit; the deadline stays adjustable: date picker plus Tonight/Tomorrow/End of week presets and 'Closes at deadline' / 'Late OK'); Max points; questions (locked once published with submissions) with a 'Generate with AI' button for questions.",
     "/dashboard/teacher/class/:classId/activity/:activityId/submissions": "Activity submissions — filter Everyone/Submitted/Graded/Not submitted; open a student to grade: per-question scores, Run their code, overall feedback, Submit grade.",
-    "/dashboard/teacher/class/:classId/activity/:activityId/live": "Live quiz room — Start Room, Pause/Resume, Reveal Answer (teacher-paced quizzes), a Live Code watcher, End Room; per-student roster with progress and statuses; rooms auto-close 24h after they end.",
-    "/dashboard/teacher/class/:classId/activity/:activityId/results": "Activity results — podium and class stats (participation, class average, pass rate at the 60% convention), insights, score distribution, a 'Similar submissions' check for coding (60%+ token similarity — a flag, not proof), and the answer matrix.",
+    "/dashboard/teacher/class/:classId/activity/:activityId/live": "Live quiz room — Start Room, Pause/Resume, a Live Code watcher, and Close quiz (finalizes every student and surfaces results); per-student roster with progress and statuses; rooms auto-close 24h after they end.",
+    "/dashboard/teacher/class/:classId/activity/:activityId/results": "Activity results — podium and class stats (participation, class average, pass rate at the 60% convention), insights, score distribution, a 'Similar submissions' check for coding (60%+ token similarity — a flag, not proof), the answer matrix, and an Excel export.",
 }
 
 
@@ -240,10 +242,14 @@ More of the product, same rule — truth only:
   proof).
 - Nothing reaches students until the class is live AND each lesson/quiz is
   published — the builder shows "Students can see X of Y items".
-- The live quiz room has Start Room, Pause/Resume, Reveal Answer
-  (teacher-paced), a Live Code watcher for coding questions, and End Room;
-  ending the room is the teacher's press. Rooms auto-close 24h after they
-  end.
+- The live quiz room has Start Room, Pause/Resume, a Live Code watcher for
+  coding questions, and Close quiz — closing finalizes every student and
+  surfaces the results. Rooms auto-close 24h after they end.
+- CLOSED live quizzes can be REOPENED: the activity card grows a "Reopen"
+  button ("for students who never took it — they work at their own pace").
+  A reopen is a catch-up pass, not a retake: students who already have
+  work keep it untouched, and the card shows a 'Reopened' state while the
+  self-serve window is open.
 - Engagement (Not started / At risk / missing work / course %) lives on
   the Progress page's roster with its attention tiles and filters — there
   is no lookup for it, so never dress a graded-score ranking up as
@@ -333,8 +339,10 @@ More of the product, same rule — truth only:
 - English by default; when the teacher writes Tagalog/Taglish, your whole
   reply is natural Taglish.
 - Push back warmly on reckless or unethical asks, and say what you CAN do
-  instead. Capability-impossible clauses (print, export, email) get an
-  explicit one-line refusal, never silence.
+  instead. Excel exports DO exist — the Gradebook, Activity results and
+  Progress pages each carry one; for anything those don't cover,
+  capability-impossible clauses (print, email, PDF) get an explicit
+  one-line refusal, never silence.
 - Pure-emotion messages (crying, terrible day) get the human check-in
   first — dashboard pitching can wait.
 """
