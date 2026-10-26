@@ -8,7 +8,7 @@ import './Gradebook.css';
 const typeIcons = { quiz: Zap, file: Upload, questions: HelpCircle };
 
 function bandOf(pct) {
-  if (pct >= 80) return 'good';
+  if (pct >= 75) return 'good';
   if (pct >= 50) return 'mid';
   return 'low';
 }
@@ -275,7 +275,7 @@ export default function Gradebook({ data, loading, onActivityClick }) {
       if (r.sPct !== null) {
         pct.value = r.sPct / 100;
         pct.numFmt = '0%';
-        pct.font = { bold: true, color: { argb: r.sPct >= 80 ? 'FF065F46' : r.sPct >= 50 ? 'FF92610A' : 'FF991B1B' } };
+        pct.font = { bold: true, color: { argb: r.sPct >= 75 ? 'FF065F46' : r.sPct >= 50 ? 'FF92610A' : 'FF991B1B' } };
       }
       pct.alignment = { horizontal: 'center' };
       for (let c = 1; c <= colCount; c += 1) allBorders(ws.getCell(row, c));
@@ -451,7 +451,7 @@ export default function Gradebook({ data, loading, onActivityClick }) {
 
       {/* Legend */}
       <div className="gb-legend">
-        <span className="gb-legend-item"><span className="gb-legend-dot" style={{ background: 'var(--db-green)' }} /> graded 80%+</span>
+        <span className="gb-legend-item"><span className="gb-legend-dot" style={{ background: 'var(--db-green)' }} /> graded 75%+</span>
         <span className="gb-legend-item"><span className="gb-legend-dot" style={{ background: 'var(--db-amber)' }} /> to grade</span>
         <span className="gb-legend-item"><span className="gb-legend-dot" style={{ background: 'var(--db-danger)' }} /> missing</span>
         <span className="gb-legend-item"><span className="gb-legend-dot" style={{ background: 'var(--db-border-strong)' }} /> no submission yet</span>
@@ -550,7 +550,7 @@ export default function Gradebook({ data, loading, onActivityClick }) {
                   <div className="gb-bar" style={{ marginTop: 5 }}>
                     <div className="gb-bar-fill" style={{
                       transform: `scaleX(${Math.min((pct ?? 0) / 100, 1)})`,
-                      background: pct === null ? 'transparent' : pct >= 80 ? 'var(--db-green)' : pct >= 50 ? 'var(--db-amber)' : 'var(--db-danger)',
+                      background: pct === null ? 'transparent' : pct >= 75 ? 'var(--db-green)' : pct >= 50 ? 'var(--db-amber)' : 'var(--db-danger)',
                     }} />
                   </div>
                   {(missing > 0 || pending > 0) && (
