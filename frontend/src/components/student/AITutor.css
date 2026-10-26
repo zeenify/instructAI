@@ -637,7 +637,8 @@
     }
 
     .ai-fab {
-        bottom: 90px;
+        /* lifted above the lesson/quiz bottom action bar (~84px tall) */
+        bottom: 118px;
         right: 18px;
         width: 56px;
         height: 56px;

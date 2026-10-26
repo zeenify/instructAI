@@ -591,3 +591,11 @@ aside {
     background: var(--side-hover);
     color: var(--text-primary);
 }
+
+/* Keyboard-only affordances ("press 1–4", "(t)", "⌘/Ctrl + Enter") read as
+   noise on a phone — hide them on the small/touch layout entirely. */
+.kb-hint { /* desktop keeps them */ }
+
+@media (max-width: 768px) {
+    .kb-hint { display: none !important; }
+}

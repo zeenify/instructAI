@@ -1163,7 +1163,7 @@ export default function QuizRoomView() {
               alignItems: "center",
               justifyContent: "center",
               gap: "10px",
-              boxShadow: "0 4px 12px var(--accent-glow)",
+              
             }}
           >
             <Play size={18} /> Start Quiz
@@ -1906,7 +1906,7 @@ export default function QuizRoomView() {
                     display: "flex",
                     alignItems: "center",
                     gap: "8px",
-                    boxShadow: "0 4px 12px var(--accent-glow)",
+                    
                   }}
                 >
                   Next <ChevronRight size={16} />
@@ -1981,7 +1981,7 @@ export default function QuizRoomView() {
                     display: "flex",
                     alignItems: "center",
                     gap: "8px",
-                    boxShadow: "0 4px 12px var(--accent-glow)",
+                    
                   }}
                 >
                   {finishing ? (
@@ -2008,7 +2008,7 @@ export default function QuizRoomView() {
                     display: "flex",
                     alignItems: "center",
                     gap: "8px",
-                    boxShadow: "0 4px 12px var(--accent-glow)",
+                    
                   }}
                 >
                   Next <ChevronRight size={16} />
@@ -2144,6 +2144,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
           })}
         </div>
         <p
+          className="kb-hint"
           style={{
             fontSize: "11px",
             color: "var(--text-tertiary)",
@@ -2216,7 +2217,7 @@ function QuestionRenderer({ question, value, onChange, disabled = false }) {
                 }}
               >
                 {opt.label}{" "}
-                <span style={{ fontSize: "10px", opacity: 0.7 }}>
+                <span className="kb-hint" style={{ fontSize: "10px", opacity: 0.7 }}>
                   ({opt.key})
                 </span>
               </button>

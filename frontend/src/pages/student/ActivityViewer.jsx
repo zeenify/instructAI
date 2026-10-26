@@ -14,6 +14,7 @@ import StudentActivityCard from '../../components/student/StudentActivityCard';
 import { deriveState as activityCardState } from '../../utils/activityState';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import '../../pages/student/Student.css';
+import '../../pages/student/ActivityViewer.css';
 
 const typeConfig = {
   quiz: { label: 'Quiz', color: 'var(--accent)', bg: 'rgba(64, 156, 255, 0.12)' },
@@ -227,9 +228,9 @@ export default function ActivityViewer() {
 
   return (
     <>
-    <div style={{ background: 'var(--bg-primary)', height: '100vh', display: 'flex', overflow: 'hidden' }}>
+    <div className="av-root">
       {/* LEFT SIDEBAR */}
-      <aside style={{ width: '300px', flexShrink: 0, background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
+      <aside className="av-rail">
         <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)' }}>
           <Link to={`/dashboard/student/class/${classId}?tab=activities`}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-tertiary)', fontSize: '12.5px', fontWeight: 600, textTransform: 'none', letterSpacing: 0, textDecoration: 'none', marginBottom: '12px' }}
@@ -288,8 +289,8 @@ export default function ActivityViewer() {
       </aside>
 
       {/* RIGHT CONTENT */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }} className="custom-scrollbar">
-        <div style={{ width: '100%', padding: '40px 32px 120px' }}>
+      <main className="av-main custom-scrollbar">
+        <div className="av-content">
 
           {/* HEADER */}
           <div style={{ marginBottom: '32px' }}>
@@ -343,7 +344,7 @@ export default function ActivityViewer() {
                 {activity.instruction_files.map((f, i) => {
                   const isImage = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.name);
                   return isImage ? (
-                    <div key={i} style={{ borderRadius: '10px', overflow: 'hidden', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', width: '360px' }}>
+                        <div key={i} className="av-filecard" style={{ borderRadius: '10px', overflow: 'hidden', background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
                       <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', height: '220px', background: '#f9fafb', cursor: 'pointer' }}>
                         <img src={f.url} alt={f.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                       </a>

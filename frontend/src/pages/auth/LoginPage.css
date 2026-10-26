@@ -732,6 +732,65 @@
   .auth-spin-badge { width: 84px; height: 84px; top: 18px; right: 18px; }
 }
 
+/* Role-choice modal at phone width: the two-column card row squeezes into
+   one-word-per-line typography — stack the cards full-width instead. */
+@media (max-width: 640px) {
+  .auth-modal-overlay {
+    padding: 14px;
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+  }
+  .auth-modal {
+    padding: 22px 18px 20px;
+    box-shadow: 6px 7px 0 rgba(22, 19, 14, 0.25);
+    max-height: min(92dvh, 100dvh - 28px);
+  }
+  .auth-modal-title { font-size: 1.6rem; }
+  .auth-modal-sub { font-size: 0.68rem; }
+
+  .auth-role-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .auth-role-card {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    grid-template-areas:
+      'icon title'
+      'icon desc'
+      'form form';
+    column-gap: 14px;
+    align-items: start;
+    padding: 16px 16px 15px;
+    box-shadow: 3px 4px 0 var(--pik-shadow);
+    overflow-wrap: break-word;
+  }
+  .auth-role-card.selected { box-shadow: 3px 4px 0 var(--pik-shadow), 0 0 0 3px var(--pik-yellow); }
+  .auth-role-icon {
+    grid-area: icon;
+    width: 38px;
+    height: 38px;
+    margin: 1px 0 0;
+  }
+  .auth-role-card h3 {
+    grid-area: title;
+    font-size: 1.15rem;
+    line-height: 1.2;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+  }
+  .auth-role-card p {
+    grid-area: desc;
+    margin-top: 2px;
+    font-size: 0.86rem;
+    line-height: 1.55;
+    hyphens: none;
+  }
+  .auth-lrn { grid-area: form; }
+  .auth-lrn-confirm { padding: 13px; }
+}
+
 /* ── reduced motion ──────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {

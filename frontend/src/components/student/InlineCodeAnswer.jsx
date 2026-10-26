@@ -364,7 +364,7 @@ export default function InlineCodeAnswer({
                         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: lang.color }} />
                         {lang.label.replace(/\s*3$/, '')}
                     </span>
-                    <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-tertiary)' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {headerLabel}
                     </span>
                     {passed && (
@@ -579,9 +579,9 @@ export default function InlineCodeAnswer({
 
             {/* Footer */}
             <div style={{ padding: '10px 16px', background: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, maxWidth: '100%' }}>
                     <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.12em', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
-                        {isHtml ? 'Renders in a sandboxed preview' : '⌘/Ctrl + Enter to run — type input while it runs'}
+                        {isHtml ? 'Renders in a sandboxed preview' : <><span className="kb-hint">⌘/Ctrl + Enter to run — </span>type input while it runs</>}
                     </span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
