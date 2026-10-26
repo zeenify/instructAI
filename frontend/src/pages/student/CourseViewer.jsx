@@ -223,8 +223,9 @@ export default function CourseViewer() {
                 contextItem={activeItem}
             />
 
-            {/* RIGHT: CONTENT AREA */}
-            <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', background: 'var(--bg-primary)' }}>
+            {/* RIGHT: CONTENT AREA — minWidth 0: without it the pane's
+                min-content (unwrapping code) inflates the phone layout */}
+            <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative', background: 'var(--bg-primary)' }}>
                 {/* Mobile Header Toggle */}
                 <div style={{ padding: '16px 20px', gap: '12px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }} className="lg:hidden flex items-center">
                     <button style={{ padding: '10px 12px', color: 'var(--accent)', background: 'transparent', border: 'none', borderRadius: '8px', cursor: 'pointer' }} onClick={() => setShowMobileSidebar(true)} className="hover:bg-[var(--accent-light)] transition-all"><Menu /></button>

@@ -285,11 +285,14 @@ export function normalizeChallengeCases(testCases, expected) {
     if (Array.isArray(testCases) && testCases.length > 0) {
         return testCases.map((c, i) => ({
             id: c.id || `case-${i}`,
-            input: String(c.input || ''),
-            expected_output: String(c.expected_output ?? ''),
+            // Teachers type "\n" in the editor's one-line input; the quiz
+            // grader path un-escapes it server-side, this path used to feed
+            // the literal backslash into the JVM — instant InputMismatch.
+            input: String(c.input || '').replace(/\\r\\n|\\n/g, '\n'),
+            expected_output: String(c.expected_output ?? '').replace(/\\r\\n|\\n/g, '\n'),
         }));
     }
-    const goal = String(expected || '').trim();
+    const goal = String(expected || '').trim().replace(/\\r\\n|\\n/g, '\n');
     return goal ? [{ id: 'goal', input: '', expected_output: goal }] : [];
 }
 
