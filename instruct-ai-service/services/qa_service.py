@@ -69,7 +69,7 @@ activity questions grounded STRICTLY in the provided class material.
 Rules per type:
 - multiple_choice: EXACTLY 4 options (never 3, never 5), exactly one correct; \
 distractors plausible and drawn from common misconceptions in the material. \
-"expected_output" is the correct option's TEXT verbatim.
+"expected_output" is the correct option's INDEX as a string ("0" = first option).
 - true_false: a clear statement; "expected_output" is exactly "True" or "False". \
 Mix both across questions.
 - identification: a question whose answer is ONE short canonical term or name \
@@ -299,10 +299,16 @@ def _parse_batch(content, qtype, language=None):
         expected = str(q.get("expected_output") or "").strip()
         # MC ships exactly 4 — the model may still overshoot; trim to the
         # first 4 and pull the correct answer into the cut if it landed
-        # beyond it (expected_output is the correct option's verbatim text).
+        # beyond it (expected_output is the correct option's INDEX as a
+        # string, or its verbatim text from older runs).
         if qtype == "multiple_choice" and len(options) > 4:
             trimmed = options[:4]
-            if expected and expected not in trimmed and expected in options:
+            if expected.isdigit():
+                idx = int(expected)
+                if 4 <= idx < len(options):
+                    trimmed[3] = options[idx]
+                    expected = "3"
+            elif expected and expected not in trimmed and expected in options:
                 trimmed[3] = expected
             options = trimmed
         item = {

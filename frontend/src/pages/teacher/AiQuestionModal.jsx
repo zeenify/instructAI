@@ -383,14 +383,24 @@ export default function AiQuestionModal({ activityId, activityTitle, onClose, on
                         const batch = (event.data?.questions ?? []).map((q) => {
                             // MC correctness is tracked by INDEX (option texts
                             // are editable; string-matching breaks on edits).
-                            // No verbatim match → null → the card is flagged
-                            // and the teacher picks the key themselves; the
-                            // match is case-insensitive like the backend.
+                            // The generator ships expected_output as the
+                            // option's INDEX as a string ("0" = first) — but
+                            // resolve text-form too (older/drifted models);
+                            // no match either way → null → the card is flagged
+                            // and the teacher picks the key themselves. Never
+                            // fall back to "first option" silently.
                             let correctIndex = null;
                             if (q.type === 'multiple_choice') {
-                                const answer = (q.expected_output ?? '').trim().toLowerCase();
-                                const idx = (q.options ?? []).findIndex((o) => o && o.trim().toLowerCase() === answer);
-                                correctIndex = idx === -1 ? null : idx;
+                                const opts = q.options ?? [];
+                                const raw = String(q.expected_output ?? '').trim();
+                                const byIndex = /^\d+$/.test(raw) && Number(raw) < opts.length ? Number(raw) : -1;
+                                if (byIndex >= 0) {
+                                    correctIndex = byIndex;
+                                } else {
+                                    const answer = raw.toLowerCase();
+                                    const idx = opts.findIndex((o) => o && o.trim().toLowerCase() === answer);
+                                    correctIndex = idx === -1 ? null : idx;
+                                }
                             }
                             return {
                                 localId: nextLocalId(),

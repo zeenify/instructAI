@@ -835,22 +835,27 @@ class CourseController extends Controller
             }
 
             // For multiple_choice, if expected_output is answer text instead of index, find the index
-            if (isset($questionData['type']) && $questionData['type'] === 'multiple_choice' && isset($questionData['options']) && !is_numeric($expectedOutput)) {
-                // Case/whitespace-insensitive text match first…
-                $index = false;
-                foreach ($questionData['options'] as $i => $option) {
-                    if (mb_strtolower(trim((string) $option)) === mb_strtolower(trim((string) $expectedOutput))) {
-                        $index = $i;
-                        break;
+            if (isset($questionData['type']) && $questionData['type'] === 'multiple_choice' && isset($questionData['options'])) {
+                // A whitespace-wrapped index (" 2") must be trimmed before the
+                // numeric check, or it falls into the text match and is wiped.
+                $expectedOutput = trim((string) $expectedOutput);
+                if (! is_numeric($expectedOutput)) {
+                    // Case/whitespace-insensitive text match first…
+                    $index = false;
+                    foreach ($questionData['options'] as $i => $option) {
+                        if (mb_strtolower(trim((string) $option)) === mb_strtolower(trim((string) $expectedOutput))) {
+                            $index = $i;
+                            break;
+                        }
                     }
-                }
-                if ($index !== false) {
-                    $expectedOutput = (string)$index;
-                } else {
-                    // …and if the text matches nothing, store an empty
-                    // answer rather than an ungradeable string — the
-                    // quiz builder flags it as "no correct answer yet"
-                    $expectedOutput = '';
+                    if ($index !== false) {
+                        $expectedOutput = (string)$index;
+                    } else {
+                        // …and if the text matches nothing, store an empty
+                        // answer rather than an ungradeable string — the
+                        // quiz builder flags it as "no correct answer yet"
+                        $expectedOutput = '';
+                    }
                 }
             }
 
