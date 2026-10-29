@@ -39,7 +39,7 @@ export default function StudentOverview() {
                     borderRadius: 22,
                     padding: '52px 40px 44px',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
-                    maxWidth: 680, width: '100%',
+                    width: '100%',
                 }}>
                     <div style={{ width: 72, height: 72, borderRadius: 22, background: 'var(--accent-light, rgba(62,142,126,0.12))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', marginBottom: 18 }}>
                         <BookOpen size={32} strokeWidth={1.8} />
