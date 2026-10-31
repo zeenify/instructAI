@@ -240,6 +240,10 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
     const pendingCheckRef = useRef(null);
     const runCountRef = useRef(0);
     const containerRef = useRef(null);
+    // Mirrors the live terminal's running state (every exit path flows
+    // through InteractiveTerminal's setRunning choke point) so runRef can
+    // yield while an engine job is on the wire
+    const termRunningRef = useRef(false);
 
     useEffect(() => {
         if (block.data.is_solved) {
@@ -390,7 +394,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         if (results.length > 0) setCaseResults([...results]);
                         setAbortedRun({ ran: results.length, total: challengeCases.length, reason: 'compilation failed' });
 
-                        return;
+                        return false;
                     }
                     if (data.timed_out || (data.stderr && data.stderr.includes('Execution Timed Out'))) {
                         setErrorType('timeout');
@@ -399,7 +403,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         if (results.length > 0) setCaseResults([...results]);
                         setAbortedRun({ ran: results.length, total: challengeCases.length, reason: 'the program exceeded its time limit' });
 
-                        return;
+                        return false;
                     }
                     if (data.stderr) {
                         setErrorType('runtime');
@@ -408,7 +412,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                         if (results.length > 0) setCaseResults([...results]);
                         setAbortedRun({ ran: results.length, total: challengeCases.length, reason: 'a runtime error' });
 
-                        return;
+                        return false;
                     }
 
                     const cleanOutput = (data.stdout || '').trim().replace(/\r\n/g, '\n');
@@ -439,7 +443,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                     toast.error(`${failed} of ${results.length} test cases failed — compare your output with each case.`);
                     setTimeout(() => setIsWrong(false), 8000);
                 }
-                return;
+                return true;
             }
 
             // Single run — playground, or a legacy challenge with only a goal
@@ -460,7 +464,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 setOutput(data.compile_output);
                 setIsCorrect(false);
 
-                return;
+                return false;
             }
 
             if (data.timed_out || (data.stderr && data.stderr.includes('Execution Timed Out'))) {
@@ -468,7 +472,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 setOutput(data.stderr || 'Execution Timed Out');
                 setIsCorrect(false);
 
-                return;
+                return false;
             }
 
             if (data.stderr && READS_CLOSED_STDIN.test(data.stderr)) {
@@ -477,11 +481,11 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 // bug in the code; the terminal tab is where they interact.
                 setErrorType('noinput');
                 setOutput(
-                    'This program reads input before it can print anything, and this quick run has nothing to feed it — so it stops right at the first read. That part is not a bug in your code.\n\nPress Run in the Terminal tab and type your input there while the program waits, like a real console.'
+                    'This program reads input before it can print anything, and this quick run has nothing to feed it — so it stops right at the first read. That part is not a bug in your code.\n\nOpening the Terminal tab for you — type your input there while the program waits, like a real console.'
                 );
                 setIsCorrect(false);
 
-                return;
+                return true;
             }
 
             if (data.stderr) {
@@ -489,7 +493,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                 setOutput(data.stderr);
                 setIsCorrect(false);
 
-                return;
+                return false;
             }
 
             const rawOutput = (data.stdout || '').trim();
@@ -513,6 +517,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                     setTimeout(() => setIsWrong(false), 8000);
                 }
             }
+            return true;
         } catch (err) {
             console.error(err);
             setErrorType('system');
@@ -520,6 +525,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             if (challengeCases.length > 0) {
                 setAbortedRun({ ran: casesRan, total: challengeCases.length, reason: 'the engine stopped responding' });
             }
+            return false;
         } finally {
             setIsRunning(false);
             setRunningCase(0);
@@ -575,8 +581,12 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
     // Latest run logic lives in a ref so the Ctrl+Enter listener below can
     // bind once without going stale.
     const runRef = useRef(null);
-    runRef.current = () => {
+    runRef.current = async () => {
         if (isRunning) return;
+        // The live terminal executing means one engine job is already on the
+        // wire — a second concurrent job is exactly the free-tier starvation
+        // this file works to avoid, so wait for the terminal run to exit.
+        if (termRunningRef.current) return;
         if (isHtml) {
             handleHtmlRun();
             return;
@@ -597,18 +607,19 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
             return;
         }
         // The terminal plays the current code live — in a playground that IS
-        // the run. In a challenge with stdin test cases, grading runs on its
-        // own: while the case runs execute, the terminal must NOT auto-run
-        // the same program too — two concurrent JVMs on the free-tier engine
-        // starve each other and a graded case can come back with EMPTY output
-        // (verified: same code+input passes cleanly in isolation). The
-        // Terminal tab still runs manually whenever the student wants.
+        // the run. In a challenge, grading goes first and the terminal plays
+        // the program right after — SEQUENTIAL, never concurrent: two engine
+        // jobs at once starve each other on the free tier and a graded case
+        // can come back with EMPTY output (verified: same code+input passes
+        // cleanly in isolation). When grading aborted (compile/runtime/
+        // timeout/system) the verbatim error is already on the case panel —
+        // don't spend an engine run on a program that couldn't even start.
         if (mode === 'challenge') {
-            handleCodeRun();
-            if (challengeCases.length === 0 || !challengeCases.some((c) => c.input)) {
+            const graded = await handleCodeRun();
+            if (graded) {
                 try {
                     runInLiveTerminal();
-                } catch { /* terminal is a live view only — grading already started */ }
+                } catch { /* terminal is a live view only — grading already ran */ }
             }
             return;
         }
@@ -832,6 +843,7 @@ export default function CodeIDE({ block, onSolve, lessonId }) {
                                 language={languageId}
                                 mode={mode}
                                 compact
+                                onRunningChange={(v) => { termRunningRef.current = v; }}
                                 onOutput={(chunk) => { terminalOutputRef.current += String(chunk); }}
                                 onExited={handleTerminalExit}
                             />
