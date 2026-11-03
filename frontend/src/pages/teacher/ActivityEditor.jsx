@@ -1180,7 +1180,7 @@ export default function ActivityEditor() {
                                             ))}
                                         </div>
                                         <p className="ae-seg-hint">
-                                            Immediate: results appear right after a student submits. Room close: results stay hidden until you end the room.
+                                            Results are always sealed from students until you press <strong>Reveal results</strong> (Results page, live monitor, or the classwork card) — these options no longer auto-show answers.
                                         </p>
                                     </>
                                 )}

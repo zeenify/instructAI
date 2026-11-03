@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
     Trash2, Eye, EyeOff, Users, Clock, Upload, HelpCircle, BookOpen, Zap,
     Radio, BarChart3, Play, Timer, Copy, Loader2, X, Square, RotateCcw,
+    Lock, LockOpen,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -65,6 +66,7 @@ export default function ActivityCard({ activity, classId, onDelete }) {
     const [busy, setBusy] = useState(false);
     const [confirmUnpublish, setConfirmUnpublish] = useState(false);
     const [confirmClose, setConfirmClose] = useState(false);
+    const [confirmReveal, setConfirmReveal] = useState(false);
 
     const refresh = () => {
         queryClient.invalidateQueries({ queryKey: classActivitiesKey(classId) });
@@ -194,6 +196,30 @@ export default function ActivityCard({ activity, classId, onDelete }) {
             refresh();
             toast.success(res.data?.message || 'Quiz reopened');
         }, 'Could not reopen the quiz');
+    };
+
+    const handleRevealResults = (e) => {
+        e.stopPropagation();
+        // Revealing shows every student their score and the correct answers
+        // — two-step on the card. Sealing again is a correction, one click.
+        const revealed = Boolean(activity.results_revealed_at);
+        if (!revealed && !confirmReveal) {
+            setConfirmReveal(true);
+            toast('Click the lock again to reveal results to all students', { duration: 3500 });
+            setTimeout(() => setConfirmReveal(false), 3500);
+            return;
+        }
+        setConfirmReveal(false);
+        withBusy(async () => {
+            const res = await api.post(`/teacher/activities/${activity.id}/reveal-results`);
+            patchCachedActivity({ results_revealed_at: res.data.results_revealed_at });
+            refresh();
+            if (res.data.results_revealed_at) {
+                toast.success('Results revealed — students can now see their score and answers');
+            } else {
+                toast.success('Results sealed — students no longer see their results');
+            }
+        }, 'Failed to toggle result reveal');
     };
 
     const openRepost = async (e) => {
@@ -369,6 +395,18 @@ export default function ActivityCard({ activity, classId, onDelete }) {
                                     : 'Publish'}
                             >
                                 {activity.is_published ? <Eye size={14} /> : <EyeOff size={14} />}
+                            </button>
+                        )}
+                        {isQuiz && (
+                            <button
+                                className={`cw-icon-btn ${activity.results_revealed_at ? 'on' : (confirmReveal ? 'danger' : '')}`}
+                                onClick={handleRevealResults}
+                                type="button"
+                                title={activity.results_revealed_at
+                                    ? 'Results revealed — click to seal them again'
+                                    : (confirmReveal ? 'Reveal — click again to confirm' : 'Results sealed from students — click to reveal')}
+                            >
+                                {activity.results_revealed_at ? <LockOpen size={14} /> : <Lock size={14} />}
                             </button>
                         )}
                         <button className="cw-icon-btn danger"

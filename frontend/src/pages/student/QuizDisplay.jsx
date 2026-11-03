@@ -155,9 +155,11 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
             setGradingProgress(100);
             setTimeout(() => {
                 setResult(res.data);
-                setPreviousResult(res.data);
+                // Sealed responses carry no score/details — nothing to review
+                // until the teacher reveals them.
+                if (res.data.results_revealed !== false) setPreviousResult(res.data);
                 try { localStorage.removeItem(draftKey); } catch { /* noop */ }
-                if (res.data.score >= quizData.passing_score) onPass();
+                if (res.data.passed) onPass();
                 setSubmitting(false);
                 clearInterval(interval);
             }, 1000);
@@ -198,6 +200,30 @@ export default function QuizDisplay({ quizId, onPass, onAiToggle, isAlreadyPasse
                         <span style={{ fontSize: '13px', color: 'var(--accent)', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{Math.round(gradingProgress)}%</span>
                     </div>
                 </div>
+            </div>
+        </div>
+    );
+
+    // Results sealed by the teacher — no score, no review, no answers. The
+    // attempt is graded server-side; the student just gets a confirmation.
+    if (result && result.results_revealed === false) return (
+        <div style={{ gap: '24px', width: '100%' }} className="flex flex-col animate-in fade-in duration-700 pb-32">
+            <div style={{ padding: '60px 40px', textAlign: 'center', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '14px', boxShadow: 'var(--card-shadow)', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'var(--accent)', opacity: 0.5 }} />
+                <div style={{ marginBottom: '24px' }}>
+                    <div style={{ width: '96px', height: '96px', background: 'var(--accent-light)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', border: '1px solid var(--border-color)' }}>
+                        <Lock style={{ color: 'var(--accent)' }} size={44} />
+                    </div>
+                </div>
+                <h2 style={{ marginBottom: '12px', fontSize: '36px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Quiz submitted</h2>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 auto', maxWidth: '420px', fontWeight: 600, lineHeight: 1.6 }}>
+                    Your answers are in and already recorded. Your teacher will reveal the results — including your score — when everyone is done.
+                </p>
+                {result.engine_unavailable && (
+                    <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: '16px auto 0', maxWidth: '420px', fontWeight: 600 }}>
+                        Note: the code engine was unreachable during your quiz — your teacher may review those answers manually.
+                    </p>
+                )}
             </div>
         </div>
     );

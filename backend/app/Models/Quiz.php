@@ -16,14 +16,22 @@ class Quiz extends Model
         'passing_score',
         'is_published',
         'timer_mode',
-        'question_limit'
+        'question_limit',
+        'results_revealed_at',
     ];
 
     protected $casts = [
         'is_published' => 'boolean',
         'is_randomized' => 'boolean',
         'ai_enabled' => 'boolean',
+        'results_revealed_at' => 'datetime:Y-m-d\TH:i:sP',
     ];
+
+    /** Students see score/answers only after the teacher reveals them. */
+    public function resultsRevealed(): bool
+    {
+        return $this->results_revealed_at !== null;
+    }
 
 
     public function module() {

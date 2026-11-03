@@ -221,6 +221,7 @@ class LiveQuizController extends Controller
             'per_question_durations' => $activity->per_question_durations,
             'shuffle_questions' => $activity->shuffle_questions,
             'show_results' => $activity->show_results,
+            'results_revealed_at' => $activity->results_revealed_at?->toISOString(),
             'questions_count' => $activity->questions->count(),
             'total_points' => $activity->questions->sum('points'),
         ];
@@ -270,10 +271,23 @@ class LiveQuizController extends Controller
 
     private function resultsPayload(ClassActivity $activity, ActivitySubmission $submission): array
     {
-        $reveal = ($activity->show_results === 'immediate' || $this->roomClosed($activity)) ? 'full' : 'summary';
+        // Results stay sealed until the teacher explicitly reveals them —
+        // room close and the legacy 'immediate' setting no longer auto-reveal.
+        // Sealed: nothing but the submission status crosses the wire, so an
+        // early finisher has no score and no answer to share.
+        if ($activity->results_revealed_at === null) {
+            return [
+                'score' => null,
+                'max_score' => null,
+                'status' => $submission->status,
+                'reveal' => 'none',
+                'rows' => [],
+            ];
+        }
+
         $answers = $submission->answers->keyBy('question_id');
 
-        $rows = $activity->questions->map(function ($question) use ($answers, $reveal) {
+        $rows = $activity->questions->map(function ($question) use ($answers) {
             $answer = $answers->get($question->id);
             $row = [
                 'question_id' => $question->id,
@@ -286,7 +300,7 @@ class LiveQuizController extends Controller
                 'score' => $answer ? (float) $answer->score : 0,
             ];
 
-            if ($reveal === 'full' && ! in_array($question->type, ['essay', 'coding'])) {
+            if (! in_array($question->type, ['essay', 'coding'])) {
                 $row['expected_output'] = $question->expected_output;
             }
 
@@ -301,7 +315,7 @@ class LiveQuizController extends Controller
             'score' => (float) $submission->score,
             'max_score' => (float) $submission->max_score,
             'status' => $submission->status,
-            'reveal' => $reveal,
+            'reveal' => 'full',
             'rows' => $rows,
         ];
     }
@@ -313,8 +327,10 @@ class LiveQuizController extends Controller
         $pacing = $this->effectivePacing($activity, $submission);
 
         $reveal = 'none';
-        if ($finalized) {
-            $reveal = ($activity->show_results === 'immediate' || $roomClosed) ? 'full' : 'summary';
+        // Sealed until the teacher reveals — closing the room or the legacy
+        // 'immediate' setting no longer shows students their results.
+        if ($finalized && $activity->results_revealed_at !== null) {
+            $reveal = 'full';
         }
 
         // The attempt is locked but the (auto-only) grading pass is still

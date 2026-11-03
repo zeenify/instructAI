@@ -4,7 +4,7 @@ import { motion, Reorder, useDragControls } from 'framer-motion';
 import {
     ChevronLeft, ChevronUp, ChevronDown, Trash2, Loader2, Plus, X, Check,
     CheckCircle2, Code, Type, ListOrdered, Hash, Shuffle, Bot, Globe,
-    GripVertical, Clock, Target, Filter, Hourglass
+    GripVertical, Clock, Target, Filter, Hourglass, Lock, LockOpen
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { invalidateCache } from '../../services/api';
@@ -512,6 +512,24 @@ export default function QuizBuilder() {
         markDirty();
     };
 
+    // Results stay sealed from students until the teacher flips this — a
+    // dedicated endpoint, not a settings field, so it can't ride the
+    // debounced autosave (a half-second later edit must never un-reveal).
+    const toggleRevealResults = async () => {
+        if (!quiz) return;
+        try {
+            const res = await api.post(`/teacher/quizzes/${id}/reveal-results`);
+            setQuiz((prev) => ({ ...prev, results_revealed_at: res.data.results_revealed_at }));
+            if (res.data.results_revealed_at) {
+                toast.success('Results revealed — students now see their score and answers');
+            } else {
+                toast.success('Results sealed — students no longer see their results');
+            }
+        } catch {
+            toast.error('Could not update the reveal state.');
+        }
+    };
+
     const updateQuestion = (qId, data) => {
         setQuestions((prev) => prev.map((q) => (q.id === qId ? { ...q, ...data } : q)));
         pendingQ.current.set(qId, { ...(pendingQ.current.get(qId) || {}), ...data });
@@ -709,6 +727,20 @@ export default function QuizBuilder() {
                         <span className="ed-ai-chip-label">
                             AI Tutor
                             <span className="ed-ai-chip-state">{quiz.allow_ai_assistance ? 'Helps students' : 'Off'}</span>
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        className={`ed-ai-chip ${quiz.results_revealed_at ? 'on' : ''}`}
+                        title={quiz.results_revealed_at
+                            ? 'Students can see their score and answers — click to seal the results again'
+                            : 'Results are sealed: students see nothing after submitting until you reveal them'}
+                        onClick={toggleRevealResults}
+                    >
+                        {quiz.results_revealed_at ? <LockOpen size={17} /> : <Lock size={17} />}
+                        <span className="ed-ai-chip-label">
+                            Results
+                            <span className="ed-ai-chip-state">{quiz.results_revealed_at ? 'Revealed' : 'Sealed'}</span>
                         </span>
                     </button>
                     {quiz.is_published ? (

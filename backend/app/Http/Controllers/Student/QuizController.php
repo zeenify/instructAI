@@ -60,7 +60,9 @@ class QuizController extends Controller
 
         $existingResult = null;
 
-        if ($completedAttempt) {
+        // Results stay sealed until the teacher reveals them — a completed
+        // attempt earns no peek at score or answers before that.
+        if ($completedAttempt && $quiz->resultsRevealed()) {
             // Load ALL answers once, then look them up from memory (fixes N+1)
             $allAnswers = $completedAttempt->answers()
                 ->whereIn('question_id', $quiz->questions->pluck('id'))
@@ -116,6 +118,7 @@ class QuizController extends Controller
             'quiz' => $quiz,
             'class_id' => $quiz->module->course->class_id,
             'existing_result' => $existingResult,
+            'results_revealed' => $quiz->resultsRevealed(),
             // We still send saved_answers if we want them to resume (only if status is in_progress)
             'attempt_id' => $completedAttempt ? $completedAttempt->id : null,
         ]);
@@ -189,7 +192,7 @@ class QuizController extends Controller
         // take seconds each and must never hold a write lock that long.
         $checks = $this->runAutoChecks($activeQuestions, $submittedAnswers, (array) $request->input('html_check_results', []));
 
-        return DB::transaction(function () use ($quizId, $user, $activeQuestions, $submittedAnswers, $attemptMaxScore, $checks) {
+        return DB::transaction(function () use ($quiz, $quizId, $user, $activeQuestions, $submittedAnswers, $attemptMaxScore, $checks) {
             $attempt = QuizAttempt::create([
                 'student_id' => $user->id,
                 'quiz_id' => $quizId,
@@ -325,11 +328,28 @@ class QuizController extends Controller
 
             $anyEngineUnavailable = collect($detailedResults)->contains(fn ($d) => $d['engine_unavailable']);
 
+            // Sealed results: the attempt is graded and stored, but the score
+            // and every per-question detail stay server-side until the teacher
+            // reveals them — nothing for an early finisher to share. `passed`
+            // rides along (course progression + retake gating depend on it)
+            // without exposing the score or any per-question signal.
+            $passed = (float) $totalScore >= (float) $quiz->passing_score;
+            if (! $quiz->resultsRevealed()) {
+                return response()->json([
+                    'submitted' => true,
+                    'results_revealed' => false,
+                    'passed' => $passed,
+                    'engine_unavailable' => $anyEngineUnavailable,
+                ]);
+            }
+
             return response()->json([
                 'score' => round($totalScore, 2),
                 'max_score' => $attemptMaxScore,
                 'details' => $detailedResults,
                 'engine_unavailable' => $anyEngineUnavailable,
+                'results_revealed' => true,
+                'passed' => $passed,
             ]);
         });
     }

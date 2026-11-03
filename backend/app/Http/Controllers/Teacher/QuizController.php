@@ -85,6 +85,26 @@ class QuizController extends Controller
         }
     }
 
+    /**
+     * Reveal / re-seal quiz results to students — the single gate behind
+     * Student\QuizController's show()/submit() payloads. Deliberately its
+     * own endpoint (not part of update()) so the semantics stay obvious.
+     */
+    public function revealResults($id)
+    {
+        $quiz = Quiz::with('module.course')->findOrFail($id);
+
+        if ($quiz->module->course->teacher_id !== auth()->id()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $quiz->update([
+            'results_revealed_at' => $quiz->results_revealed_at === null ? now() : null,
+        ]);
+
+        return response()->json($quiz);
+    }
+
     public function destroy($id)
     {
         // Deep security check: Quiz -> Module -> Course -> Teacher

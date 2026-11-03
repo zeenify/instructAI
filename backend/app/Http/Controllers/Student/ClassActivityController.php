@@ -114,10 +114,11 @@ class ClassActivityController extends Controller
 
         $this->checkEnrollment($activity->class_id);
 
+        // Students never see answers here — the old guard was inverted and
+        // leaked expected_output for coding questions, and reference_code
+        // shipped for every type. Mirrors LiveQuizController::orderedQuestions().
         $activity->questions->each(function ($question) {
-            if ($question->type !== 'coding') {
-                unset($question->expected_output);
-            }
+            unset($question->expected_output, $question->reference_code);
         });
 
         $submission = $this->getSubmission($id);
@@ -228,6 +229,14 @@ class ClassActivityController extends Controller
             }
 
             $submission->load('answers.question');
+
+            // The submit response carries the questions back — strip the
+            // answers off them before it leaves (same seal as show()).
+            $submission->answers->each(function ($answer) {
+                if ($answer->relationLoaded('question') && $answer->question) {
+                    unset($answer->question->expected_output, $answer->question->reference_code);
+                }
+            });
 
             return response()->json($submission);
         });

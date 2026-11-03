@@ -9,6 +9,7 @@ import {
   Circle,
   Clock,
   Eye,
+  EyeOff,
   HelpCircle,
   ListChecks,
   Pause,
@@ -610,6 +611,31 @@ export default function LiveQuizMonitor() {
   const isLive = activity?.live_status === "active";
   const isPaused = activity?.live_status === "paused";
   const isClosed = activity?.live_status === "completed";
+  const resultsRevealed = Boolean(activity?.results_revealed_at);
+
+  const handleRevealResults = async () => {
+    setBusy(true);
+    try {
+      const res = await api.post(
+        `/teacher/activities/${activityId}/reveal-results`,
+      );
+      // Optimistic flip — the board's 3s poll confirms it anyway. The
+      // button's own Revealed/hidden state is the feedback; failures land
+      // in the error banner below.
+      setActivity((prev) =>
+        prev
+          ? { ...prev, results_revealed_at: res.data.results_revealed_at }
+          : prev,
+      );
+      setError(null);
+    } catch (e) {
+      setError(
+        e.response?.data?.message || "Failed to update the reveal state",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
   const counts = board?.counts || {};
   const students = board?.students || [];
   const roster = [...students].sort((a, b) => {
@@ -970,6 +996,31 @@ export default function LiveQuizMonitor() {
                     View results in Class Activity
                   </span>
                 )}
+                <button
+                  onClick={handleRevealResults}
+                  disabled={busy}
+                  title={resultsRevealed ? "Students can see their results — click to seal them again" : "Results are sealed — click to let students see their score and answers"}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "12px 20px",
+                    backgroundColor: resultsRevealed
+                      ? "rgba(16,185,129,0.1)"
+                      : "var(--db-card)",
+                    border: `1px solid ${resultsRevealed ? "rgba(16,185,129,0.4)" : "var(--db-border)"}`,
+                    borderRadius: "8px",
+                    color: resultsRevealed ? "#10b981" : "var(--db-text-2)",
+                    fontWeight: "600",
+                    fontSize: "15px",
+                    cursor: busy ? "wait" : "pointer",
+                    transition: "all 200ms ease-in-out",
+                    opacity: busy ? 0.6 : 1,
+                  }}
+                >
+                  {resultsRevealed ? <Eye size={16} /> : <EyeOff size={16} />}
+                  {resultsRevealed ? "Results revealed" : "Reveal results"}
+                </button>
               </div>
             </div>
 

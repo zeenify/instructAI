@@ -380,6 +380,24 @@ class ClassActivityController extends Controller
     }
 
     /**
+     * Reveal / re-seal quiz results to students. The single gate for the
+     * student-facing results screens (LiveQuizController::resultsPayload),
+     * deliberately outside the generic update() locks: the teacher must be
+     * able to reveal while the room is live, after close, and once
+     * submissions exist.
+     */
+    public function revealResults($id)
+    {
+        $activity = $this->authorizeActivity($id);
+
+        $activity->update([
+            'results_revealed_at' => $activity->results_revealed_at === null ? now() : null,
+        ]);
+
+        return response()->json($activity);
+    }
+
+    /**
      * Post a copy of this activity into another class the teacher owns.
      * Content (title, settings, questions, test cases) is duplicated; live
      * state and student submissions stay with the original.
@@ -789,6 +807,8 @@ class ClassActivityController extends Controller
             'deadline_at' => $activity->live_question_deadline_at,
             'phase' => $phase,
         ];
+
+        $board['results_revealed_at'] = $activity->results_revealed_at?->toISOString();
 
         $board['questions'] = $activity->questions->map(fn ($q) => $q->toArray())->all();
 
@@ -1310,6 +1330,7 @@ class ClassActivityController extends Controller
                 'grading_method' => $activity->grading_method,
                 'max_points' => $activity->max_points ? (float) $activity->max_points : null,
                 'is_published' => $activity->is_published,
+                'results_revealed_at' => $activity->results_revealed_at?->toISOString(),
                 'question_count' => count($questions),
             ],
             'stats' => $stats,

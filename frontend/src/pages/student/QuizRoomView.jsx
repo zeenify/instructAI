@@ -20,6 +20,7 @@ import {
   Code as CodeIcon,
   WifiOff,
   Wifi,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import InlineCodeAnswer from "../../components/student/InlineCodeAnswer";
@@ -99,6 +100,9 @@ export default function QuizRoomView() {
   const idxRef = useRef(currentIdx);
   const payloadRef = useRef(payload);
   const phaseRef = useRef(phase);
+  // Mirror of payload.reveal for pollState's guard — results polling stays
+  // alive only while sealed, so the teacher's reveal flips the view live.
+  const revealRef = useRef(null);
   const roomPausedRef = useRef(roomPaused);
   const saveTimerRef = useRef(null);
   const pendingSaveRef = useRef(null);
@@ -148,6 +152,7 @@ export default function QuizRoomView() {
 
   const applyPayload = useCallback((data) => {
     setPayload(data);
+    revealRef.current = data.reveal ?? null;
     setTeacherPacing(data.activity?.pacing_mode === "teacher");
     setRoomPaused(!!data.room_paused);
     if (data.activity?.pacing_mode === "teacher") {
@@ -370,11 +375,14 @@ export default function QuizRoomView() {
 
   const pollState = useCallback(async () => {
     if (
-      phaseRef.current === "results" ||
       phaseRef.current === "loading" ||
       phaseRef.current === "error"
     )
       return;
+    // Results phase stays quiet once anything is in — EXCEPT sealed results
+    // ('none'), where this poll is what flips the view to the full review
+    // the moment the teacher reveals.
+    if (phaseRef.current === "results" && revealRef.current !== "none") return;
     try {
       const res = await api.get(
         `/student/activities/${activityId}/quiz/state`,
@@ -697,10 +705,12 @@ export default function QuizRoomView() {
   }, [phase, activityId, pollState, teacherPacing, roomPaused, noteNetFail, noteNetOk]);
 
   useEffect(() => {
-    if (phase === "results" && payload?.reveal === "summary") {
+    // Sealed results: poll so the reveal lands on this screen live (the old
+    // summary poll was dead — pollState bailed on the results phase).
+    if (phase === "results" && payload?.reveal === "none") {
       const t = setInterval(() => {
         pollState();
-      }, 30000);
+      }, 10000);
       return () => clearInterval(t);
     }
   }, [phase, payload?.reveal, pollState]);
@@ -1271,6 +1281,109 @@ export default function QuizRoomView() {
     const results = payload.results;
     const awaitingGrade = results?.status === "submitted";
     const fullReveal = results?.reveal === "full";
+
+    // Sealed by the teacher — no score, no per-question feedback, no
+    // answers. The poll above flips this to the full review on reveal.
+    if (results?.reveal === "none") {
+      return (
+        <div
+          style={{
+            minHeight: "100vh",
+            background: "var(--bg-primary)",
+            overflowY: "auto",
+          }}
+          className="custom-scrollbar"
+        >
+          <div
+            style={{
+              maxWidth: "1080px",
+              margin: "0 auto",
+              padding: "48px 24px 96px",
+            }}
+          >
+            <Link
+              to={`/dashboard/student/class/${classId}?tab=activities`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                color: "var(--text-tertiary)",
+                fontSize: "12px",
+                fontWeight: 600,
+                textDecoration: "none",
+                marginBottom: "24px",
+              }}
+              className="hover:text-[var(--text-primary)] transition-all"
+            >
+              <ChevronLeft size={14} /> Back to Class
+            </Link>
+
+            <div
+              style={{
+                background: "var(--bg-secondary)",
+                border: "1px solid var(--border-color)",
+                borderRadius: "24px",
+                padding: "64px 40px",
+                textAlign: "center",
+              }}
+            >
+              <div
+                style={{
+                  width: "88px",
+                  height: "88px",
+                  background: "var(--accent-light)",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto 20px",
+                  border: "1px solid var(--border-color)",
+                }}
+              >
+                <Lock style={{ color: "var(--accent)" }} size={40} />
+              </div>
+              <h1
+                style={{
+                  fontSize: "30px",
+                  fontWeight: 700,
+                  color: "var(--text-primary)",
+                  margin: "0 0 12px",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Quiz submitted
+              </h1>
+              <p
+                style={{
+                  fontSize: "14px",
+                  color: "var(--text-secondary)",
+                  margin: "0 auto",
+                  maxWidth: "440px",
+                  fontWeight: 600,
+                  lineHeight: 1.6,
+                }}
+              >
+                Your answers are in and already recorded. Your teacher will
+                reveal the results when everyone is done — this page updates
+                by itself.
+              </p>
+              {awaitingGrade && (
+                <p
+                  style={{
+                    fontSize: "12px",
+                    color: "var(--text-tertiary)",
+                    margin: "14px auto 0",
+                    fontWeight: 600,
+                  }}
+                >
+                  Some answers are still being graded.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div

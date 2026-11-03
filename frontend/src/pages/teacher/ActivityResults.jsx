@@ -6,8 +6,9 @@ import {
 } from 'recharts';
 import {
     ChevronLeft, Users, Target, Hash, Trophy, Clock, CheckCircle2,
-    RefreshCw, AlertTriangle, TrendingDown, Lightbulb, EyeOff, BarChart3, Crown, PartyPopper, Download,
+    RefreshCw, AlertTriangle, TrendingDown, Lightbulb, EyeOff, Eye, BarChart3, Crown, PartyPopper, Download,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
 import { getExcelJS, addTitleBlock, styleHeader, allBorders, fitColumns, stamp, stampFile, fmtDateTime, downloadWorkbook, XL } from '../../utils/excelExport';
@@ -149,6 +150,24 @@ export default function ActivityResults() {
     const matrix = data?.matrix || [];
     const questions = data?.questions || [];
     const stats = data?.stats || {};
+
+    // Quiz results stay sealed from students until the teacher reveals them.
+    const resultsRevealed = Boolean(data?.activity?.results_revealed_at);
+    const [revealing, setRevealing] = useState(false);
+    const toggleReveal = async () => {
+        setRevealing(true);
+        try {
+            const res = await api.post(`/teacher/activities/${activityId}/reveal-results`);
+            setData((prev) => (prev ? { ...prev, activity: { ...prev.activity, results_revealed_at: res.data.results_revealed_at } } : prev));
+            toast.success(res.data.results_revealed_at
+                ? 'Results revealed — students can now see their score and answers.'
+                : 'Results sealed — students no longer see their results.');
+        } catch {
+            toast.error('Could not update the reveal state.');
+        } finally {
+            setRevealing(false);
+        }
+    };
 
     const confetti = useMemo(() => Array.from({ length: 26 }, (_, i) => ({
         left: (i * 37 + 11) % 100,
@@ -457,6 +476,17 @@ export default function ActivityResults() {
                         </div>
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
+                        {data.activity.activity_type === 'quiz' && (
+                            <button
+                                onClick={toggleReveal}
+                                disabled={revealing}
+                                title={resultsRevealed ? 'Students can see their results — click to seal them again' : 'Results are sealed — click to let students see their score and answers'}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: resultsRevealed ? 'rgba(16, 185, 129, 0.1)' : 'var(--db-card)', border: `1px solid ${resultsRevealed ? 'rgba(16, 185, 129, 0.4)' : 'var(--db-border)'}`, borderRadius: '8px', color: resultsRevealed ? '#10b981' : 'var(--db-text-2)', fontWeight: '600', fontSize: '14px', cursor: revealing ? 'wait' : 'pointer', opacity: revealing ? 0.6 : 1 }}
+                            >
+                                {resultsRevealed ? <Eye size={14} /> : <EyeOff size={14} />}
+                                {resultsRevealed ? 'Revealed' : 'Results hidden'}
+                            </button>
+                        )}
                         <button
                             onClick={() => setShowExportModal(true)}
                             disabled={!data}
