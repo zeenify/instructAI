@@ -599,8 +599,32 @@
   gap: 14px;
 }
 
+/* Phones: the sign-up forms are tall (6 fields + consent + Google) — stack
+   the name row and tighten the band/card/typography so the whole form fits
+   in as little scrolling as possible on short screens. */
 @media (max-width: 480px) {
   .auth-form-row { grid-template-columns: 1fr; }
+  .auth-form-band { padding: 60px 18px 36px; }
+  .auth-card { padding: 20px 18px 22px; }
+  .auth-card-title { font-size: 1.7rem; margin-top: 8px; }
+  .auth-form { margin-top: 16px; gap: 11px; }
+  .auth-field { gap: 6px; }
+  .auth-field input { padding: 11px 13px; font-size: 0.9rem; }
+  .auth-submit { padding: 12px 18px; }
+  .auth-google { padding: 10px 16px; }
+  .auth-or { margin: 2px 0; }
+  .auth-consent { margin-top: 0; }
+  .auth-consent-text { font-size: 0.74rem; line-height: 1.5; }
+  .auth-whitelist-note { padding: 9px 11px; }
+  .auth-footnote { margin-top: 22px; }
+  .auth-clip { top: -44px; right: 22px; width: 30px; height: 64px; }
+}
+
+/* Very short windows (landscape phones, squeezed desktop windows): the
+   split layout squeezes the card's vertical room — don't let the band's
+   generous top padding eat the first screenful. */
+@media (max-height: 720px) and (min-width: 481px) {
+  .auth-form-band { padding-top: 72px; }
 }
 
 .auth-optional {
@@ -783,7 +807,9 @@
     padding-top: 92px;
     padding-bottom: 56px;
   }
-  .auth-editorial { padding: 56px clamp(24px, 6vw, 48px) 70px; }
+  /* top padding clears the floating spin badge (18px top + 84px + gap) so
+     the chalk kicker never runs underneath it on stacked layouts */
+  .auth-editorial { padding: 128px clamp(24px, 6vw, 48px) 70px; }
   .auth-headline { font-size: clamp(2.6rem, 9vw, 4rem); }
   .auth-footnote { position: static; margin-top: 34px; }
   .auth-spin-badge { width: 84px; height: 84px; top: 18px; right: 18px; }
