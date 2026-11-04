@@ -14,8 +14,15 @@
   --pik-sage: #3e8e7e;
   --pik-shadow: rgba(57, 43, 24, 0.15);
 
-  height: 100vh;
-  overflow: hidden;
+  /* min-height instead of a hard height lock: the sign-up forms (consent
+     row, LRN field) can be taller than short laptop viewports — the band
+     and the page grow and the document scrolls, instead of clipping the
+     bottom of the card with no way to reach it. Horizontal stays clipped
+     for the decorative tape/paper-clip overhangs. */
+  min-height: 100vh;
+  height: auto;
+  overflow-x: clip;
+  overflow-y: visible;
   display: grid;
   grid-template-columns: minmax(520px, 46%) 1fr;
   background-color: var(--pik-paper);
