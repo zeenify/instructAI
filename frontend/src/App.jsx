@@ -11,6 +11,8 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
 import TeacherRegisterPage from './pages/auth/TeacherRegisterPage';
 import StudentRegisterPage from './pages/auth/StudentRegisterPage';
+import PrivacyPolicyPage from './pages/legal/PrivacyPolicyPage';
+import TermsPage from './pages/legal/TermsPage';
 
 // Teacher Pages
 import TeacherOverview from './pages/teacher/TeacherOverview';
@@ -146,6 +148,8 @@ function App() {
           <Route path="/logout" element={<LogoutRoute />} />
           <Route path="/register/teacher" element={<TeacherRegisterPage />} />
           <Route path="/register/student" element={<StudentRegisterPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
           
           {/* --- Teacher Dashboard (Immortal Sidebar) --- */}
           <Route 

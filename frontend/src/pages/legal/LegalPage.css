@@ -1,0 +1,177 @@
+/* Paper & Ink styling for the legal documents (/privacy, /terms).
+   Self-contained: these routes load as their own chunk, so no dependence
+   on LandingPage.css. Palette mirrors the project's Paper & Ink tokens. */
+
+.legal-page {
+  --legal-paper: #faf6ef;
+  --legal-paper-2: #f3ecdd;
+  --legal-card: #fffdf7;
+  --legal-ink: #16130e;
+  --legal-ink-soft: #57503f;
+  --legal-verm: #ff4b26;
+  --legal-yellow: #ffd43b;
+
+  min-height: 100vh;
+  background: var(--legal-paper);
+  color: var(--legal-ink);
+  font-family: 'Inter', system-ui, sans-serif;
+  padding: 0 20px 72px;
+}
+
+/* ── top bar ── */
+.legal-top {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 22px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.legal-logo {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  text-decoration: none;
+  color: var(--legal-ink);
+}
+
+.legal-logo-mark {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 900;
+  font-size: 1.35rem;
+}
+
+.legal-logo-dot { color: var(--legal-verm); }
+
+.legal-logo-word {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 900;
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+}
+
+.legal-back {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--legal-ink-soft);
+  text-decoration: none;
+}
+
+.legal-back:hover { color: var(--legal-verm); }
+
+/* ── document card ── */
+.legal-doc {
+  max-width: 860px;
+  margin: 0 auto;
+  background: var(--legal-card);
+  border: 2px solid var(--legal-ink);
+  border-radius: 14px;
+  box-shadow: 6px 6px 0 rgba(22, 19, 14, 0.12);
+  padding: 44px 48px 52px;
+}
+
+.legal-kicker {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--legal-verm);
+  margin: 0 0 12px;
+}
+
+.legal-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 900;
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  margin: 0 0 10px;
+}
+
+.legal-effective {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--legal-ink-soft);
+  margin: 0 0 28px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid rgba(22, 19, 14, 0.18);
+}
+
+/* ── prose ── */
+.legal-body h2 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 700;
+  font-size: 1.22rem;
+  letter-spacing: -0.01em;
+  margin: 34px 0 10px;
+}
+
+.legal-body h2:first-child { margin-top: 0; }
+
+.legal-body p,
+.legal-body li {
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: var(--legal-ink-soft);
+  margin: 0 0 12px;
+}
+
+.legal-body strong { color: var(--legal-ink); }
+
+.legal-body ul {
+  margin: 0 0 14px;
+  padding-left: 22px;
+}
+
+.legal-body li { margin-bottom: 7px; }
+
+.legal-body a {
+  color: var(--legal-ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legal-body a:hover { color: var(--legal-verm); }
+
+/* highlight strip for the "short version" summaries */
+.legal-note {
+  background: var(--legal-paper-2);
+  border-left: 4px solid var(--legal-yellow);
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin: 0 0 22px;
+}
+
+.legal-note p { margin: 0; }
+
+/* ── footer ── */
+.legal-foot {
+  max-width: 860px;
+  margin: 34px auto 0;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: var(--legal-ink-soft);
+}
+
+.legal-foot-link {
+  color: var(--legal-ink-soft);
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(22, 19, 14, 0.35);
+  padding-bottom: 1px;
+}
+
+.legal-foot-link:hover { color: var(--legal-verm); border-color: var(--legal-verm); }
+
+.legal-foot-sep { margin: 0 10px; opacity: 0.5; }
+
+@media (max-width: 640px) {
+  .legal-doc { padding: 30px 22px 38px; box-shadow: 4px 4px 0 rgba(22, 19, 14, 0.12); }
+}

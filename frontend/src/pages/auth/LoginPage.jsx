@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { useGoogleLogin } from '@react-oauth/google';
+import ConsentCheckbox from './ConsentCheckbox';
 import './LoginPage.css';
 
 const dashboardFor = (r) => (r === 'teacher' ? '/dashboard/teacher' : r === 'admin' ? '/admin' : '/dashboard/student');
@@ -60,6 +61,7 @@ export default function LoginPage() {
   const [tempToken, setTempToken] = useState(null);
   const [lrnNumber, setLrnNumber] = useState('');
   const [lrnError, setLrnError] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -76,7 +78,10 @@ export default function LoginPage() {
       const res = await api.post('/login/google', {
         access_token: accessToken,
         role: role,
-        lrn_number: lrn
+        lrn_number: lrn,
+        // Only meaningful when a role is being chosen (account creation);
+        // plain logins of existing users never reach the consent gate.
+        accepted_terms: acceptedTerms
       });
 
       if (res.data.requires_role) {
@@ -85,6 +90,7 @@ export default function LoginPage() {
         setShowLrnInput(false);
         setLrnNumber('');
         setLrnError('');
+        setAcceptedTerms(false);
         setLoading(false);
       } else {
         setShowRoleModal(false);
@@ -264,11 +270,19 @@ export default function LoginPage() {
               <h2 className="auth-modal-title">Choose your role</h2>
               <p className="auth-modal-sub">how will you use InstructAI?</p>
 
+              <div className="auth-modal-consent">
+                <ConsentCheckbox checked={acceptedTerms} onChange={setAcceptedTerms} disabled={loading} />
+              </div>
+
               <div className="auth-role-grid">
                 <motion.button
                   whileHover={!loading ? { y: -4 } : {}}
                   whileTap={!loading ? { scale: 0.98 } : {}}
                   onClick={() => {
+                    if (!acceptedTerms) {
+                      toast.error('Please agree to the Terms of Service and Data Privacy Notice to continue.');
+                      return;
+                    }
                     setShowLrnInput(false);
                     setLrnNumber('');
                     setLrnError('');
@@ -292,6 +306,10 @@ export default function LoginPage() {
                   whileTap={!loading ? { scale: 0.98 } : {}}
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (!acceptedTerms) {
+                      toast.error('Please agree to the Terms of Service and Data Privacy Notice to continue.');
+                      return;
+                    }
                     setSelectedRole('student');
                     if (showLrnInput) {
                       if (lrnNumber.length !== 12) {
@@ -340,6 +358,10 @@ export default function LoginPage() {
                         className="auth-lrn-confirm"
                         onClick={() => {
                           if (loading) return;
+                          if (!acceptedTerms) {
+                            toast.error('Please agree to the Terms of Service and Data Privacy Notice to continue.');
+                            return;
+                          }
                           if (lrnNumber.length !== 12) {
                             setLrnError('LRN must be exactly 12 digits');
                             return;

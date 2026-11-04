@@ -233,6 +233,56 @@
   color: var(--pik-ink-soft);
 }
 
+/* ── consent checkbox (Terms of Service + Data Privacy Notice) ──
+   The legal "I agree" gate on every account-creation form; shares the
+   show-password box look so the two checkboxes read as one system. */
+.auth-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 2px;
+  cursor: pointer;
+  user-select: none;
+  width: 100%;
+}
+
+.auth-consent input { position: absolute; opacity: 0; width: 0; height: 0; }
+
+.auth-consent .auth-show-box {
+  flex-shrink: 0;
+  margin-top: 1px;
+  cursor: pointer;
+}
+
+.auth-consent input:checked + .auth-show-box { background: var(--pik-yellow); }
+.auth-consent input:checked + .auth-show-box svg { opacity: 1; transform: scale(1); }
+.auth-consent input:focus-visible + .auth-show-box { box-shadow: 2px 2px 0 var(--pik-yellow); }
+.auth-consent input:disabled + .auth-show-box { opacity: 0.45; }
+
+.auth-consent-text {
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--pik-ink-soft);
+}
+
+.auth-consent-link {
+  color: var(--pik-ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+  transition: color 0.12s ease;
+}
+
+.auth-consent-link:hover { color: var(--pik-verm); }
+
+/* consent row inside the Google role modal — left-aligned against the
+   centered modal text so the linked sentence is easy to read */
+.auth-modal-consent {
+  margin: 14px 0 16px;
+  text-align: left;
+}
+
 .auth-submit {
   margin-top: 6px;
   display: inline-flex;

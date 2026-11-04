@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useGoogleLogin } from '@react-oauth/google';
+import ConsentCheckbox from './ConsentCheckbox';
 import './LoginPage.css';
 import './TeacherRegisterPage.css';
 
@@ -49,6 +50,7 @@ export default function TeacherRegisterPage() {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ first_name: '', last_name: '', email: '', password: '', organization: '' });
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -56,9 +58,13 @@ export default function TeacherRegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!acceptedTerms) {
+      toast.error('Please agree to the Terms of Service and Data Privacy Notice to continue.');
+      return;
+    }
     setLoading(true);
     try {
-      const res = await api.post('/register/teacher', form);
+      const res = await api.post('/register/teacher', { ...form, accepted_terms: true });
       login(res.data.user, res.data.token, 'teacher');
       toast.success('Educator workspace ready!');
       setTimeout(() => navigate('/dashboard/teacher'), 1000);
@@ -72,7 +78,7 @@ export default function TeacherRegisterPage() {
     onSuccess: (tokenResponse) => {
       setLoading(true);
       api
-        .post('/login/google', { access_token: tokenResponse.access_token, role: 'teacher' })
+        .post('/login/google', { access_token: tokenResponse.access_token, role: 'teacher', accepted_terms: true })
         .then((res) => {
           login(res.data.user, res.data.token, res.data.role);
           toast.success('Educator workspace ready!');
@@ -182,6 +188,8 @@ export default function TeacherRegisterPage() {
               />
             </label>
 
+            <ConsentCheckbox checked={acceptedTerms} onChange={setAcceptedTerms} disabled={loading} />
+
             <button type="submit" className="auth-submit" disabled={loading}>
               {loading ? <Loader2 size={17} className="auth-spinner" /> : <ArrowRight size={16} strokeWidth={2.8} />}
               {loading ? 'Setting up…' : 'Create my workspace'}
@@ -189,7 +197,18 @@ export default function TeacherRegisterPage() {
 
             <div className="auth-or"><span>or</span></div>
 
-            <button type="button" className="auth-google" onClick={() => googleSignup()} disabled={loading}>
+            <button
+              type="button"
+              className="auth-google"
+              onClick={() => {
+                if (!acceptedTerms) {
+                  toast.error('Please agree to the Terms of Service and Data Privacy Notice to continue.');
+                  return;
+                }
+                googleSignup();
+              }}
+              disabled={loading}
+            >
               <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="" />
               Sign up with Google
             </button>

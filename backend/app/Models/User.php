@@ -18,6 +18,8 @@ class User extends Authenticatable
         'google_id',
         'avatar',
         'is_active',
+        'terms_accepted_at',
+        'terms_version',
     ];
 
     protected $hidden = [
@@ -29,6 +31,7 @@ class User extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'terms_accepted_at' => 'datetime:Y-m-d\TH:i:sP',
         ];
     }
 

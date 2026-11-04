@@ -811,7 +811,13 @@ function Footer({ onPick }) {
           </div>
         </div>
       </div>
-      <p className="footer-line">© 2026 InstructAI · made with chalk, coffee and test cases</p>
+      <p className="footer-line">
+        © 2026 InstructAI · made with chalk, coffee and test cases
+        {' · '}
+        <a href="/privacy">Privacy</a>
+        {' · '}
+        <a href="/terms">Terms</a>
+      </p>
     </footer>
   );
 }

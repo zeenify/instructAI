@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useGoogleLogin } from '@react-oauth/google';
+import ConsentCheckbox from './ConsentCheckbox';
 import './LoginPage.css';
 import './StudentRegisterPage.css';
 
@@ -49,6 +50,7 @@ export default function StudentRegisterPage() {
   const [loading, setLoading] = useState(false);
   const [lrnError, setLrnError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [form, setForm] = useState({ first_name: '', last_name: '', email: '', password: '', lrn_number: '' });
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -61,9 +63,13 @@ export default function StudentRegisterPage() {
       setLrnError('LRN must be exactly 12 digits');
       return;
     }
+    if (!acceptedTerms) {
+      toast.error('Please agree to the Terms of Service and Data Privacy Notice to continue.');
+      return;
+    }
     setLoading(true);
     try {
-      const res = await api.post('/register/student', form);
+      const res = await api.post('/register/student', { ...form, accepted_terms: true });
       login(res.data.user, res.data.token, 'student');
       toast.success('Welcome to the future of learning!');
       setTimeout(() => navigate('/dashboard/student'), 1000);
@@ -81,7 +87,7 @@ export default function StudentRegisterPage() {
       }
       setLoading(true);
       api
-        .post('/login/google', { access_token: tokenResponse.access_token, role: 'student', lrn_number: form.lrn_number })
+        .post('/login/google', { access_token: tokenResponse.access_token, role: 'student', lrn_number: form.lrn_number, accepted_terms: true })
         .then((res) => {
           login(res.data.user, res.data.token, res.data.role);
           toast.success('Welcome to the future of learning!');
@@ -199,6 +205,8 @@ export default function StudentRegisterPage() {
               {lrnError && <span className="auth-lrn-inline-error">{lrnError}</span>}
             </label>
 
+            <ConsentCheckbox checked={acceptedTerms} onChange={setAcceptedTerms} disabled={loading} />
+
             <button type="submit" className="auth-submit student" disabled={loading}>
               {loading ? <Loader2 size={17} className="auth-spinner" /> : <ArrowRight size={16} strokeWidth={2.8} />}
               {loading ? 'Creating…' : 'Get started'}
@@ -206,7 +214,18 @@ export default function StudentRegisterPage() {
 
             <div className="auth-or"><span>or</span></div>
 
-            <button type="button" className="auth-google" onClick={() => googleSignup()} disabled={loading}>
+            <button
+              type="button"
+              className="auth-google"
+              onClick={() => {
+                if (!acceptedTerms) {
+                  toast.error('Please agree to the Terms of Service and Data Privacy Notice to continue.');
+                  return;
+                }
+                googleSignup();
+              }}
+              disabled={loading}
+            >
               <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="" />
               Sign up with Google
             </button>

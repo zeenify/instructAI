@@ -16,6 +16,14 @@ use Illuminate\Support\Facades\Http;
 
 class AuthController extends Controller
 {
+    /**
+     * The version of the Terms of Service + Data Privacy Notice that the
+     * sign-up checkbox agrees to. Bump this whenever either document's
+     * substance changes — the value stored with each account is the record
+     * of WHAT was agreed to (RA 10173 consent practice).
+     */
+    public const CONSENT_VERSION = '2026-11-04';
+
     public function registerStudent(Request $request)
     {
         $data = $request->validate([
@@ -24,6 +32,8 @@ class AuthController extends Controller
             'first_name' => 'required|string',
             'last_name' => 'required|string',
             'lrn_number' => 'required|string|size:12|unique:student_profiles,lrn_number',
+            // Legal-consent gate: no account without an explicit "I agree".
+            'accepted_terms' => 'required|accepted',
         ]);
 
         if ($error = $this->lrnEnrollmentError($data['lrn_number'])) {
@@ -34,6 +44,8 @@ class AuthController extends Controller
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'role' => 'student',
+            'terms_accepted_at' => now(),
+            'terms_version' => self::CONSENT_VERSION,
         ]);
 
         $user->studentProfile()->create([
@@ -60,6 +72,8 @@ class AuthController extends Controller
             'first_name' => 'required|string',
             'last_name' => 'required|string',
             'organization' => 'nullable|string', // Added organization (optional)
+            // Legal-consent gate: no account without an explicit "I agree".
+            'accepted_terms' => 'required|accepted',
         ]);
 
         if ($error = $this->teacherWhitelistError($data['email'])) {
@@ -70,6 +84,8 @@ class AuthController extends Controller
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'role' => 'teacher',
+            'terms_accepted_at' => now(),
+            'terms_version' => self::CONSENT_VERSION,
         ]);
 
         $user->teacherProfile()->create([
@@ -169,6 +185,10 @@ class AuthController extends Controller
                     // without it the string/size rules ran against null and
                     // 500'd every Google teacher signup.
                     'lrn_number' => 'required_if:role,student|nullable|string|size:12|unique:student_profiles,lrn_number',
+                    // Legal-consent gate: this branch CREATES the account, so
+                    // the modal must carry the agreed flag. Existing users
+                    // (above) are grandfathered and never re-asked.
+                    'accepted_terms' => 'required|accepted',
                 ]);
 
                 if ($chosenRole === 'student' && ($error = $this->lrnEnrollmentError($lrnNumber))) {
@@ -185,6 +205,8 @@ class AuthController extends Controller
                     'google_id' => $payload['sub'],
                     'avatar' => $payload['picture'] ?? null,
                     'password' => null,
+                    'terms_accepted_at' => now(),
+                    'terms_version' => self::CONSENT_VERSION,
                 ]);
 
                 if ($chosenRole === 'student') {
