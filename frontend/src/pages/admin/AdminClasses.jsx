@@ -59,11 +59,11 @@ export default function AdminClasses() {
                     <p className="ad-empty">{q ? `No classes match “${q}”.` : 'No classes exist yet.'}</p>
                 ) : (
                     <div className="ad-table" role="table" aria-label="Classes">
-                        <div className="ad-tr ad-th" role="row">
+                        <div className="ad-tr ad-tr--classes ad-th" role="row">
                             <span>Class</span><span>Teacher</span><span>Students</span><span>Courses</span><span>Classwork</span><span>Created</span>
                         </div>
                         {classes.map((c) => (
-                            <div key={c.id} className="ad-tr" role="row">
+                            <div key={c.id} className="ad-tr ad-tr--classes" role="row">
                                 <span className="ad-cell-account" role="cell">
                                     <span className="ad-class-dot" style={c.color ? { background: c.color } : undefined} />
                                     <span style={{ minWidth: 0 }}>

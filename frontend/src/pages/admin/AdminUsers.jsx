@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import Dropdown from '../../components/ui/Dropdown';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import { SkeletonBlock } from '../../components/ui/skeletons';
-import { adminUsersKey, useAdminUsers, useSetUserActive, useResetPassword, useDeleteUser } from '../../queries/admin';
+import { useAdminUsers, useSetUserActive, useResetPassword, useDeleteUser } from '../../queries/admin';
 import './Admin.css';
 
 const ROLE_FILTERS = [
@@ -141,7 +141,13 @@ export default function AdminUsers() {
                         <SkeletonBlock style={{ height: 48, borderRadius: 12 }} />
                     </div>
                 ) : shown.length === 0 ? (
-                    <p className="ad-empty">No accounts match “{q}”.</p>
+                    <p className="ad-empty">
+                        {q
+                            ? `No accounts match “${q}”.`
+                            : role === 'all'
+                                ? 'No accounts yet.'
+                                : `No ${role}s yet.`}
+                    </p>
                 ) : (
                     <div className="ad-table" role="table" aria-label="Accounts">
                         <div className="ad-tr ad-th" role="row">

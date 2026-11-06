@@ -91,6 +91,44 @@ export function useDeleteUser() {
     });
 }
 
+// ── Backup & restore ──────────────────────────────────────────────
+// Download is an imperative action (blob + anchor); restore is a mutation
+// that invalidates the whole admin tree — the entire database may have
+// changed underneath every panel.
+
+export async function downloadBackup() {
+    const res = await api.get('/admin/backup', { bypassCache: true, responseType: 'blob' });
+    const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'application/json' });
+    const pad = (n) => String(n).padStart(2, '0');
+    const d = new Date();
+    const stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `instructai-backup-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+}
+
+export function useRestoreBackup() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (file) => {
+            const form = new FormData();
+            form.append('file', file);
+            // No manual Content-Type: axios adds the multipart boundary itself.
+            return api.post('/admin/restore', form).then((r) => r.data);
+        },
+        onSuccess: (data) => {
+            qc.invalidateQueries({ queryKey: ['admin'] });
+            toast.success(data?.message || 'Backup restored.');
+        },
+        onError: (e) => reportError(e, 'Could not restore the backup.'),
+    });
+}
+
 const whitelistUrl = (kind) => `/admin/${kind === 'students' ? 'student-whitelist' : 'teacher-whitelist'}`;
 
 export function useAddWhitelistEntries(kind) {

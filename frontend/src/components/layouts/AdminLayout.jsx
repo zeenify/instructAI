@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { LayoutDashboard, Users, School, ListChecks, Activity, LogOut, ChevronRight, PanelLeftClose, Menu, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Users, School, ListChecks, Activity, DatabaseBackup, LogOut, ChevronRight, PanelLeftClose, Menu, ShieldCheck } from 'lucide-react';
 import ThemeToggle from '../ui/ThemeToggle';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
@@ -42,6 +42,7 @@ export default function AdminLayout() {
         { to: '/admin/users', icon: Users, label: 'Users' },
         { to: '/admin/classes', icon: School, label: 'Classes' },
         { to: '/admin/whitelists', icon: ListChecks, label: 'Whitelists' },
+        { to: '/admin/backup', icon: DatabaseBackup, label: 'Backup' },
         { to: '/admin/system', icon: Activity, label: 'System' },
     ];
 
@@ -94,7 +95,7 @@ export default function AdminLayout() {
                         </span>
                         <div style={{ minWidth: 0, flex: 1 }}>
                             <p className="db-profile-name">School Admin</p>
-                            <p className="db-profile-email">{me?.email || 'admin'}</p>
+                            <p className="db-profile-email">{me?.data?.email || 'admin'}</p>
                         </div>
                         <span className="db-profile-chevron">
                             <ChevronRight size={15} />

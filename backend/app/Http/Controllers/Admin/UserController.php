@@ -25,6 +25,10 @@ class UserController extends Controller
         abort_unless(in_array($role, [null, '', 'student', 'teacher'], true), 422, 'Unknown role filter.');
 
         $query = User::query()
+            // Admin accounts are not managed from this panel (every mutation
+            // is blocked for them), so the school admin should not appear in
+            // the users list — it read as a broken, unfilterable row.
+            ->whereIn('role', ['student', 'teacher'])
             ->with([
                 'studentProfile:id,user_id,first_name,last_name,lrn_number',
                 'teacherProfile:id,user_id,first_name,last_name,organization',

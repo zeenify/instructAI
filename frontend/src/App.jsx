@@ -33,6 +33,7 @@ import AdminOverview from './pages/admin/AdminOverview';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminClasses from './pages/admin/AdminClasses';
 import AdminWhitelists from './pages/admin/AdminWhitelists';
+import AdminBackup from './pages/admin/AdminBackup';
 import AdminSystem from './pages/admin/AdminSystem';
 
 // Student Pages
@@ -191,6 +192,7 @@ function App() {
             <Route path="users" element={<AdminUsers />} />
             <Route path="classes" element={<AdminClasses />} />
             <Route path="whitelists" element={<AdminWhitelists />} />
+            <Route path="backup" element={<AdminBackup />} />
             <Route path="system" element={<AdminSystem />} />
           </Route>
 

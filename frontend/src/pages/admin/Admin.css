@@ -202,11 +202,18 @@
 }
 
 .ad-chip.active,
-.ad-chip.available,
 .ad-chip.claimed {
     color: var(--db-green);
     background: var(--db-green-soft);
     border: 1px solid var(--db-green-border);
+}
+
+/* "Available" is NOT the same as "Claimed" — same-green styling made the
+   whitelist status column unreadable at a glance. */
+.ad-chip.available {
+    color: #b45309;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.4);
 }
 
 .ad-chip.disabled {
@@ -276,12 +283,44 @@
 
 .ad-tr {
     display: grid;
+    /* Users table: Account · Role · Detail · Classes · Joined · Status · actions */
     grid-template-columns: 2.2fr 0.9fr 1.3fr 0.7fr 1fr 0.9fr 56px;
     align-items: center;
     gap: 12px;
     padding: 13px 10px;
     border-top: 1px solid var(--db-border);
     min-height: 56px;
+}
+
+/* Classes: Class · Teacher · Students · Courses · Classwork · Created —
+   without this the roomy 7-column template left an orphan empty cell and
+   shoved "Created" under the actions column. */
+.ad-tr--classes {
+    grid-template-columns: 2.2fr 1.3fr 0.7fr 0.7fr 0.8fr 1fr;
+}
+
+/* Whitelists: LRN/Email · Name · Grade/Position · Added · Status · actions */
+.ad-tr--whitelist {
+    grid-template-columns: 1.5fr 1.2fr 1.2fr 1fr 0.9fr 56px;
+}
+
+/* Overview shows FOUR stat cards — the shared 3-column grid orphaned the
+   fourth on its own row. Scoped to the admin shell so teacher dashboards
+   keep their 3-up layout. */
+.db-hero-pad .db-stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 1480px) {
+    .db-hero-pad .db-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 700px) {
+    .db-hero-pad .db-stats-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .ad-tr.ad-th {

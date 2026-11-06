@@ -143,16 +143,19 @@ export default function WhitelistManager({ kind }) {
                     <SkeletonBlock style={{ height: 40, borderRadius: 12 }} />
                     <SkeletonBlock style={{ height: 40, borderRadius: 12 }} />
                 </div>
-            ) : items.length === 0 ? (
-                <p className="ad-empty">The whitelist is empty — nobody can register as {kind === 'students' ? 'a student' : 'a teacher'} yet.</p>
             ) : (
                 <div className="ad-table" role="table" aria-label={cfg.label}>
-                    <div className="ad-tr ad-th" role="row">
-                        {cfg.columns(items[0]).map((c) => <span key={c.head}>{c.head}</span>)}
+                    {/* Headers come from the column config, never from the first
+                        row — an empty whitelist used to render a headerless
+                        blank block that read as broken. */}
+                    <div className="ad-tr ad-tr--whitelist ad-th" role="row">
+                        {cfg.columns(items[0] ?? {}).map((c) => <span key={c.head}>{c.head}</span>)}
                         <span>Added</span><span>Status</span><span aria-label="Actions" />
                     </div>
-                    {items.map((item) => (
-                        <div key={item.id} className="ad-tr" role="row">
+                    {items.length === 0 ? (
+                        <p className="ad-empty">The whitelist is empty — nobody can register as {kind === 'students' ? 'a student' : 'a teacher'} yet.</p>
+                    ) : items.map((item) => (
+                        <div key={item.id} className="ad-tr ad-tr--whitelist" role="row">
                             {cfg.columns(item).map((c, i) => <span key={i} role="cell">{c.node}</span>)}
                             <span className="ad-cell-sub" role="cell">{fmtDate(item.created_at)}</span>
                             <span role="cell">

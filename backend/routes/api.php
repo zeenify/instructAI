@@ -299,4 +299,8 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::get('/admin/classes', [ClassController::class, 'index']);
 
     Route::get('/admin/system', [SystemController::class, 'index']);
+
+    // Whole-database backup (download JSON) + atomic restore (upload JSON).
+    Route::get('/admin/backup', [\App\Http\Controllers\Admin\BackupController::class, 'export']);
+    Route::post('/admin/restore', [\App\Http\Controllers\Admin\BackupController::class, 'restore']);
 });

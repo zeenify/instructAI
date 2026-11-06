@@ -37,6 +37,11 @@ RUN php artisan config:cache && php artisan route:cache
 # Set permissions
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
 
+# Restore (admin backup upload) needs more than PHP's default 2M/8M limits —
+# a full-database JSON snapshot easily exceeds them. 256M memory covers the
+# decoded file without endangering the 512MB free-tier container.
+RUN printf "upload_max_filesize=64M\npost_max_size=64M\nmemory_limit=256M\n" > /usr/local/etc/php/conf.d/instructai-uploads.ini
+
 EXPOSE 10000
 
 # artisan serve wraps PHP's built-in server, which handles ONE request at a
