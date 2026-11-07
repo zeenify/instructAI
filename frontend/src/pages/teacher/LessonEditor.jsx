@@ -6,7 +6,7 @@ import {
     Loader2, GripVertical, Upload, Check, X,
     Bold, Italic, Underline, List, Link as LinkIcon,
     Video, ExternalLink, Play, Eraser, ChevronUp, ChevronDown, Bot, Globe, Target,
-    Eye, Pencil, Plus
+    Eye, Pencil, Plus, BookOpen
 } from 'lucide-react';
 
 import { useEditor, EditorContent } from '@tiptap/react';
