@@ -7,6 +7,7 @@ import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useGoogleLogin } from '@react-oauth/google';
 import ConsentCheckbox from './ConsentCheckbox';
+import { GOOGLE_SIGNIN_VISIBLE } from '../../config/features';
 import './LoginPage.css';
 import './StudentRegisterPage.css';
 
@@ -212,23 +213,27 @@ export default function StudentRegisterPage() {
               {loading ? 'Creating…' : 'Get started'}
             </button>
 
-            <div className="auth-or"><span>or</span></div>
+            {GOOGLE_SIGNIN_VISIBLE && (
+              <>
+                <div className="auth-or"><span>or</span></div>
 
-            <button
-              type="button"
-              className="auth-google"
-              onClick={() => {
-                if (!acceptedTerms) {
-                  toast.error('Please agree to the Terms of Service and Data Privacy Notice to continue.');
-                  return;
-                }
-                googleSignup();
-              }}
-              disabled={loading}
-            >
-              <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="" />
-              Sign up with Google
-            </button>
+                <button
+                  type="button"
+                  className="auth-google"
+                  onClick={() => {
+                    if (!acceptedTerms) {
+                      toast.error('Please agree to the Terms of Service and Data Privacy Notice to continue.');
+                      return;
+                    }
+                    googleSignup();
+                  }}
+                  disabled={loading}
+                >
+                  <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="" />
+                  Sign up with Google
+                </button>
+              </>
+            )}
 
             <p className="auth-whitelist-note">
               <ShieldCheck size={14} strokeWidth={2.4} />

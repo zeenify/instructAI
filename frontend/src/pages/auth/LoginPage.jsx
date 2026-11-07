@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { useGoogleLogin } from '@react-oauth/google';
 import ConsentCheckbox from './ConsentCheckbox';
+import { GOOGLE_SIGNIN_VISIBLE } from '../../config/features';
 import './LoginPage.css';
 
 const dashboardFor = (r) => (r === 'teacher' ? '/dashboard/teacher' : r === 'admin' ? '/admin' : '/dashboard/student');
@@ -197,12 +198,16 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="auth-or"><span>or</span></div>
+          {GOOGLE_SIGNIN_VISIBLE && (
+            <>
+              <div className="auth-or"><span>or</span></div>
 
-          <button type="button" className="auth-google" onClick={() => googleLogin()} disabled={loading}>
-            <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="" />
-            Continue with Google
-          </button>
+              <button type="button" className="auth-google" onClick={() => googleLogin()} disabled={loading}>
+                <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="" />
+                Continue with Google
+              </button>
+            </>
+          )}
         </motion.div>
 
         <p className="auth-footnote">having trouble? your teacher or the school admin can help</p>
