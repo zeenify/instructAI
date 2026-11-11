@@ -25,32 +25,46 @@ class TeacherWhitelistController extends Controller
             'entries.*.position' => 'nullable|string|max:100',
         ]);
 
+        // Normalize + dedupe the paste first so counts are exact.
+        $entries = collect($data['entries'])
+            ->map(function ($entry) {
+                $entry['email'] = strtolower($entry['email']);
+                return $entry;
+            })
+            ->unique('email')
+            ->values();
+
+        // Existing rows are SKIPPED and reported, never silently rewritten —
+        // re-inviting a registered email must read as a no-op, not a change.
+        $existing = WhitelistedTeacher::whereIn('email', $entries->pluck('email')->all())
+            ->get(['id', 'email', 'claimed'])
+            ->keyBy('email');
+
         $added = 0;
-        $updated = 0;
-
-        foreach ($data['entries'] as $entry) {
-            $email = strtolower($entry['email']);
-            $payload = array_filter([
-                'first_name' => $entry['first_name'] ?? null,
-                'last_name' => $entry['last_name'] ?? null,
-                'position' => $entry['position'] ?? null,
-            ]);
-
-            $existing = WhitelistedTeacher::where('email', $email)->first();
-
-            if ($existing) {
-                $existing->update($payload);
-                $updated++;
-            } else {
-                WhitelistedTeacher::create(['email' => $email] + $payload);
-                $added++;
+        foreach ($entries as $entry) {
+            if ($existing->has($entry['email'])) {
+                continue;
             }
+            WhitelistedTeacher::create($entry);
+            $added++;
+        }
+
+        $skipped = $entries->count() - $added;
+        $skippedRegistered = $existing->filter(fn ($row) => $row->claimed)->count();
+
+        $message = "Added {$added} teacher invite(s).";
+        if ($skipped > 0) {
+            $message .= " {$skipped} were already invited and left unchanged";
+            $message .= $skippedRegistered > 0
+                ? " — {$skippedRegistered} of them already registered."
+                : '.';
         }
 
         return response()->json([
-            'message' => "Teacher whitelist updated: {$added} added, {$updated} updated.",
+            'message' => $message,
             'added' => $added,
-            'updated' => $updated,
+            'already_invited' => $skipped,
+            'already_invited_registered' => $skippedRegistered,
         ]);
     }
 

@@ -162,10 +162,11 @@ class StudentWhitelistController extends Controller
         }
 
         // One transaction for the whole undo, same as graduate().
-        [$reenrolled, $notGraduated] = DB::transaction(function () use ($lrnSet, $notFound) {
+        [$reenrolled, $notGraduated, $reactivated] = DB::transaction(function () use ($lrnSet, $notFound) {
             $reenrolledLrns = EnrolledStudent::whereIn('lrn_number', $lrnSet)
                 ->whereNotNull('graduated_at')->pluck('lrn_number')->all();
 
+            $reactivated = 0;
             if ($reenrolledLrns !== []) {
                 EnrolledStudent::whereIn('lrn_number', $reenrolledLrns)
                     ->whereNotNull('graduated_at')
@@ -174,6 +175,12 @@ class StudentWhitelistController extends Controller
                 // Reactivate ONLY the accounts whose graduation was just
                 // undone — re-enrolling a class must never resurrect an
                 // account the admin disabled for an unrelated reason.
+                // Count the resurrections so the admin can see exactly how
+                // many locked accounts this action brings back.
+                $reactivated = User::whereHas('studentProfile', function ($q) use ($reenrolledLrns) {
+                    $q->whereIn('lrn_number', $reenrolledLrns);
+                })->where('is_active', false)->count();
+
                 User::whereHas('studentProfile', function ($q) use ($reenrolledLrns) {
                     $q->whereIn('lrn_number', $reenrolledLrns);
                 })->update(['is_active' => true]);
@@ -182,10 +189,13 @@ class StudentWhitelistController extends Controller
             // Counts exclude not-found LRNs, mirroring graduate().
             $found = count($lrnSet) - count($notFound);
 
-            return [count($reenrolledLrns), $found - count($reenrolledLrns)];
+            return [count($reenrolledLrns), $found - count($reenrolledLrns), $reactivated];
         });
 
         $message = "Re-enrolled {$reenrolled} student(s); {$notGraduated} were not graduated.";
+        if ($reactivated > 0) {
+            $message .= " {$reactivated} account(s) were reactivated and can sign in again.";
+        }
         if ($notFound !== []) {
             $message .= ' ' . $this->notFoundNote($notFound);
         }
@@ -194,6 +204,7 @@ class StudentWhitelistController extends Controller
             'message' => $message,
             'reenrolled' => $reenrolled,
             'not_graduated' => $notGraduated,
+            'reactivated_accounts' => $reactivated,
             'not_found' => $notFound,
         ]);
     }
@@ -249,28 +260,42 @@ class StudentWhitelistController extends Controller
             'entries.*.last_name' => 'nullable|string|max:100',
         ]);
 
+        // A paste can repeat an LRN — dedupe first so counts are exact.
+        $entries = collect($data['entries'])->unique('lrn_number')->values();
+
+        // Existing rows are SKIPPED and reported, never silently rewritten.
+        // Re-adding a graduated LRN used to "update" it and read like the
+        // student was back — only Re-enroll restores access, and the admin
+        // must hear that instead of a silent no-op.
+        $existing = EnrolledStudent::whereIn('lrn_number', $entries->pluck('lrn_number')->all())
+            ->get(['id', 'lrn_number', 'graduated_at'])
+            ->keyBy('lrn_number');
+
         $added = 0;
-        $updated = 0;
-
-        foreach ($data['entries'] as $entry) {
-            $existing = EnrolledStudent::where('lrn_number', $entry['lrn_number'])->first();
-
-            if ($existing) {
-                $existing->update(array_filter([
-                    'first_name' => $entry['first_name'] ?? null,
-                    'last_name' => $entry['last_name'] ?? null,
-                ]));
-                $updated++;
-            } else {
-                EnrolledStudent::create($entry);
-                $added++;
+        foreach ($entries as $entry) {
+            if ($existing->has($entry['lrn_number'])) {
+                continue;
             }
+            EnrolledStudent::create($entry);
+            $added++;
+        }
+
+        $skipped = $entries->count() - $added;
+        $skippedGraduated = $existing->filter(fn ($row) => $row->graduated_at !== null)->count();
+
+        $message = "Added {$added} student LRN(s) to the whitelist.";
+        if ($skipped > 0) {
+            $message .= " {$skipped} were already whitelisted and left unchanged";
+            $message .= $skippedGraduated > 0
+                ? " — {$skippedGraduated} of them graduated: use Re-enroll to restore their access, adding them again does not."
+                : '.';
         }
 
         return response()->json([
-            'message' => "Student whitelist updated: {$added} added, {$updated} updated.",
+            'message' => $message,
             'added' => $added,
-            'updated' => $updated,
+            'already_whitelisted' => $skipped,
+            'already_whitelisted_graduated' => $skippedGraduated,
         ]);
     }
 

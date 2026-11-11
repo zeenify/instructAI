@@ -155,6 +155,17 @@ export default function WhitelistManager({ kind }) {
 
     const items = useMemo(() => data?.[cfg.listKey] ?? [], [data, cfg.listKey]);
     const classes = classData?.classes ?? [];
+    // Rows already on the whitelist, by identifier. Lets the UI warn BEFORE
+    // an action instead of the backend silently skipping/no-oping: adding an
+    // existing LRN, graduating an already-graduated student, etc.
+    const existingByIdentifier = useMemo(() => {
+        const map = new Map();
+        items.forEach((i) => {
+            const key = i.lrn_number ?? i.email;
+            if (key) map.set(isStudents ? key : String(key).toLowerCase(), i);
+        });
+        return map;
+    }, [items, isStudents]);
     const busyStatus = graduateEntries.isPending || reEnrollEntries.isPending;
     const statusSource = statusModal?.source ?? 'class';
     const graduateMode = statusModal?.mode !== 're-enroll';
@@ -179,16 +190,14 @@ export default function WhitelistManager({ kind }) {
     const statusDialogRef = useDialogLifecycle(statusModal !== null, busyStatus, closeStatusModal);
 
     const handleBulkAdd = async () => {
-        if (!bulkText.trim() || addEntries.isPending) return;
-        const lines = bulkText.split(/\n+/).map((l) => l.trim()).filter(Boolean);
-        const entries = lines.map(cfg.parseLine);
-        if (entries.some((e) => !e) || entries.length === 0) {
+        if (!bulkText.trim() || addEntries.isPending || bulkStats.newCount === 0) return;
+        if (bulkStats.bad > 0) {
             toast.error(cfg.lineError);
             return;
         }
         try {
-            const res = await addEntries.mutateAsync(entries);
-            toast.success(res.data?.message || `Added ${entries.length} ${kind === 'students' ? 'LRN(s)' : 'invite(s)'}.`);
+            const res = await addEntries.mutateAsync(bulkStats.uniqueEntries);
+            toast.success(res.data?.message || `Added ${bulkStats.newCount} ${kind === 'students' ? 'LRN(s)' : 'invite(s)'}.`);
             setBulkText('');
             setAddOpen(false);
         } catch {/* api layer toasts */}
@@ -247,7 +256,12 @@ export default function WhitelistManager({ kind }) {
         });
     };
 
-    const selectedLrns = items.filter((i) => selected.has(i.id)).map((i) => i.lrn_number);
+    // Graduating a graduated student is a no-op — so the actions only ever
+    // target rows they can actually change, and the skipped count is shown
+    // in the confirmation BEFORE the admin commits.
+    const selectedItems = items.filter((i) => selected.has(i.id));
+    const selectedActiveLrns = selectedItems.filter((i) => !i.graduated_at).map((i) => i.lrn_number);
+    const selectedGraduatedLrns = selectedItems.filter((i) => i.graduated_at).map((i) => i.lrn_number);
 
     const runStatusAction = async (action) => {
         if (!action) return;
@@ -267,26 +281,74 @@ export default function WhitelistManager({ kind }) {
         } catch {/* api layer toasts */}
     };
 
-    const bulkLines = bulkText.split(/\n+/).map((l) => l.trim()).filter(Boolean);
-    const bulkValidCount = bulkLines.filter(cfg.parseLine).length;
-    const bulkBadCount = bulkLines.length - bulkValidCount;
+    // What an Add submit would actually do, computed live: dedupe, skip
+    // already-whitelisted rows, and say so — never a silent "0 added, 1 updated".
+    const bulkStats = useMemo(() => {
+        const lines = bulkText.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+        const parsed = lines.map(cfg.parseLine).filter(Boolean);
+        const unique = new Map();
+        parsed.forEach((e) => unique.set(isStudents ? e.lrn_number : e.email, e));
+        const existingRows = [];
+        unique.forEach((_, key) => {
+            const row = existingByIdentifier.get(key);
+            if (row) existingRows.push(row);
+        });
+        return {
+            bad: lines.length - parsed.length,
+            duplicateCount: parsed.length - unique.size,
+            uniqueEntries: [...unique.values()],
+            existingCount: existingRows.length,
+            existingGraduated: existingRows.filter((r) => r.graduated_at).length,
+            existingRegistered: existingRows.filter((r) => r.claimed).length,
+            newCount: unique.size - existingRows.length,
+        };
+    }, [bulkText, cfg, isStudents, existingByIdentifier]);
 
-    const statusLines = statusText.split(/\n+/).map((l) => l.trim()).filter(Boolean);
-    const statusValidCount = statusLines.filter(cfg.parseLine).length;
-    const statusLrns = [...new Set(statusLines.map(cfg.parseLine).filter(Boolean).map((e) => e.lrn_number))];
-    const statusBadCount = statusLines.length - statusValidCount;
-    const statusDuplicateCount = statusValidCount - statusLrns.length;
+    // Paste mode: exact live breakdown — how many of the pasted LRNs are
+    // active, graduated, or unknown, so the confirm button never promises
+    // an action that would partly (or wholly) do nothing.
+    const statusStats = useMemo(() => {
+        const lines = statusText.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+        const parsed = lines.map(cfg.parseLine).filter(Boolean);
+        const lrns = [...new Set(parsed.map((e) => e.lrn_number))];
+        let active = 0;
+        let graduated = 0;
+        let unknown = 0;
+        lrns.forEach((lrn) => {
+            const row = existingByIdentifier.get(lrn);
+            if (!row) unknown += 1;
+            else if (row.graduated_at) graduated += 1;
+            else active += 1;
+        });
+        return {
+            bad: lines.length - parsed.length,
+            duplicateCount: parsed.length - lrns.length,
+            lrns,
+            active,
+            graduated,
+            unknown,
+        };
+    }, [statusText, cfg, existingByIdentifier]);
+    // Only LRNs the chosen action can actually change are submitted.
+    const statusTargetLrns = statusStats.lrns.filter((lrn) => {
+        const row = existingByIdentifier.get(lrn);
+        return graduateMode ? row && !row.graduated_at : row && row.graduated_at;
+    });
 
     const confirmCopy = (() => {
         if (!confirmAction) return { title: '', message: '', confirmText: '' };
         const graduate = confirmAction.mode === 'graduate';
         const count = confirmAction.lrns?.length ?? 0;
+        const skipped = confirmAction.skipped ?? 0;
         const what = `${count} selected student${count === 1 ? '' : 's'}`;
+        const skipNote = skipped > 0
+            ? ` ${skipped} already-${graduate ? 'graduated' : 'active'} student${skipped === 1 ? '' : 's'} in your selection will be left as is.`
+            : '';
         return {
             title: graduate ? 'Graduate these students?' : 'Re-enroll these students?',
             message: graduate
-                ? `This marks ${what} as Graduated: their sessions end immediately and they cannot log in until an admin re-enrolls them. Their work and grades are kept. LRNs that are already graduated are skipped.`
-                : `This restores login access for ${what}. They will need to sign in again.`,
+                ? `This marks ${what} as Graduated: their sessions end immediately and they cannot log in until an admin re-enrolls them. Their work and grades are kept.${skipNote}`
+                : `This restores login access for ${what}. They will need to sign in again.${skipNote}`,
             confirmText: `${graduate ? 'Graduate' : 'Re-enroll'} ${count} student${count === 1 ? '' : 's'}`,
         };
     })();
@@ -297,7 +359,7 @@ export default function WhitelistManager({ kind }) {
     const rosterToReEnroll = roster.filter((s) => s.graduated_at).length;
     const rosterTargetCount = graduateMode ? rosterToGraduate : rosterToReEnroll;
     const classActionDisabled = !classId || rosterLoading || rosterError || rosterTargetCount === 0;
-    const statusActionDisabled = busyStatus || (statusSource === 'class' ? classActionDisabled : statusLrns.length === 0);
+    const statusActionDisabled = busyStatus || (statusSource === 'class' ? classActionDisabled : statusTargetLrns.length === 0);
 
     const openStatusModal = () => {
         setClassId('');
@@ -370,16 +432,18 @@ export default function WhitelistManager({ kind }) {
                         <div className="ad-grad-btnrow">
                             <button
                                 className="db-btn-primary ad-grad-btn"
-                                disabled={busyStatus || selectedLrns.length === 0}
-                                onClick={() => setConfirmAction({ mode: 'graduate', lrns: selectedLrns })}
+                                disabled={busyStatus || selectedActiveLrns.length === 0}
+                                title={selectedActiveLrns.length === 0 ? 'Everyone selected is already graduated' : undefined}
+                                onClick={() => setConfirmAction({ mode: 'graduate', lrns: selectedActiveLrns, skipped: selectedGraduatedLrns.length })}
                             >
                                 <GraduationCap size={14} />
                                 Graduate selected
                             </button>
                             <button
                                 className="db-btn-ghost ad-grad-btn"
-                                disabled={busyStatus || selectedLrns.length === 0}
-                                onClick={() => setConfirmAction({ mode: 're-enroll', lrns: selectedLrns })}
+                                disabled={busyStatus || selectedGraduatedLrns.length === 0}
+                                title={selectedGraduatedLrns.length === 0 ? 'No graduated students are selected' : undefined}
+                                onClick={() => setConfirmAction({ mode: 're-enroll', lrns: selectedGraduatedLrns, skipped: selectedActiveLrns.length })}
                             >
                                 <RotateCcw size={14} />
                                 Re-enroll selected
@@ -529,20 +593,30 @@ export default function WhitelistManager({ kind }) {
                             aria-label={cfg.addLabel}
                             disabled={addEntries.isPending}
                         />
-                        {bulkLines.length > 0 ? (
-                            <p className="ad-bulk-hint" aria-live="polite">
-                                {bulkValidCount > 0 && <span className="ok">{bulkValidCount} {cfg.unit} ready to add</span>}
-                                {bulkValidCount > 0 && bulkBadCount > 0 ? ' · ' : ''}
-                                {bulkBadCount > 0 && <span className="bad">{bulkBadCount} invalid — {cfg.lineError}</span>}
-                            </p>
-                        ) : (
+                        {bulkText.trim() === '' ? (
                             <p className="ad-bulk-hint">Names are optional; you can also paste them later.</p>
+                        ) : (
+                            <p className="ad-bulk-hint" aria-live="polite">
+                                {bulkStats.bad > 0
+                                    ? <span className="bad">{bulkStats.bad} invalid — {cfg.lineError}</span>
+                                    : [
+                                        bulkStats.duplicateCount > 0 && `${bulkStats.duplicateCount} duplicate${bulkStats.duplicateCount === 1 ? '' : 's'} removed`,
+                                        bulkStats.existingCount > 0 && `⚠ ${bulkStats.existingCount} already whitelisted — will be skipped`
+                                            + (isStudents && bulkStats.existingGraduated > 0
+                                                ? ` (${bulkStats.existingGraduated} graduated — use Re-enroll to restore access)`
+                                                : (!isStudents && bulkStats.existingRegistered > 0
+                                                    ? ` (${bulkStats.existingRegistered} registered)`
+                                                    : '')),
+                                        bulkStats.newCount > 0 && `${bulkStats.newCount} ${cfg.unit} ready to add`,
+                                        bulkStats.newCount === 0 && 'Nothing new to add.',
+                                    ].filter(Boolean).join(' · ')}
+                            </p>
                         )}
                         <div className="ad-modal-foot">
                             <button className="db-btn-ghost ad-grad-btn" onClick={closeAdd} disabled={addEntries.isPending}>Cancel</button>
-                            <button className="db-btn-primary ad-grad-btn" onClick={handleBulkAdd} disabled={addEntries.isPending || bulkValidCount === 0 || bulkBadCount > 0}>
+                            <button className="db-btn-primary ad-grad-btn" onClick={handleBulkAdd} disabled={addEntries.isPending || bulkStats.bad > 0 || bulkStats.newCount === 0}>
                                 {addEntries.isPending ? <Loader2 size={15} className="ad-spin" /> : <Plus size={15} />}
-                                {addEntries.isPending ? 'Adding…' : cfg.addButton}
+                                {addEntries.isPending ? 'Adding…' : bulkStats.bad === 0 && bulkStats.newCount > 0 ? `${cfg.addButton} (${bulkStats.newCount})` : cfg.addButton}
                             </button>
                         </div>
                     </div>
@@ -661,12 +735,16 @@ export default function WhitelistManager({ kind }) {
                                     disabled={busyStatus}
                                 />
                                 <p className="ad-bulk-hint" aria-live="polite">
-                                    {statusLrns.length > 0 && <span className="ok">{statusLrns.length} unique LRN{statusLrns.length === 1 ? '' : 's'}</span>}
-                                    {statusDuplicateCount > 0 && ` · ${statusDuplicateCount} duplicate${statusDuplicateCount === 1 ? '' : 's'} removed`}
-                                    {statusLrns.length > 0 && statusBadCount > 0 ? ' · ' : ''}
-                                    {statusBadCount > 0 && <span className="bad">{statusBadCount} invalid — LRNs are 12 digits.</span>}
+                                    {[
+                                        statusStats.lrns.length > 0 && `${statusStats.lrns.length} unique LRN${statusStats.lrns.length === 1 ? '' : 's'}`,
+                                        statusStats.duplicateCount > 0 && `${statusStats.duplicateCount} duplicate${statusStats.duplicateCount === 1 ? '' : 's'} removed`,
+                                        statusStats.bad > 0 && `${statusStats.bad} invalid — LRNs are 12 digits`,
+                                        statusStats.unknown > 0 && `${statusStats.unknown} not on the whitelist (reported after the update)`,
+                                        graduateMode && statusStats.graduated > 0 && `${statusStats.graduated} already graduated — will be skipped`,
+                                        !graduateMode && statusStats.active > 0 && `${statusStats.active} already active — will be skipped`,
+                                        statusStats.lrns.length > 0 && statusTargetLrns.length === 0 && `⚠ Nothing to ${graduateMode ? 'graduate' : 're-enroll'} here.`,
+                                    ].filter(Boolean).join(' · ') || 'One 12-digit LRN per line.'}
                                 </p>
-                                <p className="ad-modal-note">LRNs that are not on the whitelist will be reported after the update.</p>
                             </>
                         )}
 
@@ -677,7 +755,7 @@ export default function WhitelistManager({ kind }) {
                                 disabled={statusActionDisabled}
                                 onClick={() => runStatusAction({
                                     mode: statusModal.mode,
-                                    ...(statusSource === 'class' ? { classId } : { lrns: statusLrns }),
+                                    ...(statusSource === 'class' ? { classId } : { lrns: statusTargetLrns }),
                                 })}
                             >
                                 {busyStatus ? <Loader2 size={14} className="ad-spin" /> : graduateMode ? <GraduationCap size={14} /> : <RotateCcw size={14} />}
@@ -685,7 +763,7 @@ export default function WhitelistManager({ kind }) {
                                     ? 'Working…'
                                     : statusSource === 'class'
                                         ? `${graduateMode ? 'Graduate' : 'Re-enroll'} ${rosterTargetCount} student${rosterTargetCount === 1 ? '' : 's'}`
-                                        : `${graduateMode ? 'Graduate' : 'Re-enroll'} ${statusLrns.length} LRN${statusLrns.length === 1 ? '' : 's'}`}
+                                        : `${graduateMode ? 'Graduate' : 'Re-enroll'} ${statusTargetLrns.length} LRN${statusTargetLrns.length === 1 ? '' : 's'}`}
                             </button>
                         </div>
                     </div>
