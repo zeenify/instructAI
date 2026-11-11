@@ -72,8 +72,8 @@ Terminology (user-approved, panel-friendly):
 
 ### 3.3 What we do NOT do
 
-- **No grade_level / section fields are touched or added.** They stay as they are (optional whitelist metadata), but we **stop displaying them in the whitelist UI** — they're AI-assumed concepts that don't belong in a defensible design, and they risk misrepresenting the system to the panel ("we track sections" when we don't).
-  - Question left to implementation: should we delete the columns entirely, or just hide them? **Recommendation: hide in UI only, keep the columns in the DB.** Deleting risks breaking the bulk-import parser line that expects up to 4 fields, and there's no operational win. Hiding solves the panel-facing problem. (If you'd rather delete them, say so — low risk either way, I'll adjust.)
+- **No grade_level / section concepts.** They were AI-assumed fields this system never modelled (classes are flat named rooms), so the whitelist columns, controller validation, model fillable, and UI columns are all removed. A drop migration is included in the branch but is applied at deploy time — see the note below.
+  - **Deploy-order note:** local dev shares the production Neon database. Until this branch is deployed, the live backend still writes those columns, so the drop is intentionally left Pending on the shared DB; `graduated_at` (additive) is safe to have applied already. Merge/deploy the backend code before running `php artisan migrate` for the drop.
 - **No school-year / cohort tables.** That was the over-engineering option and was rejected.
 - **No auto-graduation jobs.** Nothing runs on a schedule. Graduation is always an explicit admin action.
 - **No data deletion.** Students keep all their work (submissions, quiz attempts, chat logs, enrollments). Only access is affected.
@@ -138,11 +138,11 @@ Plus the individual-toggle safety net for exceptions.
 
 ---
 
-## 7. Open questions for the user
+## 7. Resolved decisions
 
-1. **The `grade_level` / `section` columns:** delete them from the DB entirely, or hide them in the UI only? (My recommendation: hide in UI only — safest, no risk to the bulk-import parser, and there's no real harm keeping optional metadata.)
-2. **Disabled-login message:** keep the generic *"This account has been disabled by the school admin."* or add LRN context ("...your LRN was removed from the active enrollment list.")?
-3. **Class-based graduate scope:** only students *currently enrolled* in the class at action time — correct, or should it also include students who were enrolled at any point? (I recommend current-only; it's the more honest reading of "this class is graduating.")
-4. **Migration direction:** should the migration also backfill nothing (all NULL) — yes, that's the plan, no backfill needed.
+1. **`grade_level` / `section`:** removed entirely (columns dropped by migration at deploy time; code no longer references them).
+2. **Disabled-login message:** kept the existing generic *"This account has been disabled by the school admin."*
+3. **Class-based graduate scope:** currently enrolled students only (join via `student_profiles`, since `enrollments.student_id` references `users.id`).
+4. **Backfill:** none — all existing whitelist rows stay Active (`graduated_at` NULL).
 
 ---
