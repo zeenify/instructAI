@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Trash2, Loader2, GraduationCap, RotateCcw, Search } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Trash2, Loader2, GraduationCap, RotateCcw, Search, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import ConfirmModal from '../ui/ConfirmModal';
 import Dropdown from '../ui/Dropdown';
@@ -27,15 +27,13 @@ import '../../pages/admin/Admin.css';
 const CONFIG = {
     students: {
         label: 'Student LRNs',
-        endpoint: 'student-whitelist',
         listKey: 'students',
         unit: 'LRN(s)',
-        bulkLabel: 'Add student LRNs',
-        // Q&A: the LRN gate is the "only actually-enrolled kids" rule — the
-        // 12-digit number comes from the school registry.
-        explainer: 'A student can register only with an LRN on this list — after they register, the row shows Registered. When a cohort finishes school, mark it Graduated: everyone is signed out immediately, the LRN cannot register or log in again, and nothing is deleted. Re-enroll undoes it.',
+        addLabel: 'Add student LRNs',
+        addButton: 'Add LRNs',
+        explainer: 'Active LRNs can register. Graduating signs students out and prevents them from logging in or registering again.',
         searchPlaceholder: 'Search LRN or name…',
-        placeholder: 'One per line — 137548123456, Juan Dela Cruz',
+        placeholder: '137548123456, Juan Dela Cruz',
         lineError: 'Each line needs a 12-digit LRN (numbers only). First and last name are optional.',
         parseLine: (line) => {
             const parts = line.split(/[,\t]|\s{2,}/).map((s) => s.trim()).filter(Boolean);
@@ -44,24 +42,16 @@ const CONFIG = {
             const rest = parts.filter((p) => p !== lrn);
             return { lrn_number: lrn, first_name: rest[0] || null, last_name: rest[1] || null };
         },
-        columns: (item) => [
-            { head: 'LRN', node: <span className="ad-cell-sub mono">{item.lrn_number}</span> },
-            { head: 'Name', node: <span className="ad-cell-title">{[item.first_name, item.last_name].filter(Boolean).join(' ') || '—'}</span> },
-        ],
     },
     teachers: {
         label: 'Teacher invites',
-        endpoint: 'teacher-whitelist',
         listKey: 'teachers',
         unit: 'invite(s)',
-        bulkLabel: 'Add teacher invites',
-        // Q&A: an invite is NOT an account. Pre-approving the email is the
-        // school's staff-vetting step; the person still creates their own
-        // password (or uses Google) and the invite becomes Registered — one
-        // teacher, one email, no reuse.
-        explainer: 'An invite allows exactly one teacher to register — it is not an account yet. Add their DepEd email; after they register, the invite shows Registered so nobody else can use that email.',
+        addLabel: 'Add teacher invites',
+        addButton: 'Add invites',
+        explainer: 'Only invited emails can register as teachers. An invite becomes Registered after its account is created.',
         searchPlaceholder: 'Search email or name…',
-        placeholder: 'One per line — ms.santos@deped.gov.ph, Ana Santos, Master Teacher I',
+        placeholder: 'ms.santos@deped.gov.ph, Ana Santos, Master Teacher I',
         lineError: 'Each line needs a valid email address. Name and position are optional.',
         parseLine: (line) => {
             const parts = line.split(/[,\t]|\s{2,}/).map((s) => s.trim()).filter(Boolean);
@@ -70,15 +60,72 @@ const CONFIG = {
             const rest = parts.filter((p) => p !== email);
             return { email: email.toLowerCase(), first_name: rest[0] || null, last_name: rest[1] || null, position: rest[2] || null };
         },
-        columns: (item) => [
-            { head: 'Email', node: <span className="ad-cell-sub mono">{item.email}</span> },
-            { head: 'Name', node: <span className="ad-cell-title">{[item.first_name, item.last_name].filter(Boolean).join(' ') || '—'}</span> },
-            { head: 'Position', node: <span className="ad-cell-sub">{item.position || '—'}</span> },
-        ],
     },
 };
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
+
+// Small dialog lifecycle shared by the two form dialogs. Keep the latest
+// callbacks in refs so a pending request does not restart focus/scroll setup.
+function useDialogLifecycle(isOpen, busy, onClose) {
+    const dialogRef = useRef(null);
+    const busyRef = useRef(busy);
+    const closeRef = useRef(onClose);
+
+    useEffect(() => {
+        busyRef.current = busy;
+        closeRef.current = onClose;
+    }, [busy, onClose]);
+
+    useEffect(() => {
+        if (!isOpen) return undefined;
+        const previousFocus = document.activeElement;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+
+        const onKey = (event) => {
+            if (event.key === 'Escape') {
+                // The shared Dropdown also listens for Escape. Let it close
+                // first instead of dismissing the dialog underneath it.
+                if (document.querySelector('.dd-menu')) return;
+                if (!busyRef.current) {
+                    event.stopPropagation();
+                    closeRef.current();
+                }
+                return;
+            }
+            if (event.key !== 'Tab' || !dialogRef.current) return;
+            const focusable = [...dialogRef.current.querySelectorAll(
+                'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+            )];
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (!first || !last) return;
+            if (event.shiftKey && (document.activeElement === first || !dialogRef.current.contains(document.activeElement))) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+
+        document.addEventListener('keydown', onKey);
+        const focusTimer = window.setTimeout(() => {
+            const target = dialogRef.current?.querySelector('textarea') || dialogRef.current?.querySelector('button');
+            target?.focus();
+        }, 0);
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            document.removeEventListener('keydown', onKey);
+            window.clearTimeout(focusTimer);
+            if (previousFocus instanceof HTMLElement) previousFocus.focus();
+        };
+    }, [isOpen]);
+
+    return dialogRef;
+}
 
 export default function WhitelistManager({ kind }) {
     const cfg = CONFIG[kind];
@@ -91,6 +138,7 @@ export default function WhitelistManager({ kind }) {
     const graduateEntries = useGraduateWhitelistEntries(kind);
     const reEnrollEntries = useReEnrollWhitelistEntries(kind);
 
+    const [addOpen, setAddOpen] = useState(false);
     const [bulkText, setBulkText] = useState('');
     const [pendingDelete, setPendingDelete] = useState(null);
 
@@ -99,9 +147,7 @@ export default function WhitelistManager({ kind }) {
     const [classId, setClassId] = useState('');
     const [statusText, setStatusText] = useState('');
     const [confirmAction, setConfirmAction] = useState(null);
-    // Class roster preview: picking a class never acts blindly — the modal
-    // lists the names first, and only its confirm button fires the action.
-    const [rosterAction, setRosterAction] = useState(null);
+    const [statusModal, setStatusModal] = useState(null);
 
     // Filter/search state
     const [statusFilter, setStatusFilter] = useState('all');
@@ -110,13 +156,27 @@ export default function WhitelistManager({ kind }) {
     const items = useMemo(() => data?.[cfg.listKey] ?? [], [data, cfg.listKey]);
     const classes = classData?.classes ?? [];
     const busyStatus = graduateEntries.isPending || reEnrollEntries.isPending;
+    const statusSource = statusModal?.source ?? 'class';
+    const graduateMode = statusModal?.mode !== 're-enroll';
 
     const {
         data: rosterData,
         isLoading: rosterLoading,
         isError: rosterError,
-    } = useClassRoster(rosterAction?.classId, rosterAction !== null);
+    } = useClassRoster(classId, statusModal !== null && statusSource === 'class');
     const roster = rosterData?.students ?? [];
+
+    const closeAdd = () => {
+        if (!addEntries.isPending) setAddOpen(false);
+    };
+    const closeStatusModal = () => {
+        if (busyStatus) return;
+        setStatusModal(null);
+        setClassId('');
+        setStatusText('');
+    };
+    const addDialogRef = useDialogLifecycle(addOpen, addEntries.isPending, closeAdd);
+    const statusDialogRef = useDialogLifecycle(statusModal !== null, busyStatus, closeStatusModal);
 
     const handleBulkAdd = async () => {
         if (!bulkText.trim() || addEntries.isPending) return;
@@ -130,6 +190,7 @@ export default function WhitelistManager({ kind }) {
             const res = await addEntries.mutateAsync(entries);
             toast.success(res.data?.message || `Added ${entries.length} ${kind === 'students' ? 'LRN(s)' : 'invite(s)'}.`);
             setBulkText('');
+            setAddOpen(false);
         } catch {/* api layer toasts */}
     };
 
@@ -138,6 +199,11 @@ export default function WhitelistManager({ kind }) {
         try {
             await removeEntry.mutateAsync(pendingDelete.id);
             toast.success('Removed from the whitelist.');
+            setSelected((prev) => {
+                const next = new Set(prev);
+                next.delete(pendingDelete.id);
+                return next;
+            });
         } catch {/* api layer toasts */}
         setPendingDelete(null);
     };
@@ -197,303 +263,228 @@ export default function WhitelistManager({ kind }) {
             setStatusText('');
             setClassId('');
             setConfirmAction(null);
-            setRosterAction(null);
+            setStatusModal(null);
         } catch {/* api layer toasts */}
     };
 
+    const bulkLines = bulkText.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+    const bulkValidCount = bulkLines.filter(cfg.parseLine).length;
+    const bulkBadCount = bulkLines.length - bulkValidCount;
+
     const statusLines = statusText.split(/\n+/).map((l) => l.trim()).filter(Boolean);
-    const statusLrns = statusLines.map(cfg.parseLine).filter(Boolean).map((e) => e.lrn_number);
-    const statusBad = statusLines.length - statusLrns.length;
+    const statusValidCount = statusLines.filter(cfg.parseLine).length;
+    const statusLrns = [...new Set(statusLines.map(cfg.parseLine).filter(Boolean).map((e) => e.lrn_number))];
+    const statusBadCount = statusLines.length - statusValidCount;
+    const statusDuplicateCount = statusValidCount - statusLrns.length;
 
     const confirmCopy = (() => {
         if (!confirmAction) return { title: '', message: '', confirmText: '' };
         const graduate = confirmAction.mode === 'graduate';
-        const what = confirmAction.lrns
-            ? `${confirmAction.lrns.length} pasted LRN(s)`
-            : `${selectedLrns.length} selected student(s)`;
+        const count = confirmAction.lrns?.length ?? 0;
+        const what = `${count} selected student${count === 1 ? '' : 's'}`;
         return {
             title: graduate ? 'Graduate these students?' : 'Re-enroll these students?',
             message: graduate
                 ? `This marks ${what} as Graduated: their sessions end immediately and they cannot log in until an admin re-enrolls them. Their work and grades are kept. LRNs that are already graduated are skipped.`
                 : `This restores login access for ${what}. They will need to sign in again.`,
-            confirmText: graduate ? 'Graduate' : 'Re-enroll',
+            confirmText: `${graduate ? 'Graduate' : 'Re-enroll'} ${count} student${count === 1 ? '' : 's'}`,
         };
     })();
 
-    // ── Class roster preview modal ────────────────────────────────
-    const rosterClass = classes.find((c) => String(c.id) === String(rosterAction?.classId));
+    // ── Class roster preview (no blind graduations) ───────────────
+    const rosterClass = classes.find((c) => String(c.id) === String(classId));
     const rosterToGraduate = roster.filter((s) => !s.graduated_at).length;
     const rosterToReEnroll = roster.filter((s) => s.graduated_at).length;
-    const graduateMode = rosterAction?.mode === 'graduate';
     const rosterTargetCount = graduateMode ? rosterToGraduate : rosterToReEnroll;
+    const classActionDisabled = !classId || rosterLoading || rosterError || rosterTargetCount === 0;
+    const statusActionDisabled = busyStatus || (statusSource === 'class' ? classActionDisabled : statusLrns.length === 0);
+
+    const openStatusModal = () => {
+        setClassId('');
+        setStatusText('');
+        setStatusModal({ mode: 'graduate', source: 'class' });
+    };
+    const setStatusMode = (mode) => setStatusModal((prev) => ({ ...prev, mode }));
+    const setStatusSource = (source) => setStatusModal((prev) => ({ ...prev, source }));
 
     return (
-        <div className="db-card">
-            <div className="db-section-row">
+        <div className="ad-whitelist">
+            <div className="ad-whitelist-head">
                 <div>
                     <h3 className="db-section-title">{cfg.label}</h3>
                     <p className="db-section-sub">{cfg.explainer}</p>
                 </div>
-            </div>
-
-            <div className="ad-bulk">
-                <div className="ad-bulk-col">
-                    <span className="ad-grad-label">{cfg.bulkLabel}</span>
-                    <textarea
-                        className="ad-bulk-input"
-                        rows={3}
-                        value={bulkText}
-                        onChange={(e) => setBulkText(e.target.value)}
-                        placeholder={cfg.placeholder}
-                        aria-label={`Bulk add ${cfg.label}`}
-                    />
-                    {(() => {
-                        const lines = bulkText.split(/\n+/).map((l) => l.trim()).filter(Boolean);
-                        if (lines.length === 0) return null;
-                        const valid = lines.filter(cfg.parseLine).length;
-                        const bad = lines.length - valid;
-                        return (
-                            <p className="ad-bulk-hint">
-                                {valid > 0 && <span className="ok">{valid} valid</span>}
-                                {valid > 0 && bad > 0 ? ' · ' : ''}
-                                {bad > 0 && <span className="bad">{bad} unparseable — {cfg.lineError}</span>}
-                                {bad === 0 && valid > 0 ? ` — ready to add as ${valid} ${cfg.unit}` : ''}
-                            </p>
-                        );
-                    })()}
+                <div className="ad-whitelist-actions">
+                    {isStudents && (
+                        <button className="db-btn-ghost ad-header-btn" onClick={openStatusModal} disabled={busyStatus}>
+                            <GraduationCap size={16} />
+                            Graduate / re-enroll
+                        </button>
+                    )}
+                    <button className="db-btn-primary ad-header-btn" onClick={() => setAddOpen(true)}>
+                        <Plus size={16} />
+                        {cfg.addButton}
+                    </button>
                 </div>
-                <button className="db-btn-primary" onClick={handleBulkAdd} disabled={addEntries.isPending || !bulkText.trim()}>
-                    {addEntries.isPending ? <Loader2 size={15} className="ad-spin" /> : null}
-                    {addEntries.isPending ? 'Saving…' : 'Add to whitelist'}
-                </button>
             </div>
 
-            {isStudents && (
-                <div className="ad-grad-panel">
-                    <div className="ad-grad-row">
-                        <div className="ad-grad-col">
-                            <span className="ad-grad-label">Graduate a whole class</span>
-                            <p className="ad-grad-hint">
-                                Pick the class, review its roster, then confirm — the end-of-school-year path.
-                            </p>
+            <section className="db-card ad-list-card" aria-label={`${cfg.label} list`}>
+                <div className="ad-filter-row">
+                    {isStudents && (
+                        <div className="ad-tabs" role="group" aria-label="Filter by enrollment status">
+                            {[
+                                { key: 'all', label: 'All', count: items.length },
+                                { key: 'active', label: 'Active', count: activeCount },
+                                { key: 'graduated', label: 'Graduated', count: graduatedCount },
+                            ].map((t) => (
+                                <button
+                                    key={t.key}
+                                    role="tab"
+                                    aria-selected={statusFilter === t.key}
+                                    className={`ad-tab ${statusFilter === t.key ? 'is-active' : ''}`}
+                                    onClick={() => setStatusFilter(t.key)}
+                                >
+                                    {t.label}
+                                    <span className="ad-tab-count">{t.count}</span>
+                                </button>
+                            ))}
                         </div>
-                        <div className="ad-grad-actions">
-                            <Dropdown
-                                value={classId}
-                                onChange={setClassId}
-                                placeholder="Choose a class…"
-                                options={classes.map((c) => ({
-                                    value: String(c.id),
-                                    label: `${c.name} · ${c.students_count} student${c.students_count === 1 ? '' : 's'}`,
-                                }))}
-                                icon={<GraduationCap size={14} />}
-                            />
+                    )}
+                    <div className="ad-search">
+                        <Search size={15} />
+                        <input
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder={cfg.searchPlaceholder}
+                            aria-label="Search the list"
+                        />
+                        {search && (
+                            <button className="ad-clear" onClick={() => setSearch('')} aria-label="Clear search">×</button>
+                        )}
+                    </div>
+                </div>
+
+                {isStudents && selected.size > 0 && (
+                    <div className="ad-selection-bar" role="status">
+                        <span className="ad-selection-count">{selected.size} selected</span>
+                        <div className="ad-grad-btnrow">
                             <button
                                 className="db-btn-primary ad-grad-btn"
-                                disabled={!classId || busyStatus}
-                                onClick={() => setRosterAction({ mode: 'graduate', classId })}
+                                disabled={busyStatus || selectedLrns.length === 0}
+                                onClick={() => setConfirmAction({ mode: 'graduate', lrns: selectedLrns })}
                             >
                                 <GraduationCap size={14} />
-                                Graduate class…
+                                Graduate selected
                             </button>
                             <button
                                 className="db-btn-ghost ad-grad-btn"
-                                disabled={!classId || busyStatus}
-                                onClick={() => setRosterAction({ mode: 're-enroll', classId })}
+                                disabled={busyStatus || selectedLrns.length === 0}
+                                onClick={() => setConfirmAction({ mode: 're-enroll', lrns: selectedLrns })}
                             >
                                 <RotateCcw size={14} />
-                                Re-enroll class…
+                                Re-enroll selected
+                            </button>
+                            <button className="ad-clear-selection" onClick={() => setSelected(new Set())}>
+                                Clear
                             </button>
                         </div>
-                    </div>
-                    {!classesLoading && classes.length === 0 && (
-                        <p className="ad-grad-hint" style={{ margin: '4px 0 0' }}>
-                            No classes have enrolled students yet.
-                        </p>
-                    )}
-
-                    <div className="ad-grad-row ad-grad-row--lrns">
-                        <div className="ad-grad-col">
-                            <span className="ad-grad-label">Graduate by LRN list</span>
-                            <p className="ad-grad-hint">
-                                For students not in one class — the registrar&apos;s graduate list, transferees, or
-                                individual exceptions. LRNs not found on the whitelist are reported back to you.
-                            </p>
-                        </div>
-                        <div className="ad-grad-actions ad-grad-actions--stack">
-                            <textarea
-                                className="ad-bulk-input"
-                                rows={2}
-                                value={statusText}
-                                onChange={(e) => setStatusText(e.target.value)}
-                                placeholder="One LRN per line — 137548123456"
-                                aria-label="LRNs to graduate or re-enroll"
-                            />
-                            {statusLines.length > 0 && (
-                                <p className="ad-bulk-hint">
-                                    {statusLrns.length > 0 && <span className="ok">{statusLrns.length} valid</span>}
-                                    {statusLrns.length > 0 && statusBad > 0 ? ' · ' : ''}
-                                    {statusBad > 0 && <span className="bad">{statusBad} unparseable — LRNs are 12 digits.</span>}
-                                </p>
-                            )}
-                            <div className="ad-grad-btnrow">
-                                <button
-                                    className="db-btn-primary ad-grad-btn"
-                                    disabled={statusLrns.length === 0 || busyStatus}
-                                    onClick={() => setConfirmAction({ mode: 'graduate', lrns: statusLrns })}
-                                >
-                                    <GraduationCap size={14} />
-                                    Graduate LRNs
-                                </button>
-                                <button
-                                    className="db-btn-ghost ad-grad-btn"
-                                    disabled={statusLrns.length === 0 || busyStatus}
-                                    onClick={() => setConfirmAction({ mode: 're-enroll', lrns: statusLrns })}
-                                >
-                                    <RotateCcw size={14} />
-                                    Re-enroll LRNs
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {isStudents && selected.size > 0 && (
-                <div className="ad-selection-bar" role="status">
-                    <span className="ad-selection-count">{selected.size} selected</span>
-                    <div className="ad-grad-btnrow">
-                        <button
-                            className="db-btn-primary ad-grad-btn"
-                            disabled={busyStatus}
-                            onClick={() => setConfirmAction({ mode: 'graduate', lrns: selectedLrns })}
-                        >
-                            <GraduationCap size={14} />
-                            Graduate selected
-                        </button>
-                        <button
-                            className="db-btn-ghost ad-grad-btn"
-                            disabled={busyStatus}
-                            onClick={() => setConfirmAction({ mode: 're-enroll', lrns: selectedLrns })}
-                        >
-                            <RotateCcw size={14} />
-                            Re-enroll selected
-                        </button>
-                        <button className="ad-clear-selection" onClick={() => setSelected(new Set())}>
-                            Clear
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            <div className="ad-filter-row">
-                {isStudents && (
-                    <div className="ad-tabs" role="tablist" aria-label="Filter by enrollment status">
-                        {[
-                            { key: 'all', label: 'All', count: items.length },
-                            { key: 'active', label: 'Active', count: activeCount },
-                            { key: 'graduated', label: 'Graduated', count: graduatedCount },
-                        ].map((t) => (
-                            <button
-                                key={t.key}
-                                role="tab"
-                                aria-selected={statusFilter === t.key}
-                                className={`ad-tab ${statusFilter === t.key ? 'is-active' : ''}`}
-                                onClick={() => setStatusFilter(t.key)}
-                            >
-                                {t.label}
-                                <span className="ad-tab-count">{t.count}</span>
-                            </button>
-                        ))}
                     </div>
                 )}
-                <div className="ad-search">
-                    <Search size={15} />
-                    <input
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder={cfg.searchPlaceholder}
-                        aria-label="Search the list"
-                    />
-                    {search && (
-                        <button className="ad-clear" onClick={() => setSearch('')} aria-label="Clear search">×</button>
-                    )}
-                </div>
-            </div>
 
-            {isLoading ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 16 }}>
-                    <SkeletonBlock style={{ height: 40, borderRadius: 12 }} />
-                    <SkeletonBlock style={{ height: 40, borderRadius: 12 }} />
-                    <SkeletonBlock style={{ height: 40, borderRadius: 12 }} />
-                </div>
-            ) : (
-                <div className="ad-table" role="table" aria-label={cfg.label}>
-                    {/* Headers come from the column config, never from the first
-                        row — an empty whitelist used to render a headerless
-                        blank block that read as broken. */}
-                    <div className={`ad-tr ad-tr--whitelist ${isStudents ? 'ad-tr--whitelist-students' : ''} ad-th`} role="row">
-                        {isStudents && (
-                            <span>
-                                <input
-                                    type="checkbox"
-                                    className="ad-checkbox"
-                                    aria-label="Select all students"
-                                    checked={allVisibleSelected}
-                                    onChange={toggleAll}
-                                />
-                            </span>
-                        )}
-                        {cfg.columns(items[0] ?? {}).map((c) => <span key={c.head}>{c.head}</span>)}
-                        <span>Added</span><span>Status</span><span aria-label="Actions" />
+                {isLoading ? (
+                    <div className="ad-table-loading">
+                        <SkeletonBlock style={{ height: 48, borderRadius: 10 }} />
+                        <SkeletonBlock style={{ height: 48, borderRadius: 10 }} />
+                        <SkeletonBlock style={{ height: 48, borderRadius: 10 }} />
                     </div>
-                    {items.length === 0 ? (
-                        <p className="ad-empty">The whitelist is empty — nobody can register as {kind === 'students' ? 'a student' : 'a teacher'} yet.</p>
-                    ) : visibleItems.length === 0 ? (
-                        <p className="ad-empty">No rows match the current search or filter.</p>
-                    ) : visibleItems.map((item) => (
-                        <div key={item.id} className={`ad-tr ad-tr--whitelist ${isStudents ? 'ad-tr--whitelist-students' : ''}`} role="row">
+                ) : items.length === 0 ? (
+                    <div className="ad-empty-state">
+                        <h4>No {isStudents ? 'student LRNs' : 'teacher invites'} yet</h4>
+                        <p>Add {isStudents ? 'an LRN' : 'an email'} to allow {isStudents ? 'students' : 'teachers'} to register.</p>
+                        <button className="db-btn-primary ad-header-btn" onClick={() => setAddOpen(true)}>
+                            <Plus size={15} /> {cfg.addButton}
+                        </button>
+                    </div>
+                ) : visibleItems.length === 0 ? (
+                    <div className="ad-empty-state">
+                        <h4>No {isStudents ? 'LRNs' : 'invites'} match these filters</h4>
+                        <p>Try another search or show all entries.</p>
+                        <button className="db-btn-ghost ad-header-btn" onClick={() => { setSearch(''); setStatusFilter('all'); }}>
+                            Clear filters
+                        </button>
+                    </div>
+                ) : (
+                    <div className="ad-table" role="table" aria-label={cfg.label}>
+                        <div className={`ad-tr ad-tr--whitelist ${isStudents ? 'ad-tr--whitelist-students' : 'ad-tr--whitelist-teachers'} ad-th`} role="row">
                             {isStudents && (
-                                <span role="cell">
+                                <span role="columnheader">
                                     <input
                                         type="checkbox"
                                         className="ad-checkbox"
-                                        aria-label={`Select ${item.lrn_number}`}
-                                        checked={selected.has(item.id)}
-                                        onChange={() => toggleSelected(item.id)}
+                                        aria-label="Select all visible students"
+                                        checked={allVisibleSelected}
+                                        onChange={toggleAll}
                                     />
                                 </span>
                             )}
-                            {cfg.columns(item).map((c, i) => <span key={i} role="cell">{c.node}</span>)}
-                            <span className="ad-cell-sub" role="cell">{fmtDate(item.created_at)}</span>
-                            <span role="cell">
-                                {isStudents && item.graduated_at ? (
-                                    <span className="ad-status-stack">
-                                        <span className="ad-chip graduated">Graduated</span>
-                                        <span className="ad-cell-sub">since {fmtDate(item.graduated_at)}</span>
-                                    </span>
-                                ) : isStudents ? (
-                                    <span className="ad-status-stack">
-                                        <span className="ad-chip active">Active</span>
-                                        <span className="ad-cell-sub">{item.claimed ? 'Registered' : 'Not registered'}</span>
-                                    </span>
-                                ) : (
-                                    <span className={`ad-chip ${item.claimed ? 'active' : 'available'}`}>
-                                        {item.claimed ? 'Registered' : 'Pending'}
-                                    </span>
-                                )}
-                            </span>
-                            <span role="cell" style={{ textAlign: 'right' }}>
-                                <button className="ad-icon-btn danger" title="Remove from whitelist" onClick={() => setPendingDelete(item)}>
-                                    {removeEntry.isPending && removeEntry.variables === item.id
-                                        ? <Loader2 size={14} className="ad-spin" />
-                                        : <Trash2 size={14} />}
-                                </button>
-                            </span>
+                            <span role="columnheader">{isStudents ? 'Student' : 'Teacher'}</span>
+                            {!isStudents && <span className="ad-col-position" role="columnheader">Position</span>}
+                            <span className="ad-col-added" role="columnheader">Added</span>
+                            <span role="columnheader">Status</span>
+                            <span aria-label="Actions" role="columnheader" />
                         </div>
-                    ))}
-                </div>
-            )}
+                        {visibleItems.map((item) => {
+                            const identifier = item.lrn_number || item.email;
+                            const name = [item.first_name, item.last_name].filter(Boolean).join(' ');
+                            return (
+                                <div key={item.id} className={`ad-tr ad-tr--whitelist ${isStudents ? 'ad-tr--whitelist-students' : 'ad-tr--whitelist-teachers'}`} role="row">
+                                    {isStudents && (
+                                        <span role="cell">
+                                            <input
+                                                type="checkbox"
+                                                className="ad-checkbox"
+                                                aria-label={`Select ${item.lrn_number}`}
+                                                checked={selected.has(item.id)}
+                                                onChange={() => toggleSelected(item.id)}
+                                            />
+                                        </span>
+                                    )}
+                                    <span className="ad-identity" role="cell">
+                                        <span className={`ad-cell-title ${!name ? 'mono' : ''}`}>{name || identifier}</span>
+                                        <span className={`ad-cell-sub ${name ? 'mono' : ''}`}>{name ? identifier : 'Name not provided'}</span>
+                                    </span>
+                                    {!isStudents && <span className="ad-cell-sub ad-col-position" role="cell">{item.position || '—'}</span>}
+                                    <span className="ad-cell-sub ad-col-added" role="cell">{fmtDate(item.created_at)}</span>
+                                    <span role="cell">
+                                        {isStudents && item.graduated_at ? (
+                                            <span className="ad-status-stack">
+                                                <span className="ad-chip graduated">Graduated</span>
+                                                <span className="ad-cell-sub">since {fmtDate(item.graduated_at)}</span>
+                                            </span>
+                                        ) : isStudents ? (
+                                            <span className="ad-status-stack">
+                                                <span className="ad-chip active">Active</span>
+                                                <span className="ad-cell-sub">{item.claimed ? 'Registered' : 'Not registered'}</span>
+                                            </span>
+                                        ) : (
+                                            <span className={`ad-chip ${item.claimed ? 'active' : 'available'}`}>
+                                                {item.claimed ? 'Registered' : 'Pending'}
+                                            </span>
+                                        )}
+                                    </span>
+                                    <span role="cell" className="ad-row-actions">
+                                        <button className="ad-icon-btn danger" title="Remove from whitelist" aria-label={`Remove ${identifier}`} onClick={() => setPendingDelete(item)}>
+                                            {removeEntry.isPending && removeEntry.variables === item.id
+                                                ? <Loader2 size={14} className="ad-spin" />
+                                                : <Trash2 size={14} />}
+                                        </button>
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </section>
 
             <ConfirmModal
                 isOpen={pendingDelete !== null}
@@ -505,6 +496,7 @@ export default function WhitelistManager({ kind }) {
                     ? `${pendingDelete.lrn_number || pendingDelete.email} will no longer be able to register. Accounts already created are not affected.`
                     : ''}
                 confirmText="Remove"
+                variant="danger"
             />
 
             <ConfirmModal
@@ -517,77 +509,183 @@ export default function WhitelistManager({ kind }) {
                 confirmText={confirmCopy.confirmText}
             />
 
-            {/* Class roster preview — the "no blind graduations" step. */}
-            {rosterAction && (
-                <div className="ad-modal-overlay" onClick={() => setRosterAction(null)}>
-                    <div
-                        className="ad-modal"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-label={`${graduateMode ? 'Graduate' : 'Re-enroll'} class`}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <h3 className="ad-modal-title">
-                            {graduateMode ? 'Graduate class' : 'Re-enroll class'} — {rosterClass?.name ?? ''}
-                        </h3>
-                        <p className="ad-modal-sub">
+            {addOpen && (
+                <div className="ad-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) closeAdd(); }}>
+                    <div ref={addDialogRef} className="ad-modal ad-modal-form" role="dialog" aria-modal="true" aria-labelledby="ad-add-title" aria-describedby="ad-add-description">
+                        <button className="ad-modal-close" aria-label="Close add dialog" onClick={closeAdd} disabled={addEntries.isPending}>
+                            <X size={18} />
+                        </button>
+                        <h3 className="ad-modal-title" id="ad-add-title">{cfg.addLabel}</h3>
+                        <p className="ad-modal-sub" id="ad-add-description">
+                            Paste one {isStudents ? 'LRN' : 'email'} per line.
+                            {isStudents ? ' Optionally add the student’s name after a comma.' : ' Optionally add a name and position after commas.'}
+                        </p>
+                        <textarea
+                            className="ad-bulk-input"
+                            rows={6}
+                            value={bulkText}
+                            onChange={(e) => setBulkText(e.target.value)}
+                            placeholder={cfg.placeholder}
+                            aria-label={cfg.addLabel}
+                            disabled={addEntries.isPending}
+                        />
+                        {bulkLines.length > 0 ? (
+                            <p className="ad-bulk-hint" aria-live="polite">
+                                {bulkValidCount > 0 && <span className="ok">{bulkValidCount} {cfg.unit} ready to add</span>}
+                                {bulkValidCount > 0 && bulkBadCount > 0 ? ' · ' : ''}
+                                {bulkBadCount > 0 && <span className="bad">{bulkBadCount} invalid — {cfg.lineError}</span>}
+                            </p>
+                        ) : (
+                            <p className="ad-bulk-hint">Names are optional; you can also paste them later.</p>
+                        )}
+                        <div className="ad-modal-foot">
+                            <button className="db-btn-ghost ad-grad-btn" onClick={closeAdd} disabled={addEntries.isPending}>Cancel</button>
+                            <button className="db-btn-primary ad-grad-btn" onClick={handleBulkAdd} disabled={addEntries.isPending || bulkValidCount === 0 || bulkBadCount > 0}>
+                                {addEntries.isPending ? <Loader2 size={15} className="ad-spin" /> : <Plus size={15} />}
+                                {addEntries.isPending ? 'Adding…' : cfg.addButton}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {statusModal && (
+                <div className="ad-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) closeStatusModal(); }}>
+                    <div ref={statusDialogRef} className="ad-modal ad-modal-form ad-status-modal" role="dialog" aria-modal="true" aria-labelledby="ad-status-title" aria-describedby="ad-status-description">
+                        <button className="ad-modal-close" aria-label="Close enrollment status dialog" onClick={closeStatusModal} disabled={busyStatus}>
+                            <X size={18} />
+                        </button>
+                        <h3 className="ad-modal-title" id="ad-status-title">Update enrollment status</h3>
+                        <p className="ad-modal-sub" id="ad-status-description">
                             {graduateMode
-                                ? 'These students are currently enrolled in this class. Graduating signs them out immediately and blocks login until an admin re-enrolls them. Their work and grades are kept.'
-                                : 'Re-enrolling clears the Graduated mark so these students can register or log in again. Already-active students are left alone.'}
+                                ? 'Students are signed out immediately and cannot log in or register again. Their classes, grades, and work are not deleted.'
+                                : 'Restores access for students whose graduation is being undone. Previous sessions are not restored; students log in again.'}
                         </p>
 
-                        {rosterLoading ? (
-                            <div className="ad-roster-list ad-roster-loading">
-                                <Loader2 size={16} className="ad-spin" />
-                                Loading class roster…
+                        <div className="ad-dialog-field">
+                            <span className="ad-field-label">Action</span>
+                            <div className="ad-segmented" role="group" aria-label="Enrollment action">
+                                <button className={graduateMode ? 'is-active' : ''} aria-pressed={graduateMode} onClick={() => setStatusMode('graduate')} disabled={busyStatus}>
+                                    <GraduationCap size={15} /> Graduate
+                                </button>
+                                <button className={!graduateMode ? 'is-active' : ''} aria-pressed={!graduateMode} onClick={() => setStatusMode('re-enroll')} disabled={busyStatus}>
+                                    <RotateCcw size={15} /> Re-enroll
+                                </button>
                             </div>
-                        ) : rosterError ? (
-                            <div className="ad-roster-list ad-roster-loading">
-                                Could not load the class roster — close this and try again.
-                            </div>
-                        ) : roster.length === 0 ? (
-                            <div className="ad-roster-list ad-roster-loading">
-                                No students are currently enrolled in this class.
-                            </div>
-                        ) : (
-                            <div className="ad-roster-list">
-                                {roster.map((s) => (
-                                    <div key={s.id} className="ad-roster-item">
-                                        <div className="ad-roster-id">
-                                            <span className="ad-roster-name">
-                                                {[s.first_name, s.last_name].filter(Boolean).join(' ') || '—'}
-                                            </span>
-                                            <span className="ad-roster-lrn">{s.lrn_number}</span>
-                                        </div>
-                                        {s.graduated_at ? (
-                                            <span className="ad-chip graduated">Graduated</span>
-                                        ) : (
-                                            <span className="ad-chip active">Active</span>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                        </div>
 
-                        {graduateMode && rosterToGraduate > 0 && rosterToReEnroll > 0 && (
-                            <p className="ad-modal-note">
-                                {rosterToReEnroll} of these are already graduated and will be left as is.
-                            </p>
+                        <div className="ad-dialog-field">
+                            <span className="ad-field-label">Students</span>
+                            <div className="ad-segmented" role="group" aria-label="Choose students by">
+                                <button className={statusSource === 'class' ? 'is-active' : ''} aria-pressed={statusSource === 'class'} onClick={() => setStatusSource('class')} disabled={busyStatus}>A whole class</button>
+                                <button className={statusSource === 'paste' ? 'is-active' : ''} aria-pressed={statusSource === 'paste'} onClick={() => setStatusSource('paste')} disabled={busyStatus}>Paste an LRN list</button>
+                            </div>
+                        </div>
+
+                        {statusSource === 'class' ? (
+                            <>
+                                <div className="ad-dialog-field">
+                                    <span className="ad-field-label">Class</span>
+                                    <Dropdown
+                                        value={classId}
+                                        onChange={setClassId}
+                                        placeholder={classesLoading ? 'Loading classes…' : 'Choose a class…'}
+                                        options={classes.map((c) => ({
+                                            value: String(c.id),
+                                            label: `${c.name} · ${c.students_count} student${c.students_count === 1 ? '' : 's'}`,
+                                        }))}
+                                        icon={<GraduationCap size={14} />}
+                                        fullWidth
+                                    />
+                                </div>
+                                {!classId ? (
+                                    <div className="ad-roster-list ad-roster-loading">
+                                        {classesLoading
+                                            ? 'Loading available classes…'
+                                            : classes.length === 0
+                                                ? 'No classes have enrolled students yet.'
+                                                : 'Choose a class to review its roster before continuing.'}
+                                    </div>
+                                ) : rosterLoading ? (
+                                    <div className="ad-roster-list ad-roster-loading">
+                                        <Loader2 size={16} className="ad-spin" />
+                                        Loading class roster…
+                                    </div>
+                                ) : rosterError ? (
+                                    <div className="ad-roster-error" role="alert">
+                                        <p>Could not load the class roster. No students have been updated.</p>
+                                        <button className="db-btn-ghost ad-grad-btn" onClick={() => setClassId('')} disabled={busyStatus}>
+                                            Choose another class
+                                        </button>
+                                    </div>
+                                ) : roster.length === 0 ? (
+                                    <div className="ad-roster-list ad-roster-loading">
+                                        No students are currently enrolled in this class.
+                                    </div>
+                                ) : (
+                                    <div className="ad-roster-list" aria-label={`${rosterClass?.name || 'Class'} roster`}>
+                                        {roster.map((s) => (
+                                            <div key={s.id} className="ad-roster-item">
+                                                <div className="ad-roster-id">
+                                                    <span className="ad-roster-name">
+                                                        {[s.first_name, s.last_name].filter(Boolean).join(' ') || s.lrn_number}
+                                                    </span>
+                                                    <span className="ad-roster-lrn">{s.lrn_number}</span>
+                                                </div>
+                                                <span className={`ad-chip ${s.graduated_at ? 'graduated' : 'active'}`}>
+                                                    {s.graduated_at ? 'Graduated' : 'Active'}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {classId && !rosterLoading && !rosterError && roster.length > 0 && (
+                                    <p className="ad-modal-note">
+                                        {graduateMode && rosterToReEnroll > 0
+                                            ? `${rosterToReEnroll} already graduated will be left unchanged.`
+                                            : !graduateMode && rosterToGraduate > 0
+                                                ? `${rosterToGraduate} already active will be left unchanged.`
+                                                : `${rosterTargetCount} student${rosterTargetCount === 1 ? '' : 's'} will be updated.`}
+                                    </p>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <textarea
+                                    className="ad-bulk-input ad-status-input"
+                                    rows={5}
+                                    value={statusText}
+                                    onChange={(e) => setStatusText(e.target.value)}
+                                    placeholder="One LRN per line — 137548123456"
+                                    aria-label="LRNs to graduate or re-enroll"
+                                    disabled={busyStatus}
+                                />
+                                <p className="ad-bulk-hint" aria-live="polite">
+                                    {statusLrns.length > 0 && <span className="ok">{statusLrns.length} unique LRN{statusLrns.length === 1 ? '' : 's'}</span>}
+                                    {statusDuplicateCount > 0 && ` · ${statusDuplicateCount} duplicate${statusDuplicateCount === 1 ? '' : 's'} removed`}
+                                    {statusLrns.length > 0 && statusBadCount > 0 ? ' · ' : ''}
+                                    {statusBadCount > 0 && <span className="bad">{statusBadCount} invalid — LRNs are 12 digits.</span>}
+                                </p>
+                                <p className="ad-modal-note">LRNs that are not on the whitelist will be reported after the update.</p>
+                            </>
                         )}
 
                         <div className="ad-modal-foot">
-                            <button className="db-btn-ghost ad-grad-btn" onClick={() => setRosterAction(null)} disabled={busyStatus}>
-                                Cancel
-                            </button>
+                            <button className="db-btn-ghost ad-grad-btn" onClick={closeStatusModal} disabled={busyStatus}>Cancel</button>
                             <button
-                                className={graduateMode ? 'db-btn-primary ad-grad-btn' : 'db-btn-ghost ad-grad-btn'}
-                                disabled={busyStatus || rosterLoading || rosterError || rosterTargetCount === 0}
-                                onClick={() => runStatusAction(rosterAction)}
+                                className={`${graduateMode ? 'db-btn-primary' : 'db-btn-ghost'} ad-grad-btn`}
+                                disabled={statusActionDisabled}
+                                onClick={() => runStatusAction({
+                                    mode: statusModal.mode,
+                                    ...(statusSource === 'class' ? { classId } : { lrns: statusLrns }),
+                                })}
                             >
                                 {busyStatus ? <Loader2 size={14} className="ad-spin" /> : graduateMode ? <GraduationCap size={14} /> : <RotateCcw size={14} />}
                                 {busyStatus
                                     ? 'Working…'
-                                    : `${graduateMode ? 'Graduate' : 'Re-enroll'} ${rosterTargetCount} student${rosterTargetCount === 1 ? '' : 's'}`}
+                                    : statusSource === 'class'
+                                        ? `${graduateMode ? 'Graduate' : 'Re-enroll'} ${rosterTargetCount} student${rosterTargetCount === 1 ? '' : 's'}`
+                                        : `${graduateMode ? 'Graduate' : 'Re-enroll'} ${statusLrns.length} LRN${statusLrns.length === 1 ? '' : 's'}`}
                             </button>
                         </div>
                     </div>
