@@ -154,3 +154,39 @@ export function useRemoveWhitelistEntry(kind) {
         onError: (e) => reportError(e, 'Could not remove the entry.'),
     });
 }
+
+export function useClassesForGraduation(enabled = true) {
+    return useQuery({
+        queryKey: ['admin', 'classes', 'graduation'],
+        // get() bypasses the legacy 5-min axios GET cache — admin panels must
+        // never serve a stale class/enrollment list.
+        queryFn: () => get('/admin/student-whitelist/classes'),
+        staleTime: 30 * 1000,
+        placeholderData: (prev) => prev,
+        enabled,
+    });
+}
+
+export function useGraduateWhitelistEntries(kind) {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ actions }) => api.post('/admin/student-whitelist/graduate', actions),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['admin'] });
+            invalidateCache(`get:${whitelistUrl(kind)}`);
+        },
+        onError: (e) => reportError(e, 'Could not update graduation status.'),
+    });
+}
+
+export function useReEnrollWhitelistEntries(kind) {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ actions }) => api.post('/admin/student-whitelist/re-enroll', actions),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['admin'] });
+            invalidateCache(`get:${whitelistUrl(kind)}`);
+        },
+        onError: (e) => reportError(e, 'Could not update enrollment status.'),
+    });
+}

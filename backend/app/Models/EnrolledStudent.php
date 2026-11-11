@@ -10,12 +10,13 @@ class EnrolledStudent extends Model
         'lrn_number',
         'first_name',
         'last_name',
-        'grade_level',
-        'section',
         'claimed',
+        'graduated_at',
     ];
 
     protected $casts = [
         'claimed' => 'boolean',
+        // NULL = actively enrolled; a timestamp = graduated (login blocked).
+        'graduated_at' => 'datetime',
     ];
 }

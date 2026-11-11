@@ -279,7 +279,13 @@ Route::middleware(['auth:sanctum', 'role:student,teacher'])->group(function () {
 // LRNs/emails on these lists can register as students/teachers of
 // Penaranda Senior High School. The rest is the school-wide ops panel.
 Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+    // Student enrollment whitelist CRUD (adds LRN to / removes LRN from the
+    // registration gate). Bulk status actions: graduate a cohort by class or
+    // by LRN list, or re-enroll them (undo).
     Route::get('/admin/student-whitelist', [StudentWhitelistController::class, 'index']);
+    Route::get('/admin/student-whitelist/classes', [StudentWhitelistController::class, 'classes']);
+    Route::post('/admin/student-whitelist/graduate', [StudentWhitelistController::class, 'graduate']);
+    Route::post('/admin/student-whitelist/re-enroll', [StudentWhitelistController::class, 'reEnroll']);
     Route::post('/admin/student-whitelist', [StudentWhitelistController::class, 'store']);
     Route::delete('/admin/student-whitelist/{id}', [StudentWhitelistController::class, 'destroy']);
 

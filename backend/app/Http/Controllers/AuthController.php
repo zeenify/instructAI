@@ -264,6 +264,8 @@ class AuthController extends Controller
     /**
      * Panel fix (#4/#6): students can only sign up with an LRN on the school's
      * enrollment whitelist. Returns the rejection message or null when valid.
+     * Graduated (graduated_at set) LRNs are also rejected — a graduated
+     * student can only return via admin re-enrollment.
      */
     private function lrnEnrollmentError(?string $lrnNumber): ?string
     {
@@ -271,8 +273,10 @@ class AuthController extends Controller
             return 'An LRN is required to register as a student.';
         }
 
-        if (!EnrolledStudent::where('lrn_number', $lrnNumber)->exists()) {
-            return 'This LRN is not on the Penaranda Senior High School enrollment list. '
+        if (!EnrolledStudent::where('lrn_number', $lrnNumber)
+                ->whereNull('graduated_at')->exists()) {
+            return 'This LRN is not on the Penaranda Senior High School '
+                . 'active enrollment list. '
                 . 'Please ask your teacher to add it to the enrollment whitelist.';
         }
 
