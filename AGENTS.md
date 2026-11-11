@@ -29,9 +29,19 @@ status model — there is deliberately no grade-level/school-year structure
 columns were dropped). Graduating an LRN sets `graduated_at`, flips the
 student's `users.is_active` to false and revokes every token, so sessions
 end immediately and login/registration reject the LRN; "Re-enroll" clears
-the timestamp and re-activates the account. Bulk paths live on the admin
-whitelist page: graduate a whole class (only students *currently enrolled*
-in it), selected checkboxes, or pasted LRNs. Routes:
+the timestamp and re-activates the account — but ONLY the accounts whose
+graduation was just undone (a class re-enroll must never resurrect an
+account banned for another reason). Both bulk actions run in ONE
+transaction and report pasted LRNs that match no whitelist row back to the
+admin (`not_found` in the response/message — typos never strand a student
+silently). Bulk paths live on the admin whitelist page: graduate a whole
+class (only students *currently enrolled* in it — the modal previews the
+class roster via `GET /api/admin/student-whitelist/classes/{classId}/students`
+so no class is graduated blind), selected checkboxes, or pasted LRNs.
+Whitelist table has All/Active/Graduated filter tabs + search. A graduated
+student's login 403 says "Your LRN is marked as graduated…" (helper
+`AuthController::disabledLoginMessage` — message-only; `is_active` remains
+the single access gate). Routes:
 `/api/admin/student-whitelist/{classes,graduate,re-enroll}`; the
 class→student join goes through `student_profiles` because
 `enrollments.student_id` references `users.id`, not the LRN.

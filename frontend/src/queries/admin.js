@@ -167,6 +167,19 @@ export function useClassesForGraduation(enabled = true) {
     });
 }
 
+// Names behind a class-graduate action: the UI shows this roster BEFORE the
+// action can be confirmed, so a class is never graduated blind. No
+// placeholderData — a preview that can briefly show a stale count after your
+// own graduate/re-enroll is worse than a one-second spinner.
+export function useClassRoster(classId, enabled = true) {
+    return useQuery({
+        queryKey: ['admin', 'classes', 'graduation', 'roster', Number(classId)],
+        queryFn: () => get(`/admin/student-whitelist/classes/${classId}/students`),
+        staleTime: 30 * 1000,
+        enabled: enabled && !!classId,
+    });
+}
+
 export function useGraduateWhitelistEntries(kind) {
     const qc = useQueryClient();
     return useMutation({

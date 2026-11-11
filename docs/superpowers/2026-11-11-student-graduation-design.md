@@ -146,3 +146,16 @@ Plus the individual-toggle safety net for exceptions.
 4. **Backfill:** none — all existing whitelist rows stay Active (`graduated_at` NULL).
 
 ---
+
+## 8. Post-review refinements (2026-11-12)
+
+Implemented after a senior review of the shipped feature — small, non-breaking items only:
+
+- **Atomic bulk actions.** `graduate` / `re-enroll` run in one `DB::transaction` with bulk `UPDATE`s instead of per-row model loops; the account lockout/token revocation is inside the same transaction. `re-enroll` reactivates ONLY the accounts whose graduation it just undid (was: every matching LRN, which could resurrect an account banned for unrelated reasons).
+- **Unknown LRNs are reported.** Pasted LRNs matching no whitelist row come back as `not_found` (count + list in the message, ≤8 shown) instead of being silently skipped; counts exclude them so "already graduated" never means "unknown number".
+- **No blind class graduations.** New endpoint `GET /admin/student-whitelist/classes/{classId}/students` returns the roster (same whitelist→profiles→enrollments join); the class modal lists the names + status chips BEFORE confirming. The roster query uses no `placeholderData` so the preview can never show a stale count right after your own action.
+- **Graduated login message.** A graduated student's 403 now says "Your LRN is marked as graduated…" instead of the generic disabled line (`AuthController::disabledLoginMessage`, used by password + Google login). MESSAGE-ONLY — `is_active` stays the single access gate; the structural "login checks the whitelist" idea was reviewed and deliberately NOT adopted for now.
+- **Whitelist UI clarity pass.** All/Active/Graduated filter tabs with counts, client-side search (LRN/name/email), "Add student LRNs" vs "Graduate by LRN list" labels so the two textareas can't be confused, status column now shows Active/Graduated as the primary chip with Registered/Not registered as the footnote ("Claimed/Available" jargon retired), select-all only touches the rows on screen.
+- **Verified:** 14-check curl E2E (transaction, scoping, not_found, dedupe, both login messages, roster endpoint) + 22-assertion Playwright UI audit on local dev; fixtures fully cleaned afterwards.
+
+---

@@ -284,6 +284,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     // by LRN list, or re-enroll them (undo).
     Route::get('/admin/student-whitelist', [StudentWhitelistController::class, 'index']);
     Route::get('/admin/student-whitelist/classes', [StudentWhitelistController::class, 'classes']);
+    Route::get('/admin/student-whitelist/classes/{classId}/students', [StudentWhitelistController::class, 'classStudents']);
     Route::post('/admin/student-whitelist/graduate', [StudentWhitelistController::class, 'graduate']);
     Route::post('/admin/student-whitelist/re-enroll', [StudentWhitelistController::class, 'reEnroll']);
     Route::post('/admin/student-whitelist', [StudentWhitelistController::class, 'store']);

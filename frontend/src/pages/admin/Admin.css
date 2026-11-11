@@ -764,6 +764,179 @@
     text-decoration: underline;
 }
 
+/* ---- Filter tabs + search above the whitelist table ---- */
+
+.ad-filter-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 2px 0 10px;
+}
+
+.ad-tabs {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--db-border);
+    border-radius: 11px;
+    background: var(--db-card-2);
+}
+
+.ad-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: none;
+    background: transparent;
+    padding: 7px 13px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--db-text-3);
+    cursor: pointer;
+}
+
+.ad-tab:hover {
+    color: var(--db-text-2);
+}
+
+.ad-tab.is-active {
+    background: var(--db-card);
+    color: var(--db-text);
+    box-shadow: inset 0 0 0 1px var(--db-border);
+}
+
+.ad-tab-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: var(--db-text-3);
+}
+
+.ad-tab.is-active .ad-tab-count {
+    color: var(--db-accent-bright, var(--db-accent));
+}
+
+.ad-filter-row .ad-search {
+    flex: 0 1 320px;
+    min-width: 220px;
+    height: 40px;
+}
+
+/* Status cell: chip on top, explanation under it — the enrollment status is
+   the primary read, the account state is the footnote. */
+.ad-status-stack {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+}
+
+/* ---- Class roster preview modal (no blind graduations) ---- */
+
+.ad-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(8, 10, 18, 0.55);
+    backdrop-filter: blur(6px);
+}
+
+.ad-modal {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    max-height: min(640px, 92vh);
+    display: flex;
+    flex-direction: column;
+    background: var(--db-card);
+    border: 1px solid var(--db-border-strong, var(--db-border));
+    border-radius: 20px;
+    box-shadow: 0 24px 70px rgba(2, 4, 12, 0.45);
+    padding: 24px;
+}
+
+.ad-modal-title {
+    font-family: var(--db-font-display, inherit);
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--db-text);
+    margin: 0;
+    line-height: 1.25;
+}
+
+.ad-modal-note {
+    font-size: 12.5px;
+    color: var(--db-text-3);
+    margin: 0 0 12px;
+}
+
+.ad-modal-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.ad-roster-list {
+    overflow-y: auto;
+    min-height: 60px;
+    max-height: 300px;
+    margin: 0 0 14px;
+    border: 1px solid var(--db-border);
+    border-radius: 12px;
+    background: var(--db-card-2);
+}
+
+.ad-roster-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--db-border);
+}
+
+.ad-roster-item:first-child {
+    border-top: none;
+}
+
+.ad-roster-id {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.ad-roster-name {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--db-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ad-roster-lrn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: var(--db-text-3);
+}
+
+.ad-roster-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    padding: 22px 14px;
+    font-size: 13.5px;
+    color: var(--db-text-3);
+}
+
 @media (max-width: 800px) {
     .ad-grad-actions {
         width: 100%;
@@ -774,6 +947,19 @@
     }
 
     .ad-grad-btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .ad-filter-row .ad-search {
+        flex: 1 1 100%;
+    }
+
+    .ad-modal {
+        padding: 18px;
+    }
+
+    .ad-modal-foot .ad-grad-btn {
         flex: 1;
         justify-content: center;
     }

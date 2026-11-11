@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\EnrolledStudent;
+use App\Models\PersonalAccessToken;
 use App\Models\User;
 use App\Models\Classroom;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class StudentWhitelistController extends Controller
 {
@@ -51,9 +53,6 @@ class StudentWhitelistController extends Controller
             return response()->json(['message' => 'Either lrn_numbers or class_id is required.'], 422);
         }
 
-        $graduated = 0;
-        $alreadyGraduated = 0;
-
         $targetLrn = $this->resolveTargetLrns($request);
 
         if ($targetLrn->isEmpty()) {
@@ -62,36 +61,64 @@ class StudentWhitelistController extends Controller
                 'message' => "No students found matching {$kind} selection.",
                 'graduated' => 0,
                 'already_graduated' => 0,
+                'not_found' => [],
             ]);
         }
 
-        $lrnSet = $targetLrn->toArray();
+        $lrnSet = $targetLrn->values()->all();
 
-        // Set graduated_at on whitelist rows.
-        EnrolledStudent::whereIn('lrn_number', $lrnSet)->get()->each(function (EnrolledStudent $entry) use (&$graduated, &$alreadyGraduated) {
-            if ($entry->graduated_at !== null) {
-                $alreadyGraduated++;
-                return;
+        // Pasted LRNs that aren't on the whitelist must be REPORTED, not
+        // silently skipped — a typo would otherwise strand a student.
+        $notFound = [];
+        if ($request->has('lrn_numbers')) {
+            $known = EnrolledStudent::whereIn('lrn_number', $lrnSet)->pluck('lrn_number')->all();
+            $notFound = array_values(array_diff($lrnSet, $known));
+        }
+
+        // One transaction: the whitelist update and the account lockout either
+        // both happen or neither does (no half-graduated batches).
+        [$graduated, $alreadyGraduated] = DB::transaction(function () use ($lrnSet, $notFound) {
+            $graduatedLrns = EnrolledStudent::whereIn('lrn_number', $lrnSet)
+                ->whereNull('graduated_at')->pluck('lrn_number')->all();
+
+            if ($graduatedLrns !== []) {
+                EnrolledStudent::whereIn('lrn_number', $graduatedLrns)
+                    ->whereNull('graduated_at')
+                    ->update(['graduated_at' => now()]);
             }
-            $entry->update(['graduated_at' => now()]);
-            $graduated++;
+
+            // Revoke every token / end every session for the affected students
+            // (same mechanism as the existing user disable action). Matches ALL
+            // requested LRNs, not just the newly graduated ones, so re-running
+            // a graduation always re-locks every account it touches.
+            $studentUserIds = User::whereHas('studentProfile', function ($q) use ($lrnSet) {
+                $q->whereIn('lrn_number', $lrnSet);
+            })->pluck('id');
+
+            if ($studentUserIds->isNotEmpty()) {
+                User::whereIn('id', $studentUserIds)->update(['is_active' => false]);
+                PersonalAccessToken::where('tokenable_type', (new User)->getMorphClass())
+                    ->whereIn('tokenable_id', $studentUserIds)
+                    ->delete();
+            }
+
+            // Counts exclude not-found LRNs — "already graduated" must mean
+            // an actual whitelist entry, never an unknown number.
+            $found = count($lrnSet) - count($notFound);
+
+            return [count($graduatedLrns), $found - count($graduatedLrns)];
         });
 
-        // Revoke every token / end every session for the affected students
-        // (same mechanism as the existing user disable action).
-        $studentUsers = User::whereHas('studentProfile', function ($q) use ($lrnSet) {
-            $q->whereIn('lrn_number', $lrnSet);
-        })->get();
-
-        if ($studentUsers->isNotEmpty()) {
-            User::whereIn('id', $studentUsers->pluck('id'))->update(['is_active' => false]);
-            $studentUsers->each(fn (User $u) => $u->tokens()->delete());
+        $message = "Marked {$graduated} student(s) as graduated; {$alreadyGraduated} were already graduated.";
+        if ($notFound !== []) {
+            $message .= ' ' . $this->notFoundNote($notFound);
         }
 
         return response()->json([
-            'message' => "Marked {$graduated} student(s) as graduated; {$alreadyGraduated} were already graduated.",
+            'message' => $message,
             'graduated' => $graduated,
             'already_graduated' => $alreadyGraduated,
+            'not_found' => $notFound,
         ]);
     }
 
@@ -114,9 +141,6 @@ class StudentWhitelistController extends Controller
             return response()->json(['message' => 'Either lrn_numbers or class_id is required.'], 422);
         }
 
-        $reenrolled = 0;
-        $notGraduated = 0;
-
         $targetLrn = $this->resolveTargetLrns($request);
 
         if ($targetLrn->isEmpty()) {
@@ -125,30 +149,95 @@ class StudentWhitelistController extends Controller
                 'message' => "No students found matching {$kind} selection.",
                 'reenrolled' => 0,
                 'not_graduated' => 0,
+                'not_found' => [],
             ]);
         }
 
-        $lrnSet = $targetLrn->toArray();
+        $lrnSet = $targetLrn->values()->all();
 
-        EnrolledStudent::whereIn('lrn_number', $lrnSet)->get()->each(function (EnrolledStudent $entry) use (&$reenrolled, &$notGraduated) {
-            if ($entry->graduated_at === null) {
-                $notGraduated++;
-                return;
+        $notFound = [];
+        if ($request->has('lrn_numbers')) {
+            $known = EnrolledStudent::whereIn('lrn_number', $lrnSet)->pluck('lrn_number')->all();
+            $notFound = array_values(array_diff($lrnSet, $known));
+        }
+
+        // One transaction for the whole undo, same as graduate().
+        [$reenrolled, $notGraduated] = DB::transaction(function () use ($lrnSet, $notFound) {
+            $reenrolledLrns = EnrolledStudent::whereIn('lrn_number', $lrnSet)
+                ->whereNotNull('graduated_at')->pluck('lrn_number')->all();
+
+            if ($reenrolledLrns !== []) {
+                EnrolledStudent::whereIn('lrn_number', $reenrolledLrns)
+                    ->whereNotNull('graduated_at')
+                    ->update(['graduated_at' => null]);
+
+                // Reactivate ONLY the accounts whose graduation was just
+                // undone — re-enrolling a class must never resurrect an
+                // account the admin disabled for an unrelated reason.
+                User::whereHas('studentProfile', function ($q) use ($reenrolledLrns) {
+                    $q->whereIn('lrn_number', $reenrolledLrns);
+                })->update(['is_active' => true]);
             }
-            $entry->update(['graduated_at' => null]);
-            $reenrolled++;
+
+            // Counts exclude not-found LRNs, mirroring graduate().
+            $found = count($lrnSet) - count($notFound);
+
+            return [count($reenrolledLrns), $found - count($reenrolledLrns)];
         });
 
-        // Restore access for the re-enrolled students.
-        User::whereHas('studentProfile', function ($q) use ($lrnSet) {
-            $q->whereIn('lrn_number', $lrnSet);
-        })->update(['is_active' => true]);
+        $message = "Re-enrolled {$reenrolled} student(s); {$notGraduated} were not graduated.";
+        if ($notFound !== []) {
+            $message .= ' ' . $this->notFoundNote($notFound);
+        }
 
         return response()->json([
-            'message' => "Re-enrolled {$reenrolled} student(s); {$notGraduated} were not graduated.",
+            'message' => $message,
             'reenrolled' => $reenrolled,
             'not_graduated' => $notGraduated,
+            'not_found' => $notFound,
         ]);
+    }
+
+    /**
+     * Roster of the students a class-graduate / class-re-enroll action would
+     * affect — the admin UI shows these names BEFORE the action can be
+     * confirmed, so a class is never graduated blind. Same join as
+     * resolveTargetLrns() (enrollments.student_id references users.id, so the
+     * path is whitelist → student_profiles → enrollments).
+     */
+    public function classStudents($classId): JsonResponse
+    {
+        $students = EnrolledStudent::query()
+            ->join('student_profiles', 'student_profiles.lrn_number', '=', 'enrolled_students.lrn_number')
+            ->join('enrollments', 'enrollments.student_id', '=', 'student_profiles.user_id')
+            ->where('enrollments.class_id', (int) $classId)
+            ->distinct()
+            ->orderBy('enrolled_students.last_name')
+            ->orderBy('enrolled_students.first_name')
+            ->get([
+                'enrolled_students.id',
+                'enrolled_students.lrn_number',
+                'enrolled_students.first_name',
+                'enrolled_students.last_name',
+                'enrolled_students.claimed',
+                'enrolled_students.graduated_at',
+            ]);
+
+        return response()->json(['students' => $students->values()]);
+    }
+
+    /**
+     * Human-readable note about pasted LRNs that matched no whitelist row.
+     * Lists at most 8 of them so the toast stays readable.
+     */
+    private function notFoundNote(array $lrns): string
+    {
+        $shown = array_slice($lrns, 0, 8);
+        $extra = count($lrns) - count($shown);
+
+        return count($lrns) . ' LRN(s) were not found on the whitelist and were left alone: '
+            . implode(', ', $shown)
+            . ($extra > 0 ? " — and {$extra} more." : '.');
     }
 
     public function store(Request $request)
@@ -202,7 +291,8 @@ class StudentWhitelistController extends Controller
     private function resolveTargetLrns(Request $request)
     {
         if ($request->has('lrn_numbers')) {
-            return collect($request->input('lrn_numbers'));
+            // unique(): a pasted list can repeat an LRN; counts must not.
+            return collect($request->input('lrn_numbers'))->unique()->values();
         }
 
         return EnrolledStudent::query()

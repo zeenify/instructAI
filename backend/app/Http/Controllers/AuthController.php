@@ -119,9 +119,9 @@ class AuthController extends Controller
             // Tokens never expire, so revoking them is what ends live sessions.
             $user->tokens()->delete();
 
-            return response()->json(['message' => 'This account has been disabled by the school admin.'], 403);
+            return response()->json(['message' => $this->disabledLoginMessage($user)], 403);
         }
-        
+
         // Determine which profile to load
         $profile = $user->role === 'student' ? 'studentProfile' : 'teacherProfile';
         
@@ -236,7 +236,7 @@ class AuthController extends Controller
             if (!$user->is_active) {
                 $user->tokens()->delete();
 
-                return response()->json(['message' => 'This account has been disabled by the school admin.'], 403);
+                return response()->json(['message' => $this->disabledLoginMessage($user)], 403);
             }
 
             // Generate Token
@@ -259,6 +259,26 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Logged out successfully']);
+    }
+
+    /**
+     * Why a sign-in was refused. A graduated student gets the graduation
+     * wording (the defense panel's revision) instead of the generic
+     * "disabled" line — the check is MESSAGE-ONLY: is_active stays the
+     * single access gate, nothing about authorization changes here.
+     */
+    private function disabledLoginMessage(User $user): string
+    {
+        if ($user->role === 'student') {
+            $lrn = $user->studentProfile?->lrn_number;
+
+            if ($lrn && EnrolledStudent::where('lrn_number', $lrn)->whereNotNull('graduated_at')->exists()) {
+                return 'Your LRN is marked as graduated, so this account can no longer sign in. '
+                    . 'Please contact the school admin if you believe this is a mistake.';
+            }
+        }
+
+        return 'This account has been disabled by the school admin.';
     }
 
     /**
