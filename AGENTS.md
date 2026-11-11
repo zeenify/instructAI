@@ -22,6 +22,20 @@ numbers) and `WhitelistedTeacher` models; UI in `pages/admin/`
 (`StudentWhitelist.jsx`, `TeacherWhitelist.jsx`) on the shared `AdminLayout`
 with `components/admin/WhitelistManager.jsx`.
 
+**Student graduation (panel revision).** `enrolled_students.graduated_at`
+(NULL = actively enrolled, timestamp = graduated) is the only enrollment-
+status model — there is deliberately no grade-level/school-year structure
+(classes are flat named rooms; the old `grade_level`/`section` whitelist
+columns were dropped). Graduating an LRN sets `graduated_at`, flips the
+student's `users.is_active` to false and revokes every token, so sessions
+end immediately and login/registration reject the LRN; "Re-enroll" clears
+the timestamp and re-activates the account. Bulk paths live on the admin
+whitelist page: graduate a whole class (only students *currently enrolled*
+in it), selected checkboxes, or pasted LRNs. Routes:
+`/api/admin/student-whitelist/{classes,graduate,re-enroll}`; the
+class→student join goes through `student_profiles` because
+`enrollments.student_id` references `users.id`, not the LRN.
+
 ## Data layer migration (ACTIVE — read before touching any page's fetching)
 
 We are migrating all data fetching to **TanStack Query** (stale-while-revalidate)
